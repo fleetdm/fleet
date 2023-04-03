@@ -3144,6 +3144,37 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Authentication Policy Change' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports changes in authentication policy. Events for this subcategory include:
+      -  4706: A new trust was created to a domain.
+      -  4707: A trust to a domain was removed.
+      -  4713: Kerberos policy was changed.
+      -  4716: Trusted domain information was modified.
+      -  4717: System security access was granted to an account.
+      -  4718: System security access was removed from an account.
+      -  4739: Domain Policy was changed.
+      -  4864: A namespace collision was detected.
+      -  4865: A trusted forest information entry was added.
+      -  4866: A trusted forest information entry was removed.
+      -  4867: A trusted forest information entry was modified.
+    The recommended state for this setting is to include: Success.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Policy Change\Audit Authentication Policy Change'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PolicyChange_AuditAuthenticationPolicyChange</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 1 OR mdm_command_output = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
