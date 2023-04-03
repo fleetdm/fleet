@@ -195,6 +195,7 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -406,16 +407,18 @@ type Datastore interface {
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
-	// ListSoftwareBySourceIter returns an iterator for consuming all software rows filtered by
-	// their 'source'.
-	ListSoftwareBySourceIter(ctx context.Context, sources []string) (SoftwareIterator, error)
-
-	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
-	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
+	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
+	// UpsertSoftwareCPEs either inserts new 'software_cpe' entries, or if a now with the same CPE
+	// already exists, performs an update operation. Returns the number of rows affected.
+	UpsertSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
+	// DeleteSoftwareCPEs removes entries from 'software_cpe' by matching the software_id in the
+	// provided cpes. Returns the number of rows affected.
+	DeleteSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
-	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
-	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
-	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
+	// InsertSoftwareVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
+	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -505,6 +508,9 @@ type Datastore interface {
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
 	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
+	// the updated_at timestamp is older than the provided duration
+	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -924,6 +930,11 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
+
+// TODO: we have a similar but different interface in the service package,
+// service.NotFoundErr - at the very least, the IsNotFound method should be the
+// same in both (the other is currently NotFound), and ideally we'd just have
+// one of those interfaces.
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

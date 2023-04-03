@@ -168,7 +168,14 @@ const QueryEditor = ({
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink text="Back to policies" path={PATHS.MANAGE_POLICIES} />
+        <BackLink
+          text="Back to policies"
+          path={
+            policyTeamId
+              ? `${PATHS.MANAGE_POLICIES}?team_id=${policyTeamId}`
+              : PATHS.MANAGE_POLICIES
+          }
+        />
       </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}

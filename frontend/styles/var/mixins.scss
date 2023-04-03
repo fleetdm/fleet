@@ -36,3 +36,14 @@ $max-width: 2560px;
   margin: 0;
   padding: $pad-xxlarge 0 54px 0;
 }
+
+@mixin grey-badge {
+  background-color: $ui-fleet-black-25;
+  color: $core-white;
+  font-size: $xx-small;
+  font-weight: 700;
+  padding: 0 $pad-xsmall;
+  border-radius: $border-radius;
+  position: relative;
+  margin-left: $pad-xsmall;
+}

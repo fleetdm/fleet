@@ -886,6 +886,10 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
+	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
 	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)

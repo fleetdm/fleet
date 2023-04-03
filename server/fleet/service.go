@@ -633,8 +633,9 @@ type Service interface {
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
-	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	// EnqueueMDMAppleCommand enqueues a command for execution on the given
+	// devices. Note that a deviceID is the same as a host's UUID.
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.

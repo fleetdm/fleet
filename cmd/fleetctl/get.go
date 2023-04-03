@@ -664,12 +664,8 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					appCfg, err := client.GetAppConfig()
-					if err != nil {
+					if err := checkMDMEnabled(client); err != nil {
 						return err
-					}
-					if !appCfg.MDM.EnabledAndConfigured {
-						return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
 					}
 
 					// --mdm and --mdm-pending are mutually exclusive, return an error if
@@ -1109,7 +1105,6 @@ func getSoftwareCommand() *cli.Command {
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm_apple",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
 		Aliases: []string{"mdm-apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
@@ -1159,7 +1154,6 @@ func getMDMAppleCommand() *cli.Command {
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm_apple_bm",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
 		Aliases: []string{"mdm-apple-bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{

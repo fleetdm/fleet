@@ -131,12 +131,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, true)
+					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, true)
 					depSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-							return fleetSyncer.Run(ctx)
+							return fleetSyncer.RunAssigner(ctx)
 						}),
 					)
 					return depSchedule, nil
@@ -519,15 +519,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-
-	// create a DEP enrollment profile
-	profile := json.RawMessage("{}")
-	var createProfileResp createMDMAppleEnrollmentProfileResponse
-	createProfileReq := createMDMAppleEnrollmentProfileRequest{
-		Type:       "automatic",
-		DEPProfile: &profile,
-	}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", createProfileReq, http.StatusOK, &createProfileResp)
 
 	// query all hosts
 	listHostsRes := listHostsResponse{}
@@ -2513,6 +2504,62 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	// the old configuration profile is kept
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
 
+}
+
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
+	t := s.T()
+
+	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
+	enrolledHost := newMDMEnrolledDevice(s)
+
+	newRawCmd := func() string {
+		return base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, uuid.New().String())))
+	}
+
+	// call with unknown host UUID
+	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   newRawCmd(),
+			DeviceIDs: []string{"no-such-host"},
+		}, http.StatusNotFound)
+
+	// call with unenrolled host UUID
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   newRawCmd(),
+			DeviceIDs: []string{unenrolledHost.UUID},
+		}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// call with enrolled host UUID
+	rawCmd := newRawCmd()
+	var resp enqueueMDMAppleCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   rawCmd,
+			DeviceIDs: []string{enrolledHost.uuid},
+		}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.CommandUUID)
+	decodedCmd, err := base64.RawStdEncoding.DecodeString(rawCmd)
+	require.NoError(t, err)
+	require.Contains(t, string(decodedCmd), resp.CommandUUID)
+	require.Empty(t, resp.FailedUUIDs)
+	require.Equal(t, "ProfileList", resp.RequestType)
 }
 
 // only asserts the profile identifier, status and operation (per host)
