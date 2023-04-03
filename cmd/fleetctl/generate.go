@@ -84,13 +84,13 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				return err
 			}
 
-			if err := os.WriteFile(apnsKeyPath, csr.APNsKey, 0600); err != nil {
+			if err := os.WriteFile(apnsKeyPath, csr.APNsKey, defaultFileMode); err != nil {
 				return fmt.Errorf("failed to write APNs private key: %w", err)
 			}
-			if err := os.WriteFile(scepCACertPath, csr.SCEPCert, 0600); err != nil {
+			if err := os.WriteFile(scepCACertPath, csr.SCEPCert, defaultFileMode); err != nil {
 				return fmt.Errorf("failed to write SCEP CA certificate: %w", err)
 			}
-			if err := os.WriteFile(scepCAKeyPath, csr.SCEPKey, 0600); err != nil {
+			if err := os.WriteFile(scepCAKeyPath, csr.SCEPKey, defaultFileMode); err != nil {
 				return fmt.Errorf("failed to write SCEP CA private key: %w", err)
 			}
 

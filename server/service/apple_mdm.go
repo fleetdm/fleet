@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -27,14 +28,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/storage"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
@@ -879,13 +879,12 @@ func (svc *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleD
 type enqueueMDMAppleCommandRequest struct {
 	Command   string   `json:"command"`
 	DeviceIDs []string `json:"device_ids"`
-	NoPush    bool     `json:"no_push"`
 }
 
 type enqueueMDMAppleCommandResponse struct {
-	status int                        `json:"-"`
-	Result fleet.CommandEnqueueResult `json:"result"`
-	Err    error                      `json:"error,omitempty"`
+	*fleet.CommandEnqueueResult
+	status int   `json:"-"`
+	Err    error `json:"error,omitempty"`
 }
 
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
@@ -893,13 +892,13 @@ func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, req.NoPush)
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, false)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
 	return enqueueMDMAppleCommandResponse{
-		status: status,
-		Result: *result,
+		status:               status,
+		CommandEnqueueResult: result,
 	}, nil
 }
 
@@ -930,6 +929,9 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
 	if err != nil {
 		return 0, nil, err
+	}
+	if len(hosts) == 0 {
+		return 0, nil, newNotFoundError()
 	}
 
 	// collect the team IDs and verify that the user has access to run commands
@@ -974,135 +976,35 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		}
 	}
 
-	// TODO(mna): hmmm is this ok to still call this (deprecated) func? Or is
-	// there a ticket to re-implement or address this?
-	return deprecatedRawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, cmd, deviceIDs, noPush, svc.logger)
-}
-
-// deprecatedRawCommandEnqueue enqueues a command to be executed on the given devices.
-//
-// This method was extracted from:
-// https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
-// NOTE(lucas): At the time, I found no way to reuse Fleet's gokit middlewares with a raw http.Handler
-// like api.RawCommandEnqueueHandler.
-func deprecatedRawCommandEnqueue(
-	ctx context.Context,
-	enqueuer storage.CommandEnqueuer,
-	pusher push.Pusher,
-	command *mdm.Command,
-	deviceIDs []string,
-	noPush bool,
-	logger kitlog.Logger,
-) (status int, result *fleet.CommandEnqueueResult, err error) {
-	output := fleet.CommandEnqueueResult{
-		Status:      make(fleet.EnrolledAPIResults),
-		NoPush:      noPush,
-		CommandUUID: command.CommandUUID,
-		RequestType: command.Command.RequestType,
-	}
-
-	logger = kitlog.With(
-		logger,
-		"command_uuid", command.CommandUUID,
-		"request_type", command.Command.RequestType,
-	)
-	logs := []interface{}{
-		"msg", "enqueue",
-	}
-	// TODO(mna): this fails with a Foreign Key issue if the device is no longer
-	// enrolled at the time this runs (in MySqLStorage.EnqueueCommand):
-	//
-	// 	 Cannot add or update a child row: a foreign key constraint fails
-	// 	 (`fleet`.`nano_enrollment_queue`, CONSTRAINT
-	// 	 `nano_enrollment_queue_ibfk_1` FOREIGN KEY (`id`) REFERENCES
-	// 	 `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)"
-	//
-	// This happened to me because I was tricking the DB to get a Fleet-enrolled
-	// host, but this could happen with real data given that despite any checks
-	// before this call, the host could be unenrolled by the time this runs. One
-	// option would be to ignore such errors in the nanomdm implementation, or
-	// maybe it's ok to have it fail with a 500 in the rare cases where it could
-	// happen.
-	idErrs, err := enqueuer.EnqueueCommand(ctx, deviceIDs, command)
-	ct := len(deviceIDs) - len(idErrs)
-	if err != nil {
-		logs = append(logs, "err", err)
-		output.CommandError = err.Error()
-		if len(idErrs) == 0 {
-			// we assume if there were no ID-specific errors but
-			// there was a general error then all IDs failed
-			ct = 0
-		}
-	}
-	logs = append(logs, "count", ct)
-	if len(idErrs) > 0 {
-		logs = append(logs, "errs", len(idErrs))
-	}
-	if err != nil || len(idErrs) > 0 {
-		level.Info(logger).Log(logs...)
-	} else {
-		level.Debug(logger).Log(logs...)
-	}
-	// loop through our command errors, if any, and add to output
-	for id, err := range idErrs {
-		if err != nil {
-			output.Status[id] = &fleet.EnrolledAPIResult{
-				CommandError: err.Error(),
+	if err := svc.mdmAppleCommander.enqueue(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+		// if at least one UUID enqueued properly, return success, otherwise return 500
+		var apnsErr *APNSDeliveryError
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &apnsErr) {
+			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+				// some hosts properly received the command, so return success, with the list
+				// of failed uuids.
+				return http.StatusOK, &fleet.CommandEnqueueResult{
+					CommandUUID: cmd.CommandUUID,
+					RequestType: cmd.Command.RequestType,
+					FailedUUIDs: apnsErr.FailedUUIDs,
+				}, nil
+			}
+		} else if errors.As(err, &mysqlErr) {
+			// enqueue may fail with a foreign key constraint error 1452 when one of
+			// the hosts provided is not enrolled in nano_enrollments. Detect when
+			// that's the case and add information to the error.
+			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+				err := fleet.NewInvalidArgumentError("device_ids", fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err))
+				return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 			}
 		}
+		return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 	}
-	// optionally send pushes
-	pushResp := make(map[string]*push.Response)
-	var pushErr error
-	if !noPush {
-		pushResp, pushErr = pusher.Push(ctx, deviceIDs)
-		if err != nil {
-			level.Info(logger).Log("msg", "push", "err", err)
-			output.PushError = err.Error()
-		}
-	} else {
-		pushErr = nil
-	}
-	// loop through our push errors, if any, and add to output
-	var pushCt, pushErrCt int
-	for id, resp := range pushResp {
-		if _, ok := output.Status[id]; ok {
-			output.Status[id].PushResult = resp.Id
-		} else {
-			output.Status[id] = &fleet.EnrolledAPIResult{
-				PushResult: resp.Id,
-			}
-		}
-		if resp.Err != nil {
-			output.Status[id].PushError = resp.Err.Error()
-			pushErrCt++
-		} else {
-			pushCt++
-		}
-	}
-	logs = []interface{}{
-		"msg", "push",
-		"count", pushCt,
-	}
-	if pushErr != nil {
-		logs = append(logs, "err", pushErr)
-	}
-	if pushErrCt > 0 {
-		logs = append(logs, "errs", pushErrCt)
-	}
-	if pushErr != nil || pushErrCt > 0 {
-		level.Info(logger).Log(logs...)
-	} else {
-		level.Debug(logger).Log(logs...)
-	}
-	// generate response codes depending on if everything succeeded, failed, or parially succedded
-	header := http.StatusInternalServerError
-	if (len(idErrs) > 0 || err != nil || (!noPush && (pushErrCt > 0 || pushErr != nil))) && (ct > 0 || (!noPush && (pushCt > 0))) {
-		header = http.StatusMultiStatus
-	} else if (len(idErrs) == 0 && err == nil && (noPush || (pushErrCt == 0 && pushErr == nil))) && (ct >= 1 && (noPush || (pushCt >= 1))) {
-		header = http.StatusOK
-	}
-	return header, &output, nil
+	return http.StatusOK, &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.Command.RequestType,
+	}, nil
 }
 
 type mdmAppleEnrollRequest struct {

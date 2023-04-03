@@ -30,8 +30,9 @@ func mdmCommand() *cli.Command {
 
 func mdmRunCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "run-command",
-		Usage: "Run a custom MDM command on one macOS host. Head to Apple's documentation for a list of available commands and example payloads here:  https://developer.apple.com/documentation/devicemanagement/commands_and_queries",
+		Name:    "run-command",
+		Aliases: []string{"run_command"},
+		Usage:   "Run a custom MDM command on one macOS host. Head to Apple's documentation for a list of available commands and example payloads here:  https://developer.apple.com/documentation/devicemanagement/commands_and_queries",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "host",
