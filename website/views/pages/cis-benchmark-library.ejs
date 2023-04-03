@@ -36,11 +36,11 @@ Fleet implements CIS Benchmarks using  <a href="https://fleetdm.com/docs/using-f
                 <p class="d-inline-flex mb-0 pr-1">Show</p>
                 <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{ selectedPlatforms === 'win10' ? 'Windows 10 Enterprise' : selectedPlatforms === 'mac13' ? 'Mac 13.0 Ventura' : 'all benchmarks'}}
+                  {{ selectedPlatforms === 'win10' ? 'Windows 10 Enterprise' : selectedPlatforms === 'macOS' ? 'Mac 13.0 Ventura' : 'all benchmarks'}}
                 </button>
                 <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPurpose">
                   <button class="dropdown-item" type="button"
-                    @click="clickSelectPlatforms('mac13')">macOS 13.0 Ventura</button>
+                    @click="clickSelectPlatforms('macOS')">macOS 13.0 Ventura</button>
                     <button class="dropdown-item" type="button"
                     @click="clickSelectPlatforms('win10')">Windows 10 Enterprise</button>
                 </div>
@@ -63,7 +63,7 @@ Fleet implements CIS Benchmarks using  <a href="https://fleetdm.com/docs/using-f
       </div>
       <div class="results">
         <div purpose="selected-tag" v-if="selectedTag">
-          <p>Showing {{ selectedPlatforms === 'win10' ? 'Windows 10 Enterprise benchmarks' : selectedPlatforms === 'mac13' ? 'Mac 13.0 Ventura benchmarks' : 'all benchmarks'}} for <span purpose="query-tag" class="d-inline-block" style="cursor: pointer;" @click="clickSelectTag('')">{{selectedTag}}<span style="color: #8b8fa2;" class="fa fa-times-circle pl-2"></span></span></p>
+          <p>Showing {{ selectedPlatforms === 'win10' ? 'Windows 10 Enterprise benchmarks' : selectedPlatforms === 'macOS' ? 'Mac 13.0 Ventura benchmarks' : 'all benchmarks'}} for <span purpose="query-tag" class="d-inline-block" style="cursor: pointer;" @click="clickSelectTag('')">{{selectedTag}}<span style="color: #8b8fa2;" class="fa fa-times-circle pl-2"></span></span></p>
         </div>
         <div class="category__informational">
           <div v-for="query of queriesList">

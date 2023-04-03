@@ -160,12 +160,13 @@ module.exports = {
 
         let RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO = 'ee/cis/macos-13/cis-policy-queries.yml';
         let RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO = 'ee/cis/win-10/cis-policy-queries.yml';
-        let cisBenchmarksYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find CIS Benchmarks file at "${RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let cisBenchmarksMacYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find macOS CIS Benchmarks file at "${RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let cisBenchmarksWindowsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find Windows CIS Benchmarks file at "${RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
 
         let cisBenchmarksWithProblematicResolutions = [];
         let cisBenchmarksWithProblematicContributors = [];
         let cisBenchmarksWithProblematicTags = [];
-        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksYaml).map((yamlDocument)=>{
+        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksMacYaml, cisBenchmarksWindowsYaml).map((yamlDocument)=>{
           let benchmark = yamlDocument.toJSON().spec;
           benchmark.kind = yamlDocument.toJSON().kind;
           benchmark.slug = _.kebabCase(benchmark.name);// « unique slug to use for routing to this CIS Benchmarks's detail page
@@ -292,7 +293,7 @@ module.exports = {
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
-        builtStaticContent.cisBenchMarks = cisBenchmarks;
+        builtStaticContent.cisBenchmarks = cisBenchmarks;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
         builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO;
         builtStaticContent.cisBenchmarkLibrarbyWindowsYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO;
