@@ -1,3 +1,4 @@
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import { uniqueId } from "lodash";
 import React from "react";
@@ -20,10 +21,13 @@ const PremiumFeatureIconWithTooltip = () => {
         delayUpdate={500}
       >
         {`This is a Fleet Premium feature. `}
-        <a href="https://fleetdm.com/upgrade" rel="noreferrer" target="_blank">
-          {"Learn more"}
-        </a>
-        .
+        <CustomLink
+          url="https://fleetdm.com/upgrade"
+          text="Learn more"
+          newTab
+          multiline={false}
+          iconColor="core-fleet-white"
+        />
       </ReactTooltip>
     </span>
   );
