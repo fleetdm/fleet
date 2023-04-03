@@ -3175,6 +3175,31 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Authorization Policy Change' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports changes in authorization policy. Events for this subcategory include:
+      -  4704: A user right was assigned.
+      -  4705: A user right was removed.
+      -  4706: A new trust was created to a domain.
+      -  4707: A trust to a domain was removed.
+      -  4714: Encrypted data recovery policy was changed.
+    The recommended state for this setting is to include: Success.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Policy Change\Audit Authorization Policy Change'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PolicyChange_AuditAuthorizationPolicyChange</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 1 OR mdm_command_output = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
