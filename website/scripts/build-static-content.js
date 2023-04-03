@@ -158,9 +158,144 @@ module.exports = {
           }
         }
 
+        let RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO = 'ee/cis/macos-13/cis-policy-queries.yml';
+        let RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO = 'ee/cis/win-10/cis-policy-queries.yml';
+        let cisBenchmarksYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find CIS Benchmarks file at "${RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+
+        let cisBenchmarksWithProblematicResolutions = [];
+        let cisBenchmarksWithProblematicContributors = [];
+        let cisBenchmarksWithProblematicTags = [];
+        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksYaml).map((yamlDocument)=>{
+          let benchmark = yamlDocument.toJSON().spec;
+          benchmark.kind = yamlDocument.toJSON().kind;
+          benchmark.slug = _.kebabCase(benchmark.name);// « unique slug to use for routing to this CIS Benchmarks's detail page
+          if ((benchmark.resolution !== undefined && !_.isString(benchmark.resolution)) || (benchmark.kind !== 'policy' && _.isString(benchmark.resolution))) {
+            // console.log(typeof benchmark.resolution);
+            cisBenchmarksWithProblematicResolutions.push(benchmark);
+          } else if (benchmark.resolution === undefined) {
+            benchmark.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
+          }
+          benchmark.requiresMdm = false;
+          if (benchmark.tags) {
+            if(!_.isString(benchmark.tags)) {
+              cisBenchmarksWithProblematicTags.push(benchmark);
+            } else {
+              // Splitting tags into an array to format them.
+              let tagsToFormat = benchmark.tags.split(',');
+              let formattedTags = [];
+              for (let tag of tagsToFormat) {
+                if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                  // If a benchmark has a 'requires MDM' tag, we'll set requiresMDM to true for this benchmark, and we'll ingore this tag.
+                  if(_.trim(tag.toLowerCase()) === 'mdm required'){
+                    benchmark.requiresMdm = true;
+                  } else {
+                    // Removing any extra whitespace from tags and changing them to be in lower case.
+                    formattedTags.push(_.trim(tag.toLowerCase()));
+                  }
+                }
+              }
+              // Removing any duplicate tags.
+              benchmark.tags = _.uniq(formattedTags);
+            }
+          } else {
+            benchmark.tags = []; // « if there are no tags, we set benchmark.tags to an empty array so it is always the same data type.
+          }
+
+          // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+          if (!benchmark.contributors || (benchmark.contributors !== undefined && !_.isString(benchmark.contributors)) || benchmark.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+            cisBenchmarksWithProblematicContributors.push(benchmark);
+          }
+
+          return benchmark;
+        });
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (cisBenchmarksWithProblematicResolutions.length >= 1) {
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "resolution" of a benchmark should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a benchmark\'s kind is "policy".  But one or more queries have an invalid "resolution": ' + _.pluck(cisBenchmarksWithProblematicResolutions, 'slug').sort());
+        }//•
+        if (cisBenchmarksWithProblematicTags.length >= 1) {
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "tags" of a benchmark should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(cisBenchmarksWithProblematicTags, 'slug').sort());
+        }
+        // Assert uniqueness of slugs.
+        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
+          throw new Error('Failed parsing YAML for CIS benchmarks: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        }//•
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (cisBenchmarksWithProblematicContributors.length >= 1) {
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "contributors" of a benchmark should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(cisBenchmarksWithProblematicContributors, 'slug').sort());
+        }//•
+
+        // Get a distinct list of all GitHub usernames from all of our queries.
+        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        const cisBenchmarksGithubUsernames = cisBenchmarks.reduce((list, benchmark) => {
+          if (!cisBenchmarksWithProblematicContributors.find((element) => element.slug === benchmark.slug)) {
+            list = _.union(list, benchmark.contributors.split(','));
+          }
+          return list;
+        }, []);
+
+        let cisBenchmarksGithubDataByUsername = {};
+
+        if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
+          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
+          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
+          for (let benchmark of cisBenchmarks) {
+            let usernames = benchmark.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            benchmark.contributors = contributorProfiles;
+          }
+        } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+
+          let baseHeadersForGithubRequests = {
+            'User-Agent': 'Fleet-CIS-Benchmarks',
+            'Accept': 'application/vnd.github.v3+json',
+          };
+
+          if(githubAccessToken) {
+            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+          }
+          await sails.helpers.flow.simultaneouslyForEach(cisBenchmarksGithubUsernames, async(username)=>{
+            cisBenchmarksGithubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: baseHeadersForGithubRequests,
+            }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+              } else {// If the error was not because of the user's API rate limit, we'll display the full error
+                throw err;
+              }
+            });
+          });//∞
+          // Now expand CIS Benchmarks with relevant profile data for the contributors.
+          for (let benchmark of cisBenchmarks) {
+            let usernames = benchmark.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: cisBenchmarksGithubDataByUsername[username].name,
+                handle: cisBenchmarksGithubDataByUsername[username].login,
+                avatarUrl: cisBenchmarksGithubDataByUsername[username].avatar_url,
+                htmlUrl: cisBenchmarksGithubDataByUsername[username].html_url,
+              });
+            }
+            benchmark.contributors = contributorProfiles;
+          }
+        }
+
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
+        builtStaticContent.cisBenchMarks = cisBenchmarks;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
+        builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO;
+        builtStaticContent.cisBenchmarkLibrarbyWindowsYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';

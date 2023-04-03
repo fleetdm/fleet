@@ -28,6 +28,8 @@ module.exports.policies = {
   'deliver-contact-form-message': true,
   'view-query-detail': true,
   'view-query-library': true,
+  'view-benchmark-detail': true,
+  'view-cis-benchmarks': true,
   'docs/*': true,
   'handbook/*': true,
   'download-sitemap': true,

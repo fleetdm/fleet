@@ -50,7 +50,7 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 
-How to import them to Fleet:
+How to import them to Fleet using [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli):
 ```sh
 # Download policy queries from Fleet's repository (e.g. for macOS 13)
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml

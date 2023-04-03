@@ -67,6 +67,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /cis-benchmarks': {
+    action: 'view-cis-benchmarks',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'CIS Benchmarks | Fleet for osquery',
+      pageDescriptionForMeta: 'CIS Benchmarks implemented using policies available in Fleet Premium and Fleet Ultimate.'
+    }
+  },
+
+  'GET /cis-benchmarks/:slug': {
+    action: 'view-benchmark-detail',
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
   'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
