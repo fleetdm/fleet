@@ -28,7 +28,7 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
-variable "sentry_dsn" {
+variable "fleet_sentry_dsn" {
 }
 
 data "aws_caller_identity" "current" {}
@@ -45,7 +45,7 @@ locals {
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
   }
   sentry_secrets = {
-    SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+    FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
 }
 
@@ -153,7 +153,7 @@ resource "aws_secretsmanager_secret" "sentry" {
 resource "aws_secretsmanager_secret_version" "sentry" {
   secret_id = aws_secretsmanager_secret.sentry.id
   secret_string = jsonencode({
-    SENTRY_DSN = var.sentry_dsn
+    FLEET_SENTRY_DSN = var.fleet_sentry_dsn
   })
 }
 

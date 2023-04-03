@@ -563,10 +563,18 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write Apple commands.
+# Global admins and maintainers can read and write (execute) MDM Apple commands.
 allow {
   object.type == "mdm_apple_command"
-  subject.global_role == admin
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team admins and maintainers can read and write (execute) MDM Apple commands on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_command"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 

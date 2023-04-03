@@ -2398,6 +2398,62 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
+	t := s.T()
+
+	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
+	enrolledHost := newMDMEnrolledDevice(s)
+
+	newRawCmd := func() string {
+		return base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, uuid.New().String())))
+	}
+
+	// call with unknown host UUID
+	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   newRawCmd(),
+			DeviceIDs: []string{"no-such-host"},
+		}, http.StatusNotFound)
+
+	// call with unenrolled host UUID
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   newRawCmd(),
+			DeviceIDs: []string{unenrolledHost.UUID},
+		}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// call with enrolled host UUID
+	rawCmd := newRawCmd()
+	var resp enqueueMDMAppleCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   rawCmd,
+			DeviceIDs: []string{enrolledHost.uuid},
+		}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.CommandUUID)
+	decodedCmd, err := base64.RawStdEncoding.DecodeString(rawCmd)
+	require.NoError(t, err)
+	require.Contains(t, string(decodedCmd), resp.CommandUUID)
+	require.Empty(t, resp.FailedUUIDs)
+	require.Equal(t, "ProfileList", resp.RequestType)
+}
+
 // only asserts the profile identifier, status and operation (per host)
 func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()
