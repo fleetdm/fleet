@@ -62,15 +62,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
 
-  const pageStatus = new URLSearchParams(location.search).get("status");
-  const [errors, setErrors] = useState<{ [key: string]: string }>(
-    pageStatus && pageStatus in statusMessages
-      ? formatErrorResponse({
-          status: pageStatus,
-          data: { errors: [{ name: "base", reason: "Authentication failed" }] },
-        })
-      : {}
-  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loginVisible, setLoginVisible] = useState(true);
 
   const {
@@ -117,12 +109,14 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     })();
   }, []);
 
-  // // TODO(sarah): fix this effect so that it isn't causing infinte re-renders
-  // useEffect(() => {
-  //   if (pageStatus && pageStatus in statusMessages) {
-  //     renderFlash("error", statusMessages[pageStatus as keyof IStatusMessages]);
-  //   }
-  // }, [pageStatus, renderFlash]);
+  // TODO: Fix this. If renderFlash is added as a dependency is causes infinite re-renders.
+  useEffect(() => {
+    let status = new URLSearchParams(location.search).get("status");
+    status = status && statusMessages[status as keyof IStatusMessages];
+    if (status) {
+      renderFlash("error", status);
+    }
+  }, [location?.search]);
 
   const onChange = useCallback(() => {
     if (size(errors)) {
