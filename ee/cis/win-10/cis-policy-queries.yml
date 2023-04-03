@@ -3234,6 +3234,36 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Other Policy Change Events' is set to include 'Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory contains events about EFS Data Recovery Agent policy changes, changes in Windows Filtering Platform filter, status on Security policy settings updates for local Group Policy settings, Central Access Policy changes, and detailed troubleshooting events for Cryptographic Next Generation (CNG) operations.
+      -  5063: A cryptographic provider operation was attempted.
+      -  5064: A cryptographic context operation was attempted.
+      -  5065: A cryptographic context modification was attempted.
+      -  5066: A cryptographic function operation was attempted.
+      -  5067: A cryptographic function modification was attempted.
+      -  5068: A cryptographic function provider operation was attempted.
+      -  5069: A cryptographic function property operation was attempted.
+      -  5070: A cryptographic function property modification was attempted.
+      -  6145: One or more errors occurred while processing security policy in the group
+      policy objects.
+    The recommended state for this setting is to include: Failure.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Policy Change\Audit Other Policy Change Events'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PolicyChange_AuditOtherPolicyChangeEvents</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 2 OR mdm_command_output = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
