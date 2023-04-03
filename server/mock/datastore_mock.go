@@ -312,15 +312,15 @@ type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, ho
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
-type ListSoftwareBySourceIterFunc func(ctx context.Context, sources []string) (fleet.SoftwareIterator, error)
+type AllSoftwareIteratorFunc func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error)
 
-type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error)
+type UpsertSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
 
-type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
+type DeleteSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
 
 type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
-type InsertSoftwareVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
+type InsertSoftwareVulnerabilityFunc func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
@@ -387,6 +387,8 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
 type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+
+type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -1023,20 +1025,20 @@ type DataStore struct {
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
 
-	ListSoftwareBySourceIterFunc        ListSoftwareBySourceIterFunc
-	ListSoftwareBySourceIterFuncInvoked bool
+	AllSoftwareIteratorFunc        AllSoftwareIteratorFunc
+	AllSoftwareIteratorFuncInvoked bool
 
-	AllSoftwareWithoutCPEIteratorFunc        AllSoftwareWithoutCPEIteratorFunc
-	AllSoftwareWithoutCPEIteratorFuncInvoked bool
+	UpsertSoftwareCPEsFunc        UpsertSoftwareCPEsFunc
+	UpsertSoftwareCPEsFuncInvoked bool
 
-	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
-	AddCPEForSoftwareFuncInvoked bool
+	DeleteSoftwareCPEsFunc        DeleteSoftwareCPEsFunc
+	DeleteSoftwareCPEsFuncInvoked bool
 
 	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
 	ListSoftwareCPEsFuncInvoked bool
 
-	InsertSoftwareVulnerabilitiesFunc        InsertSoftwareVulnerabilitiesFunc
-	InsertSoftwareVulnerabilitiesFuncInvoked bool
+	InsertSoftwareVulnerabilityFunc        InsertSoftwareVulnerabilityFunc
+	InsertSoftwareVulnerabilityFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -1136,6 +1138,9 @@ type DataStore struct {
 
 	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
 	DeleteSoftwareVulnerabilitiesFuncInvoked bool
+
+	DeleteOutOfDateVulnerabilitiesFunc        DeleteOutOfDateVulnerabilitiesFunc
+	DeleteOutOfDateVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -2461,25 +2466,25 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
-func (s *DataStore) ListSoftwareBySourceIter(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
+func (s *DataStore) AllSoftwareIterator(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 	s.mu.Lock()
-	s.ListSoftwareBySourceIterFuncInvoked = true
+	s.AllSoftwareIteratorFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareBySourceIterFunc(ctx, sources)
+	return s.AllSoftwareIteratorFunc(ctx, query)
 }
 
-func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+func (s *DataStore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 	s.mu.Lock()
-	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
+	s.UpsertSoftwareCPEsFuncInvoked = true
 	s.mu.Unlock()
-	return s.AllSoftwareWithoutCPEIteratorFunc(ctx, excludedPlatforms)
+	return s.UpsertSoftwareCPEsFunc(ctx, cpes)
 }
 
-func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
+func (s *DataStore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 	s.mu.Lock()
-	s.AddCPEForSoftwareFuncInvoked = true
+	s.DeleteSoftwareCPEsFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
+	return s.DeleteSoftwareCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
@@ -2489,11 +2494,11 @@ func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, 
 	return s.ListSoftwareCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+func (s *DataStore) InsertSoftwareVulnerability(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
 	s.mu.Lock()
-	s.InsertSoftwareVulnerabilitiesFuncInvoked = true
+	s.InsertSoftwareVulnerabilityFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareVulnerabilitiesFunc(ctx, vulns, source)
+	return s.InsertSoftwareVulnerabilityFunc(ctx, vuln, source)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
@@ -2725,6 +2730,13 @@ func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabi
 	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
+}
+
+func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	s.mu.Lock()
+	s.DeleteOutOfDateVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
