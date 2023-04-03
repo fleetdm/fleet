@@ -38,7 +38,7 @@ To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps belo
 Fleet UI:
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Apple Push Certificates Portal**, select "Request," then fill out the form. This should generate three files and send an email to you with an attached CSR file.
+2. Under **Apple Push Certificates Portal**, select **Request**, then fill out the form. This should generate three files and send an email to you with an attached CSR file.
 
 `fleetctl` CLI:
 
