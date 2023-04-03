@@ -13,6 +13,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
@@ -24,29 +25,31 @@ import {
 } from "interfaces/integration";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeamConfig } from "interfaces/team";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+
 import configAPI from "services/entities/config";
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareCountQueryKey,
+  ISoftwareQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
-import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TeamsDropdown from "components/TeamsDropdown";
+
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
@@ -56,20 +59,9 @@ interface IManageSoftwarePageProps {
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { vulnerable?: string };
+    query: { team_id?: string; vulnerable?: string };
     search: string;
   };
-}
-
-interface ISoftwareQueryKey {
-  scope: string;
-  page: number;
-  perPage: number;
-  query: string;
-  orderKey: string;
-  orderDir?: "asc" | "desc";
-  vulnerable: boolean;
-  teamId?: number;
 }
 
 interface ISoftwareConfigQueryKey {
@@ -85,9 +77,6 @@ interface ISoftwareAutomations {
     jira: IJiraIntegration[];
     zendesk: IZendeskIntegration[];
   };
-}
-interface IHeaderButtonsState extends ITeamsDropdownState {
-  isLoading: boolean;
 }
 
 interface IRowProps extends Row {
@@ -106,14 +95,33 @@ const ManageSoftwarePage = ({
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
   const {
-    availableTeams,
     config: globalConfig,
-    currentTeam,
+    isFreeTier,
+    isGlobalAdmin,
+    isGlobalMaintainer,
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
+    noSandboxHosts,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const {
+    currentTeamId,
+    isAnyTeamSelected,
+    isRouteOk,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
+
+  const canManageAutomations =
+    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
@@ -151,12 +159,13 @@ const ManageSoftwarePage = ({
     IConfig | ITeamConfig,
     ISoftwareConfigQueryKey[]
   >(
-    [{ scope: "softwareConfig", teamId: currentTeam?.id }],
+    [{ scope: "softwareConfig", teamId: teamIdForApi }],
     ({ queryKey }) => {
       const { teamId } = queryKey[0];
       return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
     },
     {
+      enabled: isRouteOk,
       select: (data) => ("team" in data ? data.team : data),
     }
   );
@@ -213,22 +222,19 @@ const ManageSoftwarePage = ({
         page: pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
+        orderDirection: sortDirection || DEFAULT_SORT_DIRECTION,
         // API expects "epss_probability" rather than "vulnerabilities"
         orderKey:
           isPremiumTier && sortHeader === "vulnerabilities"
             ? "epss_probability"
             : sortHeader,
-        teamId: currentTeam?.id,
-        vulnerable: !!location.query.vulnerable,
+        teamId: teamIdForApi,
+        vulnerable: filterVuln,
       },
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -238,28 +244,18 @@ const ManageSoftwarePage = ({
     data: softwareCount,
     error: softwareCountError,
     isFetching: isFetchingCount,
-  } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number,
-    Partial<ISoftwareQueryKey>[]
-  >(
+  } = useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
         scope: "softwareCount",
         query: searchQuery,
-        vulnerable: !!location.query.vulnerable,
-        teamId: currentTeam?.id,
+        vulnerable: filterVuln,
+        teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => {
-      return softwareAPI.count(queryKey[0]);
-    },
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -326,48 +322,24 @@ const ManageSoftwarePage = ({
     }
   };
 
-  const onTeamSelect = () => {
-    setPageIndex(0);
-  };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderButtons = useCallback(
-    (state: IHeaderButtonsState): JSX.Element | null => {
-      const {
-        teamId,
-        isLoading,
-        isGlobalAdmin,
-        isPremiumTier: isPremium,
-      } = state;
-      const canManageAutomations =
-        isGlobalAdmin && (!isPremium || teamId === 0);
-      if (canManageAutomations && !softwareError && !isLoading) {
-        return (
-          <Button
-            onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations button`}
-            variant="brand"
-          >
-            <span>Manage automations</span>
-          </Button>
-        );
-      }
-      return null;
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+      setPageIndex(0);
     },
-    [softwareError, toggleManageAutomationsModal]
+    [handleTeamChange]
   );
 
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderDescription = (state: ITeamsDropdownState) => {
+  const renderHeaderDescription = () => {
     return (
       <p>
         Search for installed software{" "}
-        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
-          (!state.isPremiumTier || state.teamId === 0) &&
+        {(isGlobalAdmin || isGlobalMaintainer) &&
+          (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
-          {state.isPremiumTier && !!state.teamId
+          {isPremiumTier && isAnyTeamSelected
             ? "all hosts assigned to this team"
             : "all of your hosts"}
         </b>
@@ -375,26 +347,6 @@ const ManageSoftwarePage = ({
       </p>
     );
   };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeader = useCallback(() => {
-    return (
-      <TeamsDropdownHeader
-        location={location}
-        router={router}
-        baseClass={baseClass}
-        onChange={onTeamSelect}
-        defaultTitle="Software"
-        description={renderHeaderDescription}
-        buttons={(state) =>
-          renderHeaderButtons({
-            ...state,
-            isLoading: !isSoftwareConfigLoaded,
-          })
-        }
-      />
-    );
-  }, [router, location, isSoftwareConfigLoaded, renderHeaderButtons]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -507,7 +459,7 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !currentTeam?.id &&
+    !isAnyTeamSelected &&
     !pageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -518,11 +470,15 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier, isSandboxMode),
-    [isPremiumTier, isSandboxMode, router]
+    () => generateSoftwareTableHeaders(router, isPremiumTier, isSandboxMode, currentTeamId),
+    [isPremiumTier, isSandboxMode, router, currentTeamId]
+ox
   );
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id };
+    const queryParams = {
+      software_id: row.original.id,
+      team_id: currentTeamId,
+    };
 
     const path = queryParams
       ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
@@ -534,14 +490,47 @@ const ManageSoftwarePage = ({
   const searchable =
     isSoftwareEnabled && (!!software?.software || searchQuery !== "");
 
-  return !availableTeams ||
+  return !isRouteOk ||
+    (isPremiumTier && !userTeams) ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
     <Spinner />
   ) : (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        {renderHeader()}
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header`}>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isFreeTier && <h1>Software</h1>}
+                {isPremiumTier &&
+                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      currentUserTeams={userTeams || []}
+                      selectedTeamId={currentTeamId}
+                      onChange={onTeamChange}
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+              </div>
+            </div>
+          </div>
+          {canManageAutomations && !softwareError && isSoftwareConfigLoaded && (
+            <Button
+              onClick={toggleManageAutomationsModal}
+              className={`${baseClass}__manage-automations button`}
+              variant="brand"
+            >
+              <span>Manage automations</span>
+            </Button>
+          )}
+        </div>
+        <div className={`${baseClass}__description`}>
+          {renderHeaderDescription()}
+        </div>
         <div className={`${baseClass}__table`}>
           {(softwareError && !isFetchingSoftware) ||
           (softwareConfigError && !isFetchingSoftwareConfig) ? (
@@ -559,6 +548,7 @@ const ManageSoftwarePage = ({
                   isSandboxMode={isSandboxMode}
                   isCollectingSoftware={isCollectingInventory}
                   isSearching={searchQuery !== ""}
+                  noSandboxHosts={noSandboxHosts}
                 />
               )}
               defaultSortHeader={DEFAULT_SORT_HEADER}

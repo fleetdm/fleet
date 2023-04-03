@@ -5643,6 +5643,88 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable news and interests on the taskbar' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the news and interests feature is allowed on the device.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\News and interests\Enable news and interests on the taskbar'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Messaging.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Feeds\\EnableFeeds' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.57.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prevent the usage of OneDrive for file storage' is set to 'Enabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting lets you prevent apps and features from working with files on OneDrive using the Next Generation Sync Client.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\OneDrive\Prevent the usage of OneDrive for file storage'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template SkyDrive.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer). However, we strongly recommend you only use the version included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer). Older versions of the templates had conflicting settings in different template files for both OneDrive & SkyDrive, until it was cleaned up properly in the above version.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was named Prevent the usage of SkyDrive for file storage, but it was renamed starting with the Windows 10 RTM (Release 1507) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\OneDrive\\DisableFileSyncNGSC' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.58.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether users can push Apps to the device from the Microsoft Store App running on other devices or the web.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Push to Install\Turn off Push To Install service'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PushToInstall.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).  
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PushToInstall\\DisablePushToInstall' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.64.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not allow passwords to be saved' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting helps prevent Remote Desktop clients from saving passwords on a computer.
+    The recommended state for this setting is: Enabled.
+    Note: If this policy setting was previously configured as Disabled or Not configured, any previously saved passwords will be deleted the first time a Remote Desktop client disconnects from any server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Connection Client\Do not allow passwords to be saved'
+    Note: This Group Policy path is provided by the Group Policy template TerminalServer.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\DisablePasswordSaving' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.2.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
   platforms: win10
   platform: windows
