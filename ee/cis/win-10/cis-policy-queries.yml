@@ -3179,7 +3179,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\LAPS\Password Settings'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (AdmPwd.admx/adml) is required - it is included with Microsoft Local Administrator Password Solution (LAPS).
   query: |
-    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft Services\\AdmPwd\\PasswordComplexity';
+    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft Services\\AdmPwd\\PasswordComplexity' AND data = 4;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.2.4
   contributors: sharon-fdm
@@ -3200,7 +3200,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\LAPS\Password Settings'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (AdmPwd.admx/adml) is required - it is included with Microsoft Local Administrator Password Solution (LAPS).
   query: |
-    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft Services\\AdmPwd\\PasswordLength';
+    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft Services\\AdmPwd\\PasswordLength'  AND data >= 15;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.2.5
   contributors: sharon-fdm
