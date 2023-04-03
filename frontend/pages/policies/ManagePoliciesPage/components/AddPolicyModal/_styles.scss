@@ -13,4 +13,31 @@
     padding: $pad-large 0;
     height: 100%;
   }
+
+  &__policy-name {
+    display: inline-flex;
+    width: 100%;
+  }
+
+  &__mdm-policy {
+    background-color: $core-vibrant-blue;
+    color: $core-white;
+    font-size: $x-small;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    position: relative;
+    top: -2px;
+    min-width: 95px;
+    max-height: 19px;
+  }
+
+  .children-wrapper {
+    align-items: left;
+
+    .info__header {
+      width: initial;
+    }
+  }
 }

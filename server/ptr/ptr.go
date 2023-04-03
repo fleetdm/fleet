@@ -37,6 +37,12 @@ func Time(x time.Time) *time.Time {
 	return &x
 }
 
+// TimePtr returns a *time.Time Pointer (**time.Time) for the provided time.
+func TimePtr(x time.Time) **time.Time {
+	t := Time(x)
+	return &t
+}
+
 // RawMessage returns a pointer to the provided json.RawMessage.
 func RawMessage(x json.RawMessage) *json.RawMessage {
 	return &x

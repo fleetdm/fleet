@@ -1,0 +1,2 @@
+- Include the published date from NVD in the vulnerability object in the API and the vulnerability
+  webhooks (premium feature only).

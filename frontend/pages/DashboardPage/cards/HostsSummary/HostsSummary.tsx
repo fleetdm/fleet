@@ -42,7 +42,7 @@ const HostsSummary = ({
   useEffect(() => {
     if (labels) {
       const queryParams = {
-        team_id: currentTeamId,
+        team_id: currentTeamId, // TODO: confirm
       };
 
       const queryString = buildQueryStringFromParams(queryParams);

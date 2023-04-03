@@ -27,9 +27,13 @@ const MainContent = ({
   className,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
-  const { sandboxExpiry, config, isSandboxMode, isPremiumTier } = useContext(
-    AppContext
-  );
+  const {
+    sandboxExpiry,
+    config,
+    isSandboxMode,
+    isPremiumTier,
+    noSandboxHosts,
+  } = useContext(AppContext);
 
   const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
 
@@ -45,7 +49,10 @@ const MainContent = ({
       )}
       <SandboxGate
         fallbackComponent={() => (
-          <SandboxExpiryMessage expiry={sandboxExpiryTime} />
+          <SandboxExpiryMessage
+            expiry={sandboxExpiryTime}
+            noSandboxHosts={noSandboxHosts}
+          />
         )}
       />
       {children}

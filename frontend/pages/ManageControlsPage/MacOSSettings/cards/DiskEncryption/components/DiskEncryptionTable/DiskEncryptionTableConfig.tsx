@@ -71,7 +71,9 @@ const defaultTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "hosts",
-    Cell: ({ cell: { value } }: ICellProps) => <TextCell value={value} />,
+    Cell: ({ cell: { value } }: ICellProps) => (
+      <TextCell value={value} formatter={(val) => <>{val}</>} />
+    ),
   },
 ];
 

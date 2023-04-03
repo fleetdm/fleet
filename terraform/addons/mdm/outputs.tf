@@ -1,7 +1,5 @@
 output "extra_environment_variables" {
   value = {
-    FLEET_MDM_APPLE_ENABLE         = "1"
-    FLEET_DEV_MDM_ENABLED          = "1"
     FLEET_MDM_APPLE_SERVER_ADDRESS = var.public_domain_name
   }
 }
