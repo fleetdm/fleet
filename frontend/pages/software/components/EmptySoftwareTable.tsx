@@ -12,6 +12,7 @@ export interface IEmptySoftwareTableProps {
   isSandboxMode?: boolean;
   isCollectingSoftware?: boolean;
   isSearching?: boolean;
+  noSandboxHosts?: boolean;
 }
 
 const EmptySoftwareTable = ({
@@ -20,6 +21,7 @@ const EmptySoftwareTable = ({
   isSandboxMode,
   isCollectingSoftware,
   isSearching,
+  noSandboxHosts,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const emptySoftware: IEmptyTableProps = {
     header: `No ${
@@ -34,8 +36,9 @@ const EmptySoftwareTable = ({
     emptySoftware.info =
       "This report is updated every hour to protect the performance of your devices.";
     if (isSandboxMode) {
-      emptySoftware.info =
-        "Fleet begins collecting software inventory after a host is enrolled.";
+      emptySoftware.info = noSandboxHosts
+        ? "Fleet begins collecting software inventory after a host is enrolled."
+        : "Fleet is collecting software inventory";
     }
   }
   if (isSoftwareDisabled) {

@@ -31,7 +31,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const softwareTableHeaders = [
+const generateTableHeaders = (teamId?: number): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
@@ -61,7 +61,7 @@ const softwareTableHeaders = [
     Cell: (cellProps: ICellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ software_id: cellProps.cell.value }}
+          queryParams={{ software_id: cellProps.cell.value, team_id: teamId }} // TODO: Should redirect with the current team id?
           className="software-link"
           condensed
         />
@@ -69,9 +69,5 @@ const softwareTableHeaders = [
     },
   },
 ];
-
-const generateTableHeaders = (): IDataColumn[] => {
-  return softwareTableHeaders;
-};
 
 export default generateTableHeaders;
