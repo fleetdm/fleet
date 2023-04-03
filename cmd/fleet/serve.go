@@ -161,10 +161,6 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService, err := mail.NewService(config)
-			if err != nil {
-				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
-			}
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -544,6 +540,19 @@ the way that the Fleet server works.
 			// save the app config with the updated MDM.Enabled value
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
+			}
+
+			// setup mail service
+			if appCfg.SMTPSettings.SMTPEnabled {
+				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
+				if config.Email.EmailBackend != "" {
+					config.Email.EmailBackend = ""
+					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+				}
+			}
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
 			}
 
 			cronSchedules := fleet.NewCronSchedules()

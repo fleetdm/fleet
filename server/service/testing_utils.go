@@ -319,6 +319,19 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	return users, server
 }
 
+func testSESPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Email = config.EmailConfig{EmailBackend: "ses"}
+	c.SES = config.SESConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		SourceArn:        "qux",
+	}
+	return c
+}
+
 func testKinesisPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "kinesis"
