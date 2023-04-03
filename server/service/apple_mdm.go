@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -2010,13 +2011,17 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore) error {
 	)
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(context.Background(), name)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving team by name")
 
-		}
-		if len(team.Secrets) > 0 {
-			teamID = &team.ID
-			enrollSecret = team.Secrets[0].Secret
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// move on to grab a global enroll secret
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "retrieving team by name")
+		default:
+			if len(team.Secrets) > 0 {
+				teamID = &team.ID
+				enrollSecret = team.Secrets[0].Secret
+			}
 		}
 	}
 
