@@ -47,6 +47,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
+		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 	}
 
 	for _, c := range cases {
@@ -2526,4 +2527,42 @@ type pusherFunc func(context.Context, []string) (map[string]*push.Response, erro
 
 func (f pusherFunc) Push(ctx context.Context, ids []string) (map[string]*push.Response, error) {
 	return f(ctx, ids)
+}
+
+func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	mc := mobileconfig.Mobileconfig([]byte("TestConfigProfile"))
+	globalCP := &fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mc,
+		TeamID:       nil,
+	}
+	teamCP := &fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mc,
+		TeamID:       ptr.Uint(1),
+	}
+	allProfiles := []*fleet.MDMAppleConfigProfile{globalCP, teamCP}
+
+	checkProfiles := func() {
+		for _, p := range allProfiles {
+			profiles, err := ds.ListMDMAppleConfigProfiles(ctx, p.TeamID)
+			require.NoError(t, err)
+			require.Len(t, profiles, 1)
+			checkConfigProfile(t, *p, *profiles[0])
+		}
+	}
+
+	err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
+	require.NoError(t, err)
+	checkProfiles()
+
+	newMc := mobileconfig.Mobileconfig([]byte("TestUpdatedConfigProfile"))
+	globalCP.Mobileconfig = newMc
+	teamCP.Mobileconfig = newMc
+	err = ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
+	require.NoError(t, err)
+	checkProfiles()
 }
