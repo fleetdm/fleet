@@ -23,12 +23,8 @@ import {
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
-import { IConfig } from "interfaces/config";
 import { IDataColumn } from "interfaces/datatable_config";
-import { ITeamSummary } from "interfaces/team";
-import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
-import permissionUtils from "utilities/permissions";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
 
@@ -627,18 +623,17 @@ const defaultHiddenColumns = [
  * Will generate a host table column configuration based off of the current user
  * permissions and license tier of fleet they are on.
  */
-const generateAvailableTableHeaders = (
-  config: IConfig,
-  currentUser: IUser,
-  currentTeam?: ITeamSummary
-): IDataColumn[] => {
+const generateAvailableTableHeaders = ({
+  isFreeTier = true,
+  isOnlyObserver = true,
+}: {
+  isFreeTier: boolean | undefined;
+  isOnlyObserver: boolean | undefined;
+}): IDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: Column[], currentColumn: Column) => {
       // skip over column headers that are not shown in free observer tier
-      if (
-        permissionUtils.isFreeTier(config) &&
-        permissionUtils.isGlobalObserver(currentUser)
-      ) {
+      if (isFreeTier && isOnlyObserver) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"
@@ -646,7 +641,7 @@ const generateAvailableTableHeaders = (
           return columns;
         }
         // skip over column headers that are not shown in free admin/maintainer
-      } else if (permissionUtils.isFreeTier(config)) {
+      } else if (isFreeTier) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.accessor === "mdm_server_url" ||
@@ -654,16 +649,8 @@ const generateAvailableTableHeaders = (
         ) {
           return columns;
         }
-      } else if (
+      } else if (isOnlyObserver) {
         // In premium tier, we want to check user role to enable/disable select column
-        !permissionUtils.isGlobalAdmin(currentUser) &&
-        !permissionUtils.isGlobalMaintainer(currentUser) &&
-        !permissionUtils.isTeamMaintainer(
-          currentUser,
-          currentTeam?.id || null
-        ) &&
-        !permissionUtils.isTeamAdmin(currentUser, currentTeam?.id || null)
-      ) {
         if (currentColumn.id === "selection") {
           return columns;
         }
@@ -680,14 +667,17 @@ const generateAvailableTableHeaders = (
  * Will generate a host table column configuration that a user currently sees.
  *
  */
-const generateVisibleTableColumns = (
-  hiddenColumns: string[],
-  config: IConfig,
-  currentUser: IUser,
-  currentTeam?: ITeamSummary
-): IDataColumn[] => {
+const generateVisibleTableColumns = ({
+  hiddenColumns,
+  isFreeTier = true,
+  isOnlyObserver = true,
+}: {
+  hiddenColumns: string[];
+  isFreeTier: boolean | undefined;
+  isOnlyObserver: boolean | undefined;
+}): IDataColumn[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(
+  return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
     (column) => {
       return !hiddenColumns.includes(column.accessor as string);
     }

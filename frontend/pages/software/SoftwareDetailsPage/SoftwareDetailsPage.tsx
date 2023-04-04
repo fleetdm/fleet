@@ -9,6 +9,7 @@ import {
   ISoftware,
   IGetSoftwareByIdResponse,
 } from "interfaces/software";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
@@ -31,7 +32,7 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, currentTeam } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
@@ -73,7 +74,14 @@ const SoftwareDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to software" path={PATHS.MANAGE_SOFTWARE} />
+          <BackLink
+            text="Back to software"
+            path={
+              currentTeam && currentTeam?.id > APP_CONTEXT_NO_TEAM_ID
+                ? `${PATHS.MANAGE_SOFTWARE}?team_id=${currentTeam?.id}`
+                : PATHS.MANAGE_SOFTWARE
+            }
+          />
         </div>
         <div className="header title">
           <div className="title__inner">

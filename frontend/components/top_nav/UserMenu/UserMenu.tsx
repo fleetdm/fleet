@@ -60,7 +60,7 @@ const UserMenu = ({
     const settingsPath =
       currentUser.global_role === "admin"
         ? PATHS.ADMIN_SETTINGS
-        : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`;
+        : `${PATHS.TEAM_DETAILS_MEMBERS(sortedTeams[0].value)}`;
     const settingsNavigate = onNavItemClick(settingsPath);
     const adminNavItem = {
       label: "Settings",

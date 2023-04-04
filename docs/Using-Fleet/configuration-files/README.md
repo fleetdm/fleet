@@ -1295,29 +1295,32 @@ In the example file below, all Darwin and Ubuntu hosts will **only** receive the
 ```yaml
 agent_options:
   config:
-    options: ~
-    overrides:
-      # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Hosts receive overrides based on the platform
-      # returned by `SELECT platform FROM os_version`. In this example, the base
-      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-      # hosts would receive their respective overrides. Note, these overrides are
-      # NOT merged with the top level configuration.
-      platforms:
-        darwin:
-          options:
-            distributed_interval: 10
-            distributed_tls_max_attempts: 10
-            logger_tls_endpoint: /api/osquery/log
-            logger_tls_period: 300
-            disable_tables: chrome_extensions
-            docker_socket: /var/run/docker.sock
-          file_paths:
-            users:
-              - /Users/%/Library/%%
-              - /Users/%/Documents/%%
-            etc:
-              - /etc/%%
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_tls_period: 10
+  overrides:
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. Hosts receive overrides based on the platform
+    # returned by `SELECT platform FROM os_version`. In this example, the base
+    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # hosts would receive their respective overrides. Note, these overrides are
+    # NOT merged with the top level configuration.
+    platforms:
+      darwin:
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
 ```
 ##### agent_options.auto_table_construction
 

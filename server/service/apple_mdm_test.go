@@ -162,7 +162,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t)
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -194,8 +194,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -232,6 +230,83 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	ctx = test.HostContext(context.Background(), &fleet.Host{})
 	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
 	require.NoError(t, err)
+
+	hostUUIDsToTeamID := map[string]uint{
+		"host1": 1,
+		"host2": 1,
+		"host3": 2,
+		"host4": 0,
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		hosts := make([]*fleet.Host, 0, len(uuids))
+		for _, uuid := range uuids {
+			tmID := hostUUIDsToTeamID[uuid]
+			if tmID == 0 {
+				hosts = append(hosts, &fleet.Host{UUID: uuid, TeamID: nil})
+			} else {
+				hosts = append(hosts, &fleet.Host{UUID: uuid, TeamID: &tmID})
+			}
+		}
+		return hosts, nil
+	}
+
+	rawB64FreeCmd := base64.RawStdEncoding.EncodeToString([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>FooBar</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>uuid</string>
+</dict>
+</plist>`))
+
+	cases := []struct {
+		desc              string
+		user              *fleet.User
+		uuids             []string
+		shoudFailWithAuth bool
+	}{
+		{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, true},
+		{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, false},
+		{"admin can run", test.UserAdmin, []string{"host1", "host2", "host3", "host4"}, false},
+		{"team 1 admin can run team 1", test.UserTeamAdminTeam1, []string{"host1", "host2"}, false},
+		{"team 2 admin can run team 2", test.UserTeamAdminTeam2, []string{"host3"}, false},
+		{"team 1 maintainer can run team 1", test.UserTeamMaintainerTeam1, []string{"host1", "host2"}, false},
+		{"team 1 admin cannot run team 2", test.UserTeamAdminTeam1, []string{"host3"}, true},
+		{"team 1 admin cannot run no team", test.UserTeamAdminTeam1, []string{"host4"}, true},
+		{"team 1 admin cannot run mix of team 1 and 2", test.UserTeamAdminTeam1, []string{"host1", "host3"}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ctx = test.UserContext(ctx, c.user)
+			_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids, false)
+			checkAuthErr(t, err, c.shoudFailWithAuth)
+		})
+	}
+
+	// test with a command that requires a premium license
+	ctx = test.UserContext(ctx, test.UserAdmin)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>uuid</string>
+</dict>
+</plist>`, "DeviceLock")))
+	_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"}, false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 }
 
 func TestMDMAppleEnrollURL(t *testing.T) {
