@@ -1952,12 +1952,83 @@ func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
 
+// ensureFleetdConfig ensures there's a fleetd configuration profile in
+// mdm_apple_configuration_profiles for each team and for "no team"
+//
+// We try our best to use each team's secret but we default to creating a
+// profile with the global enroll secret if the team doesn't have any enroll
+// secrets.
+//
+// This profile will be applied to all hosts in the team (or "no team",) but it
+// will only be used by hosts that have a fleetd installation without an enroll
+// secret and fleet URL (mainly DEP enrolled hosts).
+func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	enrollSecrets, err := ds.AggregateEnrollSecretPerTeam(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting enroll secrets aggregates")
+	}
+
+	globalSecret := ""
+	for _, es := range enrollSecrets {
+		if es.TeamID == nil {
+			globalSecret = es.Secret
+		}
+	}
+
+	var profiles []*fleet.MDMAppleConfigProfile
+	for _, es := range enrollSecrets {
+		if es.Secret == "" {
+			if globalSecret == "" {
+				logger.Log("err", "team_id %d doesn't have an enroll secret, and couldn't find a global enroll secret, skipping the creation of a com.fleetdm.fleetd.config profile")
+				continue
+			}
+
+			logger.Log("err", "team_id %d doesn't have an enroll secret, using a global enroll secret")
+			es.Secret = globalSecret
+		}
+
+		var contents bytes.Buffer
+		params := mobileconfig.FleetdProfileOptions{
+			EnrollSecret: es.Secret,
+			ServerURL:    appCfg.ServerSettings.ServerURL,
+			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+		}
+
+		if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
+			return ctxerr.Wrap(ctx, err, "executing fleetd config template")
+		}
+
+		cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), es.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building configuration profile")
+		}
+
+		profiles = append(profiles, cp)
+
+	}
+
+	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
+	}
+
+	return nil
+}
+
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
+		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
+	}
+
 	// retrieve the profiles to install/remove.
 	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
 	if err != nil {

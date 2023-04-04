@@ -1461,3 +1461,34 @@ WHERE
 
 	return &res, nil
 }
+
+func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	var args []any
+	var sb strings.Builder
+	for _, cp := range payload {
+		var teamID uint
+		if cp.TeamID != nil {
+			teamID = *cp.TeamID
+		}
+
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+		sb.WriteString("(?, ?, ?, ?),")
+	}
+
+	stmt := fmt.Sprintf(`
+          INSERT INTO
+              mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
+          VALUES %s
+          ON DUPLICATE KEY UPDATE
+            mobileconfig = VALUES(mobileconfig)`, strings.TrimSuffix(sb.String(), ","))
+
+	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "upsert mdm config profiles")
+	}
+
+	return nil
+}
