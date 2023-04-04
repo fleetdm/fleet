@@ -4300,7 +4300,7 @@ Returns a list of all queries in the Fleet instance.
 | name             | string | body | **Required**. The name of the query.                                                                                                                   |
 | query            | string | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description      | string | body | The query's description.                                                                                                                               |
-| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This does not apply to the `observer_plus` role (added in Fleet 4.30.0), users with the `observer_plus` role can run *any* query. |
+| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 
 #### Example
 
@@ -4353,7 +4353,7 @@ Returns the query specified by ID.
 | name             | string  | body | The name of the query.                                                                                                                                 |
 | query            | string  | body | The query in SQL syntax.                                                                                                                               |
 | description      | string  | body | The query's description.                                                                                                                               |
-| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This does not apply to the `observer_plus` role (added in Fleet 4.30.0), users with the `observer_plus` role can run *any* query. |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 
 #### Example
 
