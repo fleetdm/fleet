@@ -65,6 +65,7 @@ jobs:
                 minimum_version: "13.3.0"
                 deadline: "2023-04-07"
               macos_settings:
+                enable_disk_encryption: true
                 custom_settings:
                   $profiles
         " > team-workstations-config.yml
