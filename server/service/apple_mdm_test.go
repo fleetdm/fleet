@@ -1498,7 +1498,7 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 
 	// TODO(roberto): there's a data race in the mock when more
 	// than one host ID is provided because the pusher uses one
@@ -1573,7 +1573,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewNopLogger()),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	hostUUID, hostUUID2 := "ABC-DEF", "GHI-JKL"
 	contents1 := []byte("test-content-1")
 	contents1Base64 := base64.StdEncoding.EncodeToString(contents1)

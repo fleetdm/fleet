@@ -153,7 +153,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onScheduleDone != nil {
 								defer s.onScheduleDone()
 							}
-							return ReconcileProfiles(ctx, ds, NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+							return ReconcileProfiles(ctx, ds, apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
 						}),
 					)
 					return profileSchedule, nil

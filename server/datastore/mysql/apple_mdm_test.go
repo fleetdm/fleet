@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -12,9 +13,16 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanodep/tokenpki"
+	nanomdm_log "github.com/micromdm/nanomdm/log"
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,6 +48,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
+		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 	}
 
 	for _, c := range cases {
@@ -2349,4 +2358,78 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 		unenrolledHost: {},
 		linuxHost:      {},
 	})
+}
+
+func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no enrolled host, unknown command
+	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String())
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// create some hosts, all enrolled
+	enrolledHosts := make([]*fleet.Host, 3)
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		enrolledHosts[i] = h
+		t.Logf("enrolled host [%d]: %s", i, h.UUID)
+	}
+
+	// create a non-enrolled host
+	i := 3
+	unenrolledHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("test-uuid-%d", i),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create the mdm command storage and push factory
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	mdmStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	mdmPushService := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		mockNanoMDMLogger{},
+	)
+	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+	_ = commander
+	_ = unenrolledHost
+}
+
+type mockNanoMDMLogger struct{}
+
+func (mockNanoMDMLogger) Info(keyvals ...interface{}) {}
+
+func (mockNanoMDMLogger) Debug(keyvals ...interface{}) {}
+
+func (l mockNanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger { return l }
+
+func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNSPushProvider) {
+	provider := &mock.APNSPushProvider{}
+	provider.PushFunc = func(p0 []*mdm.Push) (map[string]*push.Response, error) { return nil, nil }
+	factory := &mock.APNSPushProviderFactory{}
+	factory.NewPushProviderFunc = func(*tls.Certificate) (push.PushProvider, error) {
+		return provider, nil
+	}
+
+	return factory, provider
 }
