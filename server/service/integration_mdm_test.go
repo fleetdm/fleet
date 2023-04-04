@@ -2404,7 +2404,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
 	enrolledHost := newMDMEnrolledDevice(s)
 
-	newRawCmd := func() string {
+	newRawCmd := func(cmdUUID string) string {
 		return base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -2419,27 +2419,33 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
     <key>CommandUUID</key>
     <string>%s</string>
 </dict>
-</plist>`, uuid.New().String())))
+</plist>`, cmdUUID)))
 	}
 
 	// call with unknown host UUID
+	uuid1 := uuid.New().String()
 	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   newRawCmd(),
+			Command:   newRawCmd(uuid1),
 			DeviceIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
+
+	// get command results returns 404, that command does not exist
+	var cmdResResp getMDMAppleCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 
 	// call with unenrolled host UUID
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   newRawCmd(),
+			Command:   newRawCmd(uuid.New().String()),
 			DeviceIDs: []string{unenrolledHost.UUID},
 		}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
 
 	// call with enrolled host UUID
-	rawCmd := newRawCmd()
+	uuid2 := uuid.New().String()
+	rawCmd := newRawCmd(uuid2)
 	var resp enqueueMDMAppleCommandResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
@@ -2452,6 +2458,12 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Contains(t, string(decodedCmd), resp.CommandUUID)
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
+
+	// the command exists but no results yet
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
+	require.Len(t, cmdResResp.Results, 0)
+
+	// TODO(mna): simulate a result and call again
 }
 
 // only asserts the profile identifier, status and operation (per host)

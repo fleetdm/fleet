@@ -273,6 +273,9 @@ WHERE
 func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
 	var rt string
 	err := sqlx.GetContext(ctx, ds.reader, &rt, `SELECT request_type FROM nano_commands WHERE command_uuid = ?`, commandUUID)
+	if err == sql.ErrNoRows {
+		return "", ctxerr.Wrap(ctx, notFound("MDMAppleCommand").WithName(commandUUID))
+	}
 	return rt, err
 }
 
