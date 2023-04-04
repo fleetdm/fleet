@@ -3080,7 +3080,7 @@ spec:
       -  Catalog object added.
       -  Catalog object updated.
       -  Catalog object deleted.
-The recommended state for this setting is: Success and Failure.
+    The recommended state for this setting is: Success and Failure.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Success and Failure:
