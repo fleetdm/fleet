@@ -26,10 +26,10 @@ output "fleet_sidecars" {
       },
       portMappings = [
         {
-          hostPort = "4317"
+          hostPort = 4317
         },
         {
-          hostPort = "4318"
+          hostPort = 4318
         }
       ]
     }
