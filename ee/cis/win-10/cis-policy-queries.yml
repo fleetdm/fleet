@@ -3823,7 +3823,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to On (recommended):
     'Computer Configuration\Policies\Administrative Templates\Network\Link-Layer Topology Discovery\Turn on Responder (RSPNDR) driver'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LLTD\EnableRspndr' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LLTD\EnableRspndr' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.9.2
   contributors: DefensiveDepth
