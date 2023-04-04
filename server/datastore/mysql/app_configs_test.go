@@ -424,12 +424,10 @@ func testAggregateEnrollSecretPerTeam(t *testing.T, ds *Datastore) {
 		return *agg[i].TeamID < *agg[j].TeamID
 	})
 
-	// can't use require.ElementsMatch because the enroll secret picked for
-	// team1 is non-deterministic.
-	require.Equal(t, &fleet.EnrollSecret{TeamID: nil, Secret: "global_secret"}, agg[0])
-	require.Equal(t, ptr.Uint(1), agg[1].TeamID)
-	require.Contains(t, agg[1].Secret, "team_1_secret_")
-	require.Equal(t, &fleet.EnrollSecret{TeamID: ptr.Uint(2), Secret: ""}, agg[2])
-	require.Equal(t, &fleet.EnrollSecret{TeamID: ptr.Uint(3), Secret: "team_3_secret_1"}, agg[3])
-
+	require.ElementsMatch(t, []*fleet.EnrollSecret{
+		{TeamID: nil, Secret: "global_secret"},
+		{TeamID: ptr.Uint(1), Secret: "team_1_secret_1"},
+		{TeamID: ptr.Uint(2), Secret: ""},
+		{TeamID: ptr.Uint(3), Secret: "team_3_secret_1"},
+	}, agg)
 }
