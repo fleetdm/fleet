@@ -22,18 +22,17 @@ module.exports = {
   fn: async function ({ slug }) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.cisBenchmarks)) {
-      console.log("line 25");
       throw {badConfig: 'builtStaticContent.cisBenchmarks'};
     } else if (!_.isString(sails.config.builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath)) {
-      console.log("line 28");
-      throw {badConfig: 'builtStaticContent.cisBenchmarkLibraryMacLibraryYmlRepoPath'};
+      throw {badConfig: 'builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath'};
+    } else if (!_.isString(sails.config.builtStaticContent.cisBenchmarkLibraryWindowsYmlRepoPath)) {
+      throw {badConfig: 'builtStaticContent.cisBenchmarkLibraryWindowsYmlRepoPath'};
     }
 
     // Serve appropriate content for query.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     let benchmark = _.find(sails.config.builtStaticContent.cisBenchmarks, { slug: slug });
     if (!benchmark) {
-      console.log("line 36");
       throw 'notFound';
     }
 
@@ -44,6 +43,7 @@ module.exports = {
     return {
       benchmark,
       cisBenchmarkLibraryMacYmlRepoPath: sails.config.builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath,
+      cisBenchmarkLibraryWindowsYmlRepoPath: sails.config.builtStaticContent.cisBenchmarkLibraryWindowsYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
     };

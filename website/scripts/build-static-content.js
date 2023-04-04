@@ -296,7 +296,7 @@ module.exports = {
         builtStaticContent.cisBenchmarks = cisBenchmarks;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
         builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_MAC_YML_IN_FLEET_REPO;
-        builtStaticContent.cisBenchmarkLibrarbyWindowsYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO;
+        builtStaticContent.cisBenchmarkLibraryWindowsYmlRepoPath = RELATIVE_PATH_TO_CIS_BENCHMARK_LIBRARY_WINDOWS_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';

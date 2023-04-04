@@ -45,7 +45,7 @@
             <h5 class="pb-md-2 m-0">Tags</h5>
             <div :class="[benchmark.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
               <span class="mb-1" v-if="!benchmark.tags || !benchmark.tags.length">--</span>
-              <div purpose="benchmark-tag" class="mr-md-1 ml-1 ml-md-0" :class="[benchmark.tags.length > 2 ? 'mb-1' : '']" v-for="tag in benchmark.tags">
+              <div purpose="query-tag" class="mr-md-1 ml-1 ml-md-0" :class="[benchmark.tags.length > 2 ? 'mb-1' : '']" v-for="tag in benchmark.tags">
                 {{tag}}
               </div>
             </div>
@@ -68,7 +68,7 @@
         <div class="py-2 pt-md-0">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1">
             <h5 class="d-flex pb-md-2 m-0 mr-3">Contribute to this page</h5>
-            <p class="d-flex m-0"><a class="d-flex text-right m-0" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+cisBenchmarkMacYmlRepoPath">View source</a></p> 
+            <p class="d-flex m-0"><a class="d-flex text-right m-0" target="_blank" :href="[benchmark.platforms === 'win10' ? 'https://github.com/fleetdm/fleet/edit/main/'+cisBenchmarkLibraryWindowsYmlRepoPath : 'https://github.com/fleetdm/fleet/edit/main/'+cisBenchmarkLibraryMacYmlRepoPath]">View source</a></p> 
           </div>
         </div>
       </div>
