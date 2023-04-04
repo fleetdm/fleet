@@ -220,7 +220,7 @@ Whether the integration is configured to create Zendesk tickets for recent softw
 
 Automatic enrollment is an MDM feature available in Fleet Premium.
 
-These configuration options built for a proof of concept for a prospective Fleet customer.
+These configuration options were built for a proof of concept for a prospective Fleet customer.
 
 ### Okta
 
