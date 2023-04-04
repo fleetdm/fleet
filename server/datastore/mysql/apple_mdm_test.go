@@ -2,19 +2,19 @@ package mysql
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
@@ -22,7 +22,6 @@ import (
 	nanomdm_log "github.com/micromdm/nanomdm/log"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2363,6 +2362,24 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	createRawCmd := func(cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+	}
+
 	// no enrolled host, unknown command
 	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String())
 	require.NoError(t, err)
@@ -2395,7 +2412,99 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// create the mdm command storage and push factory
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	// enqueue a command for an unenrolled host fails with a foreign key error (no enrollment)
+	uuid1 := uuid.New().String()
+	err = commander.EnqueueCommand(ctx, []string{unenrolledHost.UUID}, createRawCmd(uuid1))
+	require.Error(t, err)
+	var mysqlErr *mysql.MySQLError
+	require.ErrorAs(t, err, &mysqlErr)
+	require.Equal(t, uint16(mysqlerr.ER_NO_REFERENCED_ROW_2), mysqlErr.Number)
+
+	// command has no results
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid1)
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// enqueue a command for a couple of enrolled hosts
+	uuid2 := uuid.New().String()
+	rawCmd2 := createRawCmd(uuid2)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd2)
+	require.NoError(t, err)
+
+	// command has no results yet
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// simulate a result for enrolledHosts[0]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[0].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+
+	// command has a result for [0]
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.Equal(t, res[0], &fleet.MDMAppleCommandResult{
+		DeviceID:    enrolledHosts[0].UUID,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd2),
+	})
+
+	// simulate a result for enrolledHosts[1]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Error",
+		RequestType: "ProfileList",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+
+	// command has both results
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid2,
+			Status:      "Error",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+	})
+}
+
+func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -2403,16 +2512,21 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	mdmStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(t, err)
 
-	pushFactory, _ := newMockAPNSPushProviderFactory()
-	mdmPushService := nanomdm_pushsvc.New(
-		mdmStorage,
-		mdmStorage,
-		pushFactory,
-		mockNanoMDMLogger{},
-	)
-	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-	_ = commander
-	_ = unenrolledHost
+	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc)), mdmStorage
+}
+
+func okPusherFunc(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+	m := make(map[string]*push.Response, len(ids))
+	for _, id := range ids {
+		m[id] = &push.Response{Id: id}
+	}
+	return m, nil
+}
+
+type pusherFunc func(context.Context, []string) (map[string]*push.Response, error)
+
+func (f pusherFunc) Push(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+	return f(ctx, ids)
 }
 
 type mockNanoMDMLogger struct{}
@@ -2422,14 +2536,3 @@ func (mockNanoMDMLogger) Info(keyvals ...interface{}) {}
 func (mockNanoMDMLogger) Debug(keyvals ...interface{}) {}
 
 func (l mockNanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger { return l }
-
-func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNSPushProvider) {
-	provider := &mock.APNSPushProvider{}
-	provider.PushFunc = func(p0 []*mdm.Push) (map[string]*push.Response, error) { return nil, nil }
-	factory := &mock.APNSPushProviderFactory{}
-	factory.NewPushProviderFunc = func(*tls.Certificate) (push.PushProvider, error) {
-		return provider, nil
-	}
-
-	return factory, provider
-}
