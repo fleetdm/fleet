@@ -10,10 +10,10 @@ output "fleet_sidecars" {
   value = [
     {
       "name" : "aws-otel-collector",
-      "image" : "public.ecr.aws/aws-observability/aws-otel-collector:v0.26.1",
+      "image" : "public.ecr.aws/aws-observability/aws-otel-collector:v0.27.0",
       "essential" : true,
       "command" : [
-        "--config=/etc/ecs/ecs-xray.yaml"
+        "--config=/etc/ecs/ecs-cloudwatch-xray.yaml"
       ],
       "logConfiguration" : {
         "logDriver" : "awslogs",
