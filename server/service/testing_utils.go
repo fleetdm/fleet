@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 
@@ -176,15 +175,11 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	userID := uint(1)
 	for _, u := range testUsers {
-		role := fleet.RoleObserver
-		if strings.Contains(u.Email, "admin") {
-			role = fleet.RoleAdmin
-		}
 		user := &fleet.User{
 			ID:         userID,
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
-			GlobalRole: &role,
+			GlobalRole: u.GlobalRole,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
@@ -215,6 +210,11 @@ var testUsers = map[string]struct {
 		PlaintextPassword: test.GoodPassword,
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
+	},
+	"gitops1": {
+		PlaintextPassword: test.GoodPassword,
+		Email:             "gitops1@example.com",
+		GlobalRole:        ptr.String(fleet.RoleGitOps),
 	},
 }
 

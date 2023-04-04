@@ -61,6 +61,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
+	s.cachedTokens = make(map[string]string)
 }
 
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
@@ -2508,4 +2509,99 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
+}
+
+// TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
+func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
+	t := s.T()
+	ctx := context.Background()
+
+	//
+	// Setup test data.
+	//
+
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "1"),
+		UUID:     t.Name() + "1",
+		Hostname: t.Name() + "foo.local",
+	})
+	require.NoError(t, err)
+	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Foo",
+	})
+	require.NoError(t, err)
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	//
+	// Start running permission tests.
+	//
+
+	s.setTokenForTest(t, "gitops1")
+
+	// Attempt to retrieve activities, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &listActivitiesResponse{})
+
+	// Attempt to retrieve hosts, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+
+	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
+	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+
+	// Attempt to delete hosts, should fail.
+	s.DoJSON("DELETE", "/api/latest/fleet/hosts/1", nil, http.StatusForbidden, &deleteHostResponse{})
+
+	// Attempt to transfer host from global to a team, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &t1.ID,
+		HostIDs: []uint{h1.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// Attempt to create a label, should allow.
+	clr := createLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  ptr.String("foo"),
+			Query: ptr.String("SELECT 1;"),
+		},
+	}, http.StatusOK, &clr)
+
+	// Attempt to modify a label, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), modifyLabelRequest{
+		ModifyLabelPayload: fleet.ModifyLabelPayload{
+			Name: ptr.String("foo2"),
+		},
+	}, http.StatusOK, &modifyLabelResponse{})
+
+	// Attempt to get a label, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusForbidden, &getLabelResponse{})
+
+	// Attempt to list all labels, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusForbidden, &listLabelsResponse{})
+
+	// Attempt to delete a label, should allow.
+	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", deleteLabelRequest{}, http.StatusOK, &deleteLabelResponse{})
+
+	// Attempt to list all software, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusForbidden, &countSoftwareResponse{})
+
+	// Attempt to list a software, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
+
+	// Attempt to read app config, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusForbidden, &appConfigResponse{})
+
+	// Attempt to write app config, should allow.
+	appConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL = "https://foobar.example.com"
+	s.DoJSON("PATCH", "/api/latest/fleet/config", appConfig, http.StatusOK, &appConfigResponse{})
+}
+
+func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	s.token = s.getCachedUserToken(testUserEmail)
 }
