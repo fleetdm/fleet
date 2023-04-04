@@ -1,20 +1,21 @@
 # Migration
 
-Only one MDM solution can be used for MDM features, like enforcing settings, on each of your macOS hosts. This section provides instructions for migrating away from your old MDM solution so that you can use Fleet for MDM features.
+This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
 
-To migrate hosts from your old MDM solution to Fleet you’ll first have to [deploy Fleet](../Deploying/Introduction.md), [add your hosts](./Adding-hosts.md), and [connect Fleet to Apple](./MDM-setup.md).
+## Requirements
 
-## Manually enrolled hosts
+1. A [deployed Fleet instance](../Deploying/Introduction.md)
+3. [Fleet connected to Apple](./MDM-setup.md)
 
-If you have macOS hosts that were manually enrolled to your old MDM solution, you can migrate them to Fleet.
+## Preparing to migrate manually enrolled hosts
 
-> Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
+1. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
+2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
+3. In your old MDM solution, unenroll the desired hosts. MacOS does not allow multiple MDMs to be installed at once.
 
-How to migrate manually enrolled hosts:
+Once the above steps are completed, the end user now needs to complete a few steps. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. 
 
-1. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
-
-2. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
+Fleet has created [these guided instructions](#instructions-for-end-users) that can be shared with your end users.
 
 ## Automatically enrolled (DEP) hosts
 
