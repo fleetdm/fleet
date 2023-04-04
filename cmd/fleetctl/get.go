@@ -1232,6 +1232,30 @@ func getMDMCommandResultsCommand() *cli.Command {
 				return err
 			}
 
+			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetct get mdm-commands`.")
+				}
+				return err
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range res {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+					string(r.Result),
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
+
 			return nil
 		},
 	}
