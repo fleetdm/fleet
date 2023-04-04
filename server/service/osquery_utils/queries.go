@@ -613,7 +613,8 @@ SELECT
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
-  last_opened_time AS last_opened_at
+  last_opened_time AS last_opened_at,
+  path AS installed_path
 FROM apps
 UNION
 SELECT
@@ -622,7 +623,8 @@ SELECT
   'Package (Python)' AS type,
   '' AS bundle_identifier,
   'python_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -631,7 +633,8 @@ SELECT
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   'chrome_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -640,7 +643,8 @@ SELECT
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   'firefox_addons' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -649,7 +653,8 @@ SELECT
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   'safari_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -658,7 +663,8 @@ SELECT
   'Package (Atom)' AS type,
   '' AS bundle_identifier,
   'atom_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -667,7 +673,8 @@ SELECT
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
@@ -691,7 +698,8 @@ SELECT
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM deb_packages
 WHERE status = 'install ok installed'
 UNION
@@ -702,7 +710,8 @@ SELECT
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM portage_packages
 UNION
 SELECT
@@ -712,7 +721,8 @@ SELECT
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
-  arch AS arch
+  arch AS arch,
+  '' AS installed_path
 FROM rpm_packages
 UNION
 SELECT
@@ -722,7 +732,8 @@ SELECT
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM npm_packages
 UNION
 SELECT
@@ -732,7 +743,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -742,7 +754,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -752,7 +765,8 @@ SELECT
   'atom_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -762,7 +776,8 @@ SELECT
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM python_packages;
 `),
 	Platforms:        fleet.HostLinuxOSs,
@@ -776,7 +791,8 @@ SELECT
   version AS version,
   'Program (Windows)' AS type,
   'programs' AS source,
-  publisher AS vendor
+  publisher AS vendor,
+  install_location AS installed_path
 FROM programs
 UNION
 SELECT
@@ -784,7 +800,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -792,7 +809,8 @@ SELECT
   version AS version,
   'Browser plugin (IE)' AS type,
   'ie_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM ie_extensions
 UNION
 SELECT
@@ -800,7 +818,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -808,7 +827,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -816,7 +836,8 @@ SELECT
   version AS version,
   'Package (Chocolatey)' AS type,
   'chocolatey_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chocolatey_packages
 UNION
 SELECT
@@ -824,7 +845,8 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
@@ -837,7 +859,8 @@ var softwareChrome = DetailQuery{
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
