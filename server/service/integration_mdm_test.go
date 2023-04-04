@@ -541,10 +541,28 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
 
-	// enroll one of the hosts
 	d := newDevice(s)
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		//		pushWg.Done()
+		require.Len(t, pushes, 1)
+		require.Equal(t, pushes[0].PushMagic, "pushmagic"+d.serial)
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, nil
+	}
+
+	// enroll one of the hosts
 	d.serial = devices[0].SerialNumber
 	d.mdmEnroll(s)
+
+	// make sure the host gets a request to install fleetd
+	cmd := d.idle()
+	require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+	require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
 
 	// only one shows up as pending
 	listHostsRes = listHostsResponse{}

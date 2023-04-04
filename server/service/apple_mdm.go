@@ -1629,11 +1629,12 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds fleet.Datastore
+	ds        fleet.Datastore
+	commander *MDMAppleCommander
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
-	return &MDMAppleCheckinAndCommandService{ds: ds}
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *MDMAppleCommander) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds, commander: commander}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -1680,6 +1681,17 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		// device is enrolled for the first time, not a token update
 		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
+		}
+
+		info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+		if err != nil {
+			return err
+		}
+		if info.InstalledFromDEP {
+			uuid := uuid.New().String()
+			if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, uuid, apple_mdm.FleetdPublicManifestURL); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1884,18 +1896,38 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []strin
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
+  <key>CommandUUID</key>
+  <string>%s</string>
+  <key>Command</key>
   <dict>
-    <key>CommandUUID</key>
+    <key>RequestType</key>
+    <string>EraseDevice</string>
+    <key>PIN</key>
     <string>%s</string>
+  </dict>
+</dict>
+</plist>`, uuid, pin)
+	return svc.enqueue(ctx, hostUUIDs, raw)
+}
+
+func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
     <key>Command</key>
     <dict>
-      <key>RequestType</key>
-      <string>EraseDevice</string>
-      <key>PIN</key>
+      <key>ManifestURL</key>
       <string>%s</string>
+      <key>RequestType</key>
+      <string>InstallEnterpriseApplication</string>
     </dict>
+
+    <key>CommandUUID</key>
+    <string>%s</string>
   </dict>
-</plist>`, uuid, pin)
+</plist>`, manifestURL, uuid)
 	return svc.enqueue(ctx, hostUUIDs, raw)
 }
 

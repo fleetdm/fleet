@@ -18,6 +18,7 @@ type MDMAppleCommandIssuer interface {
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
