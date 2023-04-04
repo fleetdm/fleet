@@ -62,7 +62,7 @@ jobs:
             name: 💻 Workstations
             mdm:
               macos_updates:
-                minimum_version: "12.1.1"
+                minimum_version: "13.3.0"
                 deadline: "2023-04-07"
               macos_settings:
                 custom_settings:
