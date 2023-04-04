@@ -244,9 +244,8 @@ func TestGetTeamsByName(t *testing.T) {
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
-	var mdmEnabled bool
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`

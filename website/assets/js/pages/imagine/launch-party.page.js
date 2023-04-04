@@ -22,6 +22,7 @@ parasails.registerPage('launch-party', {
     // Modal
 
     modal: '',
+    showAlternateWaitlistText: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -33,8 +34,13 @@ parasails.registerPage('launch-party', {
   },
   mounted: async function() {
 
-    if(window.location.search && window.location.search === '?showForm') {
+    if(this.showForm) {
       this.modal = 'happy-hour-waitlist';
+      if(!_.isEmpty(this.formDataToPrefill)){
+        // If the user came here via a personalized link in an email, we'll prefill the form with the user information (if provided)
+        this.formData = this.formDataToPrefill;
+        this.showAlternateWaitlistText = true;
+      }
     }
 
   },

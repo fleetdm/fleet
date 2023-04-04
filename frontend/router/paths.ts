@@ -75,18 +75,24 @@ export default {
   SOFTWARE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/${id}`;
   },
-  TEAM_DETAILS_MEMBERS: (teamId: number): string => {
-    return `${URL_PREFIX}/settings/teams/${teamId}/members`;
+  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
   },
-  TEAM_DETAILS_OPTIONS: (teamId: number): string => {
-    return `${URL_PREFIX}/settings/teams/${teamId}/options`;
+  TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_TEAM_SCHEDULE: (teamId: number): string => {
-    return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
+    return `${URL_PREFIX}/schedule/manage?team_id=${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,

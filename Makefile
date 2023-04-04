@@ -235,6 +235,13 @@ binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && cp windows/fleetctl.exe . && zip fleetctl.exe.zip fleetctl.exe
 	cd build/binary-bundle && shasum -a 256 fleet.zip fleetctl.exe.zip fleetctl-macos.tar.gz fleetctl-windows.tar.gz fleetctl-linux.tar.gz
 
+# Build orbit/fleetd fleetd_tables extension
+fleetd-tables-windows:
+	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux:
+	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin:
+	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 
 .pre-binary-arch:
 ifndef GOOS

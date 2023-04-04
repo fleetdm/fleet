@@ -37,8 +37,8 @@ const EnrollSecretModal = ({
       selectedTeam = parseInt(selectedTeam, 10);
     }
 
-    if (selectedTeam === 0) {
-      return { name: "No team", secrets: globalSecrets };
+    if (selectedTeam <= 0) {
+      return { name: "No team", secrets: globalSecrets }; // TODO: Should "No team" be "Fleet" for free tier?
     }
     return teams.find((team) => team.id === selectedTeam);
   };
