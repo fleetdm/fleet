@@ -3870,44 +3870,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    Although this "legacy" setting traditionally applied to the use of Internet Connection Sharing (ICS) in Windows 2000, Windows XP & Server 2003, this setting now freshly applies to the Mobile Hotspot feature in Windows 10 & Server 2016.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On (recommended):
-    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit use of Internet Connection Sharing on your DNS domain network'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_ShowSharedAccessUI' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.11.3
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines whether to require domain users to elevate when setting a network's location.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On (recommended):
-    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Require domain users to elevate when setting a network's location'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_StdDomainUserSetLocation' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.11.4
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Allow Print Spooler to accept client connections' is set to 'Disabled'
   platforms: win10
   platform: windows
