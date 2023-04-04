@@ -101,6 +101,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 			},
 		},
 		triggerCommand(),
+		mdmCommand(),
 	}
 	return app
 }

@@ -2465,16 +2465,14 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		bar = host.Software[1]
 	}
 
-	n, err := s.ds.InsertSoftwareVulnerabilities(
-		ctx, []fleet.SoftwareVulnerability{
-			{
-				SoftwareID: bar.ID,
-				CVE:        "cve-123",
-			},
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		ctx, fleet.SoftwareVulnerability{
+			SoftwareID: bar.ID,
+			CVE:        "cve-123",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, int(n))
+	require.True(t, inserted)
 
 	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
 		CVE:              "cve-123",

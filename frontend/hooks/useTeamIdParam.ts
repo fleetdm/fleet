@@ -90,30 +90,29 @@ const getUserTeams = ({
 };
 
 const getDefaultTeam = ({
-  userTeams,
+  currentUser,
   includeAllTeams,
   includeNoTeam,
+  userTeams,
 }: {
-  userTeams?: ITeamSummary[];
+  currentUser: IUser | null;
   includeAllTeams: boolean;
   includeNoTeam: boolean;
+  userTeams?: ITeamSummary[];
 }) => {
-  if (!userTeams?.length) {
+  if (!currentUser || !userTeams?.length) {
     return undefined;
   }
-
   let defaultTeam: ITeamSummary | undefined;
-  if (includeAllTeams) {
-    defaultTeam =
-      userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID) || defaultTeam;
-  } else if (includeNoTeam) {
-    defaultTeam =
-      userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID) || defaultTeam;
-  } else {
-    defaultTeam =
-      userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID) || defaultTeam;
+  if (permissions.isOnGlobalTeam(currentUser)) {
+    if (includeAllTeams) {
+      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+    }
+    if (!defaultTeam && includeNoTeam) {
+      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+    }
   }
-  return defaultTeam;
+  return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
 };
 
 const getTeamIdForApi = ({
@@ -231,8 +230,14 @@ export const useTeamIdParam = ({
   );
 
   const defaultTeam = useMemo(
-    () => getDefaultTeam({ userTeams, includeAllTeams, includeNoTeam }),
-    [includeAllTeams, includeNoTeam, userTeams]
+    () =>
+      getDefaultTeam({
+        currentUser,
+        includeAllTeams,
+        includeNoTeam,
+        userTeams,
+      }),
+    [currentUser, includeAllTeams, includeNoTeam, userTeams]
   );
 
   const currentTeam = useMemo(
