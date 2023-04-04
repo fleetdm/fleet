@@ -1,4 +1,4 @@
-parasails.registerPage('cis-benchmark-library', {
+parasails.registerPage('cis-benchmarks', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -51,7 +51,7 @@ parasails.registerPage('cis-benchmark-library', {
     },
 
     clickCard: function (benchmarkSlug) {
-      window.location = '/cis-benchmark-library/' + benchmarkSlug; // we can trust the query slug is url-safe
+      window.location = '/cis-benchmarks/' + benchmarkSlug; // we can trust the query slug is url-safe
     },
 
     clickAvatar: function (contributor) {

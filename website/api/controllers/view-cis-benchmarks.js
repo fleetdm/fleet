@@ -8,7 +8,7 @@ module.exports = {
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/cis-benchmark-library' },
+    success: { viewTemplatePath: 'pages/cis-benchmarks' },
     badConfig: { responseType: 'badConfig' },
   },
 

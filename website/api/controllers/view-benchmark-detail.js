@@ -13,7 +13,7 @@ module.exports = {
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/benchmark-detail' },
+    success: { viewTemplatePath: 'pages/cis-benchmark-detail' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
   },
