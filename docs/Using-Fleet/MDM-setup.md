@@ -99,15 +99,49 @@ Fleet UI:
 
 2. Look at the on-screen information.
 
-How to renew the certificate if it's expired or about to expire:
+### Step 1: generate required files
+To renew APNs, we need to generate the two following files:
+1. New APNs certificate 
+2. New APNs private key 
 
-1. Run the `fleetctl generate mdm-apple --email <email> --org <org>` command. 
+1. Run `fleetctl generate mdm-apple --email <email> --org <org>`. This should download three files and send an email to you with an attached CSR file.
 
-2. Sign in to [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original certificate. 
+> Of these files, you can ignore the SCEP certificate and SCEP key. You don't need these to renew APNs.
 
-3. In the **Settings > Integrations > Mobile device management (MDM)** page, under Apple Push Certificates portal, find the serial number of your current certificate. In Apple Push Certificates Portal, click  **Renew** next to the certificate that has the matching serial number. 
+### Step 2: renew APNs certificate in Apple Push Certificates Portal
 
-### Renewing SCEP
+1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original APNs certificate.
+2. Click **Renew** next to the expired certificate 
+3. Upload your CSR
+4. Download the new APNs certificate
+
+### Step 3: configure Fleet with the required files
+
+With the two generated files, we now give them to the Fleet server. 
+
+Restart the Fleet server with the contents of the APNs certificate and APNs private key in following environment variables:
+* [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
+* [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
+
+> You do not need to provide the APNs CSR which was emailed to you.
+
+### Step 4: confirm Fleet is updated
+Confirm that Fleet is set up by visiting the "Fleet UI" or using "fleetctl."
+
+Fleet UI:
+
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Look at the **Apple Push Certificates Portal** section.
+
+2. Follow the on-screen instructions.
+`fleetctl` CLI:
+
+1. Run `fleetctl get mdm-apple`.
+
+You should see information about the new APNs certificate such as serial number and renewal date. 
+
+## Renewing SCEP
 TODO
 
 ## Apple Business Manager (ABM)
