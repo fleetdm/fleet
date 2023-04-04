@@ -173,11 +173,6 @@ type MDMAppleCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 }
 
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandResult) AuthzType() string {
-	return "mdm_apple_command_result"
-}
-
 // MDMAppleInstaller holds installer packages for Apple devices.
 type MDMAppleInstaller struct {
 	// ID is the unique identifier of the installer in Fleet.
