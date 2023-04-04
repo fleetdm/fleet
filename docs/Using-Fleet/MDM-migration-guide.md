@@ -39,19 +39,21 @@ _Available in Fleet Premium_
 
 In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](./MDM-macOS-settings.md#disk-encryption).
 
-During migration from your old MDM solution, disk encryption will be turned off for your macOS hosts until they are enrolled to Fleet and MDM is turned on for these hosts.
+If your hosts did not have disk encryption turned on under the old MDM, there is no migration action needed. When you turn on disk encryption, the host will be encrypted and the key will be escrowed to Fleet automatically.
 
-If your old MDM solution enforced disk encryption, your end users will need to reset their disk encryption key for Fleet to be able to store the key. The **My device** page in Fleet Desktop will present users with instructions to reset their key. Share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
+If the host had disk encryption turned on under the old MDM, disk encryption will be turned off for your macOS hosts until they are enrolled to Fleet and MDM is turned on for these hosts. Your end users will need to take an action to reset their disk encryption key for Fleet to be able to store the key. 
+
+The **My device** page in Fleet Desktop will present users with instructions to reset their key. Share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
 ## Activation Lock Bypass codes
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
 
-If a Mac has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating this host to Fleet: https://support.apple.com/en-us/HT208987.
+If a host under the old MDM solution has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating this host to Fleet: https://support.apple.com/en-us/HT208987.
 
 This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
 
-Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
+However, Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
 
 ## Migrate settings
 
@@ -59,7 +61,7 @@ To enforce the same settings on your macOS hosts in Fleet as you did using your 
 
 If your old MDM solution enforced FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
 
-For all other settings you enforced, you have to first export these settings as configuration profiles from your old MDM solution. Then, you have to add the configuration profiles to Fleet.
+For all other settings you enforced, you have to first export these settings as .mobileconfig profiles from your old MDM solution. Then, you have to add the configuration profiles to Fleet.
 
 How to export settings as configuration profiles:
 
