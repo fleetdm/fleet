@@ -1,6 +1,6 @@
 # CIS Benchmarks
 
-The CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
+Fleet's [CIS benchmark library](https://fleetdm.com/cis-benchmarks) allows users to create policies to monitor international security standards. The CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet implements CIS Benchmarks using [Policies](./REST-API.md#policies). Each specific CIS benchmark check is implemented with a policy query in Fleet.
