@@ -19,7 +19,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/tokenpki"
-	nanomdm_log "github.com/micromdm/nanomdm/log"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
 	"github.com/stretchr/testify/assert"
@@ -2528,11 +2527,3 @@ type pusherFunc func(context.Context, []string) (map[string]*push.Response, erro
 func (f pusherFunc) Push(ctx context.Context, ids []string) (map[string]*push.Response, error) {
 	return f(ctx, ids)
 }
-
-type mockNanoMDMLogger struct{}
-
-func (mockNanoMDMLogger) Info(keyvals ...interface{}) {}
-
-func (mockNanoMDMLogger) Debug(keyvals ...interface{}) {}
-
-func (l mockNanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger { return l }
