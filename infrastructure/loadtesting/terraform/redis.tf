@@ -5,7 +5,7 @@ resource "aws_elasticache_replication_group" "default" {
   subnet_group_name             = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id, aws_security_group.backend.id]
   replication_group_id          = "${local.prefix}-redis"
-  number_cache_clusters         = 3
+  num_cache_clusters            = 3
   node_type                     = var.redis_instance_type
   engine_version                = "5.0.6"
   port                          = "6379"
