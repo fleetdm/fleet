@@ -2518,6 +2518,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	//
 	// Setup test data.
+	// All actions are authored by a global admin.
 	//
 
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -2530,7 +2531,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		Name: "Foo",
 	})
 	require.NoError(t, err)
-	appConfig, err := s.ds.AppConfig(ctx)
+	acr := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": false
+			}
+		}
+	}`), http.StatusOK, &acr)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acr)
+	require.False(t, acr.WebhookSettings.VulnerabilitiesWebhook.Enable)
+	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:  "Foo",
+		Query: "SELECT * from time;",
+	})
 	require.NoError(t, err)
 
 	//
@@ -2593,8 +2607,43 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusForbidden, &appConfigResponse{})
 
 	// Attempt to write app config, should allow.
-	appConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL = "https://foobar.example.com"
-	s.DoJSON("PATCH", "/api/latest/fleet/config", appConfig, http.StatusOK, &appConfigResponse{})
+	acr = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": true,
+				"destination_url": "https://foobar.example.com"
+			}
+		}
+	}`), http.StatusOK, &acr)
+	require.True(t, acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.Enable)
+	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
+
+	// Attempt to run live queries synchronously, should fail.
+	// TODO(lucas): This is a bug, the synchronous live query API should return 403 but currently returns 200.
+	// It doesn't run the query but incorrectly returns a 200.
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
+		HostIDs:  []uint{h1.ID},
+		QueryIDs: []uint{q1.ID},
+	}, http.StatusOK, &runLiveQueryResponse{})
+
+	// Attempt to run live queries asynchronously (new unsaved query), should fail.
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT * FROM time;",
+		Selected: fleet.HostTargets{
+			HostIDs: []uint{h1.ID},
+		},
+	}, http.StatusForbidden, &runLiveQueryResponse{})
+
+	// Attempt to run live queries asynchronously (saved query), should fail.
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+		QueryID: ptr.Uint(q1.ID),
+		Selected: fleet.HostTargets{
+			HostIDs: []uint{h1.ID},
+		},
+	}, http.StatusForbidden, &runLiveQueryResponse{})
+
+	// CREATE EDIT AND DELETE QUERIES
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {
