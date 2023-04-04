@@ -26,13 +26,15 @@ output "fleet_sidecars" {
       },
       portMappings = [
         {
-          hostPort = 4317
+          containerPort = 4317
+          protocol      = "tcp"
         },
         {
-          hostPort = 4318
-        }
-      ]
-    }
+          containerPort = 4318
+          protocol      = "tcp"
+        },
+      ],
+    },
   ]
 }
 
