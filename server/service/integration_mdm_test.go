@@ -76,6 +76,7 @@ type integrationMDMTestSuite struct {
 	profileSchedule      *schedule.Schedule
 	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
 	oktaMock             *externalsvc.MockOktaServer
+	mdmStorage           *mysql.NanoMDMStorage
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -172,6 +173,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
 	s.oktaMock = oktaMock
+	s.mdmStorage = mdmStorage
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -2399,6 +2401,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 }
 
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
+	ctx := context.Background()
 	t := s.T()
 
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
@@ -2463,7 +2466,30 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
 	require.Len(t, cmdResResp.Results, 0)
 
-	// TODO(mna): simulate a result and call again
+	// simulate a result and call again
+	err = s.mdmStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHost.uuid}, Context: ctx,
+	}, &mdm.CommandResults{CommandUUID: uuid2, Status: "Acknowledged", Raw: []byte(rawCmd)})
+	require.NoError(t, err)
+
+	h, err := s.ds.HostByIdentifier(ctx, enrolledHost.uuid)
+	require.NoError(t, err)
+	h.Hostname = "test-host"
+	err = s.ds.UpdateHost(ctx, h)
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
+	require.Len(t, cmdResResp.Results, 1)
+	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
+	cmdResResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMAppleCommandResult{
+		DeviceID:    enrolledHost.uuid,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd),
+		Hostname:    "test-host",
+	}, cmdResResp.Results[0])
 }
 
 // only asserts the profile identifier, status and operation (per host)
