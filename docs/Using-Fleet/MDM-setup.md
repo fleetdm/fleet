@@ -83,7 +83,7 @@ You should see information about the APNs certificate such as serial number and 
 
 > Apple requires that APNs certificates are renewed once every year. 
 > * Be sure to do it early. If you renew after a certificate has expired, you will have to turn MDM off and back on for all macOS hosts. 
-> * Be sure to use the same Apple ID from year-to-year. If you don't, you will have to unenroll and re-enroll all macOS hosts. 
+> * Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts. 
 
 You can see the certificate's renewal date and other important APNs information using the Fleet UI or the `fleetctl` command-line interface:
 
@@ -222,7 +222,7 @@ Finally, we set Fleet to be the MDM for all future Macs purchased via Apple or a
 
 All automatically-enrolled hosts will be assigned to a default team of your choosing after they are unboxed and set up. The host will receive the configurations and behaviors set for that team. If no default team is set, then the host will be placed in "No Teams". 
 
-> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host will automatically enforces the new team's settings when it enrolls.
+> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host will automatically enforce the new team's settings when it enrolls.
 
 To change the default team, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
