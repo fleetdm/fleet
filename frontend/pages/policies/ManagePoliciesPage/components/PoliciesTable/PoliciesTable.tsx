@@ -96,6 +96,13 @@ const PoliciesTable = ({
         </Button>
       );
     }
+    if (searchString) {
+      delete emptyPolicies.iconName;
+      delete emptyPolicies.primaryButton;
+      emptyPolicies.header = "No policies match the current search criteria.";
+      emptyPolicies.info =
+        "Expecting to see policies? Try again in a few seconds as the system catches up.";
+    }
 
     return emptyPolicies;
   };
