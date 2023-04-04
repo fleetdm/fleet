@@ -23,7 +23,15 @@ output "fleet_sidecars" {
           "awslogs-region" : data.aws_region.current.name,
           "awslogs-stream-prefix" : "ecs"
         }
-      }
+      },
+      portMappings = [
+        {
+          hostPort = "4317"
+        },
+        {
+          hostPort = "4318"
+        }
+      ]
     }
   ]
 }
