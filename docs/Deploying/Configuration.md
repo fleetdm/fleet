@@ -3056,7 +3056,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer` and `observer`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer` and `observer_plus`.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
