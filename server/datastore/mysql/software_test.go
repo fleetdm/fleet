@@ -38,6 +38,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostsBySoftwareIDs", testHostsBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
@@ -147,10 +148,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		{Name: "zoo", Version: "0.0.5", Source: "rpm_packages", BundleIdentifier: ""},               // non-empty -> empty
 	}
 
-	err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
-	require.NoError(t, err)
-
-	err = ds.UpdateHostSoftware(context.Background(), host1.ID, software2)
+	err := ds.UpdateHostSoftware(context.Background(), host1.ID, append(software1, software2...))
 	require.NoError(t, err)
 
 	q := fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources}
@@ -1322,6 +1320,131 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 2)
 	require.Equal(t, hosts[0].Hostname, "host1")
 	require.Equal(t, hosts[1].Hostname, "host2")
+}
+
+// testUpdateHostSoftwareUpdatesSoftware tests that uninstalling applications
+// from hosts (ds.UpdateHostSoftware) will remove the corresponding entry in
+// `software` if no more hosts have the application installed.
+func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1 := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+	h2 := test.NewHost(t, ds, "host2", "", "hostkey2", "hostuuid2", time.Now())
+
+	// Set the initial software list.
+	sw1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+	}
+	err := ds.UpdateHostSoftware(ctx, h1.ID, sw1)
+	require.NoError(t, err)
+	sw2 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+		{Name: "baz2", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+	}
+	err = ds.UpdateHostSoftware(ctx, h2.ID, sw2)
+	require.NoError(t, err)
+
+	// ListSoftware uses host_software_counts table.
+	err = ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	// Check the returned software.
+	cmpNameVersionCount := func(expected, got []fleet.Software) {
+		cmp := make([]fleet.Software, len(got))
+		for i, sw := range got {
+			cmp[i] = fleet.Software{Name: sw.Name, Version: sw.Version, HostsCount: sw.HostsCount}
+		}
+		require.ElementsMatch(t, expected, cmp)
+	}
+	opts := fleet.SoftwareListOptions{WithHostCounts: true}
+	software := listSoftwareCheckCount(t, ds, 4, 4, opts, false)
+	expectedSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", HostsCount: 2},
+		{Name: "bar", Version: "0.0.2", HostsCount: 2},
+		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+		{Name: "baz2", Version: "0.0.3", HostsCount: 1},
+	}
+	cmpNameVersionCount(expectedSoftware, software)
+
+	// Update software for the two hosts.
+	//
+	//	- foo is still present in both hosts
+	//	- new is added to h1.
+	//	- baz is removed from h2.
+	//	- baz2 is removed from h2.
+	//	- bar is removed from both hosts.
+	sw1Updated := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+		{Name: "new", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_new"},
+	}
+	err = ds.UpdateHostSoftware(ctx, h1.ID, sw1Updated)
+	require.NoError(t, err)
+	sw2Updated := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+	}
+	err = ds.UpdateHostSoftware(ctx, h2.ID, sw2Updated)
+	require.NoError(t, err)
+
+	var (
+		bazSoftwareID  uint
+		barSoftwareID  uint
+		baz2SoftwareID uint
+	)
+	for _, s := range software {
+		if s.Name == "baz" {
+			bazSoftwareID = s.ID
+		}
+		if s.Name == "baz2" {
+			baz2SoftwareID = s.ID
+		}
+		if s.Name == "bar" {
+			barSoftwareID = s.ID
+		}
+	}
+	require.NotZero(t, bazSoftwareID)
+	require.NotZero(t, barSoftwareID)
+	require.NotZero(t, baz2SoftwareID)
+
+	// "new" is not returned until ds.SyncHostsSoftware is executed.
+	// "baz2" is gone from the software list.
+	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
+	//
+	// So... counts are "off" until ds.SyncHostsSoftware is run.
+	software = listSoftwareCheckCount(t, ds, 2, 2, opts, false)
+	expectedSoftware = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", HostsCount: 2},
+		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+	}
+	cmpNameVersionCount(expectedSoftware, software)
+
+	hosts, err := ds.HostsBySoftwareIDs(ctx, []uint{bazSoftwareID})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, hosts[0].ID, h1.ID)
+
+	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barSoftwareID})
+	require.NoError(t, err)
+	require.Empty(t, hosts)
+	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{baz2SoftwareID})
+	require.NoError(t, err)
+	require.Empty(t, hosts)
+
+	// ListSoftware uses host_software_counts table.
+	err = ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
+
+	software = listSoftwareCheckCount(t, ds, 3, 3, opts, false)
+	expectedSoftware = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", HostsCount: 2},
+		{Name: "baz", Version: "0.0.3", HostsCount: 1},
+		{Name: "new", Version: "0.0.4", HostsCount: 1},
+	}
+	cmpNameVersionCount(expectedSoftware, software)
 }
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
