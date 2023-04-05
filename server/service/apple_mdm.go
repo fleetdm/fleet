@@ -1692,11 +1692,12 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds fleet.Datastore
+	ds        fleet.Datastore
+	commander *apple_mdm.MDMAppleCommander
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
-	return &MDMAppleCheckinAndCommandService{ds: ds}
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds, commander: commander}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -1743,6 +1744,17 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		// device is enrolled for the first time, not a token update
 		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
+		}
+
+		info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+		if err != nil {
+			return err
+		}
+		if info.InstalledFromDEP {
+			uuid := uuid.New().String()
+			if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, uuid, apple_mdm.FleetdPublicManifestURL); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
