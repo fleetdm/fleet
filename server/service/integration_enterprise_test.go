@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strings"
@@ -2021,12 +2022,24 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
-	var rawResp json.RawMessage
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
-	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
+	t := s.T()
+
+	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	}
+
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	t.Cleanup(fleetdmSrv.Close)
+
+	// Always accessible
+	var reqCSRResp requestMDMAppleCSRResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
@@ -2420,4 +2433,76 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 		return err
 	})
 	return host
+}
+
+func (s *integrationEnterpriseTestSuite) TestListSoftware() {
+	t := s.T()
+	now := time.Now().UTC().Truncate(time.Second)
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
+	}
+	require.NoError(t, s.ds.UpdateHostSoftware(ctx, host.ID, software))
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	bar := host.Software[0]
+	if bar.Name != "bar" {
+		bar = host.Software[1]
+	}
+
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		ctx, fleet.SoftwareVulnerability{
+			SoftwareID: bar.ID,
+			CVE:        "cve-123",
+		}, fleet.NVDSource,
+	)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
+		CVE:              "cve-123",
+		CVSSScore:        ptr.Float64(5.4),
+		EPSSProbability:  ptr.Float64(0.5),
+		CISAKnownExploit: ptr.Bool(true),
+		Published:        &now,
+	}}))
+
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
+
+	var resp listSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
+	require.NotNil(t, resp)
+
+	barPayload := resp.Software[0]
+	if barPayload.Name != "bar" {
+		barPayload = resp.Software[1]
+	}
+
+	fooPayload := resp.Software[1]
+	if barPayload.Name != "bar" {
+		barPayload = resp.Software[0]
+	}
+
+	require.Empty(t, fooPayload.Vulnerabilities)
+	require.Len(t, barPayload.Vulnerabilities, 1)
+	require.Equal(t, barPayload.Vulnerabilities[0].CVE, "cve-123")
+	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, ptr.Float64Ptr(5.4))
+	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
+	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
+	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
 }

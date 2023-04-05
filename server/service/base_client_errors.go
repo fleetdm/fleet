@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -44,6 +45,10 @@ func (e notSetupErr) NotSetup() bool {
 	return true
 }
 
+// TODO: we have a similar but different interface in the fleet package,
+// fleet.NotFoundError - at the very least, the NotFound method should be the
+// same in both (the other is currently IsNotFound), and ideally we'd just have
+// one of those interfaces.
 type NotFoundErr interface {
 	NotFound() bool
 	Error() string
@@ -110,4 +115,17 @@ func extractServerErrorText(body io.Reader) string {
 	}
 
 	return errText
+}
+
+type statusCodeErr struct {
+	code int
+	body string
+}
+
+func (e *statusCodeErr) Error() string {
+	return fmt.Sprintf("%d %s", e.code, e.body)
+}
+
+func (e *statusCodeErr) StatusCode() int {
+	return e.code
 }

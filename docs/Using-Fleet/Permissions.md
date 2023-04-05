@@ -46,7 +46,9 @@ Users with the Admin role receive all permissions.
 | View Apple business manager (BM) information                                                                                               |          |            | ✅    |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            | ✅    |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                           | ✅       | ✅         | ✅    |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |         | ✅         | ✅    |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          | ✅         | ✅    |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                                |          | ✅         | ✅    |
+| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅       | ✅         | ✅    |
 
 \*Applies only to Fleet Premium
 
@@ -95,6 +97,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               | ✅              | ✅         |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅            | ✅              | ✅         |
 | Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               | ✅              | ✅         |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               | ✅              | ✅         |
+| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅            | ✅              | ✅         |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

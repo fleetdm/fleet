@@ -711,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2345,17 +2362,44 @@ vulnerabilities:
 
 ##### database_path
 
-The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
+The path to a valid Maxmind GeoIP database (mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
 to determine location is extracted via HTTP headers in the following order: `True-Client-IP`, `X-Real-IP`, and finally `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
 on the Fleet web server.
+
+You can get a copy of the
+[Geolite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data?lang=en) database for free by
+[creating an account](https://www.maxmind.com/en/geolite2/signup?lang=en) on the MaxMind website,
+navigating to the [download page](https://www.maxmind.com/en/accounts/current/geoip/downloads),
+and downloading the GZIP archive. Decompress it and place the mmdb file somewhere fleet can access.
+
+It is also possible to automatically keep the database up to date, see the
+[documentation](https://dev.maxmind.com/geoip/updating-databases?lang=en) from MaxMind.
+
+GeoIP databases can find what general area a device is from, but not the exact location.
+They work by collecting which IP addresses ISPs use for different cities and countries and
+packaging them up into a list mapping IP address to city.
+
+You've likely seen services use GeoIP databases if they redirect you to a site specific
+to your country. e.g. Google will redirect you to [google.ca](https://google.ca) if you visit from Canada
+or Mouser will change to your local currency if you view an electronic component.
+
+This can be useful for your fleet install if you want to tell if a device is somewhere it shouldn't
+be. If a desktop machine located at a site in New York suddenly appears in London, then you can tell
+that something is wrong. It can also help you differentiate machines if they have similar names,
+e.g. if you have two computers "John's MacBook Pro".
+
+While it can be a useful tool, an unexpected result could be an error in the database, a user
+connecting via a mobile network which uses the same IP address for a wide area, or a user visiting
+family. Checking on the location of devices too often could be invasive to employees who are keeping
+work devices on them for e.g. oncall responsibilities.
 
 - Default value: none
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
   geoip:
-    database_path: /some/path
+    database_path: /some/path/to/geolite2.mmdb
   ```
 
 #### Sentry
@@ -2977,7 +3021,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 

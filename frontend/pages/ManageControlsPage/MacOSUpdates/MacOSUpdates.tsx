@@ -1,26 +1,24 @@
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
+import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+
 import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
 import useInfoCard from "pages/DashboardPage/components/InfoCard";
-import React, { useContext } from "react";
-import { isPremiumTier } from "utilities/permissions/permissions";
-import { AppContext } from "context/app";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 
 const baseClass = "mac-os-updates";
 
-interface IMacOSUpdatesProps {
-  location: {
-    query: { team_id?: string };
-  };
-}
-
-const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
-  const { team_id } = location.query;
-  const { config } = useContext(AppContext);
-  const isPremium = config ? isPremiumTier(config) : false;
-  // Avoids possible case where Number(undefined) returns NaN
-  const teamId = team_id === undefined ? team_id : Number(team_id);
+const MacOSUpdates = () => {
+  const { currentTeam, isPremiumTier } = useContext(AppContext);
+  const teamId =
+    currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
+      ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
+      : currentTeam.id;
 
   const OperatingSystemCard = useInfoCard({
     title: "macOS versions",
@@ -38,7 +36,7 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
     ),
   });
 
-  return isPremium ? (
+  return isPremiumTier ? (
     <div className={baseClass}>
       <>
         <p className={`${baseClass}__description`}>

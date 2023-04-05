@@ -1,6 +1,7 @@
 import React, { useState, useContext, FormEvent } from "react";
 
 import { AppContext } from "context/app";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 
 import Modal from "components/Modal";
@@ -26,9 +27,12 @@ const EditTeamModal = ({
 
   const [selectedTeam, setSelectedTeam] = useState(defaultTeamName);
 
-  const teamNameOptions = availableTeams?.map((teamSummary) => {
-    return { value: teamSummary.name, label: teamSummary.name };
-  });
+  // TODO: Should this include "No team" as an option?
+  const teamNameOptions = availableTeams
+    ?.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    .map((teamSummary) => {
+      return { value: teamSummary.name, label: teamSummary.name };
+    });
 
   const [isLoading, setIsLoading] = useState(false);
 

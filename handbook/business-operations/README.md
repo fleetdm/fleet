@@ -85,7 +85,7 @@ For team members working in jurisdictions that require certain mandatory sick le
 When you take any time off, you should follow this process:
 - Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
-- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
+- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
 If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 This process is the same for any days you take off, whether it's a holiday or you just need a break.
@@ -153,7 +153,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
 | Other department | ❌ | ❌ | ❌ | ❌ | ❌
 
-> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier.  The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
+> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier. Fleet has a Sales Navigator account. AEs and SDRs should [ask the operations team for a license.](https://fleetdm.com/handbook/business-operations#intake) The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -312,14 +312,15 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
+### Namecheap
 
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ## Hiring
 
 At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
 
 > Are you a new fleetie joining the Business Operations team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
-
 
 ### Hiring a consultant
 
@@ -392,10 +393,15 @@ Want to hire?  Here's how to open up a new position on the core team:
 -->
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department.  For now, leave the start date blank.
-2. **Propose job description:** Locate one of the existing job descriptions inside the `handbook/company/` folder and duplicate it into a new handbook subpage.  Use the same style of filename, but based on the new job title.  (This filename will determine the URL where candidates can apply.)
-  - Keep the structure of the document identical.  Change only the job title, "Responsibilities", and "Experience".
-  - In the same pull request, add a link to your new job posting to the bottom of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
-  - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
+2. **Propose job description:** Copy, personalize, and publish the job description:
+   - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
+     - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
+     - _Contents:_ Keep the structure of the document [identical](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).  Change only the job title, "Responsibilities", and "Experience".
+   - _Add to list of open positions:_ In [the same pull request](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2), add a link to your new job posting to the bottom of the list of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
+     - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
+
+> _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
+
 3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
 > _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
@@ -466,7 +472,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
-   - Preferred pronoun _("them", "her", or "him")
+   - Preferred pronoun _("them", "her", or "him")_
    - Country and state where they will be working _(Pattern-match from how other rows do it.  Please be mindful of spreadsheet formulas.)_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
@@ -479,6 +485,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
    - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
+   - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the CEO via email.
@@ -540,7 +547,10 @@ Once the new team member replies and accepts their offer in writing, either the 
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** Take down the newly-filled position from the fleetdm.com website by making the following two changes:  (please only submit [one, single pull request that changes both of these files](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2):
+   - Edit the [list of open positions](https://fleetdm.com/handbook/company#open-positions) to remove the newly-filled position from the list.
+   - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
+5. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
@@ -558,7 +568,7 @@ When selecting a new laptop for a team member, optimize their configuration to:
 
 > Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
-For example, someone in sales, marketing, or business operations might use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.
+For example, someone in sales, marketing, or business operations might like to use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.  **Default to a 16" MacBook Pro.**
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
@@ -633,13 +643,18 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 
 ## Informing managers about hours worked
 Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+
+Here's how:
 - For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
+- If any direct report is hourly in Pilot.co and does not submit their hours until the end of the month, still list them, but explain.  (See example below.)
 - [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
-- Send each manager a direct message in Slack by copying and pasting the following template:
+
+Then, send **the CEO** and **each manager** a direct message in Slack by copying and pasting the following template:
 
 > Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
 > - 🧑‍🚀 Alice Bobberson: 21.25
 > - 🧑‍🚀 Charles David: 3.5
+> - 🧑‍🚀 Philippe Timebender: (this person's hours will not be available until they invoice at the end of the month)
 >
 > And here are the hours worked by consultants:
 > - 💁 Bombalurina: 0
@@ -782,35 +797,47 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 
 | Ritual                       | Frequency                | Description                                         | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Weekly update reminder | Weekly | Early Friday mornings (US time), a Slack bot posts in the `#g-e` channel reminding directly responsible individuals for KPIs to add their metrics for the current week in ["KPIs"](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) before the end of the day. | N/A |
-| Weekly update | Weekly | On Friday, Mike McNeil updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) and posts a single message recognizing each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements. Mike McNeil posts the company update in the `#general` channel. | Mike McNeil |
-| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
-| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
-| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
-| Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
-| Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
-| Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Nathanael Holliday |
-| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Mike McNeil |
-| 550C update | Annually | File California 550C. | Mike McNeil |
-| [Workiversaries](#workiversaries) | Weekly/PRN | Mike McNeil posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Mike McNeil |
-| Investor and Advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
+| Key review | every three weeks | Every release cycle, a key review deck is prepared and presented. | Head of Business Operations |
+| Informing managers about hours worked | Weekly |  See [Informing managers about hours worked"](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Head of Business Operations |
+| Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Head of Business Operations |
+| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Head of Business Operations |
+| Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Taylor Hughes |
+| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil. | Taylor Hughes |
+| Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
+| Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
+| AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
+
+
+
+<!--
+TODO: Move to CEO handbook page
+
+| Weekly update | Weekly | On Friday, Mike McNeil posts a single message in #general [based on the message from the previous week, saving a copy for reference _next_ week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).  This weekly update recognizeseach of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements, and information about ongoing onboardings and open positions.  | Mike McNeil |
 | CEO inbox sweep | Daily unless OOO | Mike McNeil does a morning sweep of the CEO's inbox to remove spam and grab action items. | Mike McNeil |
-| Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
-| Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Mike McNeil |
 | Calendar audit | Daily | Daily Mike McNeil audits CEOs calendar and set notes for meetings. | Mike McNeil |
-| TPA verifications | Quarterly | Every quarter before tax filing due dates, Mike McNeil audits state accounts to ensure TPA is set up or renewed. | Mike McNeil |
-| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to Mike Mcneil and Alex Mitchell in the `#g-sales` channel and follow up with customers as necessary to resolve. | Nathanael Holliday |
-| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB. | Nathanael Holliday |
-| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
-| Business Ops key review | every three weeks | Every release cycle a key review deck is prepared and presented. | Nathanael Holliday |
-| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
-| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+| [Workiversaries](#workiversaries) | Weekly/PRN | Mike McNeil posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Mike McNeil |
+| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
+-->
+
+<!--
+Note: These are out of date, but retained for future reference:
+
+| Weekly update reminder | Weekly | Early Friday mornings (US time), a Slack bot posts in the `#g-e` channel reminding directly responsible individuals for KPIs to add their metrics for the current week in ["KPIs"](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) before the end of the day. | N/A |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Mike McNeil |
+| 550C update | Annually | File California 550C. | Mike McNeil |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Mike McNeil audits state accounts to ensure TPA is set up or renewed. | Mike McNeil |
+| Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
+| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
+| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
+| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB. | Nathanael Holliday |
+| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
-| Informing managers about hours worked | Weekly |  See [handbook entry](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Nathanael Holliday |
-
+| Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
+| Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+-->
 
 
 ## Kanban
@@ -827,14 +854,12 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
-| `#g-business-operations`                | Nathan Holliday
+| `#g-business-operations`                | Business operations on-call
+| `#help-login`                           | Business operations on-call
+| `#help-brex`                            | Business operations on-call
+| `#help-classified` _(¶¶)_               | Business operations on-call
 | `#help-onboarding`                      | Mike McNeil
-| `#help-login`                           | Nathan Holliday
 | `#help-manage`                          | Mike McNeil
-| `#help-brex`                            | Nathan Holliday
-| `#help-ceo`                             | Mike McNeil
-| `#help-mission-control` _(¶¶)_          | Mike McNeil
-| `#help-classified` _(¶¶)_               | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 #### Stubs

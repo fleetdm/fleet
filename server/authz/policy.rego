@@ -563,18 +563,34 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write Apple commands.
+# Global admins and maintainers can write (execute) MDM Apple commands.
 allow {
   object.type == "mdm_apple_command"
-  subject.global_role == admin
-  action == [read, write][_]
+  subject.global_role == [admin, maintainer][_]
+  action == write
 }
 
-# Global admins can read and write Apple MDM command results.
+# Team admins and maintainers can write (execute) MDM Apple commands on hosts of their teams.
 allow {
-  object.type == "mdm_apple_command_result"
-  subject.global_role == admin
-  action == [read, write][_]
+  not is_null(object.team_id)
+  object.type == "mdm_apple_command"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Admin, maintainer and observer can read MDM Apple commands.
+allow {
+  object.type == "mdm_apple_command"
+  subject.global_role == [admin, maintainer, observer][_]
+  action == read
+}
+
+# Team admins, maintainers and observers can read MDM Apple commands on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_command"
+  team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+  action == read
 }
 
 # Global admins can read and write Apple MDM installers.

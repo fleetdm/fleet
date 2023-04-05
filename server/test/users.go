@@ -14,6 +14,7 @@ var (
 	UserAdmin = &fleet.User{
 		ID:         2,
 		GlobalRole: ptr.String(fleet.RoleAdmin),
+		Email:      "useradmin@example.com",
 	}
 	UserMaintainer = &fleet.User{
 		ID:         3,

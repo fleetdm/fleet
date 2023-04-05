@@ -76,6 +76,7 @@ type integrationMDMTestSuite struct {
 	profileSchedule      *schedule.Schedule
 	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
 	oktaMock             *externalsvc.MockOktaServer
+	mdmStorage           *mysql.NanoMDMStorage
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -131,12 +132,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, true)
+					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, true)
 					depSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-							return fleetSyncer.Run(ctx)
+							return fleetSyncer.RunAssigner(ctx)
 						}),
 					)
 					return depSchedule, nil
@@ -153,7 +154,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onScheduleDone != nil {
 								defer s.onScheduleDone()
 							}
-							return ReconcileProfiles(ctx, ds, NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+							return ReconcileProfiles(ctx, ds, apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
 						}),
 					)
 					return profileSchedule, nil
@@ -172,6 +173,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
 	s.oktaMock = oktaMock
+	s.mdmStorage = mdmStorage
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -299,10 +301,22 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	t := s.T()
 	ctx := context.Background()
 
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+	var fleetdProfile bytes.Buffer
+	params := mobileconfig.FleetdProfileOptions{
+		EnrollSecret: t.Name(),
+		ServerURL:    "https://example.org",
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+	}
+	err = mobileconfig.FleetdProfileTemplate.Execute(&fleetdProfile, params)
+	require.NoError(t, err)
+
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
+	wantGlobalProfiles := append(globalProfiles, fleetdProfile.Bytes())
 
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -314,6 +328,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
 	}
+	wantTeamProfiles := append(teamProfiles, fleetdProfile.Bytes())
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
@@ -354,10 +369,15 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.NoError(t, err)
 	d.mdmEnroll(s)
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	triggerSchedule := func() {
+		ch := make(chan bool)
+		s.onScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
+	}
+
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-		wg.Done()
 		require.Len(t, pushes, 1)
 		require.Equal(t, pushes[0].PushMagic, "pushmagic"+d.serial)
 		res := map[string]*push.Response{
@@ -402,13 +422,11 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	}
 
 	// trigger a profile sync
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
-	wg.Wait()
+	triggerSchedule()
 
 	installs, removes := checkNextPayloads()
-	// verify that we received both profiles
-	require.ElementsMatch(t, installs, globalProfiles)
+	// verify that we received all profiles
+	require.ElementsMatch(t, wantGlobalProfiles, installs)
 	require.Empty(t, removes)
 
 	// add the host to a team
@@ -416,34 +434,29 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.NoError(t, err)
 
 	// trigger a profile sync
-	wg.Add(3)
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
-	wg.Wait()
+	triggerSchedule()
 
 	installs, removes = checkNextPayloads()
 	// verify that we should install the team profile
-	require.ElementsMatch(t, installs, teamProfiles)
+	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
-	require.ElementsMatch(t, removes, []string{"I1", "I2"})
+	require.ElementsMatch(t, []string{"I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier}, removes)
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
 		mobileconfigForTest("N5", "I5"),
 	}
+	wantTeamProfiles = teamProfiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
 	// trigger a profile sync
-	wg.Add(3)
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
-	wg.Wait()
+	triggerSchedule()
 	installs, removes = checkNextPayloads()
 	// verify that we should install the team profiles
-	require.ElementsMatch(t, installs, teamProfiles)
+	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles
-	require.ElementsMatch(t, removes, []string{"I3"})
+	require.ElementsMatch(t, []string{"I3"}, removes)
 
 	// with no changes
 	_, err = s.profileSchedule.Trigger()
@@ -456,7 +469,8 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
 	require.NotEmpty(t, hostResp.Host.MDM.Profiles)
 	resProfiles := *hostResp.Host.MDM.Profiles
-	require.Len(t, resProfiles, len(teamProfiles))
+	// one extra profile for the fleetd config
+	require.Len(t, resProfiles, len(wantTeamProfiles)+1)
 
 	var teamSummaryResp getMDMAppleProfilesSummaryResponse
 	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{TeamID: &tm.ID}, http.StatusOK, &teamSummaryResp)
@@ -507,15 +521,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-
-	// create a DEP enrollment profile
-	profile := json.RawMessage("{}")
-	var createProfileResp createMDMAppleEnrollmentProfileResponse
-	createProfileReq := createMDMAppleEnrollmentProfileRequest{
-		Type:       "automatic",
-		DEPProfile: &profile,
-	}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", createProfileReq, http.StatusOK, &createProfileResp)
 
 	// query all hosts
 	listHostsRes := listHostsResponse{}
@@ -815,7 +820,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
-	require.Len(t, *hostResp.Host.MDM.Profiles, 3)
+	// 3 profiles added + 1 profile with fleetd configuration
+	require.Len(t, *hostResp.Host.MDM.Profiles, 4)
 
 	// try to unenroll the host, fails since the host doesn't respond
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusGatewayTimeout)
@@ -1370,6 +1376,176 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
 	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// no hosts with any disk encryption status's
+	fvsResp := getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(0), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// 10 new hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+			UUID:            fmt.Sprintf("%d-%s", i, uuid.New().String()),
+			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// no team tests ====
+
+	// new filevault profile with no team
+	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
+	require.NoError(t, err)
+
+	// generates a disk encryption aggregate value based on the arguments passed in
+	generateAggregateValue := func(
+		hosts []*fleet.Host,
+		operationType fleet.MDMAppleOperationType,
+		status *fleet.MDMAppleDeliveryStatus,
+		decryptable bool,
+	) {
+		for _, host := range hosts {
+			hostCmdUUID := uuid.New().String()
+			err := s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+				{
+					ProfileID:         prof.ProfileID,
+					ProfileIdentifier: prof.Identifier,
+					HostUUID:          host.UUID,
+					CommandUUID:       hostCmdUUID,
+					OperationType:     operationType,
+					Status:            status,
+				},
+			})
+			require.NoError(t, err)
+			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key")
+			require.NoError(t, err)
+			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
+			require.NoError(t, err)
+		}
+	}
+
+	// hosts 1,2 have disk encryption "applied" status
+	generateAggregateValue(hosts[0:2], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 3,4 have disk encryption "action required" status
+	generateAggregateValue(hosts[2:4], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, false)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 5,6 have disk encryption "enforcing" status
+
+	// host profiles status are `pending`
+	generateAggregateValue(hosts[4:6], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryPending, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// host profiles status dont exist
+	generateAggregateValue(hosts[4:6], fleet.MDMAppleOperationTypeInstall, nil, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// host profile is applied but decryptable key does not exist
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			context.Background(),
+			"UPDATE host_disk_encryption_keys SET decryptable = NULL WHERE host_id IN (?, ?)",
+			hosts[5].ID,
+			hosts[6].ID,
+		)
+		require.NoError(t, err)
+		return err
+	})
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 7,8 have disk encryption "failed" status
+	generateAggregateValue(hosts[6:8], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(2), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 9,10 have disk encryption "removing enforcement" status
+	generateAggregateValue(hosts[8:10], fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(2), fvsResp.Failed)
+	require.Equal(t, uint(2), fvsResp.RemovingEnforcement)
+
+	// team tests ====
+
+	// host 1,2 added to team 1
+	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
+	require.NoError(t, err)
+
+	// new filevault profile for team 1
+	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
+	require.NoError(t, err)
+	prof.TeamID = &tm.ID
+	require.NoError(t, err)
+
+	// filtering by the "team_id" query param
+	generateAggregateValue(hosts[0:2], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -1972,10 +2148,13 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 		},
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -1987,10 +2166,13 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2002,12 +2184,16 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 	})
 
@@ -2022,12 +2208,14 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h4: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2039,10 +2227,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h1: {
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h3: {
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2068,11 +2258,13 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h4: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2093,10 +2285,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h1: {
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h3: {
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2121,12 +2315,14 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h4: {
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2145,11 +2341,13 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h3: {
 			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2181,18 +2379,22 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h1: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h3: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
 
@@ -2204,12 +2406,16 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h3: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 	})
 
@@ -2221,20 +2427,185 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h3: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
 		},
 	})
+}
+
+func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
+	t := s.T()
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, false)
+
+	triggerSchedule := func() {
+		ch := make(chan bool)
+		s.onScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
+	}
+
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// a new fleetd configuration profile for "no team" is created
+	triggerSchedule()
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, false)
+
+	// set the default bm assignment to that team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_bm_default_team": %q
+		}
+	}`, tm.Name)), http.StatusOK, &acResp)
+
+	// the team doesn't have any enroll secrets yet, a profile is created using the global enroll secret
+	triggerSchedule()
+	p := s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
+	require.Contains(t, string(p.Mobileconfig), t.Name())
+
+	// create an enroll secret for the team
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:    tm.Name,
+		Secrets: []fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// a new fleetd configuration profile for that team is created
+	triggerSchedule()
+	p = s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
+	require.Contains(t, string(p.Mobileconfig), t.Name()+"team-secret")
+
+	// the old configuration profile is kept
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+}
+
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
+	ctx := context.Background()
+	t := s.T()
+
+	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
+	enrolledHost := newMDMEnrolledDevice(s)
+
+	base64Cmd := func(rawCmd string) string {
+		return base64.RawStdEncoding.EncodeToString([]byte(rawCmd))
+	}
+
+	newRawCmd := func(cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+	}
+
+	// call with unknown host UUID
+	uuid1 := uuid.New().String()
+	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(newRawCmd(uuid1)),
+			DeviceIDs: []string{"no-such-host"},
+		}, http.StatusNotFound)
+
+	// get command results returns 404, that command does not exist
+	var cmdResResp getMDMAppleCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+
+	// call with unenrolled host UUID
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(newRawCmd(uuid.New().String())),
+			DeviceIDs: []string{unenrolledHost.UUID},
+		}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// call with enrolled host UUID
+	uuid2 := uuid.New().String()
+	rawCmd := newRawCmd(uuid2)
+	var resp enqueueMDMAppleCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(rawCmd),
+			DeviceIDs: []string{enrolledHost.uuid},
+		}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.CommandUUID)
+	require.Contains(t, rawCmd, resp.CommandUUID)
+	require.Empty(t, resp.FailedUUIDs)
+	require.Equal(t, "ProfileList", resp.RequestType)
+
+	// the command exists but no results yet
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
+	require.Len(t, cmdResResp.Results, 0)
+
+	// simulate a result and call again
+	err := s.mdmStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHost.uuid},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Raw:         []byte(rawCmd),
+	})
+	require.NoError(t, err)
+
+	h, err := s.ds.HostByIdentifier(ctx, enrolledHost.uuid)
+	require.NoError(t, err)
+	h.Hostname = "test-host"
+	err = s.ds.UpdateHost(ctx, h)
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
+	require.Len(t, cmdResResp.Results, 1)
+	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
+	cmdResResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMAppleCommandResult{
+		DeviceID:    enrolledHost.uuid,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd),
+		Hostname:    "test-host",
+	}, cmdResResp.Results[0])
 }
 
 // only asserts the profile identifier, status and operation (per host)

@@ -1,6 +1,6 @@
 # Fleet 4.4.0 releases aggregated software inventory, team policies, and improved team scheduling
 
-![Fleet 4.4.0](../website/assets/images/articles/fleet-4.4.0-cover-700x393@2x.png)
+![Fleet 4.4.0](../website/assets/images/articles/fleet-4.4.0-cover-1600x900@2x.jpg)
 
 Today we are excited to announce the release of Fleet 4.4.0 which brings new and improved features for our osquery and Fleet users.
 

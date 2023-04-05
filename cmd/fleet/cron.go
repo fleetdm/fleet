@@ -368,7 +368,7 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -894,12 +894,12 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, loggingDebug)
+	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, loggingDebug)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			return fleetSyncer.Run(ctx)
+			return fleetSyncer.RunAssigner(ctx)
 		}),
 	)
 
@@ -910,7 +910,7 @@ func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	commander *service.MDMAppleCommander,
+	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {

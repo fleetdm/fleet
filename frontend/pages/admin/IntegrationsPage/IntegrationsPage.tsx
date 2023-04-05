@@ -7,12 +7,6 @@ import INTEGRATION_SETTINGS_NAV_ITEMS from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
-const MDM_DISABLED_DESCRIPTION =
-  "Add or edit integrations to create tickets when Fleet detects new vulnerabilities.";
-
-const MDM_ENABLED_DESCRIPTION =
-  "Add ticket destinations and turn on mobile device management features.";
-
 interface IIntegrationSettingsPageProps {
   params: Params;
 }
@@ -20,17 +14,7 @@ interface IIntegrationSettingsPageProps {
 const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
   const { section } = params;
   const DEFAULT_SETTINGS_SECTION = INTEGRATION_SETTINGS_NAV_ITEMS[0];
-
-  const { isMdmFeatureFlagEnabled } = useContext(AppContext);
-
-  // filter out mdm if not enabled.
-  let navItems = INTEGRATION_SETTINGS_NAV_ITEMS;
-  if (!isMdmFeatureFlagEnabled) {
-    navItems = INTEGRATION_SETTINGS_NAV_ITEMS.filter(
-      (item) => item.urlSection !== "mdm"
-    );
-  }
-
+  const navItems = INTEGRATION_SETTINGS_NAV_ITEMS;
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
@@ -40,9 +24,7 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        {isMdmFeatureFlagEnabled
-          ? MDM_ENABLED_DESCRIPTION
-          : MDM_DISABLED_DESCRIPTION}
+        Add ticket destinations and turn on mobile device management features.
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

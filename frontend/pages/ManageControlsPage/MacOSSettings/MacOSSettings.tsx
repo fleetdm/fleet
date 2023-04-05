@@ -5,33 +5,31 @@ import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { useQuery } from "react-query";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
+import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
-import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators/AggregateMacSettingsIndicators";
 
 const baseClass = "mac-os-settings";
 
 interface IMacOSSettingsProps {
   params: Params;
-  // location field looks like this to integrate with the react router Route component, which
-  // renders this one
   location: {
-    query: { team_id?: string };
-    action: string;
+    search: string;
   };
 }
 
-const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
+const MacOSSettings = ({
+  location: { search: queryString },
+  params,
+}: IMacOSSettingsProps) => {
   const { section } = params;
-  const { team_id } = location.query;
   const { currentTeam } = useContext(AppContext);
 
-  // Avoids possible case where Number(undefined) returns NaN
   const teamId =
-    team_id === undefined && currentTeam === undefined
-      ? 0
-      : Number(team_id || (currentTeam && currentTeam.id)); // team_id===0 for 'No teams'
+    currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
+      ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
+      : currentTeam.id;
 
   const { data: profiles, refetch: refectchProfiles } = useQuery<
     IMdmProfilesResponse,
@@ -55,16 +53,17 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      {/* {profiles && <AggregateMacSettingsIndicators teamId={teamId} />} 
-      TODO: Enable when the feature is ready
-      */}
+      {profiles && <AggregateMacSettingsIndicators teamId={teamId} />}
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={MAC_OS_SETTINGS_NAV_ITEMS}
+        navItems={MAC_OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+          ...navItem,
+          path: navItem.path.concat(queryString),
+        }))}
         activeItem={currentFormSection.urlSection}
         CurrentCard={
           <CurrentCard
-            key={team_id}
+            key={teamId}
             currentTeamId={teamId}
             profiles={profiles}
             onProfileUpload={refectchProfiles}

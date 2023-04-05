@@ -186,10 +186,16 @@ func TestIntegrationAnalyzer(t *testing.T) {
 		}
 
 		// These 'old' vulnerabilities should be cleared out...
-		_, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
-			{SoftwareID: word.ID, CVE: "3000-3000"},
-			{SoftwareID: powerpoint.ID, CVE: "4000-3000"},
+		ok, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: word.ID, CVE: "3000-3000",
 		}, fleet.MacOfficeReleaseNotesSource)
+		require.True(t, ok)
+		require.NoError(t, err)
+
+		ok, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: powerpoint.ID, CVE: "4000-3000",
+		}, fleet.MacOfficeReleaseNotesSource)
+		require.True(t, ok)
 		require.NoError(t, err)
 
 		vulns, err := macoffice.Analyze(ctx, ds, vulnPath, true)
