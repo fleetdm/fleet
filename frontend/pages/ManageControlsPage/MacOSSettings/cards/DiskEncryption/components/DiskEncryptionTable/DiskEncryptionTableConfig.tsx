@@ -156,7 +156,6 @@ export const generateTableData = (
     // eslint-disable-next-line object-shorthand
     status: STATUS_CELL_VALUES[status],
     hosts: numHosts,
-    // TODO: will probably need to remove or reworked this with sarahs `no team` changes.
-    teamId: currentTeamId === undefined ? 0 : currentTeamId,
+    teamId: currentTeamId,
   }));
 };
