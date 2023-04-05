@@ -36,8 +36,10 @@ This issue's estimation includes completing:
 
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
-<!--
+
 ## Context
+- Requestor(s): Who are the requestor(s) for this story, if any? They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead.
+<!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
 2. 
