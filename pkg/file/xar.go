@@ -89,6 +89,7 @@ func decompress(r io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer zr.Close()
 	return io.ReadAll(zr)
 }
 
