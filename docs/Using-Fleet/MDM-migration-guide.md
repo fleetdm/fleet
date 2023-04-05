@@ -57,17 +57,15 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 
 ## Migrate settings
 
-To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you have to migrate these settings to Fleet.
+To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you can migrate these settings to Fleet to reduce manual work.
 
-If your old MDM solution enforced FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
+If your old MDM solution enforces FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
 
-For all other settings you enforced, you have to first export these settings as .mobileconfig profiles from your old MDM solution. Then, you have to add the configuration profiles to Fleet.
-
-How to export settings as configuration profiles:
-
-1. Check if your MDM solution has a feature that allows you to export settings as configuration profiles. If it does, make sure these configuration profiles are exported as .mobileconfig files. If it doesn't, follow the instructions to create configuration profiles using iMazing Profile Creator [here](./MDM-macOS-settings.md#create-a-configuration-profiles-with-imazing-profile-creator). Use iMazing Profile Creator to replicate the settings you enforced.
-
-2. Follow the instructions to add configuration profiles to Fleet [here](./MDM-macOS-settings.md#add-configuration-profiles-to-fleet).
+For all other settings: 
+1. Check if your old MDM solution is able to export settings as .mobileconfig files. If it does, download these files. 
+    * If it does not export settings, you will need to re-create the configuration profiles. Learn how to do that [here](./MDM-macOS-settings.md#create-a-configuration-profiles-with-imazing-profile-creator)
+2. Create [teams](https://fleetdm.com/docs/using-fleet/teams) according to the needs of your organization
+3. Follow the instructions to add configuration profiles to Fleet [here](./MDM-macOS-settings.md#add-configuration-profiles-to-fleet).
 
 ## Instructions for end users
 
