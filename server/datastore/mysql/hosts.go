@@ -380,7 +380,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		// no point trying the uuid-based tables if the host's uuid is missing
 		if hostUUID != "" {
 			for table, col := range additionalHostRefsByUUID {
-				if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE %s=?`, table, col), hostUUID); err != nil {
+				if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM `%s` WHERE `%s`=?", table, col), hostUUID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "deleting %s for host uuid %s", table, hostUUID)
 				}
 			}
