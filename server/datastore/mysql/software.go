@@ -34,6 +34,7 @@ func truncateString(str string, length int) string {
 	return str
 }
 
+// TODO JUAN: Refactor this
 func softwareToUniqueString(s fleet.Software) string {
 	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
 	// Release, Vendor and Arch fields were added on a migration,
@@ -82,6 +83,71 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+	})
+}
+
+func (ds *Datastore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID uint, installedPaths map[string]string) error {
+	var hostSoftware []struct {
+		fleet.Software
+		Path *string `db:"installed_path"`
+	}
+
+	stmt := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.bundle_identifier,
+			s.release,
+			s.vendor,
+			s.arch,
+			sip.installed_path
+		FROM software s
+			INNER JOIN host_software hs ON hs.software_id = s.id
+			LEFT JOIN software_installed_path sip ON s.id = sip.software_id AND sip.host_id = ?
+		WHERE
+			hs.host_id = ?
+		`
+	args := []interface{}{hostID, hostID}
+	if err := sqlx.SelectContext(ctx, ds.reader, &hostSoftware, stmt, args...); err != nil {
+		return err
+	}
+
+	existing := make(map[string]fleet.SoftwareInstalledPath)
+	for _, s := range hostSoftware {
+		if s.Path != nil {
+			existing[s.ToUniqueStr()] = fleet.SoftwareInstalledPath{
+				HostID:     hostID,
+				SoftwareID: s.ID,
+				Path:       *s.Path,
+			}
+		}
+	}
+
+	var toDelete []fleet.SoftwareInstalledPath
+	var toInsert []fleet.SoftwareInstalledPath
+
+	for unqStr, rPath := range installedPaths {
+		sE, ok := existing[unqStr]
+		if ok && sE.Path == rPath {
+			continue
+		}
+
+		if sE.Path != rPath {
+			toDelete = append(toDelete, sE)
+		}
+
+		toInsert = append(toInsert, fleet.SoftwareInstalledPath{
+			HostID:     sE.HostID,
+			SoftwareID: sE.SoftwareID,
+			Path:       rPath,
+		})
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Insert and delete
+		return nil
 	})
 }
 

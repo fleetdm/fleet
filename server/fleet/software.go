@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"strings"
 	"time"
 )
 
@@ -59,6 +60,17 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
+// ToUniqueStr creates a unique string representation of the software
+func (s Software) ToUniqueStr() string {
+	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
+	// Release, Vendor and Arch fields were added on a migration,
+	// thus we only include them in the string if at least one of them is defined.
+	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
+		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	return strings.Join(ss, "\u0000")
+}
+
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
@@ -109,4 +121,10 @@ type SoftwareIterQueryOptions struct {
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both
 func (siqo SoftwareIterQueryOptions) IsValid() bool {
 	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
+}
+
+type SoftwareInstalledPath struct {
+	HostID     uint
+	SoftwareID uint
+	Path       string
 }

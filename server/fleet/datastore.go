@@ -618,6 +618,12 @@ type Datastore interface {
 	// slice, updating existing entries and inserting new entries.
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
 
+	// UpdateSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
+	// 'paths', either inserts or deletes the corresponding entries in the
+	// 'software_installed_paths' table. 'paths' should be a map of software.ToUniqueStr() ->
+	// installed path
+	UpdateSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error
+
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
 
