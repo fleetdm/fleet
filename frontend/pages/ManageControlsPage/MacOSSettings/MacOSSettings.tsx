@@ -9,15 +9,20 @@ import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
-import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators/AggregateMacSettingsIndicators";
 
 const baseClass = "mac-os-settings";
 
 interface IMacOSSettingsProps {
   params: Params;
+  location: {
+    search: string;
+  };
 }
 
-const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
+const MacOSSettings = ({
+  location: { search: queryString },
+  params,
+}: IMacOSSettingsProps) => {
   const { section } = params;
   const { currentTeam } = useContext(AppContext);
 
@@ -53,7 +58,10 @@ const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
       */}
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={MAC_OS_SETTINGS_NAV_ITEMS}
+        navItems={MAC_OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+          ...navItem,
+          path: navItem.path.concat(queryString),
+        }))}
         activeItem={currentFormSection.urlSection}
         CurrentCard={
           <CurrentCard
