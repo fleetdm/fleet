@@ -5396,6 +5396,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
+
+	// enroll in Fleet MDM
+	nanoEnroll(t, ds, host, false)
+
 	// Updates host_software.
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
@@ -5488,7 +5492,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
 	// Update host_mdm.
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, false, "foo.mdm.example.com", false, "")
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "")
 	require.NoError(t, err)
 	// Update host_munki_info.
 	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})
@@ -5515,6 +5519,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// set an encryption key
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "TESTKEY")
 	require.NoError(t, err)
+	// set an mdm profile
+	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
+	require.NoError(t, err)
+	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMAppleOperationTypeInstall},
+	})
+	require.NoError(t, err)
 
 	// Operating system vulnerabilities
 	_, err = ds.writer.Exec(
@@ -5527,8 +5538,14 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	for _, hostRef := range hostRefs {
 		var ok bool
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
-		require.NoError(t, err)
+		require.NoError(t, err, hostRef)
 		require.True(t, ok, "table: %s", hostRef)
+	}
+	for tbl, col := range additionalHostRefsByUUID {
+		var ok bool
+		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
+		require.NoError(t, err, tbl)
+		require.True(t, ok, "table: %s", tbl)
 	}
 
 	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
@@ -5540,6 +5557,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
+	}
+	for tbl, col := range additionalHostRefsByUUID {
+		var ok bool
+		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
+		require.False(t, ok, "table: %s", tbl)
 	}
 }
 
