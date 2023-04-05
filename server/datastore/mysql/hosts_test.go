@@ -2758,6 +2758,7 @@ func testHostsListDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 		&fleet.MDMAppleDeliveryApplied, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[2].ID}, false, oneMinuteAfterThreshold)
+	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[3].ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
 
