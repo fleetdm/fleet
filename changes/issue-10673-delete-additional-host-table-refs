@@ -1,0 +1,1 @@
+* Added missing tables to be cleared on host deletion (those that reference the host by UUID instead of ID).
