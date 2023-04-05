@@ -551,6 +551,7 @@ Choose and download a VM software, some options:
 
 - VMware Fusion: https://www.vmware.com/products/fusion.html
 - UTM: https://mac.getutm.app/
+- QEMU, for Linux, using instructions and scripts from the following repo: https://github.com/notAperson535/OneClick-macOS-Simple-KVM
 
 If you need a license please use your Brex card (and submit the receipt on Brex.)
 
@@ -563,6 +564,8 @@ so you can get the right serial numbers.
 
 If you are using UTM, you can simply click "Create a New Virtual Machine" button with the default
 settings. This creates a VM running the latest macOS.
+
+If you are using QEMU for Linux, follow the instruction guide to install a recent macOS version: https://oneclick-macos-simple-kvm.notaperson535.is-a.dev/docs/start-here. Note that only the manual enrollment was successfully tested with this setup. Once the macOS VM is installed and up and running, the rest of the steps are the same.
 
 #### Testing manual enrollment
 

@@ -859,15 +859,13 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
 			return defaultAllowClause
-
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
 				return defaultAllowClause
 			}
 			return "FALSE"
-
 		default:
 			// Fall through to specific teams
 		}
@@ -877,7 +875,9 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	var idStrs []string
 	var teamIDSeen bool
 	for _, team := range filter.User.Teams {
-		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+		if team.Role == fleet.RoleAdmin ||
+			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
@@ -918,16 +918,13 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-
-		case fleet.RoleAdmin, fleet.RoleMaintainer:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
 			return "TRUE"
-
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
 				return "TRUE"
 			}
 			return "FALSE"
-
 		default:
 			// Fall through to specific teams
 		}
@@ -936,7 +933,9 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	// Collect matching teams
 	var idStrs []string
 	for _, team := range filter.User.Teams {
-		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
+		if team.Role == fleet.RoleAdmin ||
+			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
 		}

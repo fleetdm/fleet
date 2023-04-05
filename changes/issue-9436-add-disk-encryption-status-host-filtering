@@ -1,0 +1,2 @@
+- adds API support to filter the host by the disk encryption status on "GET /hosts", "GET
+  /hosts/count",  and "GET /labels/:id/hosts" endpoints
