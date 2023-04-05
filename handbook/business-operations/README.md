@@ -85,7 +85,7 @@ For team members working in jurisdictions that require certain mandatory sick le
 When you take any time off, you should follow this process:
 - Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
-- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
+- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
 If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 This process is the same for any days you take off, whether it's a holiday or you just need a break.
@@ -153,7 +153,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
 | Other department | ❌ | ❌ | ❌ | ❌ | ❌
 
-> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier.  The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
+> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier. Fleet has a Sales Navigator account. AEs and SDRs should [ask the operations team for a license.](https://fleetdm.com/handbook/business-operations#intake) The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -393,10 +393,15 @@ Want to hire?  Here's how to open up a new position on the core team:
 -->
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department.  For now, leave the start date blank.
-2. **Propose job description:** Locate one of the existing job descriptions inside the `handbook/company/` folder and duplicate it into a new handbook subpage.  Use the same style of filename, but based on the new job title.  (This filename will determine the URL where candidates can apply.)
-  - Keep the structure of the document identical.  Change only the job title, "Responsibilities", and "Experience".
-  - In the same pull request, add a link to your new job posting to the bottom of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
-  - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
+2. **Propose job description:** Copy, personalize, and publish the job description:
+   - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
+     - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
+     - _Contents:_ Keep the structure of the document [identical](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).  Change only the job title, "Responsibilities", and "Experience".
+   - _Add to list of open positions:_ In [the same pull request](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2), add a link to your new job posting to the bottom of the list of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
+     - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
+
+> _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
+
 3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
 > _**Why bother with approvals?**  We avoid cancelling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
@@ -542,7 +547,10 @@ Once the new team member replies and accepts their offer in writing, either the 
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** Take down the newly-filled position from the fleetdm.com website by making the following two changes:  (please only submit [one, single pull request that changes both of these files](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2):
+   - Edit the [list of open positions](https://fleetdm.com/handbook/company#open-positions) to remove the newly-filled position from the list.
+   - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
+5. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
