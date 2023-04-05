@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1236,7 +1238,16 @@ func getMDMCommandResultsCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetct get mdm-commands`.")
+					return errors.New("The command doesn't exist. Please provide a valid command ID.")
+					// TODO(mna): once fleetctl get mdm-commands is implemented, reintroduce this section at the end of the message:
+					//   To see a list of commands that were run, run `fleetct get mdm-commands`.
+				}
+
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to view the results of this MDM command for at least one of the hosts: %w", err)
+					}
 				}
 				return err
 			}
