@@ -531,12 +531,16 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
-
 - [New configuration profile](#new-mdm-apple-configuration-profile)
 - [List configuration profiles](#list-mdm-apple-configuration-profiles)
 - [Download configuration profile](#download-mdm-apple-configuration-profile)
 - [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
+- [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Update Apple MDM settings](#update-apple-mdm-settings)
+- [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
+- [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
+- [Enqueue MDM command](#enqueue-mdm-command)
 
 ### Get Apple MDM
 
@@ -843,6 +847,39 @@ solely on the response status code returned by this endpoint.
 
 `Status: 200`
 
+### Get MDM Apple profiles summary
+
+Get aggregate status counts of MDM profiles applying to hosts. For Fleet Premium uses, the summary can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "latest": 123,
+  "failing": 123,
+  "pending": 123
+}
+```
+
+
 ### Batch-apply Apple MDM custom settings
 
 `POST /api/v1/fleet/mdm/apple/profiles/batch`
@@ -865,6 +902,149 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 ##### Default response
 
 `204`
+
+### Update Apple MDM settings
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+##### Default response
+
+`204`
+
+
+### Download an enrollment profile using IdP authentication
+
+_Available in Fleet Premium_
+
+This endpoint returns an enrollment profile after validating the provided username/password combination with a configured identity provider.
+
+Currently, the only IdP supported is Okta.
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                                  |
+| -------- | ------ | ---- | ------------------------------------------------------------ |
+| username | string | body | **Required** The username used to authenticate this request. |
+| password | string | body | **Required** The password used to authenticate this request. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+##### Default response
+
+`Status: 200`
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Get Apple disk encryption summary
+
+_Available in Fleet Premium_
+
+This endpoint returns a summary of the disk encryption profiles aggregate status counts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
+### Enqueue MDM command
+
+This endpoint enqueues an MDM command to be executed on a list of hosts identified by their UUID.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
+```
 
 ## Get or apply configuration files
 
@@ -2501,7 +2681,26 @@ Returns the host information about the device that makes the request.
         "cycle_count": 999,
         "health": "Good"
       }
-    ]
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
+    }
   },
   "org_logo_url": "https://example.com/logo.jpg",
   "license": {

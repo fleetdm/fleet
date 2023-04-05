@@ -12,19 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewQueryAttach(t *testing.T) {
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
-
-	name := "bad"
-	query := "attach '/nope' as bad"
-	_, err := svc.NewQuery(
-		ctx,
-		fleet.QueryPayload{Name: &name, Query: &query},
-	)
-	require.Error(t, err)
-}
-
 func TestFilterQueriesForObserver(t *testing.T) {
 	require.True(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}))
 	require.False(t, onlyShowObserverCanRunQueries(&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)}))

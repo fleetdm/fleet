@@ -9,17 +9,17 @@ resource "aws_secretsmanager_secret" "scep" {
 }
 
 resource "aws_secretsmanager_secret" "dep" {
+  count = var.dep_secret_name == null ? 0 : 1
   name = var.dep_secret_name
 }
 
 data "aws_iam_policy_document" "main" {
   statement {
     actions = ["secretsmanager:GetSecretValue"]
-    resources = [
+    resources = concat([
       aws_secretsmanager_secret.apn.arn,
       aws_secretsmanager_secret.scep.arn,
-      aws_secretsmanager_secret.dep.arn,
-    ]
+    ], var.dep_secret_name == null ? [] : [aws_secretsmanager_secret.dep[0].arn])
   }
 }
 

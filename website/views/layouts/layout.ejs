@@ -101,6 +101,8 @@
       a.parentNode.insertBefore(r,a)}(window,document,'ip2c','script');
       ip2c('verify', '8416878');
     </script>
+    <% /* HubSpot Embed Code  */ %>
+    <script type="text/javascript" id="hs-script-loader" async defer src="//js-na1.hs-scripts.com/24385138.js"></script>
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */
@@ -146,10 +148,10 @@
             <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
           <%/* Mobile Navigation menu */%>
-          <div class="d-flex d-lg-none">
-            <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+          <div class="d-flex d-lg-none align-items-center">
+            <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex flex-row align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
               <span class="mr-2">Menu</span>
-              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
+              <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
             </button>
           </div>
           <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
@@ -304,7 +306,7 @@
                 <a href="/apply" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Jobs</a>
                 <a href="/blog" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Blog</a>
                 <a href="/docs/contributing" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Contribute</a>
-                <a href="https://osquery.fleetdm.com/" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2 pb-xl-0">Osquery Slack</a>
+                <a href="https://osquery.fleetdm.com/" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2 pb-xl-0">Live chat</a>
               </div>
             </div>
           </div>
@@ -451,15 +453,18 @@
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
+    <script src="/js/pages/experimental/okta-webflow.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/osquery-management.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/platform.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
@@ -498,12 +503,12 @@
           Android: '6'
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
-          msedge: '16',
+          msedge: '17',
           // msie: '11',
           safari: '10',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
           firefox: '54',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          chrome: '51',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          opera: '38',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          chrome: '55',//« earliest version to support both ES6 (for Vue.js), unprefixed flexbox (for Bootstrap 4), and async functions
+          opera: '42',//« earliest version to support both ES6 (for Vue.js), unprefixed flexbox (for Bootstrap 4), and async functions
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,

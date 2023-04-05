@@ -1,6 +1,8 @@
 import React from "react";
+import ReactTooltip from "react-tooltip";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import CustomLink from "components/CustomLink";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -64,9 +66,54 @@ const generateTableHeaders = (
       disableSortBy: true,
       sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const formatter = (val: string) => {
+          const apiOnlyUser =
+            "api_only" in cellProps.row.original
+              ? cellProps.row.original.api_only
+              : false;
+
+          return (
+            <>
+              {val}
+              {apiOnlyUser && (
+                <>
+                  <span
+                    className="members__api-only-user"
+                    data-tip
+                    data-for={`api-only-tooltip-${cellProps.row.original.id}`}
+                  >
+                    API
+                  </span>
+                  <ReactTooltip
+                    className="api-only-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`api-only-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor="#3e4771"
+                    clickable
+                    delayHide={200} // need delay set to hover using clickable
+                  >
+                    <>
+                      This user was created using fleetctl and
+                      <br /> only has API access.{" "}
+                      <CustomLink
+                        text="Learn more"
+                        newTab
+                        url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
+                        iconColor="core-fleet-white"
+                      />
+                    </>
+                  </ReactTooltip>
+                </>
+              )}
+            </>
+          );
+        };
+
+        return <TextCell value={cellProps.cell.value} formatter={formatter} />;
+      },
     },
     {
       title: "Role",
@@ -137,6 +184,7 @@ const enhanceMembersData = (
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,
+      api_only: user.api_only,
     };
   });
 };

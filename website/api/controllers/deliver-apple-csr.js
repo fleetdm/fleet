@@ -144,7 +144,7 @@ module.exports = {
         // base64 format, we doubly encode the contents before sending the
         // email.
         contentBytes: Buffer.from(generateCertificateResult.request).toString('base64'),
-        name: 'apple-apns-request.txt',
+        name: 'apple-apns-csr.txt',
         type: 'text/plain',
       }],
     }).intercept((err)=>{

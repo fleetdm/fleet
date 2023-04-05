@@ -123,7 +123,6 @@ ngrok http https://localhost:8080
 ## 5. Run Fleet
 
 ```sh
-FLEET_MDM_APPLE_ENABLE=1 \
     FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
     FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) \
     FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) \

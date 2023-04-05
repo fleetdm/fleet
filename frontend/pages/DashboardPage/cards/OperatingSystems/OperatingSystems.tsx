@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 
 import {
@@ -128,7 +128,11 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders(includeNameColumn);
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(includeNameColumn, currentTeamId),
+    [includeNameColumn, currentTeamId]
+  );
+
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading

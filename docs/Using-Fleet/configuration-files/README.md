@@ -5,10 +5,10 @@
 - [Enroll secrets](#enroll-secrets)
   - [Multiple enroll secrets](#multiple-enroll-secrets)
   - [Rotating enroll secrets](#rotating-enroll-secrets)
-- [Team settings](#team-settings)
+- [Teams](#teams)
   - [Team agent options](#team-agent-options)
   - [Team enroll secrets](#team-enroll-secrets)
-- [Mobile device management settings](#mobile-device-management-mdm-settings)
+  - [Mobile device management settings for teams](#mobile-device-management-mdm-settings-for-teams)
 - [Organization settings](#organization-settings)
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
@@ -175,7 +175,7 @@ complete.
 A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
 are managed in the team yaml.
 
-## Team settings
+## Teams
 
 **Applies only to Fleet Premium**.
 
@@ -218,8 +218,8 @@ spec:
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
     mdm:
       macos_updates:
-        minimum_version: 12.3.1
-        deadline: 2022-01-04
+        minimum_version: "12.3.1"
+        deadline: "2022-01-04"
       macos_settings:
         custom_settings:
           - path/to/profile1.mobileconfig
@@ -291,13 +291,13 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
-## Mobile device management (MDM) settings
+### Mobile device management (MDM) settings for teams
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1
@@ -701,6 +701,21 @@ For additional information on SSO configuration, including just-in-time (JIT) us
     enable_jit_provisioning: true
   ```
 
+##### sso_settings.enable_jit_role_sync
+
+**Available in Fleet Premium**.
+
+If set to `true` Fleet account roles will be updated to match those set in the SAML custom attributes at every login. See [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles).
+This flag only has effect if `sso_settings.enable_jit_provisioning` is set to `true`.
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  sso_settings:
+    enable_jit_role_sync: true
+  ```
+
 ##### sso_settings.enable_sso
 
 Configures if single sign-on is enabled.
@@ -759,18 +774,6 @@ A required human-friendly name for the identity provider that will provide singl
   ```yaml
   sso_settings:
     idp_name: "SimpleSAML"
-  ```
-
-##### sso_settings.issuer_uri
-
-The issuer URI supplied by the identity provider.
-
-- Optional setting (string)
-- Default value: ""
-- Config file format:
-  ```yaml
-  sso_settings:
-    issuer_uri: "https://example.com/saml2/sso-service"
   ```
 
 ##### sso_settings.metadata
@@ -1292,29 +1295,32 @@ In the example file below, all Darwin and Ubuntu hosts will **only** receive the
 ```yaml
 agent_options:
   config:
-    options: ~
-    overrides:
-      # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Hosts receive overrides based on the platform
-      # returned by `SELECT platform FROM os_version`. In this example, the base
-      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-      # hosts would receive their respective overrides. Note, these overrides are
-      # NOT merged with the top level configuration.
-      platforms:
-        darwin:
-          options:
-            distributed_interval: 10
-            distributed_tls_max_attempts: 10
-            logger_tls_endpoint: /api/osquery/log
-            logger_tls_period: 300
-            disable_tables: chrome_extensions
-            docker_socket: /var/run/docker.sock
-          file_paths:
-            users:
-              - /Users/%/Library/%%
-              - /Users/%/Documents/%%
-            etc:
-              - /etc/%%
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_tls_period: 10
+  overrides:
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. Hosts receive overrides based on the platform
+    # returned by `SELECT platform FROM os_version`. In this example, the base
+    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # hosts would receive their respective overrides. Note, these overrides are
+    # NOT merged with the top level configuration.
+    platforms:
+      darwin:
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
 ```
 ##### agent_options.auto_table_construction
 
@@ -1421,7 +1427,11 @@ The following settings are macOS-specific settings for Fleet's MDM solution.
 
 ##### mdm.macos_settings.custom_settings
 
-List of profile files to apply to hosts that are not part of any team or to all hosts for Fleet Free (use the [team-specific `mdm.macos_settings.custom_settings` setting](#team-settings) to configure hosts that belong to a team).
+List of configuration profile files to apply to all hosts. 
+
+If you're using Fleet Premium, these profiles apply to all hosts assigned to no team.
+
+> If you want to add profiles to all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
 - Default value: none
 - Config file format:
@@ -1437,7 +1447,11 @@ List of profile files to apply to hosts that are not part of any team or to all 
 
 **Applies only to Fleet Premium**.
 
-Enable disk encryption to hosts that are not part of any team (use the [team-specific `mdm.macos_settings.enable_disk_encryption` setting](#team-settings) to configure hosts that belong to a team).
+Enforce disk encryption and disk encryption key escrow on all hosts.
+
+If you're using Fleet Premium, this enforces disk encryption on all hosts assigned to no team.
+
+> If you want to enforce disk encryption on all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
 - Default value: false
 - Config file format:

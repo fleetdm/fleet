@@ -21,9 +21,9 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
-> TODO: dedupe between this section and the issue template
+> TODO: dedupe between this section and the "Sale" issue template
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
@@ -41,8 +41,11 @@ This workflow outlines the process that sales and customer success can follow wh
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
-    - Prepare to review:
+    - Prepare to review the following from the Account Plan:
         - Details of the deal
         - Primary contact / their role
         - Desired use cases / desired outcomes
@@ -69,6 +72,15 @@ This workflow outlines the process that sales and customer success can follow wh
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+
+## Paying Fleet
+For customers with hundreds or more hosts, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+
+Fleet team members can provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF.
+
+
+
+
 
 ## Customer success calls
 
@@ -288,6 +300,11 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
 ### Reviewing subscription agreement
 
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -297,11 +314,11 @@ To quickly get help doing a legal review of a prospect subscription agreement, w
 3. Follow the instructions in the "Submitting this request" section
 
 If the prospect/customer/partner is originating the request for signature:
-1. Communicate that the Fleet signatory is Mike McNeil, CEO and share his email
+1. Communicate to the prospect that the Fleet signatory is Mike McNeil, CEO and share his email.
 2. Mike will create the github issue mentioned above when he gets request
 3. Mike will forward to business operations for review
-4. Business operations will notify Mike and internal requestor when ready for signature
-5. Mike will sign and close the issue
+4. Business operations will notify Mike and the requestor (via GitHub comment w/ at-mention) when ready for signature
+5. Mike will sign and close the issue.  (This sends a notification to the requestor automatically.)
 
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.

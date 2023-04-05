@@ -28,7 +28,6 @@ export default PropTypes.shape({
   verify_sll_certs: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
   entity_id: PropTypes.string,
-  issuer_uri: PropTypes.string,
   idp_image_url: PropTypes.string,
   metadata: PropTypes.string,
   metadata_url: PropTypes.string,
@@ -43,7 +42,6 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
-  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
@@ -97,6 +95,10 @@ export interface IMdmConfig {
     minimum_version: string;
     deadline: string;
   };
+  macos_settings: {
+    custom_settings: null; // TODO: type?
+    enable_disk_encryption: boolean;
+  };
 }
 
 export interface IDeviceGlobalConfig {
@@ -123,7 +125,6 @@ export interface IConfigFormData {
   smtpUsername: string;
   verifySslCerts: boolean;
   entityId: string;
-  issuerUri: string;
   idpImageUrl: string;
   metadata: string;
   metadataUrl: string;
@@ -176,7 +177,6 @@ export interface IConfig {
   };
   sso_settings: {
     entity_id: string;
-    issuer_uri: string;
     idp_image_url: string;
     metadata: string;
     metadata_url: string;
@@ -235,7 +235,6 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
-  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {

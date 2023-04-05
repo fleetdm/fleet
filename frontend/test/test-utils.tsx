@@ -143,6 +143,10 @@ export const createCustomRenderer = (renderOptions?: ICustomRenderOptions) => {
   };
 };
 
+/**
+ * This is a convenince method that calls the render method from `@testing-library/react` and also
+ * sets up the also `user-events`library and adds the user object to the returned object.
+ */
 // eslint-disable-next-line import/prefer-default-export
 export const renderWithSetup = (component: JSX.Element) => {
   return {

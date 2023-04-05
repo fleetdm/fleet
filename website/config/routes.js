@@ -274,12 +274,40 @@ module.exports.routes = {
     }
   },
 
+  'GET /osquery-management': {
+    action: 'view-osquery-management',
+    locals: {
+      pageTitleForMeta: 'Osquery management | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
+    }
+  },
+
+
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      optimizeForAppleWebview: true,
+    }
+  },
+
+
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
   //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
   'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
+
+  'GET /imagine/launch-party': {
+    action: 'imagine/view-launch-party',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
+      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
+      headerCTAHidden: true,
+    }
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -352,6 +380,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/fleetctl-preview',
@@ -434,4 +463,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
+  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
 };

@@ -95,7 +95,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.Email != nil && *payload.Email != invite.Email {
 		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
 		case err == nil:
-			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+			return nil, ctxerr.Wrap(ctx, newAlreadyExistsError())
 		case errors.Is(err, sql.ErrNoRows):
 			// OK
 		default:
@@ -208,7 +208,7 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 
 		switch _, err = svc.ds.InviteByEmail(ctx, *payload.Email); {
 		case err == nil:
-			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
+			return nil, ctxerr.Wrap(ctx, newAlreadyExistsError())
 		case errors.Is(err, sql.ErrNoRows):
 			// OK
 		default:

@@ -98,7 +98,7 @@ func TestAppConfigAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.AppConfig(ctx)
+			_, err := svc.AppConfigObfuscated(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`), fleet.ApplySpecOptions{})
@@ -326,6 +326,25 @@ func TestJITProvisioning(t *testing.T) {
 		assert.Contains(t, invalid.Error(), "missing or invalid license")
 	})
 
+	config = fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:         true,
+			EntityID:          "fleet",
+			IssuerURI:         "http://issuer.idp.com",
+			IDPName:           "onelogin",
+			MetadataURL:       "http://isser.metadata.com",
+			EnableJITRoleSync: true,
+		},
+	}
+
+	t.Run("doesn't allow to enable JIT role sync without a premium license", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+		require.True(t, invalid.HasErrors())
+		assert.Contains(t, invalid.Error(), "enable_jit_role_sync")
+		assert.Contains(t, invalid.Error(), "missing or invalid license")
+	})
+
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -338,11 +357,7 @@ func TestJITProvisioning(t *testing.T) {
 
 		oldConfig.SSOSettings.EnableJITProvisioning = true
 		config.SSOSettings.EnableJITProvisioning = false
-		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
-		require.False(t, invalid.HasErrors())
-
-		oldConfig.SSOSettings.EnableJITProvisioning = false
-		config.SSOSettings.EnableJITProvisioning = false
+		config.SSOSettings.EnableJITRoleSync = false
 		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
 		require.False(t, invalid.HasErrors())
 	})
@@ -408,7 +423,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
@@ -549,7 +564,7 @@ func TestTransparencyURL(t *testing.T) {
 				return nil
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
 
@@ -561,7 +576,7 @@ func TestTransparencyURL(t *testing.T) {
 
 			if modified != nil {
 				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
-				ac, err = svc.AppConfig(ctx)
+				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
@@ -598,7 +613,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 		return nil
 	}
 
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
 
@@ -618,7 +633,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, modified)
 	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)
-	ac, err = svc.AppConfig(ctx)
+	ac, err = svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "f1337", ac.OrgInfo.OrgName)
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
@@ -701,7 +716,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 				return nil, errors.New(notFoundErr)
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.oldMDM, ac.MDM)
 
@@ -716,7 +731,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, modified.MDM)
-			ac, err = svc.AppConfig(ctx)
+			ac, err = svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})

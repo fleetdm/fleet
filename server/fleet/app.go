@@ -57,6 +57,9 @@ type SSOSettings struct {
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
 	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
+	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
+	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -684,13 +687,17 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// tierBasic is for backward compatibility with previous tier names
-	tierBasic = "basic"
+	// tierBasicDeprecated is for backward compatibility with previous tier names
+	tierBasicDeprecated = "basic"
 
 	// TierPremium is Fleet Premium aka the paid license.
 	TierPremium = "premium"
 	// TierFree is Fleet Free aka the free license.
 	TierFree = "free"
+	// TierTrial is Fleet Premium but in trial mode
+	// this is used to distinguish between Premium, enabling different functionality
+	// when the license is expired, like disabling certain features
+	TierTrial = "trial"
 )
 
 // LicenseInfo contains information about the Fleet license.
@@ -708,11 +715,17 @@ type LicenseInfo struct {
 }
 
 func (l *LicenseInfo) IsPremium() bool {
-	return l.Tier == TierPremium || l.Tier == tierBasic
+	return l.Tier == TierPremium || l.Tier == tierBasicDeprecated || l.Tier == TierTrial
 }
 
 func (l *LicenseInfo) IsExpired() bool {
 	return l.Expiration.Before(time.Now())
+}
+
+func (l *LicenseInfo) ForceUpgrade() {
+	if l.Tier == tierBasicDeprecated {
+		l.Tier = TierPremium
+	}
 }
 
 const (

@@ -67,6 +67,7 @@ const condenseVulnerabilities = (
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
+      position="top"
       tipContent={`
         <span>
           <b>Bundle identifier: </b>
@@ -183,7 +184,8 @@ const generateVulnColumnHeader = () => {
 
 const generateTableHeaders = (
   router: InjectedRouter,
-  isPremiumTier?: boolean
+  isPremiumTier?: boolean,
+  teamId?: number
 ): Column[] => {
   const softwareTableHeaders = [
     {
@@ -245,7 +247,10 @@ const generateTableHeaders = (
           </span>
           <span className="hosts-cell__link">
             <ViewAllHostsLink
-              queryParams={{ software_id: cellProps.row.original.id }}
+              queryParams={{
+                software_id: cellProps.row.original.id,
+                team_id: teamId,
+              }}
               className="software-link"
             />
           </span>

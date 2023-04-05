@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/gocarina/gocsv"
 )
 
@@ -323,7 +324,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -643,7 +644,13 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -698,7 +705,13 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	}
 
 	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -795,18 +808,29 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		policies = &hp
 	}
 
-	// If Fleet MDM is enabled and configured, we want to include MDM profiles.
+	// If Fleet MDM is enabled and configured, we want to include MDM profiles
+	// and host's disk encryption status.
 	var profiles []fleet.HostMDMAppleProfile
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm profiles")
 	}
 	if ac.MDM.EnabledAndConfigured {
-		p, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 		}
-		profiles = p
+
+		// determine disk encryption and action required here based on profiles and
+		// raw decryptable key status.
+		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+		for _, p := range profs {
+			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+			}
+			profiles = append(profiles, p)
+		}
 	}
 	host.MDM.Profiles = &profiles
 
@@ -1430,7 +1454,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, notFoundError{}, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
 	}
 
 	cert, _, _, err := svc.config.MDM.AppleSCEP()

@@ -6,7 +6,7 @@ resource "aws_elasticache_replication_group" "default" {
   security_group_ids            = [aws_security_group.redis.id, aws_security_group.backend.id]
   replication_group_id          = "${local.prefix}-redis"
   number_cache_clusters         = 3
-  node_type                     = "cache.m6g.large"
+  node_type                     = var.redis_instance_type
   engine_version                = "5.0.6"
   port                          = "6379"
   snapshot_retention_limit      = 0

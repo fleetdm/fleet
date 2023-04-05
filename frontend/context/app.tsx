@@ -2,7 +2,12 @@ import React, { createContext, useReducer, ReactNode } from "react";
 
 import { IConfig } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { ITeamSummary } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  ITeamSummary,
+  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_ID,
+} from "interfaces/team";
 import { IUser } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
@@ -14,11 +19,13 @@ enum ACTIONS {
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
+  SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
 }
 
 interface ISetAvailableTeamsAction {
   type: ACTIONS.SET_AVAILABLE_TEAMS;
+  user: IUser | null;
   availableTeams: ITeamSummary[];
 }
 
@@ -45,6 +52,11 @@ interface ISetSandboxExpiryAction {
   sandboxExpiry: string;
 }
 
+interface ISetNoSandboxHostsAction {
+  type: ACTIONS.SET_NO_SANDBOX_HOSTS;
+  noSandboxHosts: boolean;
+}
+
 interface ISetFilteredHostsPathAction {
   type: ACTIONS.SET_FILTERED_HOSTS_PATH;
   filteredHostsPath: string;
@@ -57,6 +69,7 @@ type IAction =
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
   | ISetSandboxExpiryAction
+  | ISetNoSandboxHostsAction
   | ISetFilteredHostsPathAction;
 
 type Props = {
@@ -73,7 +86,7 @@ type InitialStateType = {
   isSandboxMode?: boolean;
   isFreeTier?: boolean;
   isPremiumTier?: boolean;
-  isMdmFeatureFlagEnabled?: boolean;
+  isMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -88,13 +101,18 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
+  noSandboxHosts?: boolean;
   filteredHostsPath?: string;
-  setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
+  setAvailableTeams: (
+    user: IUser | null,
+    availableTeams: ITeamSummary[]
+  ) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
+  setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
 };
 
@@ -110,7 +128,7 @@ export const initialState = {
   isSandboxMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
-  isMdmFeatureFlagEnabled: undefined,
+  isMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -131,6 +149,7 @@ export const initialState = {
   setConfig: () => null,
   setEnrollSecret: () => null,
   setSandboxExpiry: () => null,
+  setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
 };
 
@@ -143,17 +162,21 @@ const detectPreview = () => {
 const setPermissions = (
   user: IUser | null,
   config: IConfig | null,
-  teamId = 0
+  teamId = APP_CONTEXT_NO_TEAM_ID
 ) => {
   if (!user || !config) {
     return {};
+  }
+
+  if (teamId < APP_CONTEXT_NO_TEAM_ID) {
+    teamId = APP_CONTEXT_NO_TEAM_ID;
   }
 
   return {
     isSandboxMode: permissions.isSandboxMode(config),
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
-    isMdmFeatureFlagEnabled: permissions.isMdmFeatureFlagEnabled(config),
+    isMdmEnabledAndConfigured: permissions.isMdmEnabledAndConfigured(config),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -178,14 +201,27 @@ const setPermissions = (
 const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
     case ACTIONS.SET_AVAILABLE_TEAMS: {
-      const { availableTeams } = action;
+      const { user, availableTeams } = action;
+
+      let sortedTeams = availableTeams.sort(
+        (a: ITeamSummary, b: ITeamSummary) =>
+          sort.caseInsensitiveAsc(a.name, b.name)
+      );
+      sortedTeams = sortedTeams.filter(
+        (t) =>
+          t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
+          t.name !== APP_CONTEX_NO_TEAM_SUMMARY.name
+      );
+      if (user && permissions.isOnGlobalTeam(user)) {
+        sortedTeams.unshift(
+          APP_CONTEXT_ALL_TEAMS_SUMMARY,
+          APP_CONTEX_NO_TEAM_SUMMARY
+        );
+      }
 
       return {
         ...state,
-        availableTeams:
-          availableTeams?.sort((a: ITeamSummary, b: ITeamSummary) =>
-            sort.caseInsensitiveAsc(a.name, b.name)
-          ) || [],
+        availableTeams: sortedTeams,
       };
     }
     case ACTIONS.SET_CURRENT_USER: {
@@ -229,6 +265,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         sandboxExpiry,
       };
     }
+    case ACTIONS.SET_NO_SANDBOX_HOSTS: {
+      const { noSandboxHosts } = action;
+      return {
+        ...state,
+        noSandboxHosts,
+      };
+    }
     case ACTIONS.SET_FILTERED_HOSTS_PATH: {
       const { filteredHostsPath } = action;
       return {
@@ -253,12 +296,13 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
     sandboxExpiry: state.sandboxExpiry,
+    noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
-    isMdmFeatureFlagEnabled: state.isMdmFeatureFlagEnabled,
+    isMdmEnabledAndConfigured: state.isMdmEnabledAndConfigured,
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
@@ -272,8 +316,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
     isNoAccess: state.isNoAccess,
-    setAvailableTeams: (availableTeams: ITeamSummary[]) => {
-      dispatch({ type: ACTIONS.SET_AVAILABLE_TEAMS, availableTeams });
+    setAvailableTeams: (user: IUser | null, availableTeams: ITeamSummary[]) => {
+      dispatch({
+        type: ACTIONS.SET_AVAILABLE_TEAMS,
+        user,
+        availableTeams,
+      });
     },
     setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
@@ -290,11 +338,16 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     setSandboxExpiry: (sandboxExpiry: string) => {
       dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
     },
+    setNoSandboxHosts: (noSandboxHosts: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_NO_SANDBOX_HOSTS,
+        noSandboxHosts,
+      });
+    },
     setFilteredHostsPath: (filteredHostsPath: string) => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
     },
   };
-
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 

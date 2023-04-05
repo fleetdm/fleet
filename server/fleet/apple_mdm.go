@@ -1,23 +1,20 @@
 package fleet
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
-	"go.mozilla.org/pkcs7"
-	"howett.net/plist"
 )
 
 type MDMAppleCommandIssuer interface {
-	InstallProfile(ctx context.Context, hostUUIDs []string, profile Mobileconfig, uuid string) error
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
@@ -42,8 +39,46 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// MDMAppleDeliveryStatus is the status of an MDM command to apply a profile
+// to a device (whether it is installing or removing).
 type MDMAppleDeliveryStatus string
 
+// List of possible MDMAppleDeliveryStatus values. For a given host, the status
+// of a profile can be either of those, or NULL. The meaning of the status is
+// as follows:
+//
+//   - failed: the MDM command failed to apply, and it won't retry. This is
+//     currently a terminal state. TODO(mna): currently we only retry if the
+//     command failed to enqueue in ReconcileProfile (it resets the status to
+//     NULL). A failure in the asynchronous actual response of the MDM command
+//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
+//     the failed state being applied and no retry. We should probably support
+//     some retries for such failures, and determine a maximum number of retries
+//     before giving up (either as a count of attempts - which would require
+//     storing somewhere - or as a time period, which we could determine based on
+//     the timestamps, e.g. time since created_at, if we added them to
+//     host_mdm_apple_profiles).
+//
+//   - applied: the MDM command successfully applied the profile. This is a
+//     terminal state.
+//
+//   - pending: the cron job that executes the MDM commands to apply profiles
+//     is processing this host, and the MDM command may even be enqueued. This
+//     is a temporary state, it may transition to failed, applied or NULL.
+//
+//   - NULL: the status set for profiles that need to be applied to a host
+//     (installed or removed), e.g. because the profile just got added to the
+//     host's team, or because the host moved to a new team, etc. This is a
+//     temporary state, it may transition to pending when the cron job runs to
+//     apply the profile. It may also be simply deleted from the host's profiles
+//     without the need to run an MDM command if the profile becomes unneeded and
+//     that status is for an Install operation (e.g. the profile got deleted from
+//     the team, or the host was moved to a team that doesn't apply that profile)
+//     or vice-versa if that status is for a Remove but the profile becomes
+//     required again. For the sake of statistics, as reported by
+//     GetMDMAppleHostsProfilesSummary or for the list hosts filter
+//     (filterHostsByMacOSSettingsStatus), a NULL status is equivalent to a
+//     Pending status.
 var (
 	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
 	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
@@ -200,25 +235,18 @@ type EnrolledAPIResults map[string]*EnrolledAPIResult
 
 // CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
 type CommandEnqueueResult struct {
-	// Status is the status of the command.
-	Status EnrolledAPIResults `json:"status,omitempty"`
-	// NoPush indicates whether the command was issued with no_push.
-	// If this is true, then Fleet won't send a push notification to devices.
-	NoPush bool `json:"no_push,omitempty"`
-	// PushError indicates the error when trying to send push notification
-	// to target devices.
-	PushError string `json:"push_error,omitempty"`
-	// CommandError holds the error when enqueueing the command.
-	CommandError string `json:"command_error,omitempty"`
 	// CommandUUID is the unique identifier for the command.
 	CommandUUID string `json:"command_uuid,omitempty"`
 	// RequestType is the name of the command.
 	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
 
 // MDMAppleCommand represents an Apple MDM command.
 type MDMAppleCommand struct {
 	*mdm.Command
+	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -245,134 +273,13 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 	return http.StatusGatewayTimeout
 }
 
-// Mobileconfig is the byte slice corresponding to an XML property list (i.e. plist) representation
-// of an Apple MDM configuration profile in Fleet.
-//
-// Configuration profiles are used to configure Apple devices. See also
-// https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
-type Mobileconfig []byte
-
-// ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
-//
-// The byte slice must be XML or PKCS7 parseable. Fleet also requires that it contains both
-// a PayloadIdentifier and a PayloadDisplayName and that it has PayloadType set to "Configuration".
-//
-// Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
-func (mc Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
-	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = Mobileconfig(p7.Content)
-	}
-	var parsed struct {
-		PayloadIdentifier  string
-		PayloadDisplayName string
-		PayloadType        string
-	}
-	_, err := plist.Unmarshal(mcBytes, &parsed)
-	if err != nil {
-		return nil, err
-	}
-	if parsed.PayloadType != "Configuration" {
-		return nil, fmt.Errorf("invalid PayloadType: %s", parsed.PayloadType)
-	}
-	if parsed.PayloadIdentifier == "" {
-		return nil, errors.New("empty PayloadIdentifier in profile")
-	}
-	if parsed.PayloadDisplayName == "" {
-		return nil, errors.New("empty PayloadDisplayName in profile")
-	}
-
-	return &MDMAppleConfigProfile{
-		Identifier:   parsed.PayloadIdentifier,
-		Name:         parsed.PayloadDisplayName,
-		Mobileconfig: mc,
-	}, nil
-}
-
-// GetPayloadTypes attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
-// It returns the PayloadType for each PayloadContentItem.
-//
-// See also https://developer.apple.com/documentation/devicemanagement/toplevel
-func (mc Mobileconfig) GetPayloadTypes() ([]string, error) {
-	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = Mobileconfig(p7.Content)
-	}
-
-	// unmarshal the values we need from the top-level object
-	var tlo struct {
-		IsEncrypted    bool
-		PayloadContent []map[string]interface{}
-		PayloadType    string
-	}
-	_, err := plist.Unmarshal(mcBytes, &tlo)
-	if err != nil {
-		return nil, err
-	}
-	// confirm that the top-level payload type matches the expected value
-	if tlo.PayloadType != "Configuration" {
-		return nil, &ErrInvalidPayloadType{tlo.PayloadType}
-	}
-
-	if len(tlo.PayloadContent) < 1 {
-		if tlo.IsEncrypted {
-			return nil, ErrEncryptedPayloadContent
-		}
-		return nil, ErrEmptyPayloadContent
-	}
-
-	// extract the payload types of each payload content item from the array of
-	// payload dictionaries
-	var result []string
-	for _, payloadDict := range tlo.PayloadContent {
-		pt, ok := payloadDict["PayloadType"]
-		if !ok {
-			continue
-		}
-		if s, ok := pt.(string); ok {
-			result = append(result, s)
-		}
-	}
-
-	return result, nil
-}
-
-type ErrInvalidPayloadType struct {
-	payloadType string
-}
-
-func (e ErrInvalidPayloadType) Error() string {
-	return fmt.Sprintf("invalid PayloadType: %s", e.payloadType)
-}
-
-var (
-	ErrEmptyPayloadContent     = errors.New("empty PayloadContent")
-	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
-)
-
 // MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
 type MDMAppleConfigProfile struct {
 	// ProfileID is the unique id of the configuration profile in Fleet
 	ProfileID uint `db:"profile_id" json:"profile_id"`
-	// TeamID is the id of the team with which the configuration is associated. A team id of zero
+	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
 	TeamID *uint `db:"team_id" json:"team_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
@@ -383,9 +290,23 @@ type MDMAppleConfigProfile struct {
 	Name string `db:"name" json:"name"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
-	Mobileconfig Mobileconfig `db:"mobileconfig" json:"-"`
-	CreatedAt    time.Time    `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time    `db:"updated_at" json:"updated_at"`
+	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
+	CreatedAt    time.Time                 `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time                 `db:"updated_at" json:"updated_at"`
+}
+
+func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
+	mc := mobileconfig.Mobileconfig(raw)
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return nil, fmt.Errorf("new MDMAppleConfigProfile: %w", err)
+	}
+	return &MDMAppleConfigProfile{
+		TeamID:       teamID,
+		Identifier:   cp.PayloadIdentifier,
+		Name:         cp.PayloadDisplayName,
+		Mobileconfig: mc,
+	}, nil
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -393,31 +314,12 @@ func (cp MDMAppleConfigProfile) AuthzType() string {
 	return "mdm_apple_config_profile"
 }
 
-// ScreenPayloadTypes screens the profile's Mobileconfig and returns an error if it
-// detects certain PayloadTypes related to FileVault settings.
-func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
-	pct, err := cp.Mobileconfig.GetPayloadTypes()
-	if err != nil {
-		switch {
-		case errors.Is(err, ErrEmptyPayloadContent), errors.Is(err, ErrEncryptedPayloadContent):
-			// ok, there's nothing for us to screen
-		default:
-			return err
-		}
+func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
 	}
 
-	var screened []string
-	for _, t := range pct {
-		switch t {
-		case "com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect":
-			screened = append(screened, t)
-		}
-	}
-	if len(screened) > 0 {
-		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screened, ", "))
-	}
-
-	return nil
+	return cp.Mobileconfig.ScreenPayloads()
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -426,24 +328,65 @@ type HostMDMAppleProfile struct {
 	CommandUUID   string                  `db:"command_uuid" json:"-"`
 	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
 	Name          string                  `db:"name" json:"name"`
+	Identifier    string                  `db:"identifier" json:"-"`
 	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string                  `db:"detail" json:"detail"`
 }
 
+func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
+	switch p.OperationType {
+	case MDMAppleOperationTypeRemove:
+		switch {
+		case strings.Contains(p.Detail, "MDMClientError (89)"):
+			return true
+		}
+	}
+	return false
+}
+
 type MDMAppleProfilePayload struct {
 	ProfileID         uint   `db:"profile_id"`
 	ProfileIdentifier string `db:"profile_identifier"`
+	ProfileName       string `db:"profile_name"`
 	HostUUID          string `db:"host_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
 	ProfileID         uint
 	ProfileIdentifier string
+	ProfileName       string
 	HostUUID          string
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+}
+
+// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// profiles. Each host may be counted in only one of three mutually-exclusive categories:
+// Failed, Pending, or Latest.
+type MDMAppleHostsProfilesSummary struct {
+	// Latest includes each host that has successfully applied all of the profiles currently
+	// applicable to the host. If any of the profiles are pending or failed for the host, the host
+	// is not counted as latest.
+	Latest uint `json:"latest" db:"applied"`
+	// Pending includes each host that has not yet applied one or more of the profiles currently
+	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failing" db:"failed"`
+}
+
+// MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
+// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
+// Applied, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+type MDMAppleFileVaultSummary struct {
+	Applied             uint `json:"applied" db:"applied"`
+	ActionRequired      uint `json:"action_required" db:"action_required"`
+	Enforcing           uint `json:"enforcing" db:"enforcing"`
+	Failed              uint `json:"failed" db:"failed"`
+	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
@@ -451,4 +394,28 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 type MDMAppleFleetdConfig struct {
 	FleetURL     string
 	EnrollSecret string
+}
+
+// MDMAppleSettingsPayload describes the payload accepted by the endpoint to
+// update specific MDM macos settings for a team (or no team).
+type MDMAppleSettingsPayload struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (p MDMAppleSettingsPayload) AuthzType() string {
+	return "mdm_apple_settings"
+}
+
+// NanoEnrollment represents a row in the nano_enrollments table managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoEnrollment struct {
+	ID               string `json:"-" db:"id"`
+	DeviceID         string `json:"-" db:"device_id"`
+	Type             string `json:"-" db:"type"`
+	Enabled          bool   `json:"-" db:"enabled"`
+	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
 }

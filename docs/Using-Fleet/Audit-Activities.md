@@ -659,6 +659,40 @@ This activity contains the following fields:
 }
 ```
 
+### Type `enabled_macos_disk_encryption`
+
+Generated when a user turns on macOS disk encryption for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `disabled_macos_disk_encryption`
+
+Generated when a user turns off macOS disk encryption for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">

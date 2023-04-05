@@ -384,7 +384,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
 		return nil, err
 	}
 
@@ -743,7 +743,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.UserByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -752,7 +752,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.InviteByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -763,7 +763,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if err != nil {
 		return err
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
