@@ -104,12 +104,12 @@ data "aws_iam_policy_document" "deprovisioner" {
   }
 
   statement {
-    actions = ["eks:DescribeCluster"]
-    resources = [var.eks_cluster.arn]
+    actions   = ["eks:DescribeCluster"]
+    resources = [var.eks_cluster.eks_cluster_arn]
   }
 
   statement {
-    actions = ["sts:GetCallerIdentity"]
+    actions   = ["sts:GetCallerIdentity"]
     resources = ["*"]
   }
 }
@@ -204,7 +204,7 @@ resource "aws_ecs_task_definition" "ingress_destroyer" {
           },
         ]
       }
-    ])
+  ])
   lifecycle {
     create_before_destroy = true
   }
@@ -276,7 +276,7 @@ resource "aws_sfn_state_machine" "main" {
     },
     "Idle": {
       "Type": "Wait",
-      "Seconds": "2592000",
+      "Seconds": 2592000,
       "Next": "Deprovisioner"
     },
     "Deprovisioner": {
