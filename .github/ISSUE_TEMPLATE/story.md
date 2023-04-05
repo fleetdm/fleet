@@ -38,7 +38,7 @@ This issue's estimation includes completing:
 
 
 ## Context
-- Requestor(s): Who are the requestor(s) for this story, if any? They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead.
+- Requestor(s): TODO <!-- Who are the non-customer requestor(s) for this story, if any? Put their github usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
