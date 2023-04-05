@@ -983,7 +983,9 @@ func TestAuthorizeUserCreatedPack(t *testing.T) {
 		{user: test.UserObserverPlus, object: userCreatedPack, action: read, allow: false},
 		{user: test.UserObserverPlus, object: userCreatedPack, action: write, allow: false},
 
-		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: false},
+		// This is one exception to the "write only" nature of gitops. To be able to create
+		// and edit packs currently it needs read access too.
+		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: true},
 		{user: test.UserGitOps, object: userCreatedPack, action: write, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: read, allow: false},
@@ -1029,7 +1031,9 @@ func TestAuthorizeGlobalPack(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalPack, action: read, allow: true},
 		{user: test.UserObserverPlus, object: globalPack, action: write, allow: false},
 
-		{user: test.UserGitOps, object: globalPack, action: read, allow: false},
+		// This is one exception to the "write only" nature of gitops. To be able to create
+		// and edit packs currently it needs read access too.
+		{user: test.UserGitOps, object: globalPack, action: read, allow: true},
 		{user: test.UserGitOps, object: globalPack, action: write, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: globalPack, action: read, allow: true},
@@ -1067,7 +1071,9 @@ func TestAuthorizeTeamPack(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Pack, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team1Pack, action: write, allow: false},
 
-		{user: test.UserGitOps, object: team1Pack, action: read, allow: false},
+		// This is one exception to the "write only" nature of gitops. To be able to create
+		// and edit packs currently it needs read access too.
+		{user: test.UserGitOps, object: team1Pack, action: read, allow: true},
 		{user: test.UserGitOps, object: team1Pack, action: write, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: team1Pack, action: read, allow: true},

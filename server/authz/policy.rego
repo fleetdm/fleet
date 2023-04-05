@@ -430,18 +430,11 @@ allow {
 # Packs
 ##
 
-# Global admins and maintainers can read/write all types of packs.
+# Global admins, maintainers and gitops can read/write all types of packs.
 allow {
   object.type == "pack"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Global gitops can write all types of packs.
-allow {
-  object.type == "pack"
-  subject.global_role == gitops
-  action == write
 }
 
 # Global admins, maintainers, observers and observer_plus can read the global pack.

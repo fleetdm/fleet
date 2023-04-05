@@ -202,14 +202,6 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
-	// First check if authorized to read policies
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{
-		PolicyData: fleet.PolicyData{
-			TeamID: ptr.Uint(teamID),
-		},
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -218,7 +210,6 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
 	}
 
-	// Then check if authorized to write policies
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
