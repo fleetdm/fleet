@@ -292,6 +292,7 @@ func getCommand() *cli.Command {
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
+			getMDMCommandsCommand(),
 		},
 	}
 }
@@ -1266,6 +1267,32 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
 			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-commands",
+		Aliases: []string{"mdm_commands"},
+		Usage:   "List information about MDM commands that were run.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := checkMDMEnabled(client); err != nil {
+				return err
+			}
 
 			return nil
 		},
