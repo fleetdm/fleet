@@ -120,12 +120,13 @@
 
       tr {
         .software-link {
-          visibility: hidden;
+          opacity: 0;
+          transition: 250ms;
         }
 
         &:hover {
           .software-link {
-            visibility: visible;
+            opacity: 1;
           }
         }
       }
