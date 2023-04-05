@@ -1,6 +1,6 @@
 # Fleet 4.11.0 brings impact clarity, improvements to vulnerability processing, and performance updates.
 
-![Fleet 4.11.0](../website/assets/images/articles/fleet-4.11.0-cover-700x393@2x.png)
+![Fleet 4.11.0](../website/assets/images/articles/fleet-4.11.0-cover-1600x900@2x.jpg)
 
 We’re pleased to announce Fleet 4.11.0. Check out the full changelog or read on for a summary of what’s new.
 
