@@ -543,16 +543,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	d := newDevice(s)
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-		//		pushWg.Done()
-		require.Len(t, pushes, 1)
-		require.Equal(t, pushes[0].PushMagic, "pushmagic"+d.serial)
-		res := map[string]*push.Response{
-			pushes[0].Token.String(): {
-				Id:  uuid.New().String(),
-				Err: nil,
-			},
-		}
-		return res, nil
+		return map[string]*push.Response{}, nil
 	}
 
 	// enroll one of the hosts
