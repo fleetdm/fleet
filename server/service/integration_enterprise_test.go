@@ -2521,6 +2521,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// All actions are authored by a global admin.
 	//
 
+	admin, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	require.NoError(t, err)
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
@@ -2555,6 +2557,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 			`SELECT id FROM packs WHERE pack_type = 'global'`)
 	})
 	require.NotZero(t, globalPackID)
+	cur := createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+		UserPayload: fleet.UserPayload{
+			Email:      ptr.String("foo42@example.com"),
+			Password:   ptr.String("p4ssw0rd.123"),
+			Name:       ptr.String("foo42"),
+			GlobalRole: ptr.String("maintainer"),
+		},
+	}, http.StatusOK, &cur)
+	maintainer := cur.User
 
 	//
 	// Start running permission tests.
@@ -2799,6 +2811,61 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 			GlobalRole: ptr.String("admin"),
 		},
 	}, http.StatusForbidden, &createUserResponse{})
+
+	// Attempt to modify a user, should fail.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), modifyUserRequest{
+		UserPayload: fleet.UserPayload{
+			GlobalRole: ptr.String("observer"),
+		},
+	}, http.StatusForbidden, &modifyUserResponse{})
+
+	// Attempt to view a user, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), getUserRequest{}, http.StatusForbidden, &getUserResponse{})
+
+	// Attempt to delete a user, should fail.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), deleteUserRequest{}, http.StatusForbidden, &deleteUserResponse{})
+
+	// Attempt to create a team, should allow.
+	tr := teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String("foo11"),
+		},
+	}, http.StatusOK, &tr)
+
+	// Attempt to edit a team, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), modifyTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String("foo12"),
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to view a team, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), getTeamRequest{}, http.StatusForbidden, &teamResponse{})
+
+	// Attempt to delete a team, should allow.
+	dtr := deleteTeamResponse{}
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), deleteTeamRequest{}, http.StatusOK, &dtr)
+
+	// Attempt to add users to team, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *maintainer,
+				Role: "admin",
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to delete users from team, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *maintainer,
+				Role: "admin",
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {
