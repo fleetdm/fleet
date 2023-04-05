@@ -51,6 +51,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 
 import sortUtils from "utilities/sort";
 import {
+  DiskEncryptionStatus,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
@@ -238,6 +239,8 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
+  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+    queryParams?.macos_settings_disk_encryption;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -367,6 +370,7 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
+        diskEncryptionStatus,
         macSettingsStatus,
       },
     ],
@@ -403,6 +407,7 @@ const ManageHostsPage = ({
         osVersion,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        diskEncryptionStatus,
         macSettingsStatus,
       },
     ],
@@ -546,6 +551,23 @@ const ManageHostsPage = ({
         queryParams: Object.assign({}, queryParams, {
           policy_id: policyId,
           policy_response: response,
+        }),
+      })
+    );
+  };
+
+  const handleChangeDiskEncryptionStatusFilter = (
+    newStatus: DiskEncryptionStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: Object.assign({}, queryParams, {
+          macos_settings_disk_encryption: newStatus,
         }),
       })
     );
@@ -704,6 +726,9 @@ const ManageHostsPage = ({
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (diskEncryptionStatus && isPremiumTier) {
+        // Premium feature only
+        newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
       }
       router.replace(
         getNextLocationPath({
@@ -737,6 +762,7 @@ const ManageHostsPage = ({
       router,
       routeTemplate,
       routeParams,
+      diskEncryptionStatus,
     ]
   );
 
@@ -1472,12 +1498,16 @@ const ManageHostsPage = ({
               softwareDetails: hostsData?.software || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
+              diskEncryptionStatus,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
             handleClearRouteParam={handleClearRouteParam}
             handleClearFilter={handleClearFilter}
             onChangePoliciesFilter={handleChangePoliciesFilter}
+            onChangeDiskEncryptionStatusFilter={
+              handleChangeDiskEncryptionStatusFilter
+            }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
