@@ -368,7 +368,7 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -910,7 +910,7 @@ func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	commander *service.MDMAppleCommander,
+	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {

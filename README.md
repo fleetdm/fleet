@@ -19,7 +19,7 @@ to learn how to add your device to Fleet and how to ask questions about your dev
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
 > 📖 In keeping with our value of openness, Fleet Device Management's company handbook is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
-> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the latest release from this repository (it'll work out of the box).
+> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0).
 
 ## Documentation
 

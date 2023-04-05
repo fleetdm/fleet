@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -51,8 +53,9 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool: s.redisPool,
-		Lq:   s.lq,
+		Pool:   s.redisPool,
+		Lq:     s.lq,
+		Logger: log.NewLogfmtLogger(os.Stdout),
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -2465,16 +2468,14 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		bar = host.Software[1]
 	}
 
-	n, err := s.ds.InsertSoftwareVulnerabilities(
-		ctx, []fleet.SoftwareVulnerability{
-			{
-				SoftwareID: bar.ID,
-				CVE:        "cve-123",
-			},
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		ctx, fleet.SoftwareVulnerability{
+			SoftwareID: bar.ID,
+			CVE:        "cve-123",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, int(n))
+	require.True(t, inserted)
 
 	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
 		CVE:              "cve-123",
