@@ -48,7 +48,7 @@ Fleet UI:
 
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com).
 2. Select **Create a Certificate**
-3. Upload your CSR and input a friendly name, such as "Fleet MDM."
+3. Upload your CSR and input a friendly name, such as "Fleet."
 4. Download the APNs certificate
 
 > Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
