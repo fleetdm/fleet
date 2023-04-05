@@ -63,7 +63,7 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	return response.CommandEnqueueResult, nil
 }
 
-func (c *Client) MDMAppleGetCommandResults(commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commandresults"
 
 	query := url.Values{}

@@ -273,20 +273,29 @@ WHERE
 func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
 	var rt string
 	err := sqlx.GetContext(ctx, ds.reader, &rt, `SELECT request_type FROM nano_commands WHERE command_uuid = ?`, commandUUID)
+	if err == sql.ErrNoRows {
+		return "", ctxerr.Wrap(ctx, notFound("MDMAppleCommand").WithName(commandUUID))
+	}
 	return rt, err
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	query := `
 SELECT
-    id,
-    command_uuid,
-    status,
-    result
+    ncr.id as device_id,
+    ncr.command_uuid,
+    ncr.status,
+    ncr.result,
+		ncr.updated_at,
+		nc.request_type
 FROM
-    nano_command_results
+    nano_command_results ncr
+INNER JOIN
+    nano_commands nc
+ON
+    ncr.command_uuid = nc.command_uuid
 WHERE
-    command_uuid = ?
+    ncr.command_uuid = ?
 `
 
 	var results []*fleet.MDMAppleCommandResult
@@ -300,13 +309,7 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
-
-	resultsMap := make(map[string]*fleet.MDMAppleCommandResult, len(results))
-	for _, result := range results {
-		resultsMap[result.ID] = result
-	}
-
-	return resultsMap, nil
+	return results, nil
 }
 
 func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {

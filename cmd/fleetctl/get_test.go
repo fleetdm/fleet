@@ -1440,3 +1440,123 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
 }
+
+func TestGetMDMCommandResults(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	rawXml := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+</dict>
+</plist>`
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		if len(uuids) == 0 {
+			return nil, nil
+		}
+		require.Len(t, uuids, 2)
+		return []*fleet.Host{
+			{ID: 1, UUID: uuids[0], Hostname: "host1"},
+			{ID: 2, UUID: uuids[1], Hostname: "host2"},
+		}, nil
+	}
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return "test", nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMAppleCommandResult{
+				{
+					DeviceID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+				{
+					DeviceID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+			}, nil
+		}
+	}
+
+	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Required flag "id" not set`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The command doesn't exist.`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `EOF`)
+
+	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+------+------+--------+----------+---------+
+| ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
++----+------+------+--------+----------+---------+
+`))
+
+	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+	require.NoError(t, err)
+	fmt.Println(buf.String())
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+`))
+}
