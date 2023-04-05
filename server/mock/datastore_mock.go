@@ -260,6 +260,8 @@ type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Enro
 
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
+type AggregateEnrollSecretPerTeamFunc func(ctx context.Context) ([]*fleet.EnrollSecret, error)
+
 type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
 type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
@@ -515,6 +517,8 @@ type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
+
+type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
@@ -949,6 +953,9 @@ type DataStore struct {
 	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
 	ApplyEnrollSecretsFuncInvoked bool
 
+	AggregateEnrollSecretPerTeamFunc        AggregateEnrollSecretPerTeamFunc
+	AggregateEnrollSecretPerTeamFuncInvoked bool
+
 	NewInviteFunc        NewInviteFunc
 	NewInviteFuncInvoked bool
 
@@ -1332,6 +1339,9 @@ type DataStore struct {
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
+
+	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
+	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
@@ -2289,6 +2299,13 @@ func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secret
 	return s.ApplyEnrollSecretsFunc(ctx, teamID, secrets)
 }
 
+func (s *DataStore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+	s.mu.Lock()
+	s.AggregateEnrollSecretPerTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.AggregateEnrollSecretPerTeamFunc(ctx)
+}
+
 func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 	s.mu.Lock()
 	s.NewInviteFuncInvoked = true
@@ -3183,6 +3200,13 @@ func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMApp
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleConfigProfileFunc(ctx, p)
+}
+
+func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAppleConfigProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAppleConfigProfilesFunc(ctx, payload)
 }
 
 func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
