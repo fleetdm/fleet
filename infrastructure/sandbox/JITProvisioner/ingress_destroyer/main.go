@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	autoscaling "k8s.io/client-go/applyconfigurations/autoscaling/v1"
+	//autoscaling "k8s.io/client-go/applyconfigurations/autoscaling/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
