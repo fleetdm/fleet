@@ -60,7 +60,7 @@ jobs:
 
       - name: Get tag
         run: |
-          echo "TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+          echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
         id: docker
 
       - name: List tags for push
