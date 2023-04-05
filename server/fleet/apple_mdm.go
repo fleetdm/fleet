@@ -154,7 +154,7 @@ type MDMAppleDEPKeyPair struct {
 // MDMAppleCommandResult holds the result of a command execution provided by
 // the target device.
 type MDMAppleCommandResult struct {
-	// DeviceID is the enrollment ID. This should be the same as the device ID.
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
 	DeviceID string `json:"device_id" db:"device_id"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
