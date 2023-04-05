@@ -1,3 +1,5 @@
+package file
+
 //		Copyright 2023 SAS Software
 //
 //	 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +17,6 @@
 // xar contains utilities to parse xar files, most of the logic here is a
 // simplified version extracted from the logic to sign xar files in
 // https://github.com/sassoftware/relic
-package file
 
 import (
 	"bytes"
