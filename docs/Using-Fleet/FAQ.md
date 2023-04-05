@@ -332,14 +332,6 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 Depending on your infrastructure capabilities, and the number of hosts enrolled into your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
 In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
-   
-## How can I renew my Apple Business Manager server token?
-
-> This feature is currently in development and is not ready for production use.
-
-If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
-
-When that happens, the token is rejected by Apple and must be renewed. The detailed steps are documented in the Apple documentation link above - in short, the Apple Business Manager Administrator or Content Manager must sign in to their account and download a new server token for the Fleet MDM server, and all Fleet instances must be restarted with that new token provided instead of the old one (see the [MDM configuration documentation](https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm) for details on how to do that).
 
 ## Why am I getting errors when generating a .msi package on my M1 Mac?
 
