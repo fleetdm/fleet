@@ -20,8 +20,11 @@ resource "aws_iam_policy" "sfn" {
 
 data "aws_iam_policy_document" "sfn" {
   statement {
-    actions   = ["ecs:RunTask"]
-    resources = [replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", "")]
+    actions = ["ecs:RunTask"]
+    resources = [
+      replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", ""),
+      replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", ""),
+    ]
     condition {
       test     = "ArnLike"
       variable = "ecs:cluster"
@@ -253,7 +256,7 @@ resource "aws_sfn_state_machine" "main" {
           }
         },
         "Cluster": "${var.ecs_cluster.arn}",
-        "TaskDefinition": "${replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", "")}",
+        "TaskDefinition": "${replace(aws_ecs_task_definition.ingress_destroyer.arn, "/:\\d+$/", "")}",
         "Overrides": {
           "ContainerOverrides": [
             {
