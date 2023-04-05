@@ -1457,7 +1457,6 @@ WHERE
 
 	var res fleet.MDMAppleFileVaultSummary
 
-	// QUESTION: GetContext vs SelectContext
 	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt,
 		SQLDiskEncryptionApplied,
 		SQLDiskEncryptionActionRequired,
