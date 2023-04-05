@@ -2791,7 +2791,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		IDs: []uint{tplr.Policy.ID},
 	}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
-	// NOT ALLOWED! Create, edit, view, and delete users
+	// Attempt to create a user, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+		UserPayload: fleet.UserPayload{
+			Email:      ptr.String("foo10@example.com"),
+			Name:       ptr.String("foo10"),
+			GlobalRole: ptr.String("admin"),
+		},
+	}, http.StatusForbidden, &createUserResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {
