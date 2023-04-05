@@ -438,7 +438,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// verify that we should install the team profile
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
-	require.ElementsMatch(t, []string{"I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier}, removes)
+	require.ElementsMatch(t, []string{"I1", "I2"}, removes)
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
@@ -2503,7 +2503,6 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 
 	// the old configuration profile is kept
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
-
 }
 
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
@@ -2620,7 +2619,8 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
 func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string) (*bytes.Buffer, map[string]string) {
+	fileName string, fileContent []byte, token string,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
