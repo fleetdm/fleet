@@ -203,6 +203,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserNoRoles,
 		test.UserMaintainer,
 		test.UserObserver,
+		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
 		testAuthdMethods(t, user, true)
@@ -339,6 +340,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		{"observer can view", test.UserObserver, "uuidTm2", false},
 		{"observer can view", test.UserObserver, "uuidNoTm", false},
 		{"observer can view", test.UserObserver, "uuidMixTm1Tm2", false},
+		{"observer+ can view", test.UserObserverPlus, "uuidTm1", false},
+		{"observer+ can view", test.UserObserverPlus, "uuidTm2", false},
+		{"observer+ can view", test.UserObserverPlus, "uuidNoTm", false},
+		{"observer+ can view", test.UserObserverPlus, "uuidMixTm1Tm2", false},
 		{"admin can view", test.UserAdmin, "uuidTm1", false},
 		{"admin can view", test.UserAdmin, "uuidTm2", false},
 		{"admin can view", test.UserAdmin, "uuidNoTm", false},
@@ -351,6 +356,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		{"tm1 observer cannot view tm2", test.UserTeamObserverTeam1, "uuidTm2", true},
 		{"tm1 observer cannot view no team", test.UserTeamObserverTeam1, "uuidNoTm", true},
 		{"tm1 observer cannot view mix", test.UserTeamObserverTeam1, "uuidMixTm1Tm2", true},
+		{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, "uuidTm1", false},
+		{"tm1 observer+ cannot view tm2", test.UserTeamObserverPlusTeam1, "uuidTm2", true},
+		{"tm1 observer+ cannot view no team", test.UserTeamObserverPlusTeam1, "uuidNoTm", true},
+		{"tm1 observer+ cannot view mix", test.UserTeamObserverPlusTeam1, "uuidMixTm1Tm2", true},
 		{"tm1 admin can view tm1", test.UserTeamAdminTeam1, "uuidTm1", false},
 		{"tm1 admin cannot view tm2", test.UserTeamAdminTeam1, "uuidTm2", true},
 		{"tm1 admin cannot view no team", test.UserTeamAdminTeam1, "uuidNoTm", true},
@@ -774,6 +783,7 @@ func TestAppleMDMEnrollmentProfile(t *testing.T) {
 		test.UserNoRoles,
 		test.UserMaintainer,
 		test.UserObserver,
+		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
 		ctx := test.UserContext(ctx, user)
