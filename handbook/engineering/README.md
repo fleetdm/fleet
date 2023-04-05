@@ -149,7 +149,6 @@ How to deploy a new release to dogfood:
 3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-6. Select **Run workflow**. **dogfood_mdm** should be selected under the **Use workflow from** field.
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 > 
@@ -267,7 +266,7 @@ At Fleet, we do postmortem meetings for every production incident, whether it's 
 
 ### Postmortem document
 
-Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data, allowing smooth run of the discussion. 
+Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate with some initial data to enable a productive conversation. 
 
 ### Postmortem meeting
 

@@ -601,8 +601,7 @@ type Service interface {
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	// The map returned has a result for each target device ID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
@@ -633,8 +632,9 @@ type Service interface {
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
-	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	// EnqueueMDMAppleCommand enqueues a command for execution on the given
+	// devices. Note that a deviceID is the same as a host's UUID.
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.

@@ -10,10 +10,24 @@ import {
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
 import { DiskEncryptionStatus } from "utilities/constants";
+import { ISoftware } from "interfaces/software";
+import { IMdmSolution } from "interfaces/mdm";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
 export interface ISortOption {
   key: string;
   direction: string;
+}
+
+export interface ILoadHostsResponse {
+  hosts: IHost[];
+  software: ISoftware;
+  munki_issue: IMunkiIssuesAggregate;
+  mobile_device_management_solution: IMdmSolution;
+}
+
+export interface ILoadHostsQueryKey extends ILoadHostsOptions {
+  scope: "hosts";
 }
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
@@ -211,7 +225,7 @@ export default {
     selectedLabels,
     sortBy,
     diskEncryptionStatus,
-  }: ILoadHostsOptions) => {
+  }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 

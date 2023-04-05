@@ -9,4 +9,8 @@
   &__sandbox-demo-message {
     margin-top: 3.5rem;
   }
+
+  &__api-only-user {
+    @include grey-badge;
+  }
 }

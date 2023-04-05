@@ -646,7 +646,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		    ) FROM host_additional WHERE host_id = h.id) AS additional
 		    `
 	}
-
 	sql, params = ds.applyHostFilters(opt, sql, filter, params)
 
 	hosts := []*fleet.Host{}
@@ -754,6 +753,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
+	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -886,6 +886,32 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	return sql + newSQL, append(params, newParams...)
+}
+
+func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if !opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
+		return sql, params
+	}
+
+	newSQL := ` AND EXISTS (
+		SELECT 1
+		FROM host_mdm_apple_profiles hmap
+		WHERE %s)`
+
+	switch opt.MacOSSettingsDiskEncryptionFilter {
+	case fleet.MacOSDiskEncryptionStatusApplied:
+		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionApplied)
+	case fleet.MacOSDiskEncryptionStatusActionRequired:
+		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionActionRequired)
+	case fleet.MacOSDiskEncryptionStatusEnforcing:
+		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionEnforcing)
+	case fleet.MacOSDiskEncryptionStatusFailed:
+		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionFailed)
+	case fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
+		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionRemovingEnforcement)
+	}
+
+	return sql + newSQL, params
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
@@ -1754,6 +1780,51 @@ func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter,
 	}
 
 	return hostIDs, nil
+}
+
+func (ds *Datastore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	id,
+	created_at,
+	updated_at,
+	osquery_host_id,
+	node_key,
+	hostname,
+	uuid,
+	hardware_serial,
+	hardware_model,
+	computer_name,
+	platform,
+	team_id,
+	distributed_interval,
+	logger_tls_period,
+	config_tls_refresh,
+	detail_updated_at,
+	label_updated_at,
+	last_enrolled_at,
+	policy_updated_at,
+	refetch_requested
+FROM hosts
+WHERE uuid IN (?) AND %s
+		`, ds.whereFilterHostsByTeams(filter, "hosts"),
+	)
+
+	stmt, args, err := sqlx.In(stmt, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
+	}
+
+	var hosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by uuid")
+	}
+
+	return hosts, nil
 }
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -3651,7 +3722,6 @@ func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID ui
 		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
 	}
 	return nil
-
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.

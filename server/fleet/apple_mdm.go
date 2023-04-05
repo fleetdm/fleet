@@ -151,22 +151,26 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleCommandResult holds the result of a command execution provided by the target device.
+// MDMAppleCommandResult holds the result of a command execution provided by
+// the target device.
 type MDMAppleCommandResult struct {
-	// ID is the enrollment ID. This should be the same as the device ID.
-	ID string `json:"id" db:"id"`
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	DeviceID string `json:"device_id" db:"device_id"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
 	// Status is the command status. One of Acknowledged, Error, or NotNow.
 	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
 	// Result is the original command result XML plist. If the status is Error, it will include the
 	// ErrorChain key with more information.
 	Result []byte `json:"result" db:"result"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandResult) AuthzType() string {
-	return "mdm_apple_command_result"
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
 }
 
 // MDMAppleInstaller holds installer packages for Apple devices.
@@ -235,25 +239,18 @@ type EnrolledAPIResults map[string]*EnrolledAPIResult
 
 // CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
 type CommandEnqueueResult struct {
-	// Status is the status of the command.
-	Status EnrolledAPIResults `json:"status,omitempty"`
-	// NoPush indicates whether the command was issued with no_push.
-	// If this is true, then Fleet won't send a push notification to devices.
-	NoPush bool `json:"no_push,omitempty"`
-	// PushError indicates the error when trying to send push notification
-	// to target devices.
-	PushError string `json:"push_error,omitempty"`
-	// CommandError holds the error when enqueueing the command.
-	CommandError string `json:"command_error,omitempty"`
 	// CommandUUID is the unique identifier for the command.
 	CommandUUID string `json:"command_uuid,omitempty"`
 	// RequestType is the name of the command.
 	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
 
 // MDMAppleCommand represents an Apple MDM command.
 type MDMAppleCommand struct {
 	*mdm.Command
+	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
