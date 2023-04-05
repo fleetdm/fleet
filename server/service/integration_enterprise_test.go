@@ -2643,7 +2643,27 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusForbidden, &runLiveQueryResponse{})
 
-	// CREATE EDIT AND DELETE QUERIES
+	// Attempt to create queries, should allow.
+	cqr := createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:  ptr.String("foo4"),
+			Query: ptr.String("SELECT * from osquery_info;"),
+		},
+	}, http.StatusOK, &cqr)
+
+	// Attempt to edit queries, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), modifyQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:  ptr.String("foo4"),
+			Query: ptr.String("SELECT * FROM system_info;"),
+		},
+	}, http.StatusOK, &modifyQueryResponse{})
+
+	// Attempt to edit queries, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), deleteQueryByIDRequest{}, http.StatusOK, &deleteQueryByIDResponse{})
+
+	// DELETE BY NAME AND DELETE MULTIPLE!
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {

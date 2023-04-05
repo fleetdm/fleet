@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -289,22 +290,29 @@ func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, 
 	return svc.modifyPolicy(ctx, &teamID, id, p)
 }
 
+func checkTeamID(teamID *uint, policy *fleet.Policy) bool {
+	return reflect.DeepEqual(teamID, policy.TeamID)
+}
+
 func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
-	// First make sure the user can read the policies.
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: teamID,
 		},
-	}, fleet.ActionRead); err != nil {
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+
 	policy, err := svc.ds.Policy(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	// Then we make sure they can modify the team's policies.
-	if err := svc.authz.Authorize(ctx, policy, fleet.ActionWrite); err != nil {
-		return nil, err
+
+	if ok := checkTeamID(teamID, policy); !ok {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "policy does not belong to team/global",
+			InternalErr: fmt.Errorf("teamID: %+v, policy: %+v", teamID, policy.TeamID),
+		})
 	}
 
 	if err := p.Verify(); err != nil {
