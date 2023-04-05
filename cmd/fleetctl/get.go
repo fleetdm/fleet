@@ -289,6 +289,7 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
+			getMDMCommandResultsCommand(),
 		},
 	}
 }
@@ -1104,8 +1105,8 @@ func getSoftwareCommand() *cli.Command {
 
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple",
-		Aliases: []string{"mdm-apple"},
+		Name:    "mdm-apple",
+		Aliases: []string{"mdm_apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1153,8 +1154,8 @@ func getMDMAppleCommand() *cli.Command {
 
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple_bm",
-		Aliases: []string{"mdm-apple-bm"},
+		Name:    "mdm-apple-bm",
+		Aliases: []string{"mdm_apple_bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1199,6 +1200,61 @@ func getMDMAppleBMCommand() *cli.Command {
 				// certificate will soon expire, print a warning
 				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandResultsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-command-results",
+		Aliases: []string{"mdm_command_results"},
+		Usage:   "Retrieve results for a specific MDM command.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+			&cli.StringFlag{
+				Name:     "id",
+				Usage:    "Filter MDM commands by ID.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := checkMDMEnabled(client); err != nil {
+				return err
+			}
+
+			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetct get mdm-commands`.")
+				}
+				return err
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range res {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+					string(r.Result),
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
 
 			return nil
 		},
