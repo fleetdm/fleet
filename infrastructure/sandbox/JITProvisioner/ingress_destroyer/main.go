@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	//"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//autoscaling "k8s.io/client-go/applyconfigurations/autoscaling/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -43,35 +45,40 @@ func deleteIngress(id, name, ddbTable string) {
 	cmd.Env = os.Environ()
 	buf, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Println(err)
 		log.Println(cmd.String())
 		log.Println(string(buf))
-		return
+		log.Fatal(err)
 	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", conf)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	// Delete the ingress using the Kubernetes clientset
 	err = clientset.NetworkingV1().Ingresses("default").Delete(context.Background(), id, v1.DeleteOptions{})
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
+
+	/*
+	// Scale it down to save money
+	time.sleep(60)
+	_, err = clientset.AppsV1().Deployments("default").ApplyScale(context.Background(), id, &autoscaling.ScaleApplyConfiguration{Spec: &autoscaling.ScaleSpecApplyConfiguration{Replicas: new(int32)}}, v1.ApplyOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	*/
 
 	svc := dynamodb.New(sess)
 	err = updateFleetInstanceState(id, ddbTable, svc)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 
 	log.Printf("Ingress %s deleted\n", id)
