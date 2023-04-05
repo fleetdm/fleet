@@ -2515,8 +2515,12 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
 	enrolledHost := newMDMEnrolledDevice(s)
 
+	base64Cmd := func(rawCmd string) string {
+		return base64.RawStdEncoding.EncodeToString([]byte(rawCmd))
+	}
+
 	newRawCmd := func(cmdUUID string) string {
-		return base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -2530,14 +2534,14 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
     <key>CommandUUID</key>
     <string>%s</string>
 </dict>
-</plist>`, cmdUUID)))
+</plist>`, cmdUUID)
 	}
 
 	// call with unknown host UUID
 	uuid1 := uuid.New().String()
 	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   newRawCmd(uuid1),
+			Command:   base64Cmd(newRawCmd(uuid1)),
 			DeviceIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
 
@@ -2548,7 +2552,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// call with unenrolled host UUID
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   newRawCmd(uuid.New().String()),
+			Command:   base64Cmd(newRawCmd(uuid.New().String())),
 			DeviceIDs: []string{unenrolledHost.UUID},
 		}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
@@ -2560,13 +2564,11 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	var resp enqueueMDMAppleCommandResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
 		enqueueMDMAppleCommandRequest{
-			Command:   rawCmd,
+			Command:   base64Cmd(rawCmd),
 			DeviceIDs: []string{enrolledHost.uuid},
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
-	decodedCmd, err := base64.RawStdEncoding.DecodeString(rawCmd)
-	require.NoError(t, err)
-	require.Contains(t, string(decodedCmd), resp.CommandUUID)
+	require.Contains(t, rawCmd, resp.CommandUUID)
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
 
@@ -2575,9 +2577,15 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Len(t, cmdResResp.Results, 0)
 
 	// simulate a result and call again
-	err = s.mdmStorage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHost.uuid}, Context: ctx,
-	}, &mdm.CommandResults{CommandUUID: uuid2, Status: "Acknowledged", Raw: []byte(rawCmd)})
+	err := s.mdmStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHost.uuid},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Raw:         []byte(rawCmd),
+	})
 	require.NoError(t, err)
 
 	h, err := s.ds.HostByIdentifier(ctx, enrolledHost.uuid)
