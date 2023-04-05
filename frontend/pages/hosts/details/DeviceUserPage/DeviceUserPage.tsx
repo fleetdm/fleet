@@ -441,11 +441,15 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      <nav className="site-nav">
-        <div className="site-nav-container">
+      <nav className="site-nav-container">
+        <div className="site-nav-content">
           <ul className="site-nav-list">
-            <li className={`site-nav-item--logo`} key={`nav-item`}>
-              <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+            <li className="site-nav-item dup-org-logo" key="dup-org-logo">
+              <div className="site-nav-item__logo-wrapper">
+                <div className="site-nav-item__logo">
+                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                </div>
+              </div>
             </li>
           </ul>
         </div>
