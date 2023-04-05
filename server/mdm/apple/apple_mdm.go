@@ -402,7 +402,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} Enrollment</string>
+	<string>{{ .Organization }} enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
