@@ -78,7 +78,7 @@ Thus, it is still important to ensure consistency, completeness, and secure deve
 - All changes to the user interface should be [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) by the appropriate Product Designer.
 
 ## Prioritizing improvements
-Product Managers prioritize all potential product improvements worked on by contributors inside the company.  This includes features, bug fixes, and technical debt or other contributor experience improvements.
+Product Managers prioritize all potential product improvements worked on by contributors inside the company.
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 

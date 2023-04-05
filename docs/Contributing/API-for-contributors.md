@@ -539,6 +539,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
 - [Update Apple MDM settings](#update-apple-mdm-settings)
 - [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
+- [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
+- [Enqueue MDM command](#enqueue-mdm-command)
 
 ### Get Apple MDM
 
@@ -976,6 +978,72 @@ Currently, the only IdP supported is Okta.
 	<integer>1</integer>
 </dict>
 </plist>
+```
+
+### Get Apple disk encryption summary
+
+_Available in Fleet Premium_
+
+This endpoint returns a summary of the disk encryption profiles aggregate status counts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
+### Enqueue MDM command
+
+This endpoint enqueues an MDM command to be executed on a list of hosts identified by their UUID.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
 ```
 
 ## Get or apply configuration files

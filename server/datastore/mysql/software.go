@@ -402,6 +402,7 @@ func listSoftwareDB(
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
+				cve.CVEPublished = &result.CVEPublished
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -413,10 +414,11 @@ func listSoftwareDB(
 // softwareCVE is used for left joins with cve
 type softwareCVE struct {
 	fleet.Software
-	CVE              *string  `db:"cve"`
-	CVSSScore        *float64 `db:"cvss_score"`
-	EPSSProbability  *float64 `db:"epss_probability"`
-	CISAKnownExploit *bool    `db:"cisa_known_exploit"`
+	CVE              *string    `db:"cve"`
+	CVSSScore        *float64   `db:"cvss_score"`
+	EPSSProbability  *float64   `db:"epss_probability"`
+	CISAKnownExploit *bool      `db:"cisa_known_exploit"`
+	CVEPublished     *time.Time `db:"cve_published"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -509,6 +511,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
 				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
 				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
+				goqu.MAX("c.published").As("cve_published"),               // for ordering
 			)
 	}
 
@@ -576,6 +579,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.cvss_score",
 			"c.epss_probability",
 			"c.cisa_known_exploit",
+			goqu.I("c.published").As("cve_published"),
 		)
 	}
 
@@ -659,56 +663,48 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (ds *Datastore) ListSoftwareBySourceIter(
+// AllSoftwareIterator Returns an iterator for the 'software' table, filtering out
+// software entries based on the 'query' param. The rows.Close call is done by the caller once
+// iteration using the returned fleet.SoftwareIterator is done.
+func (ds *Datastore) AllSoftwareIterator(
 	ctx context.Context,
-	sources []string,
+	query fleet.SoftwareIterQueryOptions,
 ) (fleet.SoftwareIterator, error) {
-	if len(sources) == 0 {
-		return nil, errors.New("please provide at least one source")
+	if !query.IsValid() {
+		return nil, fmt.Errorf("invalid query params %+v", query)
 	}
 
 	var err error
 	var args []interface{}
 
 	stmt := `SELECT 
-		s.id, 
-		s.name,
-		s.version,
-		s.bundle_identifier,
-		s.release,
-		s.vendor,
-		s.arch,
-		s.source 
-	FROM software s
-	WHERE source IN (?)`
+		s.* ,
+		COALESCE(sc.cpe, '') AS generated_cpe
+	FROM software s 
+	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
-	stmt, args, err = sqlx.In(stmt, sources)
+	var conditionals []string
+	arg := map[string]interface{}{}
 
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error while trying to bind sources")
+	if len(query.ExcludedSources) != 0 {
+		conditionals = append(conditionals, "s.source NOT IN (:excluded_sources)")
+		arg["excluded_sources"] = query.ExcludedSources
 	}
 
-	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	if len(query.IncludedSources) != 0 {
+		conditionals = append(conditionals, "s.source IN (:included_sources)")
+		arg["included_sources"] = query.IncludedSources
 	}
-	return &softwareIterator{rows: rows}, nil
-}
 
-// AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
-// software entries with CPEs and from the sources included in the 'excludedSources' param.
-func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedSources []string) (fleet.SoftwareIterator, error) {
-	var err error
-	var args []interface{}
-
-	stmt := `SELECT s.* FROM software s LEFT JOIN software_cpe sc ON (s.id=sc.software_id) WHERE sc.id IS NULL`
-	// The rows.Close call is done by the caller once iteration using the
-	// returned fleet.SoftwareIterator is done.
-	if excludedSources != nil {
-		stmt += ` AND s.source NOT IN (?)`
-		stmt, args, err = sqlx.In(stmt, excludedSources)
+	if len(conditionals) != 0 {
+		cond := strings.Join(conditionals, " AND ")
+		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
+			return nil, ctxerr.Wrap(ctx, err, "error binding named arguments on software iterator")
+		}
+		stmt, args, err = sqlx.In(stmt, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "error building 'In' query part on software iterator")
 		}
 	}
 
@@ -719,19 +715,56 @@ func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excluded
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (ds *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
-	_, err := addCPEForSoftwareDB(ctx, ds.writer, software, cpe)
-	return err
+func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+	var args []interface{}
+
+	if len(cpes) == 0 {
+		return 0, nil
+	}
+
+	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(cpes)), ",")
+	sql := fmt.Sprintf(
+		`INSERT INTO software_cpe (software_id, cpe) VALUES %s ON DUPLICATE KEY UPDATE cpe = VALUES(cpe)`,
+		values,
+	)
+
+	for _, cpe := range cpes {
+		args = append(args, cpe.SoftwareID, cpe.CPE)
+	}
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software cpes")
+	}
+	count, _ := res.RowsAffected()
+
+	return count, nil
 }
 
-func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software fleet.Software, cpe string) (uint, error) {
-	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	res, err := exec.ExecContext(ctx, sql, software.ID, cpe)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software cpe")
+func (ds *Datastore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+	if len(cpes) == 0 {
+		return 0, nil
 	}
-	id, _ := res.LastInsertId() // cannot fail with the mysql driver
-	return uint(id), nil
+
+	stmt := `DELETE FROM software_cpe WHERE (software_id) IN (?)`
+
+	softwareIDs := make([]uint, 0, len(cpes))
+	for _, cpe := range cpes {
+		softwareIDs = append(softwareIDs, cpe.SoftwareID)
+	}
+
+	query, args, err := sqlx.In(stmt, softwareIDs)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "error building 'In' query part when deleting software CPEs")
+	}
+
+	res, err := ds.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, ctxerr.Wrapf(ctx, err, "deleting cpes software")
+	}
+
+	count, _ := res.RowsAffected()
+
+	return count, nil
 }
 
 func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
@@ -777,6 +810,19 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	return nil
 }
 
+func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	sql := `DELETE FROM software_cve WHERE source = ? AND updated_at < ?`
+
+	var args []interface{}
+	cutPoint := time.Now().UTC().Add(-1 * duration)
+	args = append(args, source, cutPoint)
+
+	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(
@@ -812,6 +858,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				"c.cvss_score",
 				"c.epss_probability",
 				"c.cisa_known_exploit",
+				goqu.I("c.published").As("cve_published"),
 			)
 	}
 
@@ -852,6 +899,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
+				cve.CVEPublished = &result.CVEPublished
 			}
 			software.Vulnerabilities = append(software.Vulnerabilities, cve)
 		}
@@ -1091,30 +1139,26 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareVulnerabilities(
+func (ds *Datastore) InsertSoftwareVulnerability(
 	ctx context.Context,
-	vulns []fleet.SoftwareVulnerability,
+	vuln fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
-) (int64, error) {
+) (bool, error) {
+	if vuln.CVE == "" {
+		return false, nil
+	}
+
 	var args []interface{}
 
-	if len(vulns) == 0 {
-		return 0, nil
-	}
+	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
+	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cve, source, software_id) VALUES %s`, values)
-
-	for _, v := range vulns {
-		args = append(args, v.CVE, source, v.SoftwareID)
-	}
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer.ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
+		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
-	count, _ := res.RowsAffected()
 
-	return count, nil
+	return insertOnDuplicateDidInsert(res), nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(

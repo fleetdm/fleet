@@ -14,25 +14,27 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/storage"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
@@ -326,6 +328,9 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
 		TeamID:            &teamID,
@@ -505,6 +510,10 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
+	// cannot use the profile ID as it is now deleted
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
 		TeamID:            &teamID,
@@ -556,6 +565,44 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 	}
 
 	return ps, nil
+}
+
+type getMDMAppleFileVaultSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleFileVauleSummaryResponse struct {
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
+
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleFileVaultSummaryRequest)
+
+	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleFileVauleSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleFileVauleSummaryResponse{
+		MDMAppleFileVaultSummary: fvs,
+	}, nil
+}
+
+// QUESTION: workflow for developing new APIs? whats your setup quickly test code working?
+func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return fvs, nil
 }
 
 type uploadAppleInstallerRequest struct {
@@ -832,13 +879,12 @@ func (svc *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleD
 type enqueueMDMAppleCommandRequest struct {
 	Command   string   `json:"command"`
 	DeviceIDs []string `json:"device_ids"`
-	NoPush    bool     `json:"no_push"`
 }
 
 type enqueueMDMAppleCommandResponse struct {
-	status int                        `json:"-"`
-	Result fleet.CommandEnqueueResult `json:"result"`
-	Err    error                      `json:"error,omitempty"`
+	*fleet.CommandEnqueueResult
+	status int   `json:"-"`
+	Err    error `json:"error,omitempty"`
 }
 
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
@@ -846,146 +892,119 @@ func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	rawCommand, err := base64.RawStdEncoding.DecodeString(req.Command)
-	if err != nil {
-		return enqueueMDMAppleCommandResponse{Err: err}, nil
-	}
-	command, err := mdm.DecodeCommand(rawCommand)
-	if err != nil {
-		return enqueueMDMAppleCommandResponse{Err: err}, nil
-	}
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: command}, req.DeviceIDs, req.NoPush)
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, false)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
 	return enqueueMDMAppleCommandResponse{
-		status: status,
-		Result: *result,
+		status:               status,
+		CommandEnqueueResult: result,
 	}, nil
 }
 
 func (svc *Service) EnqueueMDMAppleCommand(
 	ctx context.Context,
-	command *fleet.MDMAppleCommand,
+	rawBase64Cmd string,
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+	var premiumCommands = map[string]bool{
+		"EraseDevice": true,
+		"DeviceLock":  true,
+	}
+
+	// load hosts (lite) by uuids, check that the user has the rigts to run
+	// commands for every affected team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
 	}
-	return deprecatedRawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.logger)
-}
 
-// deprecatedRawCommandEnqueue enqueues a command to be executed on the given devices.
-//
-// This method was extracted from:
-// https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
-// NOTE(lucas): At the time, I found no way to reuse Fleet's gokit middlewares with a raw http.Handler
-// like api.RawCommandEnqueueHandler.
-func deprecatedRawCommandEnqueue(
-	ctx context.Context,
-	enqueuer storage.CommandEnqueuer,
-	pusher push.Pusher,
-	command *mdm.Command,
-	deviceIDs []string,
-	noPush bool,
-	logger kitlog.Logger,
-) (status int, result *fleet.CommandEnqueueResult, err error) {
-	output := fleet.CommandEnqueueResult{
-		Status:      make(fleet.EnrolledAPIResults),
-		NoPush:      noPush,
-		CommandUUID: command.CommandUUID,
-		RequestType: command.Command.RequestType,
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return 0, nil, fleet.ErrNoContext
 	}
-
-	logger = kitlog.With(
-		logger,
-		"command_uuid", command.CommandUUID,
-		"request_type", command.Command.RequestType,
-	)
-	logs := []interface{}{
-		"msg", "enqueue",
-	}
-	idErrs, err := enqueuer.EnqueueCommand(ctx, deviceIDs, command)
-	ct := len(deviceIDs) - len(idErrs)
+	// for the team filter, we don't include observers as we require maintainer
+	// and up to run commands.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: false}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
 	if err != nil {
-		logs = append(logs, "err", err)
-		output.CommandError = err.Error()
-		if len(idErrs) == 0 {
-			// we assume if there were no ID-specific errors but
-			// there was a general error then all IDs failed
-			ct = 0
+		return 0, nil, err
+	}
+	if len(hosts) == 0 {
+		return 0, nil, newNotFoundError()
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams.
+	teamIDs := make(map[uint]bool)
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	var command fleet.MDMAppleCommand
+	for tmID := range teamIDs {
+		command.TeamID = &tmID
+		if tmID == 0 {
+			command.TeamID = nil
+		}
+
+		if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+			return 0, nil, ctxerr.Wrap(ctx, err)
 		}
 	}
-	logs = append(logs, "count", ct)
-	if len(idErrs) > 0 {
-		logs = append(logs, "errs", len(idErrs))
+
+	rawXMLCmd, err := base64.RawStdEncoding.DecodeString(rawBase64Cmd)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
-	if err != nil || len(idErrs) > 0 {
-		level.Info(logger).Log(logs...)
-	} else {
-		level.Debug(logger).Log(logs...)
+	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
-	// loop through our command errors, if any, and add to output
-	for id, err := range idErrs {
+
+	if premiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+		lic, err := svc.License(ctx)
 		if err != nil {
-			output.Status[id] = &fleet.EnrolledAPIResult{
-				CommandError: err.Error(),
+			return 0, nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return 0, nil, fleet.ErrMissingLicense
+		}
+	}
+
+	if err := svc.mdmAppleCommander.enqueue(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+		// if at least one UUID enqueued properly, return success, otherwise return 500
+		var apnsErr *APNSDeliveryError
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &apnsErr) {
+			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+				// some hosts properly received the command, so return success, with the list
+				// of failed uuids.
+				return http.StatusOK, &fleet.CommandEnqueueResult{
+					CommandUUID: cmd.CommandUUID,
+					RequestType: cmd.Command.RequestType,
+					FailedUUIDs: apnsErr.FailedUUIDs,
+				}, nil
+			}
+		} else if errors.As(err, &mysqlErr) {
+			// enqueue may fail with a foreign key constraint error 1452 when one of
+			// the hosts provided is not enrolled in nano_enrollments. Detect when
+			// that's the case and add information to the error.
+			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+				err := fleet.NewInvalidArgumentError("device_ids", fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err))
+				return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 			}
 		}
+		return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 	}
-	// optionally send pushes
-	pushResp := make(map[string]*push.Response)
-	var pushErr error
-	if !noPush {
-		pushResp, pushErr = pusher.Push(ctx, deviceIDs)
-		if err != nil {
-			level.Info(logger).Log("msg", "push", "err", err)
-			output.PushError = err.Error()
-		}
-	} else {
-		pushErr = nil
-	}
-	// loop through our push errors, if any, and add to output
-	var pushCt, pushErrCt int
-	for id, resp := range pushResp {
-		if _, ok := output.Status[id]; ok {
-			output.Status[id].PushResult = resp.Id
-		} else {
-			output.Status[id] = &fleet.EnrolledAPIResult{
-				PushResult: resp.Id,
-			}
-		}
-		if resp.Err != nil {
-			output.Status[id].PushError = resp.Err.Error()
-			pushErrCt++
-		} else {
-			pushCt++
-		}
-	}
-	logs = []interface{}{
-		"msg", "push",
-		"count", pushCt,
-	}
-	if pushErr != nil {
-		logs = append(logs, "err", pushErr)
-	}
-	if pushErrCt > 0 {
-		logs = append(logs, "errs", pushErrCt)
-	}
-	if pushErr != nil || pushErrCt > 0 {
-		level.Info(logger).Log(logs...)
-	} else {
-		level.Debug(logger).Log(logs...)
-	}
-	// generate response codes depending on if everything succeeded, failed, or parially succedded
-	header := http.StatusInternalServerError
-	if (len(idErrs) > 0 || err != nil || (!noPush && (pushErrCt > 0 || pushErr != nil))) && (ct > 0 || (!noPush && (pushCt > 0))) {
-		header = http.StatusMultiStatus
-	} else if (len(idErrs) == 0 && err == nil && (noPush || (pushErrCt == 0 && pushErr == nil))) && (ct >= 1 && (noPush || (pushCt >= 1))) {
-		header = http.StatusOK
-	}
-	return header, &output, nil
+	return http.StatusOK, &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.Command.RequestType,
+	}, nil
 }
 
 type mdmAppleEnrollRequest struct {
@@ -1096,11 +1115,11 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return err
 	}
 
-	enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, h.UUID)
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, h.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
 	}
-	if !enabled {
+	if nanoEnroll == nil || !nanoEnroll.Enabled {
 		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
 	}
 
@@ -1143,12 +1162,12 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			// time out after 5 seconds
 			return fleet.MDMAppleCommandTimeoutError{}
 		case <-ticker.C:
-			enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
+			nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, deviceID)
 			if err != nil {
 				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
 				return err
 			}
-			if enabled {
+			if nanoEnroll != nil && nanoEnroll.Enabled {
 				// check again on the next tick
 				continue
 			}
@@ -1424,7 +1443,12 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if !svc.config.MDM.AppleEnable {
+	appCfg, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
@@ -1434,9 +1458,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return nil
 		}
 
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
 	}
 
 	// any duplicate identifier or name in the provided set results in an error
@@ -1477,6 +1499,13 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
+	}
+	var bulkTeamID uint
+	if tmID != nil {
+		bulkTeamID = *tmID
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
@@ -1544,7 +1573,7 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 }
 
 func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return err
 	}
@@ -1642,6 +1671,17 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+	if err != nil {
+		return err
+	}
+	if nanoEnroll != nil && nanoEnroll.Enabled &&
+		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
+		// device is enrolled for the first time, not a token update
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1912,11 +1952,71 @@ func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
 
-// remoteResult is used to capture the results of delivering a payload to a
-// group of hosts.
-type remoteResult struct {
-	Err     error
-	Payload *fleet.MDMAppleBulkUpsertHostProfilePayload
+// ensureFleetdConfig ensures there's a fleetd configuration profile in
+// mdm_apple_configuration_profiles for each team and for "no team"
+//
+// We try our best to use each team's secret but we default to creating a
+// profile with the global enroll secret if the team doesn't have any enroll
+// secrets.
+//
+// This profile will be applied to all hosts in the team (or "no team",) but it
+// will only be used by hosts that have a fleetd installation without an enroll
+// secret and fleet URL (mainly DEP enrolled hosts).
+func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	enrollSecrets, err := ds.AggregateEnrollSecretPerTeam(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting enroll secrets aggregates")
+	}
+
+	globalSecret := ""
+	for _, es := range enrollSecrets {
+		if es.TeamID == nil {
+			globalSecret = es.Secret
+		}
+	}
+
+	var profiles []*fleet.MDMAppleConfigProfile
+	for _, es := range enrollSecrets {
+		if es.Secret == "" {
+			if globalSecret == "" {
+				logger.Log("err", "team_id %d doesn't have an enroll secret, and couldn't find a global enroll secret, skipping the creation of a com.fleetdm.fleetd.config profile")
+				continue
+			}
+
+			logger.Log("err", "team_id %d doesn't have an enroll secret, using a global enroll secret")
+			es.Secret = globalSecret
+		}
+
+		var contents bytes.Buffer
+		params := mobileconfig.FleetdProfileOptions{
+			EnrollSecret: es.Secret,
+			ServerURL:    appCfg.ServerSettings.ServerURL,
+			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+		}
+
+		if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
+			return ctxerr.Wrap(ctx, err, "executing fleetd config template")
+		}
+
+		cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), es.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building configuration profile")
+		}
+
+		profiles = append(profiles, cp)
+
+	}
+
+	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
+	}
+
+	return nil
 }
 
 func ReconcileProfiles(
@@ -1925,6 +2025,10 @@ func ReconcileProfiles(
 	commander *MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
+		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
+	}
+
 	// retrieve the profiles to install/remove.
 	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
 	if err != nil {
@@ -1937,51 +2041,70 @@ func ReconcileProfiles(
 
 	// Perform aggregations to support all the operations we need to do
 
-	/// toGetContents contains the IDs of all the profiles from which we
+	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
-	// there, so we make another request.
-	toGetContents := []uint{}
+	// there, so we make another request. Using a map to deduplicate.
+	toGetContents := make(map[uint]bool)
 
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
-	hostProfiles := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
 
-	// targets is a map from profileID -> targetHosts as the underlying MDM
-	// services are optimized to send one command to multiple hosts at the
-	// same time.
-	targets := map[uint][]string{}
+	// install/removeTargets are maps from profileID -> command uuid and host
+	// UUIDs as the underlying MDM services are optimized to send one command to
+	// multiple hosts at the same time. Note that the same command uuid is used
+	// for all hosts in a given install/remove target operation.
+	type cmdTarget struct {
+		cmdUUID   string
+		profIdent string
+		hostUUIDs []string
+	}
+	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
-		toGetContents = append(toGetContents, p.ProfileID)
-		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
-		hostProfiles = append(
-			hostProfiles,
-			&fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:         p.ProfileID,
-				HostUUID:          p.HostUUID,
-				OperationType:     fleet.MDMAppleOperationTypeInstall,
-				Status:            &fleet.MDMAppleDeliveryPending,
-				CommandUUID:       uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			},
-		)
+		toGetContents[p.ProfileID] = true
+
+		target := installTargets[p.ProfileID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID:   uuid.New().String(),
+				profIdent: p.ProfileIdentifier,
+			}
+			installTargets[p.ProfileID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileID:         p.ProfileID,
+			HostUUID:          p.HostUUID,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryPending,
+			CommandUUID:       target.cmdUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+		})
 	}
 
 	for _, p := range toRemove {
-		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
-		hostProfiles = append(
-			hostProfiles,
-			&fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:         p.ProfileID,
-				HostUUID:          p.HostUUID,
-				OperationType:     fleet.MDMAppleOperationTypeRemove,
-				Status:            &fleet.MDMAppleDeliveryPending,
-				CommandUUID:       uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			},
-		)
+		target := removeTargets[p.ProfileID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID:   uuid.New().String(),
+				profIdent: p.ProfileIdentifier,
+			}
+			removeTargets[p.ProfileID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileID:         p.ProfileID,
+			HostUUID:          p.HostUUID,
+			OperationType:     fleet.MDMAppleOperationTypeRemove,
+			Status:            &fleet.MDMAppleDeliveryPending,
+			CommandUUID:       target.cmdUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+		})
 	}
 
 	// First update all the profiles in the database before sending the
@@ -1990,68 +2113,94 @@ func ReconcileProfiles(
 	//
 	// We'll do another pass at the end to revert any changes for failed
 	// delivieries.
-	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles)
-	if err != nil {
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
 	// Grab the contents of all the profiles we need to install
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, toGetContents)
+	profileIDs := make([]uint, 0, len(toGetContents))
+	for pid := range toGetContents {
+		profileIDs = append(profileIDs, pid)
+	}
+	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Send the install/remove commands for each profile.
-	ch := make(chan remoteResult)
-	defer close(ch)
-	for _, p := range hostProfiles {
-		go func(pp *fleet.MDMAppleBulkUpsertHostProfilePayload) {
-			var err error
-			switch pp.OperationType {
-			case fleet.MDMAppleOperationTypeInstall:
-				err = commander.InstallProfile(ctx, targets[pp.ProfileID], profileContents[pp.ProfileID], pp.CommandUUID)
-			case fleet.MDMAppleOperationTypeRemove:
-				err = commander.RemoveProfile(ctx, targets[pp.ProfileID], pp.ProfileIdentifier, pp.CommandUUID)
-			}
-
-			var e *APNSDeliveryError
-			switch {
-			case errors.As(err, &e):
-				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
-			case err != nil:
-				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
-				// TODO(mna): Am I missing something or are we sending two times for a single host here in case of error?
-				ch <- remoteResult{err, pp}
-				return
-			}
-
-			ch <- remoteResult{nil, pp}
-		}(p)
+	type remoteResult struct {
+		Err     error
+		CmdUUID string
 	}
 
-	// Grab all the failed deliveries and update the status so they're
-	// picked up again in the next run.
-	//
-	// Note that if the APNs push failed we won't try again, as the command
-	// was successfully enqueued, this is only to account for internal
-	// errors like DB failures.
-	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
-	for i := 0; i < len(hostProfiles); i++ {
-		resp := <-ch
-		if resp.Err != nil {
-			resp.Payload.CommandUUID = ""
-			resp.Payload.Status = nil
-			for _, hostUUID := range targets[resp.Payload.ProfileID] {
-				newPayload := *resp.Payload
-				newPayload.HostUUID = hostUUID
-				failed = append(failed, &newPayload)
-			}
+	// Send the install/remove commands for each profile.
+	var wgProd, wgCons sync.WaitGroup
+	ch := make(chan remoteResult)
+
+	execCmd := func(profID uint, target *cmdTarget, op fleet.MDMAppleOperationType) {
+		defer wgProd.Done()
+
+		var err error
+		switch op {
+		case fleet.MDMAppleOperationTypeInstall:
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profID], target.cmdUUID)
+		case fleet.MDMAppleOperationTypeRemove:
+			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
+		}
+
+		var e *APNSDeliveryError
+		switch {
+		case errors.As(err, &e):
+			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
+		case err != nil:
+			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
+			ch <- remoteResult{err, target.cmdUUID}
 		}
 	}
-	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, failed)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	for profID, target := range installTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeInstall)
+	}
+	for profID, target := range removeTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeRemove)
 	}
 
+	// index the host profiles by cmdUUID, for ease of error processing in the
+	// consumer goroutine below.
+	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(installTargets)+len(removeTargets))
+	for _, hp := range hostProfiles {
+		hostProfsByCmdUUID[hp.CommandUUID] = append(hostProfsByCmdUUID[hp.CommandUUID], hp)
+	}
+
+	// Grab all the failed deliveries and update the status so they're picked up
+	// again in the next run.
+	//
+	// Note that if the APNs push failed we won't try again, as the command was
+	// successfully enqueued, this is only to account for internal errors like DB
+	// failures.
+	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	wgCons.Add(1)
+	go func() {
+		defer wgCons.Done()
+
+		for resp := range ch {
+			hostProfs := hostProfsByCmdUUID[resp.CmdUUID]
+			for _, hp := range hostProfs {
+				// clear the command as it failed to enqueue, will need to emit a new command
+				hp.CommandUUID = ""
+				// set status to nil so it is retried on the next cron run
+				hp.Status = nil
+				failed = append(failed, hp)
+			}
+		}
+	}()
+
+	wgProd.Wait()
+	close(ch) // done sending at this point, this triggers end of for loop in consumer
+	wgCons.Wait()
+
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
+		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	}
 	return nil
 }

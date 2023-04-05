@@ -1,8 +1,10 @@
 import React from "react";
 
+import ReactTooltip from "react-tooltip";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import CustomLink from "components/CustomLink";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -55,6 +57,7 @@ export interface IUserTableData {
   actions: IDropdownOption[];
   id: number;
   type: string;
+  api_only: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -69,9 +72,54 @@ const generateTableHeaders = (
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const formatter = (val: string) => {
+          const apiOnlyUser =
+            "api_only" in cellProps.row.original
+              ? cellProps.row.original.api_only
+              : false;
+
+          return (
+            <>
+              {val}
+              {apiOnlyUser && (
+                <>
+                  <span
+                    className="user-management__api-only-user"
+                    data-tip
+                    data-for={`api-only-tooltip-${cellProps.row.original.id}`}
+                  >
+                    API
+                  </span>
+                  <ReactTooltip
+                    className="api-only-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`api-only-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor="#3e4771"
+                    clickable
+                    delayHide={200} // need delay set to hover using clickable
+                  >
+                    <>
+                      This user was created using fleetctl and
+                      <br /> only has API access.{" "}
+                      <CustomLink
+                        text="Learn more"
+                        newTab
+                        url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
+                        iconColor="core-fleet-white"
+                      />
+                    </>
+                  </ReactTooltip>
+                </>
+              )}
+            </>
+          );
+        };
+
+        return <TextCell value={cellProps.cell.value} formatter={formatter} />;
+      },
     },
     {
       title: "Role",
@@ -206,6 +254,7 @@ const enhanceUserData = (
       ),
       id: user.id,
       type: "user",
+      api_only: user.api_only,
     };
   });
 };
@@ -221,6 +270,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
       id: invite.id,
       type: "invite",
+      api_only: false, // api only users are created through fleetctl and not invites
     };
   });
 };

@@ -4,8 +4,8 @@ variable "tag" {
 
 variable "git_branch" {
   description = "The git branch to use to build loadtest containers.  Only needed if docker tag doesn't match the git branch"
-  type = string
-  default = null
+  type        = string
+  default     = null
 }
 
 variable "fleet_config" {
@@ -24,4 +24,10 @@ variable "db_instance_type" {
   description = "The type of the loadtesting db instances.  Default is db.r6g.4xlarge."
   type        = string
   default     = "db.r6g.4xlarge"
+}
+
+variable "redis_instance_type" {
+  description = "the redis instance type to use in loadtesting. default is cache.m6g.large"
+  type        = string
+  default     = "cache.m6g.large"
 }
