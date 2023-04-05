@@ -1275,28 +1275,24 @@ func (ds *Datastore) BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload
 		return nil
 	}
 
-	var hostUUIDs []string
-	var profileIDs []uint
-	var profileIdentifiers []string
+	sqlFmt := `
+DELETE FROM host_mdm_apple_profiles
+WHERE (host_uuid, profile_id)
+	IN(%s)
+	OR(operation_type = '%s'
+		AND(host_uuid, profile_identifier)
+		IN(%s))`
+
+	placeholders := strings.TrimSuffix(strings.Repeat("(?,?),", len(payload)), ",")
+	var argsIn1 []any
+	var argsIn2 []any
 	for _, p := range payload {
-		hostUUIDs = append(hostUUIDs, p.HostUUID)
-		profileIDs = append(profileIDs, p.ProfileID)
-		profileIdentifiers = append(profileIdentifiers, p.ProfileIdentifier)
+		argsIn1 = append(argsIn1, p.HostUUID, p.ProfileID)
+		argsIn2 = append(argsIn2, p.HostUUID, p.ProfileIdentifier)
 	}
+	args := append(argsIn1, argsIn2...)
 
-	stmt := `
-DELETE FROM host_mdm_apple_profiles 
-WHERE host_uuid IN (?) 
-	AND ((operation_type = ? 
-		AND profile_identifier IN (?)) 
-	OR profile_id IN (?))`
-
-	expandedStmt, args, err := sqlx.In(stmt, hostUUIDs, fleet.MDMAppleOperationTypeRemove, profileIdentifiers, profileIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk delete replaced profiles status build args")
-	}
-
-	_, err = ds.writer.ExecContext(ctx, expandedStmt, args...)
+	_, err := ds.writer.ExecContext(ctx, fmt.Sprintf(sqlFmt, placeholders, fleet.MDMAppleOperationTypeRemove, placeholders), args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete replaced profiles status execute")
 	}

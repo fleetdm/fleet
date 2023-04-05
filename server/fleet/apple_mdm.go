@@ -363,9 +363,9 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 }
 
 type MDMAppleBulkDeleteHostProfilePayload struct {
-	ProfileID         uint
-	ProfileIdentifier string
-	HostUUID          string
+	ProfileID         uint   `db:"profile_id"`
+	ProfileIdentifier string `db:"profile_identifier"`
+	HostUUID          string `db:"host_uuid"`
 }
 
 // MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration

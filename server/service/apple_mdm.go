@@ -908,7 +908,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	var premiumCommands = map[string]bool{
+	premiumCommands := map[string]bool{
 		"EraseDevice": true,
 		"DeviceLock":  true,
 	}
@@ -2047,12 +2047,11 @@ func ReconcileProfiles(
 	// there, so we make another request. Using a map to deduplicate.
 	toGetContents := make(map[uint]bool)
 
-	// toInstallIdentifiers contains the profile identifiers of all profiles
-	// to be installed. The map serves as a de-duplicated list for purposes of
-	// checking when a profile removal can be skipped (because installing profile
-	// overwrites an existing profile with the same identifier there is no need
-	// for a separate remove profile command).
-	toInstallIdentifiers := make(map[string]bool)
+	// toInstallByTuple is a map keyed by a string in the form of "HostUUID,ProfileIdentifier".
+	// It is used to check when a profile removal can be skipped (because installing profile
+	// overwrites an existing profile with the same identifier there is no need for a separate
+	// remove profile command).
+	toInstallByTuple := make(map[string]bool)
 
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
@@ -2074,7 +2073,7 @@ func ReconcileProfiles(
 	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
 		toGetContents[p.ProfileID] = true
-		toInstallIdentifiers[p.ProfileIdentifier] = true
+		toInstallByTuple[fmt.Sprintf("%s,%s", p.HostUUID, p.ProfileIdentifier)] = true
 
 		target := installTargets[p.ProfileID]
 		if target == nil {
@@ -2098,7 +2097,7 @@ func ReconcileProfiles(
 	}
 
 	for _, p := range toRemove {
-		if isReplaced := toInstallIdentifiers[p.ProfileIdentifier]; isReplaced {
+		if isReplaced := toInstallByTuple[fmt.Sprintf("%s,%s", p.HostUUID, p.ProfileIdentifier)]; isReplaced {
 			replacedHostProfiles = append(replacedHostProfiles, fleet.MDMAppleBulkDeleteHostProfilePayload{
 				HostUUID:          p.HostUUID,
 				ProfileID:         p.ProfileID,
