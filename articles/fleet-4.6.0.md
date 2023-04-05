@@ -1,6 +1,6 @@
 # Fleet 4.6.0 with osquery installer, enroll secret management, and improved host vitals
 
-![Fleet 4.6.0](../website/assets/images/articles/fleet-4.6.0-cover-700x393@2x.png)
+![Fleet 4.6.0](../website/assets/images/articles/fleet-4.6.0-cover-1600x900@2x.jpg)
 
 Today we are excited to announce the release of Fleet 4.6.0 which brings some improvements to software/vulnerabilities, policies, and performance.
 

@@ -1,6 +1,6 @@
 # Fleet 3.12.0
 
-![Fleet 3.12.0](../website/assets/images/articles/fleet-3.12.0-cover-700x393@2x.jpg)
+![Fleet 3.12.0](../website/assets/images/articles/fleet-3.12.0-cover-1600x900@2x.jpg)
 
 Fleet 3.12 is now available! 3.12 offers enhanced host vitals to see which queries are run on which devices, the ability to “refetch” host vitals to get authoritative answers about your devices on-demand, and several awesome contributions from the Fleet community.
 

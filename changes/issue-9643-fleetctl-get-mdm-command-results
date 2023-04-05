@@ -1,0 +1,1 @@
+* Added the `fleetctl get mdm-command-results` sub-command to get the results for a previously-executed MDM command.

@@ -339,7 +339,7 @@ allow {
   action == run_new
 }
 
-# Global observers can run only if observers_can_run
+# Global observers can run only if observers_can_run.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
@@ -464,7 +464,7 @@ allow {
   action == [read, write][_]
 }
 
-# Team admin, maintainers and observers can read global policies
+# Team admin, maintainers, observers and observer_plus can read global policies.
 allow {
   is_null(object.team_id)
   object.type == "policy"
@@ -548,26 +548,34 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins and maintainers can read and write (execute) MDM Apple commands.
+# Global admins and maintainers can write (execute) MDM Apple commands.
 allow {
   object.type == "mdm_apple_command"
   subject.global_role == [admin, maintainer][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Team admins and maintainers can read and write (execute) MDM Apple commands on hosts of their teams.
+# Team admins and maintainers can write (execute) MDM Apple commands on hosts of their teams.
 allow {
   not is_null(object.team_id)
   object.type == "mdm_apple_command"
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Global admins can read and write Apple MDM command results.
+# Global admins, maintainers, observers and observer_plus can read MDM Apple commands.
 allow {
-  object.type == "mdm_apple_command_result"
-  subject.global_role == admin
-  action == [read, write][_]
+  object.type == "mdm_apple_command"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, observers and observer_plus can read MDM Apple commands on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_command"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
 }
 
 # Global admins can read and write Apple MDM installers.
