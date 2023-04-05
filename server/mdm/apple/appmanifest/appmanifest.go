@@ -13,7 +13,7 @@ import (
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 )
 
-// Create builds and AppManifest using SHA256 checksums and the provided URL
+// Create builds an AppManifest using SHA256 checksums and the provided URL
 func Create(file io.Reader, url string) (*appmanifest.Manifest, error) {
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
