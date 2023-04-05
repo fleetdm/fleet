@@ -181,7 +181,7 @@ Next we create an MDM server record in ABM which represents Fleet. How to create
 3. Click **Preferences** 
 4. Click **MDM Server Assignment**
 5. Click the **Add** button at the top 
-6. Enter a name for the server such as "Fleet MDM"
+6. Enter a name for the server such as "Fleet"
 7. Upload the certificate generated in Step 1
 
 ### Step 3: download the server token 
