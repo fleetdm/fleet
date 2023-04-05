@@ -2047,9 +2047,20 @@ func ReconcileProfiles(
 	// there, so we make another request. Using a map to deduplicate.
 	toGetContents := make(map[uint]bool)
 
+	// toInstallIdentifiers contains the profile identifiers of all profiles
+	// to be installed. The map serves as a de-duplicated list for purposes of
+	// checking when a profile removal can be skipped (because installing profile
+	// overwrites an existing profile with the same identifier there is no need
+	// for a separate remove profile command).
+	toInstallIdentifiers := make(map[string]bool)
+
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
+
+	// replacedHostProfiles tracks each host_mdm_apple_profile we need to delete
+	// because another profile with the same identifier is being installed.
+	replacedHostProfiles := make([]fleet.MDMAppleBulkDeleteHostProfilePayload, 0, len(toRemove))
 
 	// install/removeTargets are maps from profileID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
@@ -2063,6 +2074,7 @@ func ReconcileProfiles(
 	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
 		toGetContents[p.ProfileID] = true
+		toInstallIdentifiers[p.ProfileIdentifier] = true
 
 		target := installTargets[p.ProfileID]
 		if target == nil {
@@ -2086,6 +2098,15 @@ func ReconcileProfiles(
 	}
 
 	for _, p := range toRemove {
+		if isReplaced := toInstallIdentifiers[p.ProfileIdentifier]; isReplaced {
+			replacedHostProfiles = append(replacedHostProfiles, fleet.MDMAppleBulkDeleteHostProfilePayload{
+				HostUUID:          p.HostUUID,
+				ProfileID:         p.ProfileID,
+				ProfileIdentifier: p.ProfileIdentifier,
+			})
+			continue
+		}
+
 		target := removeTargets[p.ProfileID]
 		if target == nil {
 			target = &cmdTarget{
@@ -2113,6 +2134,9 @@ func ReconcileProfiles(
 	//
 	// We'll do another pass at the end to revert any changes for failed
 	// delivieries.
+	if err := ds.BulkDeleteMDMAppleHostProfiles(ctx, replacedHostProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting replaced host profiles")
+	}
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
@@ -2156,14 +2180,6 @@ func ReconcileProfiles(
 			ch <- remoteResult{err, target.cmdUUID}
 		}
 	}
-	for profID, target := range installTargets {
-		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMAppleOperationTypeInstall)
-	}
-	for profID, target := range removeTargets {
-		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMAppleOperationTypeRemove)
-	}
 
 	// index the host profiles by cmdUUID, for ease of error processing in the
 	// consumer goroutine below.
@@ -2195,6 +2211,15 @@ func ReconcileProfiles(
 		}
 	}()
 
+	for profID, target := range removeTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeRemove)
+	}
+	wgProd.Wait() // wait for all removals to be enqueued before proceeding to installs
+	for profID, target := range installTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeInstall)
+	}
 	wgProd.Wait()
 	close(ch) // done sending at this point, this triggers end of for loop in consumer
 	wgCons.Wait()

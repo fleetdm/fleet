@@ -1270,6 +1270,39 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	return err
 }
 
+func (ds *Datastore) BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	var hostUUIDs []string
+	var profileIDs []uint
+	var profileIdentifiers []string
+	for _, p := range payload {
+		hostUUIDs = append(hostUUIDs, p.HostUUID)
+		profileIDs = append(profileIDs, p.ProfileID)
+		profileIdentifiers = append(profileIdentifiers, p.ProfileIdentifier)
+	}
+
+	stmt := `
+DELETE FROM host_mdm_apple_profiles 
+WHERE host_uuid IN (?) 
+	AND ((operation_type = ? 
+		AND profile_identifier IN (?)) 
+	OR profile_id IN (?))`
+
+	expandedStmt, args, err := sqlx.In(stmt, hostUUIDs, fleet.MDMAppleOperationTypeRemove, profileIdentifiers, profileIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete replaced profiles status build args")
+	}
+
+	_, err = ds.writer.ExecContext(ctx, expandedStmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete replaced profiles status execute")
+	}
+	return nil
+}
+
 func (ds *Datastore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
 	_, err := ds.writer.ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles

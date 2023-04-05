@@ -1659,6 +1659,11 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		return false, nil
 	}
 
+	ds.BulkDeleteMDMAppleHostProfilesFunc = func(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+		require.Len(t, payload, 0)
+		return nil
+	}
+
 	var failedCall bool
 	var failedCheck func([]*fleet.MDMAppleBulkUpsertHostProfilePayload)
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {

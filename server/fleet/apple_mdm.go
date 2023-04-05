@@ -362,6 +362,12 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMAppleDeliveryStatus
 }
 
+type MDMAppleBulkDeleteHostProfilePayload struct {
+	ProfileID         uint
+	ProfileIdentifier string
+	HostUUID          string
+}
+
 // MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
 // profiles. Each host may be counted in only one of three mutually-exclusive categories:
 // Failed, Pending, or Latest.

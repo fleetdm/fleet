@@ -831,6 +831,9 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
+	// BulkDeleteMDMAppleHostProfiles bulk deletes records from `host_mdm_apple_profiles`
+	BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload []MDMAppleBulkDeleteHostProfilePayload) error
+
 	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
 	// or to remove for each affected host to pending for the provided criteria,
 	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
