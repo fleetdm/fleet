@@ -848,6 +848,18 @@ To make a request of the business operations department, [create an issue using 
 
 > If you're not sure that your request can wait that long, then please ask for urgent help in our group Slack channel: `#g-business-operations`.  Only use this approach or at-mention contributors in business operations directly in urgent situations.  Otherwise, create an issue.
 
+## Contract review
+If a contract only needs a signature and does not require any internal review, you do not need to create a GitHub issue and can simply route the document to Mike McNeil's DocuSign for signature.
+
+To get a contract reviewed at Fleet:
+Upload the contract draft to [Googld Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+Complete and submit the review request using the contract review issue in [GitHub](https://github.com/fleetdm/confidential/issues/new/choose).
+The SLA for contract review is 2 business days.
+When a contract is ready for signature, the requestor then loads the contract into DocuSign and sends it to Mike unless the other party to the agreement is initiating signature from their end. When that is the case, the requestor will work with the other party to make sure the document is sent to Mike McNeil for signature.
+No follow up is necessary once a contract is submitted for signature unless it has been over 2 business days.  
+
+
+
 
 ## Slack channels
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
