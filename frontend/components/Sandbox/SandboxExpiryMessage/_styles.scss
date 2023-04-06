@@ -2,30 +2,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px $pad-large;
+  padding: $pad-large $pad-xlarge;
   margin-bottom: $pad-large;
-  background-color: $ui-yellow-banner;
-  border: 1px solid #ece0bb;
+  background-color: $ui-vibrant-blue-10;
+  border: 1px solid $ui-vibrant-blue-50;
   border-radius: $border-radius;
-  font-size: $xx-small;
-
+  font-size: $x-small;
   color: $core-fleet-black;
   font-weight: $regular;
-
-  &:hover {
-    cursor: pointer;
-  }
 
   p {
     margin: 0;
   }
 
-  span {
+  &__tip {
     display: flex;
     align-items: center;
-    color: $core-fleet-black;
-    font-weight: $bold;
-    text-align: right;
+    gap: $pad-small;
+
+    button {
+      margin-left: $pad-small;
+    }
   }
 
   .button {

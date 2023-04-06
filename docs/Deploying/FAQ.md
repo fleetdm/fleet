@@ -197,8 +197,12 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 
 - `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
 - `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
-- `/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
-- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to download an enrollment profile.
+- `/api/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
+- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to
+  download an enrollment profile.
+
+> The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
+> are not RESTful, and are not intended for use by API clients or browsers. 
 
 ## What is the minimum version of MySQL required by Fleet?
 

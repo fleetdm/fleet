@@ -13,8 +13,8 @@ export const isPremiumTier = (config: IConfig): boolean => {
   return config.license.tier === "premium";
 };
 
-export const isMdmFeatureFlagEnabled = (config: IConfig): boolean => {
-  return config.mdm_feature_flag_enabled === true;
+export const isMdmEnabledAndConfigured = (config: IConfig): boolean => {
+  return Boolean(config.mdm.enabled_and_configured);
 };
 
 export const isGlobalAdmin = (user: IUser): boolean => {
@@ -34,8 +34,8 @@ export const isOnGlobalTeam = (user: IUser): boolean => {
 };
 
 // This checks against a specific team
-const isTeamObserver = (user: IUser, teamId: number): boolean => {
-  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+const isTeamObserver = (user: IUser | null, teamId: number): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "observer";
 };
 
@@ -110,7 +110,7 @@ export default {
   isSandboxMode,
   isFreeTier,
   isPremiumTier,
-  isMdmFeatureFlagEnabled,
+  isMdmEnabledAndConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

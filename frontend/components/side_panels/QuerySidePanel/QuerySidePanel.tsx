@@ -40,6 +40,8 @@ const QuerySidePanel = ({
     evented,
   } = selectedOsqueryTable;
 
+  const mdmRequired = name === "managed_policies";
+
   const onSelectTable = (value: string) => {
     onOsqueryTableSelect(value);
   };
@@ -80,6 +82,9 @@ const QuerySidePanel = ({
         {renderTableSelect()}
       </div>
       {evented && <EventedTableTag selectedTableName={name} />}
+      {mdmRequired && (
+        <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
+      )}
       <div className={`${baseClass}__description`}>
         <FleetMarkdown markdown={description} />
       </div>

@@ -776,18 +776,6 @@ A required human-friendly name for the identity provider that will provide singl
     idp_name: "SimpleSAML"
   ```
 
-##### sso_settings.issuer_uri
-
-The issuer URI supplied by the identity provider.
-
-- Optional setting (string)
-- Default value: ""
-- Config file format:
-  ```yaml
-  sso_settings:
-    issuer_uri: "https://example.com/saml2/sso-service"
-  ```
-
 ##### sso_settings.metadata
 
 Metadata (in XML format) provided by the identity provider.
@@ -1307,29 +1295,32 @@ In the example file below, all Darwin and Ubuntu hosts will **only** receive the
 ```yaml
 agent_options:
   config:
-    options: ~
-    overrides:
-      # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Hosts receive overrides based on the platform
-      # returned by `SELECT platform FROM os_version`. In this example, the base
-      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-      # hosts would receive their respective overrides. Note, these overrides are
-      # NOT merged with the top level configuration.
-      platforms:
-        darwin:
-          options:
-            distributed_interval: 10
-            distributed_tls_max_attempts: 10
-            logger_tls_endpoint: /api/osquery/log
-            logger_tls_period: 300
-            disable_tables: chrome_extensions
-            docker_socket: /var/run/docker.sock
-          file_paths:
-            users:
-              - /Users/%/Library/%%
-              - /Users/%/Documents/%%
-            etc:
-              - /etc/%%
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_tls_period: 10
+  overrides:
+    # Note configs in overrides take precedence over the default config defined
+    # under the config key above. Hosts receive overrides based on the platform
+    # returned by `SELECT platform FROM os_version`. In this example, the base
+    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # hosts would receive their respective overrides. Note, these overrides are
+    # NOT merged with the top level configuration.
+    platforms:
+      darwin:
+        options:
+          distributed_interval: 10
+          distributed_tls_max_attempts: 10
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 300
+          disable_tables: chrome_extensions
+          docker_socket: /var/run/docker.sock
+        file_paths:
+          users:
+            - /Users/%/Library/%%
+            - /Users/%/Documents/%%
+          etc:
+            - /etc/%%
 ```
 ##### agent_options.auto_table_construction
 

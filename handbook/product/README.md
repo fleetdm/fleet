@@ -78,7 +78,7 @@ Thus, it is still important to ensure consistency, completeness, and secure deve
 - All changes to the user interface should be [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) by the appropriate Product Designer.
 
 ## Prioritizing improvements
-Product Managers prioritize all potential product improvements worked on by contributors inside the company.  This includes features, bug fixes, and technical debt or other contributor experience improvements.
+Product Managers prioritize all potential product improvements worked on by contributors inside the company.
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
@@ -98,7 +98,7 @@ Sprints (aka "iterations") align with Fleet's [3-week release cycle](https://fle
 
 On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
 
-Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-organize-work-in-team-based-kanban-boards).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
+Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
 ### Sprint numbering
 Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.

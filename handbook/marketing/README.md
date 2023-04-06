@@ -473,6 +473,21 @@ We hold regular design review sessions to evaluate, revise, and approve wirefram
 
 Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
 
+#### Experimentation
+
+In order for marketing to iterate rapidly we have created a process of experimentation. This will allow a small group of marketers to draft, review and publish a page or a flyer or an experiment without getting a series of approvals. Experiments should be short-lived, temporary things intended for a small audience. When an experiment succeeds it should immediately be turned into a part of Fleet'd rituals and then go through the proper wireframe-first approach. 
+
+Website experiments and landing pages should live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
+
+Some examples of experiments that would qualify to get a rapid approach:
+- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
+- A landing page for a movie screening presented by Fleet
+- A landing page for a private event
+- A landing page for an ad campaign that is running for 4 weeks.
+- An A/B test on product positioning
+- A giveaway page for a conference
+- Table-top signage for a conference booth or meetup
+
 #### Estimation sessions
 
 We use estimation sessions to estimate the effort required to complete a prioritized task. 
@@ -583,7 +598,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.

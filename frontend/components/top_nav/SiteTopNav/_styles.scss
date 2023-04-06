@@ -3,6 +3,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-left: 2px;
 }
 
 .site-nav-list {
@@ -72,6 +73,10 @@
     text-decoration: none;
   }
 
+  &__logo-wrapper {
+    overflow: hidden;
+  }
+
   &__logo {
     text-align: center;
     display: flex;
@@ -79,14 +84,13 @@
     align-items: center;
     min-width: 64px;
     max-width: 140px;
-    transform: scale(0.5);
   }
 
   &--active {
     background-color: $site-nav-on-hover;
 
     &::after {
-      content: '';
+      content: "";
       position: absolute;
       bottom: 0;
       left: 0;

@@ -301,9 +301,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.MDMIDFilter = &mid
 	}
 
+	if mdmName := r.URL.Query().Get("mdm_name"); mdmName != "" {
+		hopt.MDMNameFilter = &mdmName
+	}
+
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
-	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled:
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic,
+		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
 		// No error when unset
@@ -319,6 +324,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings status %s", macOSSettingsStatus)
+	}
+
+	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
+	switch fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
+	case
+		fleet.MacOSDiskEncryptionStatusApplied,
+		fleet.MacOSDiskEncryptionStatusActionRequired,
+		fleet.MacOSDiskEncryptionStatusEnforcing,
+		fleet.MacOSDiskEncryptionStatusFailed,
+		fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
+		hopt.MacOSSettingsDiskEncryptionFilter = fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")

@@ -86,7 +86,7 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 ![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
-2. On your **My device** page, select **Turn on MDM** the button and follow the instructions. If you don’t see the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. If you still don't see the **Turn on MDM** button after a couple minutes, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
+2. On your **My device** page, select the **Turn on MDM** button and follow the instructions. If you don’t see the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. If you still don't see the **Turn on MDM** button after a couple minutes, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
 
 ![My device page - turn on MDM](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-mdm.png)
 

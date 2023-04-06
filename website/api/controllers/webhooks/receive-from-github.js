@@ -20,10 +20,11 @@ module.exports = {
     comment: { type: {} },
     pull_request: { type: {} },//eslint-disable-line camelcase
     label: { type: {} },
+    release: { type: {} },
   },
 
 
-  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release}) {
 
     // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
     // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
@@ -207,17 +208,22 @@ module.exports = {
 
       // Generate haiku
       let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-      let MAX_TOKENS = 8000;// (Max tokens for gpt-4 ≈≈ 8000)
+      let MAX_TOKENS = 8000;// (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
 
       // Grab issue title and body, then truncate the length of the body so that it fits
       // within the maximum length tolerated by OpenAI.  Then combine those into a prompt
       // generate a haiku based on this issue.
       let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, MAX_TOKENS);
 
-      // [?] API: https://beta.openai.com/docs/api-reference/completions/create
-      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/completions', {
+      // [?] API: https://platform.openai.com/docs/api-reference/chat/create
+      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
         model: BASE_MODEL,
-        prompt: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+        messages: [// https://platform.openai.com/docs/guides/chat/introduction
+          {
+            role: 'user',
+            content: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+          }
+        ],
         temperature: 0.7,
         max_tokens: 256//eslint-disable-line camelcase
       }, {
@@ -230,7 +236,7 @@ module.exports = {
       if (!openAiReport) {// If OpenAI could not be reached…
         newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
       } else {// Otherwise, haiku was successfully generated…
-        newBotComment = openAiReport.choices[0].text;
+        newBotComment = openAiReport.choices[0].message.content;
         newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
       }
 
@@ -465,6 +471,39 @@ module.exports = {
       )
       .timeout(5000)
       .retry([{name: 'TimeoutError'}, 'non200Response', 'requestFailed']);
+    } else if(ghNoun === 'release' && ['published'].includes(action) ) {
+      //  ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗███████╗
+      //  ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝
+      //  ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  ███████╗
+      //  ██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝  ╚════██║
+      //  ██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗███████║
+      //  ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+      //
+      // Handle new Fleet releases by sending a POST request to Zapier to
+      // trigger an automation that updates Slack channel topics with the latest version of Fleet.
+      let owner = repository.owner.login;
+      let repo = repository.name;
+
+      // Only continue if this release came from the fleetdm/fleet repo,
+      if(owner === 'fleetdm' && repo === 'fleet') {
+        // Only send requests for releases with tag names that start with 'fleet'
+        if(release && _.startsWith(release.tag_name, 'fleet-v')) {
+          // Send a POST request to Zapier with the release object.
+          await sails.helpers.http.post.with({
+            url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
+            data: {
+              'release': release,
+              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+            }
+          })
+          .timeout(5000)
+          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+            sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+            return;
+          });
+        }
+      }//ﬁ
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
       //  ████╗ ████║██║██╔════╝██╔════╝
