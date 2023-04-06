@@ -106,19 +106,21 @@ const SelectQueryModal = ({
           <Button
             key={query.id}
             variant="unstyled-modal-query"
-            className="modal-query-button"
+            className={`${baseClass}__modal-query-button`}
             onClick={() => onQueryHostSaved(query)}
           >
             <>
               <span className="info__header">{query.name}</span>
-              <span className="info__data">{query.description}</span>
+              {query.description && (
+                <span className="info__data">{query.description}</span>
+              )}
             </>
           </Button>
         );
       });
       return (
         <div>
-          <div className={`${baseClass}__query-modal`}>
+          <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
                 name="query-filter"
@@ -143,7 +145,7 @@ const SelectQueryModal = ({
     if (queriesFilter && queriesCount === 0) {
       return (
         <div>
-          <div className={`${baseClass}__query-modal`}>
+          <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
                 name="query-filter"
