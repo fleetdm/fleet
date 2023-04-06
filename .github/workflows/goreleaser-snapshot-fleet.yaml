@@ -1,6 +1,16 @@
 name: Docker publish
 
-on: push
+on:
+  push:
+    paths-ignore:
+      - 'handbook/**'
+      - 'website/**'
+      - 'mdm-profiles/**'
+  pull_request:
+    paths-ignore:
+      - 'handbook/**'
+      - 'website/**'
+      - 'mdm-profiles/**'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
