@@ -89,7 +89,9 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 ![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
-2. On your **My device** page, follow the disk encryption instructions in the yellow banner. If you don’t see the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. If you still don't see the **Turn on MDM** button after a couple minutes, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
+2. On your **My device** page, follow the disk encryption instructions in the yellow banner. 
+    a. If you don’t see the yellow banner, select the purple **Refetch** button at the top of the page. 
+    b. If you still don't see the yellow banner after a couple minutes or if the **My device page** presents you with an error, please contact your IT administrator.
 
 <img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
 
