@@ -118,7 +118,7 @@ const SelectQueryModal = ({
       });
       return (
         <div>
-          <div className={`${baseClass}__query-modal`}>
+          <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
                 name="query-filter"
@@ -143,7 +143,7 @@ const SelectQueryModal = ({
     if (queriesFilter && queriesCount === 0) {
       return (
         <div>
-          <div className={`${baseClass}__query-modal`}>
+          <div className={`${baseClass}__filter-create-wrapper`}>
             <div className={`${baseClass}__filter-queries`}>
               <InputField
                 name="query-filter"
