@@ -28,7 +28,6 @@ run(){
         dry_run="--dry-run";;
 		esac
 	 done
-  echo $source
 
 	#Verify that passed file exists
 	if !(test -f "$source")
@@ -57,7 +56,7 @@ create_teams(){
 	while IFS=",", read -r name
 		do
 		  secret=$(LC_ALL=C tr -dc A-Za-z0-9 </dev/random | head -c 24);
-		  name=$name
+		  team_name=$name
 
 		  create_team
 		  generate_packages
@@ -74,23 +73,23 @@ apiVersion: v1
 kind: team
 spec:
   team:
-    name: ${name}
+    name: ${team_name}
     secrets:
       - secret: ${secret}
 EOF
 
   # Apply the new team to fleet
-	echo "Adding $name team to Fleet"
+	echo "Adding $team_name team to Fleet"
 	fleetctl apply -f config.yml $dry_run
 	rm -f config.yml 
 }
 
 generate_packages(){
 
-	echo "Generating installers for $name"  
+	echo "Generating installers for $team_name"  
 
   #Set up directory to hold installers for this team
-  name_formatted=$(printf "$name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-')
+  name_formatted=$(printf "$team_name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-')
 	team_dir=$output/$name_formatted
   cwd=$(pwd)
   
@@ -105,9 +104,10 @@ generate_packages(){
 	for type in ${types[@]}
     do
       fleetctl package ${flags[@]} --type=$type --fleet-url=$url --enroll-secret=$secret 
+      find . -type f -name 'fleet-osquery*' -exec mv -f {} fleetd-$name_formatted.$type ';'
     done
   
-  find . -type f -name 'fleet-osquery*' -exec mv -f {} fleetd-$name_formatted.$type ';'
+  
 
   cd "$cwd"
   
