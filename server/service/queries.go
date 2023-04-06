@@ -224,6 +224,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
 
@@ -299,6 +300,7 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 	query, err := svc.ds.QueryByName(ctx, name)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return err
 	}
 
@@ -400,6 +402,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
 			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
 
