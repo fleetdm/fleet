@@ -162,7 +162,6 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -545,6 +544,19 @@ the way that the Fleet server works.
 				initFatal(err, "saving app config")
 			}
 
+			// setup mail service
+			if appCfg.SMTPSettings.SMTPEnabled {
+				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
+				if config.Email.EmailBackend != "" {
+					config.Email.EmailBackend = ""
+					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+				}
+			}
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
+			}
+
 			cronSchedules := fleet.NewCronSchedules()
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
@@ -599,6 +611,15 @@ the way that the Fleet server works.
 					initFatal(err, "initial Fleet Premium service")
 				}
 			}
+
+			// err = svc.RequestPasswordReset(context.Background(), "admin@fleetdm.com")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
+			// err = svc.ResetPassword(context.Background(), "dnF5N1QwUmdWNWhzeDhsUjQxdW5BRmtQRCtzS3FyMkk=", "password1234!")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
 
 			instanceID, err := server.GenerateRandomText(64)
 			if err != nil {
