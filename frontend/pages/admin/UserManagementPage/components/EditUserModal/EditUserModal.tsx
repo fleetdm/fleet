@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
@@ -11,8 +11,8 @@ interface IEditUserModalProps {
   onSubmit: (formData: IFormData) => void;
   defaultName?: string;
   defaultEmail?: string;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
   currentTeam?: ITeam;

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
@@ -9,8 +9,8 @@ import { IFormData } from "../UserForm/UserForm";
 interface ICreateUserModalProps {
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   availableTeams?: ITeam[];
   isPremiumTier: boolean;

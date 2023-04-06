@@ -9,7 +9,7 @@ import {
 } from "lodash";
 
 import { IInvite } from "interfaces/invite";
-import { IUser, IUserUpdateBody } from "interfaces/user";
+import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
 import { IFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -33,7 +33,7 @@ interface ILocationParams {
 const generateUpdateData = (
   currentUserData: IUser | IInvite,
   formData: IFormData
-): IUserUpdateBody => {
+): IUpdateUserFormData => {
   const updatableFields = [
     "global_role",
     "teams",
@@ -41,7 +41,7 @@ const generateUpdateData = (
     "email",
     "sso_enabled",
   ];
-  return Object.keys(formData).reduce<IUserUpdateBody>(
+  return Object.keys(formData).reduce<IUserUpdateBody | any>(
     (updatedAttributes, attr) => {
       // attribute can be updated and is different from the current value.
       if (

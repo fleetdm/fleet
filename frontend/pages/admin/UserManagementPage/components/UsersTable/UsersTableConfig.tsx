@@ -6,7 +6,7 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import CustomLink from "components/CustomLink";
 import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
+import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -53,7 +53,7 @@ export interface IUserTableData {
   status: string;
   email: string;
   teams: string;
-  role: string;
+  role: UserRole;
   actions: IDropdownOption[];
   id: number;
   type: string;
