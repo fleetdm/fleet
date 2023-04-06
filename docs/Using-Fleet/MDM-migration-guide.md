@@ -41,7 +41,7 @@ After turning on disk encryption in Fleet, share [these guided instructions](#ho
 
 If your old MDM solution did not enforce disk encryption, the end user will need to restart or log out of the host.
 
-If your old MDM solution did enforce disk encryption, the end user will need to reset their disk encryption key by inputting their password, then restarting or logging out of the host. 
+If your old MDM solution did enforce disk encryption, the end user will need to reset their disk encryption key by following the prompt on the My device page and inputting their password. 
 
 ## Activation Lock Bypass codes
 
