@@ -11,11 +11,9 @@ This section provides instructions for migrating your hosts away from your old M
 
 1. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
-3. In your old MDM solution, unenroll the desired hosts. MacOS does not allow multiple MDMs to be installed at once.
-
-Once the above steps are completed, the end user now needs to complete a few steps. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. 
-
-Fleet has created [these guided instructions](#instructions-for-end-users) that can be shared with your end users.
+3. In your old MDM solution, unenroll the hosts to be migrated. MacOS does not allow multiple MDMs to be installed at once.
+4. Send [these guided instructions](#instructions-for-end-users) to your end users to complete the final few steps via Fleet Desktop.
+    * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old MDM and when the host turns on MDM in Fleet.
 
 ## Preparing to migrate automatically enrolled (DEP) hosts
 
@@ -27,11 +25,9 @@ Fleet has created [these guided instructions](#instructions-for-end-users) that 
 4. Migrate your hosts to Fleet in ABM:
     1. In ABM, unassign the existing hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
     2. In ABM, assign these hosts' MDM server to Fleet: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
-5. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. 
-
-Once the above steps are completed, the end user now needs to complete a few steps. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. 
-
-Fleet has created [these guided instructions](#instructions-for-end-users) that can be shared with your end users.
+5. In your old MDM solution, unenroll the hosts to be migrated. MacOS does not allow multiple MDMs to be installed at once.
+6. Send [these guided instructions](#instructions-for-end-users) to your end users to complete the final few steps via Fleet Desktop.
+    * Note that there will be a gap in MDM coverage between when the host is unenrolled from the old MDM and when the host turns on MDM in Fleet.
 
 ## FileVault recovery keys
 
@@ -81,7 +77,9 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 ![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
-2. On your **My device** page, select **Turn on MDM** the button and follow the instructions. If you don’t see the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. If you still don't see the **Turn on MDM** button after a couple minutes, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
+2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
+    a. If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
+    b. If you still don't see the **Turn on MDM** button or the **My device page** presents you with an error, please contact your IT administrator.
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
