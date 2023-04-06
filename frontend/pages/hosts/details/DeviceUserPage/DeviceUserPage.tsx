@@ -345,8 +345,8 @@ const DeviceUserPage = ({
               // MDM - Disk Encryption: Logout or restart banner
               <InfoBanner color="yellow">
                 Disk encryption: Log out of your device or restart to turn on
-                disk encryption. This prevents unauthorized access to the
-                information on your device.
+                disk encryption. Then, select <strong>Refetch</strong>. This
+                prevents unauthorized access to the information on your device.
               </InfoBanner>
             )}
             {showDiskEncryptionKeyResetRequired && (
