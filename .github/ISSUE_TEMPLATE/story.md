@@ -2,7 +2,7 @@
 name: 🎟  Story
 about: Specify an iterative change to the Fleet product.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story,:product,#cx'
+labels: 'story,:product'
 assignees: ''
 
 ---
@@ -38,7 +38,7 @@ This issue's estimation includes completing:
 
 
 ## Context
-- Requestor(s): TODO <!-- Who are the non-customer requestor(s) for this story, if any? Put their github usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
+- Requestor(s): _________________________ <!-- Who are the non-customer requestor(s) for this story, if any? Put their github usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
