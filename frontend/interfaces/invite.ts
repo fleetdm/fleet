@@ -1,18 +1,5 @@
-import PropTypes from "prop-types";
-import teamInterface, { ITeam } from "./team";
+import { ITeam } from "./team";
 import { UserRole } from "./user";
-
-export default PropTypes.shape({
-  created_at: PropTypes.string,
-  updated_at: PropTypes.string,
-  id: PropTypes.number,
-  invited_by: PropTypes.number,
-  email: PropTypes.string,
-  name: PropTypes.string,
-  sso_enabled: PropTypes.bool,
-  global_role: PropTypes.any, // eslint-disable-line react/forbid-prop-types
-  teams: PropTypes.arrayOf(teamInterface),
-});
 
 export interface IInvite {
   created_at: string;
