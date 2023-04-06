@@ -334,7 +334,7 @@ const DeviceUserPage = ({
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
                 // Turn on MDM banner
-                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                <InfoBanner color="yellow" cta={turnOnMdmButton}>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
                   lets your organization keep your device up to date so you
