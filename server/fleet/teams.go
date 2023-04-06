@@ -282,12 +282,9 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 			premiumRolesPresent = true
 		}
 	}
-	teamNonGitOpsRolePresent := false
 	for _, teamUser := range teamUsers_ {
 		if teamUser.Role == RoleGitOps {
 			gitOpsRolePresent = true
-		} else {
-			teamNonGitOpsRolePresent = true
 		}
 		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
 			premiumRolesPresent = true
@@ -295,9 +292,6 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 	}
 	if !license.IsPremium() && premiumRolesPresent {
 		return ErrMissingLicense
-	}
-	if gitOpsRolePresent && teamNonGitOpsRolePresent {
-		return NewErrorf(ErrTeamGitOpsRoleMustBeUnique, "role GitOps cannot be mixed with other roles")
 	}
 	if gitOpsRolePresent &&
 		// New user is not API only.

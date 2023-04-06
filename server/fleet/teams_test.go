@@ -121,7 +121,7 @@ func TestValidateUserRoles(t *testing.T) {
 			license: LicenseInfo{
 				Tier: TierPremium,
 			},
-			checkErr: checkErrCode(ErrTeamGitOpsRoleMustBeUnique),
+			checkErr: nil,
 		},
 		{
 			name:   "team-gitops-modify-mixed-with-other-roles",
@@ -133,7 +133,7 @@ func TestValidateUserRoles(t *testing.T) {
 			license: LicenseInfo{
 				Tier: TierPremium,
 			},
-			checkErr: checkErrCode(ErrTeamGitOpsRoleMustBeUnique),
+			checkErr: nil,
 		},
 		{
 			name:   "team-gitops-create-api-only-false",

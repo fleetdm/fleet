@@ -223,18 +223,14 @@ func (ts *withServer) getTestAdminToken() string {
 
 // getCachedUserToken returns the cached auth token for the given test user email.
 // If it's not found, then a login request is performed and the token cached.
-func (ts *withServer) getCachedUserToken(testUserKey string) string {
+func (ts *withServer) getCachedUserToken(email, password string) string {
 	ts.cachedTokensMu.Lock()
 	defer ts.cachedTokensMu.Unlock()
 
-	token, ok := ts.cachedTokens[testUserKey]
+	token, ok := ts.cachedTokens[email]
 	if !ok {
-		testUser, ok := testUsers[testUserKey]
-		if !ok {
-			ts.s.T().Fatalf("user %s not found", testUserKey)
-		}
-		token = ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
-		ts.cachedTokens[testUserKey] = token
+		token = ts.getTestToken(email, password)
+		ts.cachedTokens[email] = token
 	}
 	return token
 }

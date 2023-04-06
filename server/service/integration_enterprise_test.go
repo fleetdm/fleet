@@ -2533,6 +2533,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		Name: "Foo",
 	})
 	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Bar",
+	})
+	require.NoError(t, err)
 	acr := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"webhook_settings": {
@@ -2567,12 +2571,60 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &cur)
 	maintainer := cur.User
+	var carveBeginResp carveBeginResponse
+	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+		NodeKey:    *h1.NodeKey,
+		BlockCount: 3,
+		BlockSize:  3,
+		CarveSize:  8,
+		CarveId:    "c1",
+		RequestId:  "r1",
+	}, http.StatusOK, &carveBeginResp)
+	require.NotEmpty(t, carveBeginResp.SessionId)
+	lcr := listCarvesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/carves", listCarvesRequest{}, http.StatusOK, &lcr)
+	require.NotEmpty(t, lcr.Carves)
+	carveID := lcr.Carves[0].ID
+	// Create the global GitOps user we'll use in tests.
+	u := &fleet.User{
+		Name:       "GitOps",
+		Email:      "gitops1@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+	// Create a GitOps user for team t1 we'll use in tests.
+	u2 := &fleet.User{
+		Name:       "GitOps 2",
+		Email:      "gitops2@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *t1,
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	require.NoError(t, u2.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u2)
+	require.NoError(t, err)
+	gp2, err := s.ds.NewGlobalPolicy(ctx, &admin.ID, fleet.PolicyPayload{
+		Name:  "Zoo",
+		Query: "SELECT 0;",
+	})
+	require.NoError(t, err)
+	t2p, err := s.ds.NewTeamPolicy(ctx, t2.ID, &admin.ID, fleet.PolicyPayload{
+		Name:  "Zoo2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
 
 	//
-	// Start running permission tests.
+	// Start running permission tests with user gitops1.
 	//
 
-	s.setTokenForTest(t, "gitops1")
+	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Attempt to retrieve activities, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &listActivitiesResponse{})
@@ -2795,7 +2847,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &mtplr)
 
-	// Attempt to delete a team policy, should fail.
+	// Attempt to view a team policy, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, tplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
 
 	// Attempt to delete a team policy, should allow.
@@ -2825,6 +2877,26 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete a user, should fail.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), deleteUserRequest{}, http.StatusForbidden, &deleteUserResponse{})
 
+	// Attempt to add users to team, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *maintainer,
+				Role: "admin",
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to delete users from team, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *maintainer,
+				Role: "admin",
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
 	// Attempt to create a team, should allow.
 	tr := teamResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
@@ -2847,32 +2919,153 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	dtr := deleteTeamResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), deleteTeamRequest{}, http.StatusOK, &dtr)
 
-	// Attempt to add users to team, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
-		Users: []fleet.TeamUser{
-			{
-				User: *maintainer,
-				Role: "admin",
+	// Attempt to create/edit enroll secrets, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{
+				{
+					Secret: "foo400",
+					TeamID: nil,
+				},
+				{
+					Secret: "foo500",
+					TeamID: ptr.Uint(t1.ID),
+				},
 			},
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusOK, &applyEnrollSecretSpecResponse{})
 
-	// Attempt to delete users from team, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
-		Users: []fleet.TeamUser{
-			{
-				User: *maintainer,
-				Role: "admin",
-			},
+	// Attempt to get enroll secrets, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusForbidden, &getEnrollSecretSpecResponse{})
+
+	// Attempt to get team enroll secret, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", t1.ID), teamEnrollSecretsRequest{}, http.StatusForbidden, &teamEnrollSecretsResponse{})
+
+	// Attempt to list carved files, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/carves", listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
+
+	// Attempt to get a carved file, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
+
+	//
+	// Start running permission tests with user gitops2 (which is a GitOps use for team t1).
+	//
+
+	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
+
+	// Attempt to create queries, should allow.
+	tcqr := createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:  ptr.String("foo600"),
+			Query: ptr.String("SELECT * from orbit_info;"),
 		},
-	}, http.StatusOK, &teamResponse{})
+	}, http.StatusOK, &tcqr)
+
+	// Attempt to edit own query, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), modifyQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:  ptr.String("foo4"),
+			Query: ptr.String("SELECT * FROM system_info;"),
+		},
+	}, http.StatusOK, &modifyQueryResponse{})
+
+	// Attempt to delete own query, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), deleteQueryByIDRequest{}, http.StatusOK, &deleteQueryByIDResponse{})
+
+	// Attempt to edit query created by somebody else, should fail.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), modifyQueryRequest{
+		QueryPayload: fleet.QueryPayload{
+			Name:  ptr.String("foo4"),
+			Query: ptr.String("SELECT * FROM system_info;"),
+		},
+	}, http.StatusForbidden, &modifyQueryResponse{})
+
+	// Attempt to delete query created by somebody else, should fail.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), deleteQueryByIDRequest{}, http.StatusForbidden, &deleteQueryByIDResponse{})
+
+	// Attempt to read the global schedule, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
+
+	// Attempt to read the team's schedule, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
+
+	// Attempt to read other team's schedule, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
+
+	// Attempt to add a query to the global schedule, should fail.
+	tsqr := scheduleQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
+		PackID:   globalPackID,
+		QueryID:  cqr4.Query.ID,
+		Interval: 60,
+	}, http.StatusForbidden, &tsqr)
+
+	// Attempt to add a query to the team's schedule, should allow.
+	ttsqr := teamScheduleQueryResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
+		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
+			QueryID:  ptr.Uint(cqr4.Query.ID),
+			Interval: ptr.Uint(60),
+		},
+	}, http.StatusOK, &ttsqr)
+
+	// Attempt to remove a query from the team's schedule, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, ttsqr.Scheduled.ID), deleteTeamScheduleRequest{}, http.StatusOK, &deleteTeamScheduleResponse{})
+
+	// Attempt to read the global schedule, should fail.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
+
+	// Attempt to read a global policy, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), getPolicyByIDRequest{}, http.StatusForbidden, &getPolicyByIDResponse{})
+
+	// Attempt to delete a global policy, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deleteGlobalPoliciesRequest{
+		IDs: []uint{gp2.ID},
+	}, http.StatusForbidden, &deleteGlobalPoliciesResponse{})
+
+	// Attempt to create a team policy, should allow.
+	ttplr := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/team/%d/policies", t1.ID), teamPolicyRequest{
+		Name:  "foo1000",
+		Query: "SELECT * from file;",
+	}, http.StatusOK, &ttplr)
+
+	// Attempt to edit a team policy, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, ttplr.Policy.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
+		},
+	}, http.StatusOK, &modifyTeamPolicyResponse{})
+
+	// Attempt to edit another team's policy, should fail.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
+		},
+	}, http.StatusForbidden, &modifyTeamPolicyResponse{})
+
+	// Attempt to view a team policy, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, ttplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
+
+	// Attempt to view another team's policy, should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t2.ID, t2p.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
+
+	// Attempt to delete a team policy, should allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), deleteTeamPoliciesRequest{
+		IDs: []uint{ttplr.Policy.ID},
+	}, http.StatusOK, &deleteTeamPoliciesResponse{})
+
+	//
+	// Manage policy automations...
+	//
 }
 
-func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, testUserEmail string) {
+func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {
 	oldToken := s.token
 	t.Cleanup(func() {
 		s.token = oldToken
 	})
 
-	s.token = s.getCachedUserToken(testUserEmail)
+	s.token = s.getCachedUserToken(email, password)
 }
