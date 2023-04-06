@@ -69,13 +69,14 @@ const globalUserRoles = ({
       label: "Observer+",
       value: "observer_plus",
     });
-    if (isApiOnly) {
-      roles.splice(3, 0, {
-        disabled: false,
-        label: "GitOps",
-        value: "gitops",
-      });
-    }
+    // Next release
+    // if (isApiOnly) {
+    //   roles.splice(3, 0, {
+    //     disabled: false,
+    //     label: "GitOps",
+    //     value: "gitops",
+    //   });
+    // }
   }
 
   return roles;

@@ -431,7 +431,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderEditUserModal = () => {
     const userData = getUser(userEditing.type, userEditing.id);
 
-    console.log("userData", userData);
     return (
       <Modal title="Edit user" onExit={toggleEditUserModal}>
         <>

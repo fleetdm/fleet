@@ -482,6 +482,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingMembers}
+          isApiOnly={userEditing?.api_only || false}
         />
       )}
       {showCreateUserModal && currentTeamDetails && (

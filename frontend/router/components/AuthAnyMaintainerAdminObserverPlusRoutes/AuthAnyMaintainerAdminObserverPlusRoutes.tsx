@@ -7,7 +7,7 @@ interface IAuthAnyMaintainerAdminObserverPlusRoutesProps {
 }
 
 /**
- * Checks if a user is any maintainer or any admin when routing
+ * Checks if a user is any maintainer, admin, or observer plus when routing
  */
 const AuthAnyMaintainerAdminObserverPlusRoutes = ({
   children,
