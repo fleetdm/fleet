@@ -111,7 +111,9 @@ const SelectQueryModal = ({
           >
             <>
               <span className="info__header">{query.name}</span>
-              <span className="info__data">{query.description}</span>
+              {query.description && (
+                <span className="info__data">{query.description}</span>
+              )}
             </>
           </Button>
         );
