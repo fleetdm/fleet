@@ -106,7 +106,7 @@ const SelectQueryModal = ({
           <Button
             key={query.id}
             variant="unstyled-modal-query"
-            className="modal-query-button"
+            className={`${baseClass}__modal-query-button`}
             onClick={() => onQueryHostSaved(query)}
           >
             <>

@@ -85,4 +85,10 @@
   &__custom-query-button {
     font-size: $x-small;
   }
+
+  &__modal-query-button {
+    .children-wrapper {
+      align-items: flex-start;
+    }
+  }
 }
