@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -296,6 +297,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if p.GlobalRole != nil || p.Teams != nil {
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
+		}
+		license, _ := license.FromContext(ctx)
+		if license == nil {
+			return nil, ctxerr.New(ctx, "license not found")
+		}
+		if err := fleet.ValidateRoleForLicense(p.GlobalRole, p.Teams, *license); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
 
@@ -763,7 +771,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if err != nil {
 		return err
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}

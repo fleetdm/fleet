@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -522,11 +523,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if config.MDM.AppleEnable {
-				if !config.MDM.IsAppleAPNsSet() || !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
+			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
 				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
@@ -538,7 +535,8 @@ the way that the Fleet server works.
 				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -594,7 +592,7 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					mdmPushCertTopic,
 				)
 				if err != nil {
@@ -670,21 +668,21 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register integrations schedule")
 			}
 
-			if config.MDM.AppleEnable {
-
-				if license.IsPremium() && config.MDM.IsAppleBMSet() {
-					if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-						return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
-					}); err != nil {
-						initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-					}
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
+			}
+
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMAppleProfileManager(
 						ctx,
 						instanceID,
 						ds,
-						service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 						logger,
 						config.Logging.Debug,
 					)
@@ -795,7 +793,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.MDM.AppleEnable {
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDM,

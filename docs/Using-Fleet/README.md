@@ -21,8 +21,8 @@ Includes documentation about osquery children processes and under which conditio
 ### [Monitoring Fleet](./Monitoring-Fleet.md) 
 Provides documentation for load balancer health checks and working with Fleet server metrics and performance 
 
-### [Security best practices](./Security-best-practices.md) 
-Includes resources for ways to mitigate against the OWASP top 10 issues
+### [Application Security](./Application-Security.md) 
+Includes information on how Fleet mitigates against the OWASP top 10 issues
 
 ### [FAQ](./FAQ.md) 
 Includes frequently asked questions and answers about using Fleet from the Fleet community

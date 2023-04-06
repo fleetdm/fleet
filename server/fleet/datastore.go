@@ -195,6 +195,7 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -325,6 +326,14 @@ type Datastore interface {
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
 	ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*EnrollSecret) error
 
+	// AggregateEnrollSecretPerTeam returns a slice containing one
+	// EnrollSecret per team, plus an EnrollSecret for "no team"
+	//
+	// If any of the teams doesn't have any enroll secrets, then the
+	// corresponcing EnrollSecret.Secret entry will have an empty string
+	// value.
+	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 
@@ -398,16 +407,18 @@ type Datastore interface {
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
-	// ListSoftwareBySourceIter returns an iterator for consuming all software rows filtered by
-	// their 'source'.
-	ListSoftwareBySourceIter(ctx context.Context, sources []string) (SoftwareIterator, error)
-
-	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
-	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
+	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
+	// UpsertSoftwareCPEs either inserts new 'software_cpe' entries, or if a now with the same CPE
+	// already exists, performs an update operation. Returns the number of rows affected.
+	UpsertSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
+	// DeleteSoftwareCPEs removes entries from 'software_cpe' by matching the software_id in the
+	// provided cpes. Returns the number of rows affected.
+	DeleteSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
-	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
-	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
-	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
+	// InsertSoftwareVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
+	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -497,6 +508,9 @@ type Datastore interface {
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
 	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
+	// the updated_at timestamp is older than the provided duration
+	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -714,6 +728,15 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
 
+	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
+	// profiles in bulk with the current payload.
+	//
+	// Be careful when using this for user actions, you generally want to
+	// use NewMDMAppleConfigProfile/DeleteMDMAppleConfigProfile or the
+	// batch insert/delete counterparts. With the current product vision,
+	// this is mainly aimed to internal usage within the Fleet server.
+	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
+
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile id.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
@@ -747,8 +770,7 @@ type Datastore interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	// The map returned has a result for each target device ID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
@@ -785,8 +807,8 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
-	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
-	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
+	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
+	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -807,6 +829,12 @@ type Datastore interface {
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
+
+	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// or to remove for each affected host to pending for the provided criteria,
+	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
+	// (only one of those ID types can be provided).
+	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
@@ -830,6 +858,11 @@ type Datastore interface {
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
+
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 }
 
 const (
@@ -896,6 +929,11 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
+
+// TODO: we have a similar but different interface in the service package,
+// service.NotFoundErr - at the very least, the IsNotFound method should be the
+// same in both (the other is currently NotFound), and ideally we'd just have
+// one of those interfaces.
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

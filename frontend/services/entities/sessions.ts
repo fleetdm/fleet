@@ -1,3 +1,4 @@
+import { ISSOSettings } from "interfaces/ssoSettings";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
@@ -5,6 +6,10 @@ import helpers from "utilities/helpers";
 interface ICreateSessionProps {
   email: string;
   password: string;
+}
+
+export interface ISSOSettingsResponse {
+  settings: ISSOSettings;
 }
 
 export default {
@@ -30,7 +35,7 @@ export default {
     const { SSO } = endpoints;
     return sendRequest("POST", SSO, { relay_url });
   },
-  ssoSettings: () => {
+  ssoSettings: (): Promise<ISSOSettingsResponse> => {
     const { SSO } = endpoints;
     return sendRequest("GET", SSO);
   },

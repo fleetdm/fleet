@@ -1,5 +1,6 @@
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import { DiskEncryptionStatus } from "utilities/constants";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -23,6 +24,7 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 const reduceQueryParams = (
@@ -84,6 +86,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osId,
   osName,
   osVersion,
+  diskEncryptionStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -117,6 +120,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
+    case !!diskEncryptionStatus:
+      return { macos_settings_disk_encryption: diskEncryptionStatus };
     default:
       return {};
   }
