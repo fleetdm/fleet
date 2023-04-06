@@ -41,8 +41,8 @@ const isTeamObserverPlus = (user: IUser, teamId: number): boolean => {
   return userTeamRole === "observer_plus";
 };
 
-const isTeamObserver = (user: IUser, teamId: number): boolean => {
-  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+const isTeamObserver = (user: IUser | null, teamId: number): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "observer" || userTeamRole === "observer_plus";
 };
 
