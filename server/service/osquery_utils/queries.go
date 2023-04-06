@@ -572,8 +572,7 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query: fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key,
-						(%s) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
+		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -610,7 +609,7 @@ var softwareMacOS = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,

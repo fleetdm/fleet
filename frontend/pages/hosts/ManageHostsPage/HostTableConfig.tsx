@@ -23,12 +23,8 @@ import {
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
-import { IConfig } from "interfaces/config";
 import { IDataColumn } from "interfaces/datatable_config";
-import { ITeamSummary } from "interfaces/team";
-import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
-import permissionUtils from "utilities/permissions";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
 
@@ -49,6 +45,7 @@ interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
+    isLastColumn?: boolean;
   };
   getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
@@ -150,6 +147,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "display_name",
@@ -200,6 +198,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hostname",
@@ -211,6 +210,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "computer_name",
@@ -222,6 +222,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "team_name",
@@ -231,7 +232,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Status",
-    Header: (headerProps: IHeaderProps): JSX.Element => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
@@ -239,14 +240,16 @@ const allHostTableHeaders: IDataColumn[] = [
              hosts won’t respond to a live query because<br/>
              they may be shut down, asleep, or not<br/>
              connected to the internet.`}
+          className="last-col-header-with-tip"
         >
           Status
         </TooltipWrapper>
       );
       return (
         <HeaderCell
-          value={headerProps.rows.length === 1 ? "Status" : titleWithToolTip}
+          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
           disableSortBy
+          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -279,6 +282,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "gigs_disk_space_available",
@@ -305,6 +309,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "os_version",
@@ -354,7 +359,7 @@ const allHostTableHeaders: IDataColumn[] = [
           </>
         );
       }
-      return <span className="text-muted">---</span>;
+      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
     },
   },
   {
@@ -363,6 +368,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_ip",
@@ -370,18 +376,25 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM status",
-    Header: (): JSX.Element => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            Settings can be updated remotely on hosts with MDM turned on.<br/>
-            To filter by MDM status, head to the Dashboard page.
+            Settings can be updated remotely on <br/>
+            hosts with MDM turned on. To filter by<br/>
+            MDM status, head to the Dashboard page.
           `}
         >
           MDM status
         </TooltipWrapper>
       );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isLastColumn={cellProps.column.isLastColumn}
+          disableSortBy
+        />
+      );
     },
     disableSortBy: true,
     accessor: "mdm.enrollment_status",
@@ -389,23 +402,30 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value)
         return <TextCell value={cellProps.cell.value} />;
-      return <span className="text-muted">---</span>;
+      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
     },
   },
   {
     title: "MDM server URL",
-    Header: (): JSX.Element => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The MDM server that updates settings on the host.<br/>
-            To filter by MDM server URL, head to the Dashboard page.
+            The MDM server that updates settings<br/>
+            on the host. To filter by MDM server URL,<br/>
+            head to the Dashboard page.
           `}
         >
           MDM server URL
         </TooltipWrapper>
       );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isLastColumn={cellProps.column.isLastColumn}
+          disableSortBy
+        />
+      );
     },
     disableSortBy: true,
     accessor: "mdm.server_url",
@@ -423,6 +443,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "public_ip",
@@ -463,7 +484,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Last fetched",
-    Header: (headerProps: IHeaderProps): JSX.Element => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
@@ -476,7 +497,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <HeaderCell
           value={titleWithToolTip}
-          isSortedDesc={headerProps.column.isSortedDesc}
+          isSortedDesc={cellProps.column.isSortedDesc}
+          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -490,7 +512,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Last seen",
-    Header: (headerProps: IHeaderProps): JSX.Element => {
+    Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
@@ -503,7 +525,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <HeaderCell
           value={titleWithToolTip}
-          isSortedDesc={headerProps.column.isSortedDesc}
+          isSortedDesc={cellProps.column.isSortedDesc}
+          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -521,6 +544,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "uuid",
@@ -534,6 +558,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "uptime",
@@ -563,6 +588,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "memory",
@@ -576,6 +602,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_mac",
@@ -587,6 +614,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_serial",
@@ -598,6 +626,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
+        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_model",
@@ -627,18 +656,17 @@ const defaultHiddenColumns = [
  * Will generate a host table column configuration based off of the current user
  * permissions and license tier of fleet they are on.
  */
-const generateAvailableTableHeaders = (
-  config: IConfig,
-  currentUser: IUser,
-  currentTeam?: ITeamSummary
-): IDataColumn[] => {
+const generateAvailableTableHeaders = ({
+  isFreeTier = true,
+  isOnlyObserver = true,
+}: {
+  isFreeTier: boolean | undefined;
+  isOnlyObserver: boolean | undefined;
+}): IDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: Column[], currentColumn: Column) => {
       // skip over column headers that are not shown in free observer tier
-      if (
-        permissionUtils.isFreeTier(config) &&
-        permissionUtils.isGlobalObserver(currentUser)
-      ) {
+      if (isFreeTier && isOnlyObserver) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"
@@ -646,7 +674,7 @@ const generateAvailableTableHeaders = (
           return columns;
         }
         // skip over column headers that are not shown in free admin/maintainer
-      } else if (permissionUtils.isFreeTier(config)) {
+      } else if (isFreeTier) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.accessor === "mdm_server_url" ||
@@ -654,16 +682,8 @@ const generateAvailableTableHeaders = (
         ) {
           return columns;
         }
-      } else if (
+      } else if (isOnlyObserver) {
         // In premium tier, we want to check user role to enable/disable select column
-        !permissionUtils.isGlobalAdmin(currentUser) &&
-        !permissionUtils.isGlobalMaintainer(currentUser) &&
-        !permissionUtils.isTeamMaintainer(
-          currentUser,
-          currentTeam?.id || null
-        ) &&
-        !permissionUtils.isTeamAdmin(currentUser, currentTeam?.id || null)
-      ) {
         if (currentColumn.id === "selection") {
           return columns;
         }
@@ -680,14 +700,17 @@ const generateAvailableTableHeaders = (
  * Will generate a host table column configuration that a user currently sees.
  *
  */
-const generateVisibleTableColumns = (
-  hiddenColumns: string[],
-  config: IConfig,
-  currentUser: IUser,
-  currentTeam?: ITeamSummary
-): IDataColumn[] => {
+const generateVisibleTableColumns = ({
+  hiddenColumns,
+  isFreeTier = true,
+  isOnlyObserver = true,
+}: {
+  hiddenColumns: string[];
+  isFreeTier: boolean | undefined;
+  isOnlyObserver: boolean | undefined;
+}): IDataColumn[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(
+  return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
     (column) => {
       return !hiddenColumns.includes(column.accessor as string);
     }

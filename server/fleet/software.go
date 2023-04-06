@@ -100,3 +100,13 @@ type SoftwareListOptions struct {
 	// a count of hosts > 0.
 	WithHostCounts bool
 }
+
+type SoftwareIterQueryOptions struct {
+	ExcludedSources []string // what sources to exclude
+	IncludedSources []string // what sources to include
+}
+
+// IsValid checks that either ExcludedSources or IncludedSources is specified but not both
+func (siqo SoftwareIterQueryOptions) IsValid() bool {
+	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
+}

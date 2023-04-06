@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
@@ -13,8 +13,6 @@ import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
 
-import { IEmptyTableProps } from "interfaces/empty_table";
-
 import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
@@ -23,6 +21,7 @@ interface ISoftwareCardProps {
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
   software: any;
+  teamId?: number;
   pageIndex: number;
   navTabIndex: any;
   onTabChange: any;
@@ -51,14 +50,15 @@ const Software = ({
   onTabChange,
   onQueryChange,
   software,
+  teamId,
   router,
 }: ISoftwareCardProps): JSX.Element => {
   const { noSandboxHosts } = useContext(AppContext);
 
-  const tableHeaders = generateTableHeaders();
+  const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id };
+    const queryParams = { software_id: row.original.id, team_id: teamId };
 
     const path = queryParams
       ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
@@ -92,7 +92,7 @@ const Software = ({
                   columns={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
-                  defaultSortHeader={"hosts_count"}
+                  defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}

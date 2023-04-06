@@ -204,7 +204,7 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 		GlobalRole: ptr.String("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "invalid global role: wrongrole")
 }
 
 func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
@@ -632,7 +632,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
@@ -641,16 +643,14 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	n, err := s.ds.InsertSoftwareVulnerabilities(
-		context.Background(), []fleet.SoftwareVulnerability{
-			{
-				SoftwareID: soft1.ID,
-				CVE:        "cve-123-123-132",
-			},
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: soft1.ID,
+			CVE:        "cve-123-123-132",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, int(n))
+	require.True(t, inserted)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -4984,25 +4984,26 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		}
 	}
 
+	var cpes []fleet.SoftwareCPE
 	for i, sw := range sws {
-		cpe := "somecpe" + strconv.Itoa(i)
-		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
+		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: sw.ID, CPE: "somecpe" + strconv.Itoa(i)})
 	}
+
+	_, err := s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software to load GeneratedCPEID
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
-	var vulns []fleet.SoftwareVulnerability
-	for i, sw := range hosts[0].Software[:10] {
-		vulns = append(vulns, fleet.SoftwareVulnerability{
-			SoftwareID: sw.ID,
-			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
-		})
-	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
-	require.NoError(t, err)
-	require.Equal(t, 10, int(n))
+	for i, sw := range hosts[0].Software[:10] {
+		inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: sw.ID,
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+	}
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use
 	// sws[19], 2 for sws[18], and 1 for sws[17])
