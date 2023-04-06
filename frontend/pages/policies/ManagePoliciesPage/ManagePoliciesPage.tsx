@@ -58,6 +58,7 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    isSandboxMode,
     setConfig,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -329,7 +330,6 @@ const ManagePolicyPage = ({
       currentAutomatedPolicies = webhook?.policy_ids || [];
     }
   }
-
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
@@ -416,6 +416,8 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
               />
             ))}
           {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -432,6 +434,8 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
               />
             ))}
         </div>
