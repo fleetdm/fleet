@@ -358,6 +358,7 @@ type enrichedAppConfigFields struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+	Email           *EmailConfig           `json:"email,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -739,6 +740,16 @@ type Logging struct {
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
 	Audit  LoggingPlugin `json:"audit"`
+}
+
+type EmailConfig struct {
+	Backend string      `json:"backend"`
+	Config  interface{} `json:"config"`
+}
+
+type SESConfig struct {
+	Region    string `json:"region"`
+	SourceARN string `json:"source_arn"`
 }
 
 type UpdateIntervalConfig struct {

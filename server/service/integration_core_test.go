@@ -204,7 +204,7 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 		GlobalRole: ptr.String("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "invalid global role: wrongrole")
 }
 
 func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {

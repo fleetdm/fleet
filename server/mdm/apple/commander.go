@@ -116,6 +116,26 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []strin
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>ManifestURL</key>
+      <string>%s</string>
+      <key>RequestType</key>
+      <string>InstallEnterpriseApplication</string>
+    </dict>
+
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, manifestURL, uuid)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //

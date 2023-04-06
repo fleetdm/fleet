@@ -146,6 +146,12 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
 			Hidden:  true,
 		},
+		&cli.BoolFlag{
+			Name:    "use-system-configuration",
+			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)",
+			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
+			Hidden:  true,
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -225,27 +231,38 @@ func main() {
 
 		// if neither are set, this might be an agent deployed via MDM, try to read
 		// both configs from a configuration profile
-		if c.String("fleet-url") == "" && c.String("enroll-secret") == "" {
-			config, err := profiles.GetFleetdConfig()
-			switch {
-			// handle these errors separately as debug messages to not raise false
-			// alarms when users look into the orbit logs, it's perfectly normal to
-			// not have a configuration profile, or to get into this situation in
-			// operating systems that don't have profile support.
-			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-				log.Debug().Msgf("reading configuration profile: %v", err)
-			case err != nil:
-				log.Error().Err(err).Msg("reading configuration profile")
-			case config.EnrollSecret == "" || config.FleetURL == "":
-				log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
-			default:
-				log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
-				if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
-					return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
+			log.Info().Msg("trying to read fleet-url and enroll-secret from a configuration profile")
+			for {
+				config, err := profiles.GetFleetdConfig()
+				switch {
+				// handle these errors separately as debug messages to not raise false
+				// alarms when users look into the orbit logs, it's perfectly normal to
+				// not have a configuration profile, or to get into this situation in
+				// operating systems that don't have profile support.
+				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
+					log.Debug().Msgf("reading configuration profile: %v", err)
+				case err != nil:
+					log.Error().Err(err).Msg("reading configuration profile")
+				case config.EnrollSecret == "" || config.FleetURL == "":
+					log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
+				default:
+					log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
+					if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
+						return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+					}
+					if err := c.Set("fleet-url", config.FleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+					}
 				}
-				if err := c.Set("fleet-url", config.FleetURL); err != nil {
-					return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in system profile")
+					break
 				}
+
+				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
+				time.Sleep(30 * time.Second)
 			}
 		}
 

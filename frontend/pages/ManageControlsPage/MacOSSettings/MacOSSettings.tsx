@@ -9,6 +9,7 @@ import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
+import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
 
 const baseClass = "mac-os-settings";
 
@@ -26,6 +27,7 @@ const MacOSSettings = ({
   const { section } = params;
   const { currentTeam } = useContext(AppContext);
 
+  // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
     currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
       ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'

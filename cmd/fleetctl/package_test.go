@@ -49,11 +49,14 @@ func TestPackage(t *testing.T) {
 		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	})
 
-	t.Run("rpm", func(t *testing.T) {
-		runAppForTest(t, []string{"package", "--type=rpm", "--insecure", "--disable-open-folder"})
-		info, err := os.Stat(fmt.Sprintf("fleet-osquery-%s.x86_64.rpm", updatesData.OrbitVersion))
-		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
+	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
+		for _, p := range []string{"deb", "msi", "rpm", ""} {
+			runAppCheckErr(
+				t,
+				[]string{"package", fmt.Sprintf("--type=%s", p), "--use-system-configuration"},
+				"--use-system-configuration is only available for pkg installers",
+			)
+		}
 	})
 
 	// fleet-osquery.msi
