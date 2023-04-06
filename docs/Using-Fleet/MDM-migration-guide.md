@@ -57,7 +57,7 @@ However, Activation Lock bypass codes can only be retrieved from the Mac up to 3
 
 To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you can migrate these settings to Fleet to reduce manual work.
 
-If your old MDM solution enforces FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
+If your old MDM solution enforces FileVault, follow [these instructions](./MDM-macOS-settings.md#disk-encryption) to enforce FileVault (disk encryption) using Fleet.
 
 For all other settings: 
 1. Check if your old MDM solution is able to export settings as .mobileconfig files. If it does, download these files. 
