@@ -2537,6 +2537,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		Name: "Bar",
 	})
 	require.NoError(t, err)
+	t3, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Zoo",
+	})
+	require.NoError(t, err)
 	acr := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"webhook_settings": {
@@ -2604,6 +2608,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 				Team: *t1,
 				Role: fleet.RoleGitOps,
 			},
+			{
+				Team: *t3,
+				Role: fleet.RoleGitOps,
+			},
 		},
 	}
 	require.NoError(t, u2.SetPassword(test.GoodPassword, 10, 10))
@@ -2619,11 +2627,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		Query: "SELECT 2;",
 	})
 	require.NoError(t, err)
+	// Create some test user to test moving from/to teams.
+	u3 := &fleet.User{
+		Name:       "Test Foo Observer",
+		Email:      "test-foo-observer@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *t1,
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	require.NoError(t, u3.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u3)
+	require.NoError(t, err)
 
 	//
 	// Start running permission tests with user gitops1.
 	//
-
 	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Attempt to retrieve activities, should fail.
@@ -2912,6 +2934,15 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &teamResponse{})
 
+	// Attempt to edit a team's agent options, should allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tr.Team.ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": true
+			}
+		}
+	}`), http.StatusOK, &teamResponse{})
+
 	// Attempt to view a team, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), getTeamRequest{}, http.StatusForbidden, &teamResponse{})
 
@@ -3056,9 +3087,75 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		IDs: []uint{ttplr.Policy.ID},
 	}, http.StatusOK, &deleteTeamPoliciesResponse{})
 
-	//
-	// Manage policy automations...
-	//
+	// Attempt to edit own team, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String("foo123456"),
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to edit another team, should fail.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String("foo123456"),
+		},
+	}, http.StatusForbidden, &teamResponse{})
+
+	// Attempt to edit own team's agent options, should allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t1.ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": true
+			}
+		}
+	}`), http.StatusOK, &teamResponse{})
+
+	// Attempt to edit another team's agent options, should fail.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t2.ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": true
+			}
+		}
+	}`), http.StatusForbidden, &teamResponse{})
+
+	// Attempt to add users from team it owns to another team it owns, should allow.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *u3,
+				Role: "maintainer",
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to delete users from team it owns, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *u3,
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	// Attempt to add users to another team it doesn't own, should fail.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *u3,
+				Role: "maintainer",
+			},
+		},
+	}, http.StatusForbidden, &teamResponse{})
+
+	// Attempt to delete users from team it doesn't own, should fail.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+		Users: []fleet.TeamUser{
+			{
+				User: *u2,
+			},
+		},
+	}, http.StatusForbidden, &teamResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {
