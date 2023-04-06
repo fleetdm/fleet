@@ -1,10 +1,13 @@
-import React, { useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import classnames from "classnames";
-import { ITeamSummary } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  ITeamSummary,
+  APP_CONTEX_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { AppContext } from "context/app";
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
@@ -21,21 +24,15 @@ const generateDropdownOptions = (
     value: team.id,
   }));
 
-  if (includeAll) {
-    options.unshift({
-      disabled: false,
-      label: "All teams",
-      value: 0,
-    });
-  }
-  if (includeNoTeams) {
-    options.unshift({
-      disabled: false,
-      label: "No teams",
-      value: 0,
-    });
-  }
-  return options;
+  const filtered = options.filter(
+    (o) =>
+      !(
+        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
+      )
+  );
+
+  return filtered;
 };
 interface ITeamsDropdownProps {
   currentUserTeams: ITeamSummary[];
@@ -60,16 +57,9 @@ const TeamsDropdown = ({
   onOpen,
   onClose,
 }: ITeamsDropdownProps): JSX.Element => {
-  const { isOnGlobalTeam = false } = useContext(AppContext);
-
   const teamOptions = useMemo(
-    () =>
-      generateDropdownOptions(
-        currentUserTeams,
-        includeAll && isOnGlobalTeam,
-        includeNoTeams
-      ),
-    [currentUserTeams, includeAll, isOnGlobalTeam, includeNoTeams]
+    () => generateDropdownOptions(currentUserTeams, includeAll, includeNoTeams),
+    [currentUserTeams, includeAll, includeNoTeams]
   );
 
   const selectedValue = teamOptions.find(

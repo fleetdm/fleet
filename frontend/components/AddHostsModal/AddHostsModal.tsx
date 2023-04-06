@@ -1,6 +1,5 @@
 import React from "react";
 
-import { ITeamSummary } from "interfaces/team";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
@@ -12,8 +11,9 @@ import DownloadInstallers from "./DownloadInstallers/DownloadInstallers";
 const baseClass = "add-hosts-modal";
 
 interface IAddHostsModal {
-  currentTeam?: ITeamSummary;
+  currentTeamName?: string;
   enrollSecret?: string;
+  isAnyTeamSelected: boolean;
   isLoading: boolean;
   isSandboxMode?: boolean;
   onCancel: () => void;
@@ -21,13 +21,16 @@ interface IAddHostsModal {
 }
 
 const AddHostsModal = ({
-  currentTeam,
+  currentTeamName,
   enrollSecret,
+  isAnyTeamSelected,
   isLoading,
   isSandboxMode,
   onCancel,
   openEnrollSecretModal,
 }: IAddHostsModal): JSX.Element => {
+  const teamDisplayName = (isAnyTeamSelected && currentTeamName) || "Fleet";
+
   const onManageEnrollSecretsClick = () => {
     onCancel();
     openEnrollSecretModal && openEnrollSecretModal();
@@ -49,8 +52,7 @@ const AddHostsModal = ({
             ) : (
               "Manage enroll secrets"
             )}{" "}
-            to enroll hosts to{" "}
-            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+            to enroll hosts to <b>{teamDisplayName}</b>.
           </span>
         </DataError>
       );
@@ -60,7 +62,7 @@ const AddHostsModal = ({
     // and Fleet Sandbox runs Fleet Free so the currentTeam check here is an
     // additional precaution/reminder to revisit this in connection with future changes.
     // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-    return isSandboxMode && !currentTeam ? (
+    return isSandboxMode && !isAnyTeamSelected ? (
       <DownloadInstallers onCancel={onCancel} enrollSecret={enrollSecret} />
     ) : (
       <PlatformWrapper onCancel={onCancel} enrollSecret={enrollSecret} />

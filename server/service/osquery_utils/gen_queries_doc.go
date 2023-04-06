@@ -23,7 +23,7 @@ func main() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, &fleet.Features{
+	}, nil, &fleet.Features{
 		EnableSoftwareInventory: true,
 		EnableHostUsers:         true,
 	})

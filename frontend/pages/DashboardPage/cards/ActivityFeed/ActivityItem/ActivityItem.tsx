@@ -12,6 +12,34 @@ import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
 
+const getProfileMessageSuffix = (
+  isPremiumTier: boolean,
+  teamName?: string | null
+) => {
+  let messageSuffix = <>all macOS hosts</>;
+  if (isPremiumTier) {
+    messageSuffix = teamName ? (
+      <>
+        macOS hosts assigned to the <b>{teamName}</b> team
+      </>
+    ) : (
+      <>macOS hosts with no team</>
+    );
+  }
+  return messageSuffix;
+};
+
+const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+  return teamName ? (
+    <>
+      {" "}
+      assigned to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>with no team</>
+  );
+};
+
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
     activity: IActivity,
@@ -70,7 +98,7 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
       </>
     ) : (
       "edited multiple teams using fleetctl."
@@ -164,7 +192,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {activity.actor_full_name
-          ? " turned off mobile device management (MDM) for"
+          ? " told Fleet to turn off mobile device management (MDM) for"
           : "Mobile device management (MDM) was turned off for"}{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
@@ -200,6 +228,71 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  readHostDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+
+  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        .
+      </>
+    );
+  },
+
+  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+      </>
+    );
+  },
+
+  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  enableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+  },
+  disableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -279,6 +372,24 @@ const getDetail = (
     }
     case ActivityType.EditedMacosMinVersion: {
       return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+    }
+    case ActivityType.ReadHostDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
+    }
+    case ActivityType.CreatedMacOSProfile: {
+      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedMacOSProfile: {
+      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedMacOSProfile: {
+      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EnabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+    }
+    case ActivityType.DisabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

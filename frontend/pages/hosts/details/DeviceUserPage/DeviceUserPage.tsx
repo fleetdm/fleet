@@ -41,6 +41,8 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import MacSettingsModal from "../MacSettingsModal";
+import ResetKeyModal from "./ResetKeyModal";
 
 const baseClass = "device-user";
 
@@ -62,6 +64,7 @@ const DeviceUserPage = ({
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [showResetKeyModal, setShowResetKeyModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -75,6 +78,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -93,7 +97,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -199,6 +203,8 @@ const DeviceUserPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
+      "platform",
+      "mdm",
     ])
   );
 
@@ -225,6 +231,10 @@ const DeviceUserPage = ({
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
+  const toggleResetKeyModal = useCallback(() => {
+    setShowResetKeyModal(!showResetKeyModal);
+  }, [showResetKeyModal, setShowResetKeyModal]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -232,6 +242,11 @@ const DeviceUserPage = ({
     },
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -286,10 +301,29 @@ const DeviceUserPage = ({
     );
   };
 
+  const resetKeyButton = (
+    <Button variant="unstyled" onClick={toggleResetKeyModal}>
+      <b>Reset key</b>
+    </Button>
+  );
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     const isMdmUnenrolled =
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
+
+    const diskEncryptionBannersEnabled =
+      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
+
+    const showDiskEncryptionLogoutRestart =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings.action_required === "log_out";
+    const showDiskEncryptionKeyResetRequired =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings.action_required === "rotate_key";
+
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -299,6 +333,7 @@ const DeviceUserPage = ({
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
+                // Turn on MDM banner
                 <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
@@ -306,14 +341,33 @@ const DeviceUserPage = ({
                   don’t have to.
                 </InfoBanner>
               )}
+            {showDiskEncryptionLogoutRestart && (
+              // MDM - Disk Encryption: Logout or restart banner
+              <InfoBanner color="yellow">
+                Disk encryption: Log out of your device or restart to turn on
+                disk encryption. This prevents unauthorized access to the
+                information on your device.
+              </InfoBanner>
+            )}
+            {showDiskEncryptionKeyResetRequired && (
+              // MDM - Disk Encryption: Reset key required banner
+              <InfoBanner color="yellow" cta={resetKeyButton}>
+                Disk encryption: Reset your disk encryption key. This lets your
+                organization help you unlock your device if you forget your
+                password.
+              </InfoBanner>
+            )}
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              isPremiumTier={isPremiumTier}
+              toggleMacSettingsModal={toggleMacSettingsModal}
+              hostMacSettings={host?.mdm.profiles}
+              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
-              isPremiumTier={isPremiumTier}
               deviceUser
             />
             <TabsWrapper>
@@ -336,7 +390,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
-                    munki={macadmins?.munki}
+                    munki={deviceMacAdminsData?.munki}
                     wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
@@ -361,6 +415,12 @@ const DeviceUserPage = ({
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showResetKeyModal && (
+              <ResetKeyModal
+                onClose={toggleResetKeyModal}
+                deviceAuthToken={deviceAuthToken}
+              />
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
@@ -369,17 +429,27 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            hostMacSettings={host?.mdm.profiles}
+            onClose={toggleMacSettingsModal}
+          />
+        )}
       </div>
     );
   };
 
   return (
     <div className="app-wrap">
-      <nav className="site-nav">
-        <div className="site-nav-container">
+      <nav className="site-nav-container">
+        <div className="site-nav-content">
           <ul className="site-nav-list">
-            <li className={`site-nav-item--logo`} key={`nav-item`}>
-              <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+            <li className="site-nav-item dup-org-logo" key="dup-org-logo">
+              <div className="site-nav-item__logo-wrapper">
+                <div className="site-nav-item__logo">
+                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                </div>
+              </div>
             </li>
           </ul>
         </div>

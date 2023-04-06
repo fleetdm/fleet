@@ -35,6 +35,7 @@ module "alb" {
   vpc_id          = var.vpc_id
   subnets         = var.alb_config.subnets
   security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
+  access_logs     = var.alb_config.access_logs
 
   target_groups = [
     {
@@ -52,6 +53,9 @@ module "alb" {
       }
     }
   ]
+  
+  # Require TLS 1.2 as earlier versions are insecure
+  listener_ssl_policy_default = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   https_listeners = [
     {
@@ -85,7 +89,16 @@ resource "aws_security_group" "alb" {
     from_port        = 443
     to_port          = 443
     protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    cidr_blocks      = var.alb_config.allowed_cidrs
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description      = "For http to https redirect"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = var.alb_config.allowed_cidrs
     ipv6_cidr_blocks = ["::/0"]
   }
 

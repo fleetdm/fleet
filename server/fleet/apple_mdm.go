@@ -1,12 +1,25 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
 )
+
+type MDMAppleCommandIssuer interface {
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
+}
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
 type MDMAppleEnrollmentType string
@@ -16,6 +29,81 @@ const (
 	MDMAppleEnrollmentTypeAutomatic MDMAppleEnrollmentType = "automatic"
 	// MDMAppleEnrollmentTypeManual is the value for manual enrollments.
 	MDMAppleEnrollmentTypeManual MDMAppleEnrollmentType = "manual"
+)
+
+// Well-known status responses
+const (
+	MDMAppleStatusAcknowledged       = "Acknowledged"
+	MDMAppleStatusError              = "Error"
+	MDMAppleStatusCommandFormatError = "CommandFormatError"
+	MDMAppleStatusIdle               = "Idle"
+	MDMAppleStatusNotNow             = "NotNow"
+)
+
+// MDMAppleDeliveryStatus is the status of an MDM command to apply a profile
+// to a device (whether it is installing or removing).
+type MDMAppleDeliveryStatus string
+
+// List of possible MDMAppleDeliveryStatus values. For a given host, the status
+// of a profile can be either of those, or NULL. The meaning of the status is
+// as follows:
+//
+//   - failed: the MDM command failed to apply, and it won't retry. This is
+//     currently a terminal state. TODO(mna): currently we only retry if the
+//     command failed to enqueue in ReconcileProfile (it resets the status to
+//     NULL). A failure in the asynchronous actual response of the MDM command
+//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
+//     the failed state being applied and no retry. We should probably support
+//     some retries for such failures, and determine a maximum number of retries
+//     before giving up (either as a count of attempts - which would require
+//     storing somewhere - or as a time period, which we could determine based on
+//     the timestamps, e.g. time since created_at, if we added them to
+//     host_mdm_apple_profiles).
+//
+//   - applied: the MDM command successfully applied the profile. This is a
+//     terminal state.
+//
+//   - pending: the cron job that executes the MDM commands to apply profiles
+//     is processing this host, and the MDM command may even be enqueued. This
+//     is a temporary state, it may transition to failed, applied or NULL.
+//
+//   - NULL: the status set for profiles that need to be applied to a host
+//     (installed or removed), e.g. because the profile just got added to the
+//     host's team, or because the host moved to a new team, etc. This is a
+//     temporary state, it may transition to pending when the cron job runs to
+//     apply the profile. It may also be simply deleted from the host's profiles
+//     without the need to run an MDM command if the profile becomes unneeded and
+//     that status is for an Install operation (e.g. the profile got deleted from
+//     the team, or the host was moved to a team that doesn't apply that profile)
+//     or vice-versa if that status is for a Remove but the profile becomes
+//     required again. For the sake of statistics, as reported by
+//     GetMDMAppleHostsProfilesSummary or for the list hosts filter
+//     (filterHostsByMacOSSettingsStatus), a NULL status is equivalent to a
+//     Pending status.
+var (
+	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
+	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
+)
+
+func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
+	switch cmdStatus {
+	case MDMAppleStatusAcknowledged:
+		return &MDMAppleDeliveryApplied
+	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
+		return &MDMAppleDeliveryFailed
+	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
+		return &MDMAppleDeliveryPending
+	default:
+		return nil
+	}
+}
+
+type MDMAppleOperationType string
+
+const (
+	MDMAppleOperationTypeInstall MDMAppleOperationType = "install"
+	MDMAppleOperationTypeRemove  MDMAppleOperationType = "remove"
 )
 
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
@@ -64,22 +152,26 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleCommandResult holds the result of a command execution provided by the target device.
+// MDMAppleCommandResult holds the result of a command execution provided by
+// the target device.
 type MDMAppleCommandResult struct {
-	// ID is the enrollment ID. This should be the same as the device ID.
-	ID string `json:"id" db:"id"`
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	DeviceID string `json:"device_id" db:"device_id"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
 	// Status is the command status. One of Acknowledged, Error, or NotNow.
 	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
 	// Result is the original command result XML plist. If the status is Error, it will include the
 	// ErrorChain key with more information.
 	Result []byte `json:"result" db:"result"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandResult) AuthzType() string {
-	return "mdm_apple_command_result"
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
 }
 
 // MDMAppleInstaller holds installer packages for Apple devices.
@@ -148,25 +240,18 @@ type EnrolledAPIResults map[string]*EnrolledAPIResult
 
 // CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
 type CommandEnqueueResult struct {
-	// Status is the status of the command.
-	Status EnrolledAPIResults `json:"status,omitempty"`
-	// NoPush indicates whether the command was issued with no_push.
-	// If this is true, then Fleet won't send a push notification to devices.
-	NoPush bool `json:"no_push,omitempty"`
-	// PushError indicates the error when trying to send push notification
-	// to target devices.
-	PushError string `json:"push_error,omitempty"`
-	// CommandError holds the error when enqueueing the command.
-	CommandError string `json:"command_error,omitempty"`
 	// CommandUUID is the unique identifier for the command.
 	CommandUUID string `json:"command_uuid,omitempty"`
 	// RequestType is the name of the command.
 	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
 
 // MDMAppleCommand represents an Apple MDM command.
 type MDMAppleCommand struct {
 	*mdm.Command
+	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -191,4 +276,151 @@ func (e MDMAppleCommandTimeoutError) Error() string {
 
 func (e MDMAppleCommandTimeoutError) StatusCode() int {
 	return http.StatusGatewayTimeout
+}
+
+// MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
+// Configuration profiles are used to configure Apple devices .
+// See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
+type MDMAppleConfigProfile struct {
+	// ProfileID is the unique id of the configuration profile in Fleet
+	ProfileID uint `db:"profile_id" json:"profile_id"`
+	// TeamID is the id of the team with which the configuration is associated. A nil team id
+	// represents a configuration profile that is not associated with any team.
+	TeamID *uint `db:"team_id" json:"team_id"`
+	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
+	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
+	Identifier string `db:"identifier" json:"identifier"`
+	// Name corresponds to the payload display name of the associated mobileconfig payload.
+	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
+	Name string `db:"name" json:"name"`
+	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
+	// representation of the configuration profile. It must be XML or PKCS7 parseable.
+	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
+	CreatedAt    time.Time                 `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time                 `db:"updated_at" json:"updated_at"`
+}
+
+func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
+	mc := mobileconfig.Mobileconfig(raw)
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return nil, fmt.Errorf("new MDMAppleConfigProfile: %w", err)
+	}
+	return &MDMAppleConfigProfile{
+		TeamID:       teamID,
+		Identifier:   cp.PayloadIdentifier,
+		Name:         cp.PayloadDisplayName,
+		Mobileconfig: mc,
+	}, nil
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (cp MDMAppleConfigProfile) AuthzType() string {
+	return "mdm_apple_config_profile"
+}
+
+func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
+	}
+
+	return cp.Mobileconfig.ScreenPayloads()
+}
+
+// HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
+type HostMDMAppleProfile struct {
+	HostUUID      string                  `db:"host_uuid" json:"-"`
+	CommandUUID   string                  `db:"command_uuid" json:"-"`
+	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
+	Name          string                  `db:"name" json:"name"`
+	Identifier    string                  `db:"identifier" json:"-"`
+	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string                  `db:"detail" json:"detail"`
+}
+
+func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
+	switch p.OperationType {
+	case MDMAppleOperationTypeRemove:
+		switch {
+		case strings.Contains(p.Detail, "MDMClientError (89)"):
+			return true
+		}
+	}
+	return false
+}
+
+type MDMAppleProfilePayload struct {
+	ProfileID         uint   `db:"profile_id"`
+	ProfileIdentifier string `db:"profile_identifier"`
+	ProfileName       string `db:"profile_name"`
+	HostUUID          string `db:"host_uuid"`
+}
+
+type MDMAppleBulkUpsertHostProfilePayload struct {
+	ProfileID         uint
+	ProfileIdentifier string
+	ProfileName       string
+	HostUUID          string
+	CommandUUID       string
+	OperationType     MDMAppleOperationType
+	Status            *MDMAppleDeliveryStatus
+}
+
+// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// profiles. Each host may be counted in only one of three mutually-exclusive categories:
+// Failed, Pending, or Latest.
+type MDMAppleHostsProfilesSummary struct {
+	// Latest includes each host that has successfully applied all of the profiles currently
+	// applicable to the host. If any of the profiles are pending or failed for the host, the host
+	// is not counted as latest.
+	Latest uint `json:"latest" db:"applied"`
+	// Pending includes each host that has not yet applied one or more of the profiles currently
+	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failing" db:"failed"`
+}
+
+// MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
+// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
+// Applied, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+type MDMAppleFileVaultSummary struct {
+	Applied             uint `json:"applied" db:"applied"`
+	ActionRequired      uint `json:"action_required" db:"action_required"`
+	Enforcing           uint `json:"enforcing" db:"enforcing"`
+	Failed              uint `json:"failed" db:"failed"`
+	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
+}
+
+// MDMAppleFleetdConfig contains the fields used to configure
+// `fleetd` in macOS devices via a configuration profile.
+type MDMAppleFleetdConfig struct {
+	FleetURL     string
+	EnrollSecret string
+}
+
+// MDMAppleSettingsPayload describes the payload accepted by the endpoint to
+// update specific MDM macos settings for a team (or no team).
+type MDMAppleSettingsPayload struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (p MDMAppleSettingsPayload) AuthzType() string {
+	return "mdm_apple_settings"
+}
+
+// NanoEnrollment represents a row in the nano_enrollments table managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoEnrollment struct {
+	ID               string `json:"-" db:"id"`
+	DeviceID         string `json:"-" db:"device_id"`
+	Type             string `json:"-" db:"type"`
+	Enabled          bool   `json:"-" db:"enabled"`
+	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
 }

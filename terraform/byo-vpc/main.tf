@@ -58,6 +58,9 @@ module "rds" {
   master_password                 = random_password.rds.result
   database_name                   = "fleet"
   skip_final_snapshot             = true
+  snapshot_identifier             = var.rds_config.snapshot_identifier
+
+  cluster_tags = var.rds_config.cluster_tags
 }
 
 data "aws_subnet" "redis" {
@@ -93,6 +96,7 @@ module "redis" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/8"]
   }]
+  tags = var.redis_config.tags
 }
 
 module "secrets-manager-1" {
@@ -113,6 +117,14 @@ resource "aws_db_parameter_group" "main" {
   name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
+
+  dynamic "parameter" {
+    for_each = var.rds_config.db_parameters
+    content {
+      name  = parameter.key
+      value = parameter.value
+    }
+  }
 }
 
 resource "aws_rds_cluster_parameter_group" "main" {
@@ -120,4 +132,13 @@ resource "aws_rds_cluster_parameter_group" "main" {
   name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
+
+  dynamic "parameter" {
+    for_each = var.rds_config.db_cluster_parameters
+    content {
+      name  = parameter.key
+      value = parameter.value
+    }
+  }
+
 }

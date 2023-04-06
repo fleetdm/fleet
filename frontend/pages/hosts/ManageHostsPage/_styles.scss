@@ -174,9 +174,12 @@
           &__table {
             thead {
               tr {
-                th:last-child {
-                  .component__tooltip-wrapper__tip-text {
-                    left: -8px;
+                th {
+                  .last-col-header-with-tip {
+                    min-width: 90px;
+                    .component__tooltip-wrapper__tip-text {
+                      left: -126px;
+                    }
                   }
                 }
               }
@@ -193,7 +196,8 @@
 
               .device_mapping__cell,
               .mdm_enrollment_status__cell,
-              .mdm_server_url__cell {
+              .mdm_server_url__cell,
+              .public_ip__cell {
                 .text-cell {
                   display: inline;
                 }
@@ -245,17 +249,6 @@
 
   &__label-filter-dropdown {
     margin-left: $pad-small;
-  }
-
-  &__labels-active-filter-wrap {
-    display: flex;
-    align-items: center;
-    margin-bottom: $pad-medium;
-    gap: $pad-small; // between multiple filter pills
-  }
-
-  &__policies-filter-pill {
-    margin-left: $pad-medium;
   }
 
   &__enroll-hosts {

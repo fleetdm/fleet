@@ -12,13 +12,13 @@
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
       comingSoon: true
+    - name: Native macOS update reminders
+      tier: Free
+      comingSoon: true
     - name: Zero-touch setup for macOS computers
       tier: Premium
       comingSoon: true
-    - name: Remotely update macOS
-      tier: Premium
-      comingSoon: true
-    - name: Keep macOS up to date through reminders
+    - name: End-user macOS update reminders (via Nudge)
       tier: Premium
       comingSoon: true
     - name: Encrypt macOS hard disks with FileVault
@@ -49,6 +49,9 @@
       comingSoon: false
     - name: Phone and video call support
       tier: Premium
+      comingSoon: false    
+    - name: Platinum support
+      tier: Ultimate
       comingSoon: false
 - categoryName: Inventory management
   features:
@@ -104,10 +107,16 @@
     - name: Role-based access control
       tier: Free
       comingSoon: false
+    - name: Audit log
+      tier: Premium
+      comingSoon: false
     - name: Just-in-time provisioning
       tier: Premium
       comingSoon: false
     - name: Vanta integration
+      tier: Premium
+      comingSoon: false
+    - name: Granular role-based access control
       tier: Premium
       comingSoon: false
 - categoryName: Monitoring
@@ -169,4 +178,7 @@
       comingSoon: true
     - name: Manage osquery extensions remotely
       tier: Premium
+      comingSoon: false
+    - name: Managed Cloud
+      tier: Ultimate
       comingSoon: false

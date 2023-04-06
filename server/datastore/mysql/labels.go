@@ -506,12 +506,14 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
+	  %s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
+	%s
 	`
 	failingPoliciesSelect := `,
 		COALESCE(failing_policies.count, 0) AS failing_policies_count,
@@ -527,7 +529,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		failingPoliciesJoin = ""
 	}
 
-	query := fmt.Sprintf(queryFmt, failingPoliciesSelect, failingPoliciesJoin)
+	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, hostMDMJoin, failingPoliciesJoin)
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
@@ -547,10 +549,6 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
 
-	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		query += ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
-	}
-
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	if opt.LowDiskSpaceFilter != nil {
 		query += ` AND hd.gigs_disk_space_available < ? `
@@ -560,6 +558,8 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
 	query, params = filterHostsByMDM(query, opt, params)
+	query, params = filterHostsByMacOSSettingsStatus(query, opt, params)
+	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query = appendListOptionsToSQL(query, &opt.ListOptions)
@@ -571,6 +571,8 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
  	`
+
+	query += hostMDMJoin
 
 	if opt.LowDiskSpaceFilter != nil {
 		query += ` LEFT JOIN host_disks hd ON (h.id=hd.host_id) `

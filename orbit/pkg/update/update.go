@@ -72,15 +72,18 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 	ts[target] = t
 }
 
-// SetExtensionsTargetInfo sets/updates the TargetInfo for extension targets
-func (u *Updater) SetExtensionsTargetInfo(name, platform, channel, file string) {
+// SetTargetInfo sets/updates the TargetInfo for the given target.
+func (u *Updater) SetTargetInfo(name string, info TargetInfo) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	u.opt.Targets[name] = TargetInfo{
-		Platform:   platform,
-		Channel:    channel,
-		TargetFile: file,
-	}
+	u.opt.Targets[name] = info
+}
+
+// RemoveTargetInfo removes the TargetInfo for the given target.
+func (u *Updater) RemoveTargetInfo(name string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	delete(u.opt.Targets, name)
 }
 
 // TargetInfo holds all the information to track target updates.

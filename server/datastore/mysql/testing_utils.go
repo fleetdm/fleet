@@ -294,9 +294,11 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":         true,
-		"migration_status_tables": true,
-		"osquery_options":         true,
+		"app_config_json":           true,
+		"migration_status_tables":   true,
+		"osquery_options":           true,
+		"mdm_apple_delivery_status": true,
+		"mdm_apple_operation_types": true,
 	}
 	ctx := context.Background()
 
@@ -374,4 +376,41 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	if err := tw.Flush(); err != nil {
 		panic(err)
 	}
+}
+
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+	require.NoError(t, err)
+	defer rows.Close()
+
+	t.Logf(">> dumping table %s:", tableName)
+
+	var anyDst []any
+	var strDst []sql.NullString
+	var sb strings.Builder
+	for rows.Next() {
+		if anyDst == nil {
+			cols, err := rows.Columns()
+			require.NoError(t, err)
+			anyDst = make([]any, len(cols))
+			strDst = make([]sql.NullString, len(cols))
+			for i := 0; i < len(cols); i++ {
+				anyDst[i] = &strDst[i]
+			}
+			t.Logf("%v", cols)
+		}
+		require.NoError(t, rows.Scan(anyDst...))
+
+		sb.Reset()
+		for _, v := range strDst {
+			if v.Valid {
+				sb.WriteString(v.String)
+			} else {
+				sb.WriteString("NULL")
+			}
+			sb.WriteString("\t")
+		}
+		t.Logf("%s", sb.String())
+	}
+	t.Logf("<< dumping table %s completed", tableName)
 }

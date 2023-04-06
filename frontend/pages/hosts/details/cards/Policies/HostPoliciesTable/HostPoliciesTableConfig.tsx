@@ -2,7 +2,7 @@ import React from "react";
 import StatusIndicator from "components/StatusIndicator";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
-import { PolicyResponse } from "utilities/constants";
+import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
@@ -36,13 +36,13 @@ const getPolicyStatus = (policy: IHostPolicy): string => {
   } else if (policy.response === "fail") {
     return "No";
   }
-  return "---";
+  return DEFAULT_EMPTY_CELL_VALUE;
 };
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
-  togglePolicyDetails: (policy: IHostPolicy) => void
+  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void
 ): IDataColumn[] => {
   return [
     {

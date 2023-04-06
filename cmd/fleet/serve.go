@@ -19,8 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	scep_depot "github.com/micromdm/scep/v2/depot"
-
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
@@ -42,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -55,6 +54,7 @@ import (
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -105,15 +105,7 @@ the way that the Fleet server works.
 				applyDevFlags(&config)
 			}
 
-			if devLicense {
-				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
-			} else if devExpiredLicense {
-				// An expired license key
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
-			}
-
-			license, err := licensing.LoadLicense(config.License.Key)
+			license, err := initLicense(config, devLicense, devExpiredLicense)
 			if err != nil {
 				initFatal(
 					err,
@@ -125,21 +117,7 @@ the way that the Fleet server works.
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			var logger kitlog.Logger
-			{
-				output := os.Stderr
-				if config.Logging.JSON {
-					logger = kitlog.NewJSONLogger(output)
-				} else {
-					logger = kitlog.NewLogfmtLogger(output)
-				}
-				if config.Logging.Debug {
-					logger = level.NewFilter(logger, level.AllowDebug())
-				} else {
-					logger = level.NewFilter(logger, level.AllowInfo())
-				}
-				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-			}
+			logger := initLogger(config)
 
 			// Init tracing
 			if config.Logging.TracingEnabled {
@@ -184,7 +162,6 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -359,6 +336,9 @@ the way that the Fleet server works.
 				Filesystem: logging.FilesystemConfig{
 					EnableLogRotation:    config.Filesystem.EnableLogRotation,
 					EnableLogCompression: config.Filesystem.EnableLogCompression,
+					MaxSize:              config.Filesystem.MaxSize,
+					MaxAge:               config.Filesystem.MaxAge,
+					MaxBackups:           config.Filesystem.MaxBackups,
 				},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
@@ -542,18 +522,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if config.MDMApple.Enable {
-				if !config.MDM.IsAppleAPNsSet() || !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
-				// TODO: for now (dogfood), Apple BM must be set when MDM is enabled,
-				// but when the MDM will be production-ready, Apple BM will be
-				// optional.
-				if !config.MDM.IsAppleBMSet() {
-					initFatal(errors.New("Apple BM configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
+			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
 				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
@@ -565,7 +534,8 @@ the way that the Fleet server works.
 				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -574,11 +544,24 @@ the way that the Fleet server works.
 				initFatal(err, "saving app config")
 			}
 
+			// setup mail service
+			if appCfg.SMTPSettings.SMTPEnabled {
+				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
+				if config.Email.EmailBackend != "" {
+					config.Email.EmailBackend = ""
+					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+				}
+			}
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
+			}
+
 			cronSchedules := fleet.NewCronSchedules()
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
 			ctx, cancelFunc := context.WithCancel(baseCtx)
-			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
+			defer cancelFunc()
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
@@ -613,19 +596,66 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, depStorage)
+				svc, err = eeservice.NewService(
+					svc,
+					ds,
+					logger,
+					config,
+					mailService,
+					clock.C,
+					depStorage,
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					mdmPushCertTopic,
+				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}
 			}
 
+			// err = svc.RequestPasswordReset(context.Background(), "admin@fleetdm.com")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
+			// err = svc.ResetPassword(context.Background(), "dnF5N1QwUmdWNWhzeDhsUjQxdW5BRmtQRCtzS3FyMkk=", "password1234!")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
+
 			instanceID, err := server.GenerateRandomText(64)
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
+			level.Info(logger).Log("instanceID", instanceID)
+
+			// Perform a cleanup of cron_stats outside of the cronSchedules because the
+			// schedule package uses cron_stats entries to decide whether a schedule will
+			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
+			go func() {
+				cleanupCronStats := func() {
+					level.Debug(logger).Log("msg", "cleaning up cron_stats")
+					// Datastore.CleanupCronStats should be safe to run by multiple fleet
+					// instances at the same time and it should not be an expensive operation.
+					if err := ds.CleanupCronStats(ctx); err != nil {
+						level.Info(logger).Log("msg", "failed to clean up cron_stats", "err", err)
+					}
+				}
+
+				cleanupCronStats()
+
+				cleanUpCronStatsTick := time.NewTicker(1 * time.Hour)
+				defer cleanUpCronStatsTick.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-cleanUpCronStatsTick.C:
+						cleanupCronStats()
+					}
+				}
+			}()
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config)
 			}); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
@@ -636,10 +666,15 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
-			}); err != nil {
-				initFatal(err, "failed to register vulnerabilities schedule")
+			if !config.Vulnerabilities.DisableSchedule {
+				// vuln processing by default is run by internal cron mechanism
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+				}); err != nil {
+					initFatal(err, "failed to register vulnerabilities schedule")
+				}
+			} else {
+				level.Info(logger).Log("msg", "vulnerabilities schedule disabled")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -654,11 +689,26 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register integrations schedule")
 			}
 
-			if config.MDMApple.Enable {
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+				}
+			}
+
+			if appCfg.MDM.EnabledAndConfigured {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newMDMAppleProfileManager(
+						ctx,
+						instanceID,
+						ds,
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						logger,
+						config.Logging.Debug,
+					)
+				}); err != nil {
+					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
 				}
 			}
 
@@ -764,10 +814,10 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.MDMApple.Enable {
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
-					config.MDMApple.SCEP,
+					config.MDM,
 					mdmStorage,
 					scepStorage,
 					logger,
@@ -778,14 +828,18 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(
+				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
 					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
-				)
-				rootMux.Handle("/metrics", metricsHandler)
+				))
 			} else {
-				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				if config.Prometheus.BasicAuth.Disable {
+					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				} else {
+					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				}
 			}
 
 			rootMux.Handle("/api/", apiHandler)
@@ -902,6 +956,17 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
+	if devLicense {
+		// This license key is valid for development only
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
+	} else if devExpiredLicense {
+		// An expired license key
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
+	}
+	return licensing.LoadLicense(config.License.Key)
+}
+
 // basicAuthHandler wraps the given handler behind HTTP Basic Auth.
 func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
 	hashFn := func(s string) []byte {
@@ -988,6 +1053,13 @@ type devSQLInterceptor struct {
 	sqlmw.NullInterceptor
 
 	logger kitlog.Logger
+}
+
+func (in *devSQLInterceptor) ConnQueryContext(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	rows, err := conn.QueryContext(ctx, query, args)
+	in.logQuery(start, query, args, err)
+	return rows, err
 }
 
 func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {

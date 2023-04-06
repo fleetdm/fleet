@@ -39,6 +39,7 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
         <bundle id="{{.Identifier}}" path="" />
       </bundle-version>
     </pkg-ref>
+	<options customize="never" hostArchitectures="arm64,x86_64" require-scripts="false" allow-external-scripts="false" />
 </installer-gui-script>
 `))
 
@@ -119,6 +120,10 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		{{- if .FleetURL }}
 		<key>ORBIT_FLEET_URL</key>
 		<string>{{ .FleetURL }}</string>
+		{{- end }}
+		{{- if .UseSystemConfiguration }}
+		<key>ORBIT_USE_SYSTEM_CONFIGURATION</key>
+		<string>{{ .UseSystemConfiguration }}</string>
 		{{- end }}
 		{{- if .DisableUpdates }}
 		<key>ORBIT_DISABLE_UPDATES</key>

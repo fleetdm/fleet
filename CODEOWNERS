@@ -6,6 +6,9 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
+# Compliance
+/ee/cis/ @sharon-fdm @artemist-work @lucasmrod @marcosd4h @rachelElysia
+
 # React engineers are automatically added as reviewers when changes are made to react files
 /frontend/ @fleetdm/frontend
 
@@ -13,12 +16,13 @@ go.mod @fleetdm/go
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/terraform @zwinnerman-fleetdm @edwardsb @rfairburn
 
-# GitHub settings + actions + issue templates
-/.github/ @zwass @mikermcneil
+# GitHub issue templates
+/.github/ISSUE_TEMPLATE @mikermcneil
 
 # Codeowners file
-/CODEOWNERS @zwass @mikermcneil
+/CODEOWNERS @mikermcneil
 
 # Changelog
 /CHANGELOG.md @noahtalerman
@@ -31,10 +35,10 @@ go.mod @fleetdm/go
 /docs/Contributing/API-for-contributors.md @ksatter @lukeheath
 
 # Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @mikermcneil
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
 # Exapnded table documentation
-/schema @sharon-fdm 
+/schema @eashaw
 
 # Articles
 /articles @jarodreyes
@@ -48,10 +52,10 @@ go.mod @fleetdm/go
 # - CEO is DRI for pricing
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @zhumo @jarodreyes @alexmitchelliii @eashaw @mikermcneil
+/website/views/pages/pricing.ejs @mikermcneil
 
 # Website redirects and URLs
-/website/config/routes.js @eashaw @jarodreyes
+/website/config/routes.js @mikermcneil @eashaw
 
 # Website backend, scripts, deps
 /website/api/ @mikermcneil @eashaw
@@ -60,23 +64,25 @@ go.mod @fleetdm/go
 /website/package.json @mikermcneil @eashaw
 
 # GitHub brandfront
-/README.md @jarodreyes @mikermcneil
+/README.md @mikermcneil
 
 # NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @jarodreyes
+/tools/fleetctl-npm/README.md @mikermcneil
 
 # Handbook
 /handbook/company @mikermcneil
 /handbook/company/* @mikermcneil
-/handbook/business-operations @hollidayn
-/handbook/business-operations/ceo-handbook.md @charlottechance
-/handbook/business-operations/* @hollidayn
-/handbook/security @mikermcneil
-/handbook/engineering @zwass
+/handbook/business-operations @mikermcneil
+/handbook/business-operations/* @mikermcneil
+/handbook/engineering @lukeheath
+/handbook/engineering/* @lukeheath
 /handbook/product @zhumo
+/handbook/product/* @zhumo
 /handbook/customers @alexmitchelliii
+/handbook/customers/* @alexmitchelliii
 /handbook/marketing @jarodreyes
-/handbook/README.md @eashaw
+/handbook/marketing/* @jarodreyes
+/handbook/README.md @mikermcneil # « This is the "Table of contents"
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors

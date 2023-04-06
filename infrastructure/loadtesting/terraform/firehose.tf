@@ -1,16 +1,14 @@
 resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
   bucket = "${local.prefix}-loadtest-osquery-logs-archive"
-  acl    = "private"
 
-  lifecycle_rule {
-    enabled = true
-    expiration {
-      days = 1
-    }
-  }
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env
   #checkov:skip=CKV_AWS_21:dev env
+}
+
+resource "aws_s3_bucket_acl" "osquery-results" {
+  bucket = aws_s3_bucket.osquery-results.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-results" {
@@ -18,7 +16,19 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-results" 
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "osquery-results" {
+  bucket = aws_s3_bucket.osquery-results.id
+
+  rule {
+    id     = "rule-1"
+    status = "Enabled"
+    expiration {
+      days = 1
     }
   }
 }
@@ -34,18 +44,27 @@ resource "aws_s3_bucket_public_access_block" "osquery-results" {
 
 resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
   bucket = "${local.prefix}-loadtest-osquery-status-archive"
-  acl    = "private"
-
-  lifecycle_rule {
-    enabled = true
-    expiration {
-      days = 1
-    }
-  }
 
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env
   #checkov:skip=CKV_AWS_21:dev env
+}
+
+resource "aws_s3_bucket_acl" "osquery-status" {
+  bucket = aws_s3_bucket.osquery-status.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "osquery-status" {
+  bucket = aws_s3_bucket.osquery-status.id
+
+  rule {
+    id     = "rule-1"
+    status = "Enabled"
+    expiration {
+      days = 1
+    }
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-status" {
@@ -53,7 +72,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-status" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "aws:kms"
     }
   }
 }

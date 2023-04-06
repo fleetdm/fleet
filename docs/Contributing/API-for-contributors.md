@@ -531,7 +531,17 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-
+- [New configuration profile](#new-mdm-apple-configuration-profile)
+- [List configuration profiles](#list-mdm-apple-configuration-profiles)
+- [Download configuration profile](#download-mdm-apple-configuration-profile)
+- [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
+- [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Update Apple MDM settings](#update-apple-mdm-settings)
+- [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
+- [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
+- [Enqueue MDM command](#enqueue-mdm-command)
+- [Get MDM command results](#get-mdm-command-results)
 
 ### Get Apple MDM
 
@@ -650,7 +660,426 @@ Note that the `public_key` and `private_key` are base64 encoded and should be de
 }
 ```
 
-Note that the response fields are base64 encoded and should be decoded before writing them to files. Once base64-decoded, they are PEM-encoded certificate and keys.
+Note that the response fields are base64 encoded and should be decoded before writing them to files.
+Once base64-decoded, they are PEM-encoded certificate and keys.
+
+### New MDM Apple configuration profile
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                               |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+
+#### Example
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 42
+}
+```
+
+###### Additional notes
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier.
+
+
+### List MDM Apple configuration profiles
+
+Get a list of the configuration profiles stored in Fleet MDM. For Fleet Premium uses, the list can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profiles": [
+    {
+        "profile_id": 1337,
+        "team_id": 0,
+        "name": "Example profile",
+        "identifier": "com.example.profile",
+        "created_at": "2023-03-31T00:00:00Z",
+        "updated_at": "2023-03-31T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Download MDM Apple configuration profile
+
+`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Delete MDM Apple configuration profile
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+### Get MDM Apple profiles summary
+
+Get aggregate status counts of MDM profiles applying to hosts. For Fleet Premium uses, the summary can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "latest": 123,
+  "failing": 123,
+  "pending": 123
+}
+```
+
+
+### Batch-apply Apple MDM custom settings
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                                                                                                       |
+| ------------- | ------ | ----  | --------------------------------------------------------------------------------------                                            |
+| team_id       | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
+| team_name     | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
+| dry_run       | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| profiles      | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
+
+If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not part of a team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+##### Default response
+
+`204`
+
+### Update Apple MDM settings
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+##### Default response
+
+`204`
+
+
+### Download an enrollment profile using IdP authentication
+
+_Available in Fleet Premium_
+
+This endpoint returns an enrollment profile after validating the provided username/password combination with a configured identity provider.
+
+Currently, the only IdP supported is Okta.
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                                  |
+| -------- | ------ | ---- | ------------------------------------------------------------ |
+| username | string | body | **Required** The username used to authenticate this request. |
+| password | string | body | **Required** The password used to authenticate this request. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+##### Default response
+
+`Status: 200`
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Get Apple disk encryption summary
+
+_Available in Fleet Premium_
+
+This endpoint returns a summary of the disk encryption profiles aggregate status counts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
+### Enqueue MDM command
+
+This endpoint enqueues an MDM command to be executed on a list of hosts identified by their UUID.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
+```
+
+### Get MDM command results
+
+This endpoint returns the results for an MDM command.
+
+`GET /api/v1/fleet/mdm/apple/commandresults`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string | query | The unique identifier of the command.                                     |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+    "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+    "status": "Acknowledged",
+    "updated_at": "2023-04-04:00:00Z",
+    "request_type": "ProfileList",
+    "hostname": "mycomputer",
+    "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+  ]
+}
+```
 
 ## Get or apply configuration files
 
@@ -1146,14 +1575,21 @@ If the `name` is not already associated with an existing team, this API route cr
 
 #### Parameters
 
-| Name          | Type   | In    | Description                                                                                                                                                                                                                         |
-| ------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
-| agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
-| features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
-| force         | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
-| dry_run       | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
+| Name                                      | Type   | In    | Description                                                                                                                                                                                                                         |
+| -------------                             | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name                                      | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
+| agent_options                             | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
+| features                                  | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
+| secrets                                   | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
+| mdm                                       | object | body  | The team's MDM configuration options.                                                                                                                                                                                               |
+| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge. |
+| mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version. |
+| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version. |
+| mdm.macos_settings                        | object | body  | The macOS-specific MDM settings. |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team. |
+| mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team. |
+| force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
+| dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
 #### Example
 
@@ -1202,7 +1638,17 @@ If the `name` is not already associated with an existing team, this API route cr
         {
           "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On"
         }
-      ]
+      ],
+      "mdm": {
+        "macos_updates": {
+          "minimum_version": "12.3.1",
+          "deadline": "2023-12-01"
+        },
+        "macos_settings": {
+          "custom_settings": ["path/to/profile1.mobileconfig"],
+          "enable_disk_encryption": true
+        }
+      }
     }
   ]
 }
@@ -2270,7 +2716,26 @@ Returns the host information about the device that makes the request.
         "cycle_count": 999,
         "health": "Good"
       }
-    ]
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
+    }
   },
   "org_logo_url": "https://example.com/logo.jpg",
   "license": {

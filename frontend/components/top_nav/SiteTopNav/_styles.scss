@@ -3,10 +3,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-left: 2px;
 }
 
 .site-nav-list {
   list-style: none;
+  height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
@@ -71,6 +73,10 @@
     text-decoration: none;
   }
 
+  &__logo-wrapper {
+    overflow: hidden;
+  }
+
   &__logo {
     text-align: center;
     display: flex;
@@ -82,24 +88,24 @@
   }
 
   &--active {
-    border-bottom: 3px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
+
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: $core-vibrant-blue;
+    }
 
     &:hover {
       background-color: $site-nav-on-hover;
     }
 
-    .site-nav-item__link {
-      padding-bottom: 12px;
-    }
-
     .site-nav-item__name {
       font-weight: $bold;
-    }
-
-    .site-nav-item__logo img {
-      position: relative;
-      top: 4px;
     }
   }
 }

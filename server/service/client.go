@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -221,7 +222,13 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 // ApplyGroup applies the given spec group to Fleet.
-func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{}), opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyGroup(
+	ctx context.Context,
+	specs *spec.Group,
+	baseDir string,
+	logf func(format string, args ...interface{}),
+	opts fleet.ApplySpecOptions,
+) error {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
@@ -253,6 +260,12 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		if opts.DryRun {
 			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			// If set, override the team in all the policies.
+			if opts.TeamForPolicies != "" {
+				for _, policySpec := range specs.Policies {
+					policySpec.Team = opts.TeamForPolicies
+				}
+			}
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
 				return fmt.Errorf("applying policies: %w", err)
 			}
@@ -272,6 +285,21 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if specs.AppConfig != nil {
+		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
+			files := resolveMacOSCustomSettingsPaths(baseDir, macosCustomSettings)
+
+			fileContents := make([][]byte, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				fileContents[i] = b
+			}
+			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
+				return fmt.Errorf("applying custom settings: %w", err)
+			}
+		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -294,8 +322,36 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if len(specs.Teams) > 0 {
+		// extract the teams' custom settings and resolve the files immediately, so
+		// that any non-existing file error is found before applying the specs.
+		tmMacSettings := extractTmSpecsMacOSCustomSettings(specs.Teams)
+
+		tmFileContents := make(map[string][][]byte, len(tmMacSettings))
+		for k, paths := range tmMacSettings {
+			files := resolveMacOSCustomSettingsPaths(baseDir, paths)
+			fileContents := make([][]byte, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				fileContents[i] = b
+			}
+			tmFileContents[k] = fileContents
+		}
+
+		// Next, apply the teams specs before saving the profiles, so that any
+		// non-existing team gets created.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
+		}
+
+		if len(tmFileContents) > 0 {
+			for tmName, profs := range tmFileContents {
+				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
+					return fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				}
+			}
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))
@@ -315,4 +371,92 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		}
 	}
 	return nil
+}
+
+func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
+	if baseDir == "" {
+		return paths
+	}
+
+	resolved := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(baseDir, p)
+		}
+		resolved = append(resolved, p)
+	}
+	return resolved
+}
+
+func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mos, ok := mmdm["macos_settings"].(map[string]interface{})
+	if !ok || mos == nil {
+		return nil
+	}
+
+	cs, ok := mos["custom_settings"]
+	if !ok {
+		// custom settings is not present
+		return nil
+	}
+
+	csAny, ok := cs.([]interface{})
+	if !ok || csAny == nil {
+		// return a non-nil, empty slice instead, so the caller knows that the
+		// custom_settings key was actually provided.
+		return []string{}
+	}
+
+	csStrings := make([]string, 0, len(csAny))
+	for _, v := range csAny {
+		s, _ := v.(string)
+		if s != "" {
+			csStrings = append(csStrings, s)
+		}
+	}
+	return csStrings
+}
+
+// returns the custom settings keyed by team name.
+func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
+	var m map[string][]string
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name string `json:"name"`
+			MDM  struct {
+				MacOSSettings struct {
+					CustomSettings json.RawMessage `json:"custom_settings"`
+				} `json:"macos_settings"`
+			} `json:"mdm"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		if spec.Name != "" && len(spec.MDM.MacOSSettings.CustomSettings) > 0 {
+			if m == nil {
+				m = make(map[string][]string)
+			}
+			var cs []string
+			if err := json.Unmarshal(spec.MDM.MacOSSettings.CustomSettings, &cs); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if cs == nil {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				cs = []string{}
+			}
+			m[spec.Name] = cs
+		}
+	}
+	return m
 }

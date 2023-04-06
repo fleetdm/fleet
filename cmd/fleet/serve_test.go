@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -22,10 +24,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/micromdm/nanodep/tokenpki"
+	"go.mozilla.org/pkcs7"
 
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -265,7 +271,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
@@ -348,6 +354,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		expected := `
 {
   "cve": "CVE-2022-39348",
+  "cve_published": "2022-10-26T14:15:00Z",
   "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-39348",
   "epss_probability": 0.0089,
   "cvss_score": 5.4,
@@ -381,7 +388,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		iterator := &softwareIterator{
 			softwares: []*fleet.Software{
 				{
@@ -404,10 +411,16 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
-		return 1, nil
+	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		return true, nil
 	}
-	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
@@ -971,4 +984,87 @@ func (j *jsonLogger) Write(ctx context.Context, logs []json.RawMessage) error {
 		j.logs = append(j.logs, string(log))
 	}
 	return nil
+}
+
+func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+
+	now := time.Now()
+
+	t.Run("able to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{
+				{HostID: 1, Base64Encrypted: base64EncryptedKey, UpdatedAt: now},
+				{HostID: 2, Base64Encrypted: base64EncryptedKey, UpdatedAt: now.Add(time.Hour)},
+				{HostID: 3, Base64Encrypted: "BAD-KEY", UpdatedAt: now.Add(-time.Hour)},
+			}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error {
+			calls++
+			require.Equal(t, now.Add(time.Hour), threshold)
+
+			// first call, decryptable values
+			if decryptable {
+				require.EqualValues(t, []uint{1, 2}, hostIDs)
+				return nil
+			}
+
+			// second call, non-decryptable values
+			require.EqualValues(t, []uint{3}, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("unable to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
+			calls++
+			if !encryptable {
+				require.EqualValues(t, []uint{1}, hostIDs)
+				return nil
+			}
+			require.Empty(t, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
 }

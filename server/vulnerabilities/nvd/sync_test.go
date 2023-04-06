@@ -2,6 +2,7 @@ package nvd
 
 import (
 	"context"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,7 +47,9 @@ func TestLoadCVEMeta(t *testing.T) {
 	}
 
 	logger := log.NewNopLogger()
-	err := LoadCVEMeta(logger, "../testdata", ds)
+	err := LoadCVEMeta(license.NewContext(context.Background(), &fleet.LicenseInfo{
+		Tier: "premium",
+	}), logger, "../testdata", ds)
 	require.NoError(t, err)
 	require.True(t, ds.InsertCVEMetaFuncInvoked)
 

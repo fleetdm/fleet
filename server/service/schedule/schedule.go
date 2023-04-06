@@ -152,6 +152,10 @@ func New(
 	for _, fn := range opts {
 		fn(sch)
 	}
+	if sch.logger == nil {
+		sch.logger = log.NewNopLogger()
+	}
+	sch.logger = log.With(sch.logger, "instanceID", instanceID)
 	return sch
 }
 
@@ -182,7 +186,7 @@ func (s *Schedule) Start() {
 		}()
 
 		for {
-			level.Debug(s.logger).Log("waiting", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
+			level.Debug(s.logger).Log("msg", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
 
 			select {
 			case <-s.ctx.Done():
@@ -191,7 +195,7 @@ func (s *Schedule) Start() {
 				return
 
 			case <-s.trigger:
-				level.Debug(s.logger).Log("waiting", "done, trigger received")
+				level.Debug(s.logger).Log("msg", "done, trigger received")
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
@@ -224,14 +228,13 @@ func (s *Schedule) Start() {
 					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
-					level.Debug(s.logger).Log("waiting", fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
-					continue
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
 				}
 
 				cancelHold()
 
 			case <-schedTicker.C:
-				level.Debug(s.logger).Log("waiting", "done, tick received")
+				level.Debug(s.logger).Log("msg", "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
@@ -247,6 +250,7 @@ func (s *Schedule) Start() {
 
 				if prevScheduledRun.Status == fleet.CronStatsStatusPending || prevTriggeredRun.Status == fleet.CronStatsStatusPending {
 					// skip ahead to the next interval
+					level.Info(s.logger).Log("msg", fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
 					schedTicker.Reset(schedInterval)
 					continue
 				}
@@ -261,7 +265,9 @@ func (s *Schedule) Start() {
 
 				if time.Since(intervalStartedAt) < schedInterval {
 					// wait for the remaining interval plus a small buffer
-					schedTicker.Reset(s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond)
+					newWait := s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond
+					level.Info(s.logger).Log("msg", fmt.Sprintf("wait remaining interval %v", newWait))
+					schedTicker.Reset(newWait)
 					continue
 				}
 
@@ -270,7 +276,7 @@ func (s *Schedule) Start() {
 					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
-					level.Debug(s.logger).Log("waiting", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
 					continue
 				}
 

@@ -1,1 +1,0 @@
-* Added the `GET /device/{token}/mdm/apple/manual_enrollment_profile` endpoint to allow downloading the manual MDM enrollment profile from the "My Device" page in Fleet Desktop.

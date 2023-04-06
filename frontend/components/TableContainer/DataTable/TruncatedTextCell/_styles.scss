@@ -1,4 +1,7 @@
 .truncated-cell {
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
   .data-table__truncated-text {
     &--cell {
       display: inline-block;

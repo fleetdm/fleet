@@ -1,0 +1,1 @@
+* Fixed an issue affecting macOS devices with MDM enabled that prevented Orbit for restarting if Nudge was still open.

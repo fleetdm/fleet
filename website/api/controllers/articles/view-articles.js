@@ -49,6 +49,18 @@ module.exports = {
         }
       });
     }
+    // Set a currentSection variable for the website header based on how the articles category page is linked to in the header navigation dropdown menus.
+    let currentSection;
+    if(category === 'success-stories'){
+      // If the category is success-stories, highlight the "Platform" dropdown.
+      currentSection = 'platform';
+    } else if(_.contains(['deploy','guides','releases'], category)) {
+      // If the category is deploy, guides, or release, highlight the "Documentation" dropdown.
+      currentSection = 'documentation';
+    } else {
+      // If the category is anything else, highlight the "Community" dropdown.
+      currentSection = 'community';
+    }
 
     return {
       path: require('path'),
@@ -56,6 +68,7 @@ module.exports = {
       category,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
+      currentSection,
     };
 
   }

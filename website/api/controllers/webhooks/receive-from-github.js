@@ -20,10 +20,11 @@ module.exports = {
     comment: { type: {} },
     pull_request: { type: {} },//eslint-disable-line camelcase
     label: { type: {} },
+    release: { type: {} },
   },
 
 
-  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release}) {
 
     // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
     // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
@@ -64,7 +65,6 @@ module.exports = {
       'drewbakerfdm',
       'lucasmrod',
       'ksatter',
-      'charlottechance',
       'zwinnerman-fleetdm',
       'hollidayn',
       'roperzh',
@@ -191,6 +191,7 @@ module.exports = {
       //  ██║███████║███████║╚██████╔╝███████╗    ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝
       //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝     ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝
       //
+      //
       // Handle closed issue by commenting on it.
       let owner = repository.owner.login;
       let repo = repository.name;
@@ -205,23 +206,39 @@ module.exports = {
         throw new Error('sails.config.custom.openAiSecret not set.  Cannot respond with haiku.');
       }//•
 
+      // Generate haiku
+      let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
+      let MAX_TOKENS = 8000;// (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
+
       // Grab issue title and body, then truncate the length of the body so that it fits
       // within the maximum length tolerated by OpenAI.  Then combine those into a prompt
       // generate a haiku based on this issue.
-      let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, 2000);
+      let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, MAX_TOKENS);
 
-      // Generate haiku
-      // [?] https://beta.openai.com/docs/api-reference/completions/create
-      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/completions', {
-        model: 'text-davinci-003',
-        prompt: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+      // [?] API: https://platform.openai.com/docs/api-reference/chat/create
+      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
+        model: BASE_MODEL,
+        messages: [// https://platform.openai.com/docs/guides/chat/introduction
+          {
+            role: 'user',
+            content: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+          }
+        ],
         temperature: 0.7,
         max_tokens: 256//eslint-disable-line camelcase
       }, {
         Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+      })
+      .tolerate((err)=>{
+        sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
       });
-      newBotComment = openAiReport.choices[0].text;
-      newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+
+      if (!openAiReport) {// If OpenAI could not be reached…
+        newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
+      } else {// Otherwise, haiku was successfully generated…
+        newBotComment = openAiReport.choices[0].message.content;
+        newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+      }
 
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
@@ -296,14 +313,14 @@ module.exports = {
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
+          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
+          return { frozen: false };
+        });
         sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
-        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
-          // TODO: Remove this timeboxed hack to consider the repo frozen
-          // for a while as a workaround for an issue where the MergeFreeze API
-          // reports that the repo is not frozen, when it actually is frozen.
-          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
-        );
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
 
         // Add the #handbook label to PRs that only make changes to the handbook.
         if(isHandbookPR) {
@@ -322,7 +339,8 @@ module.exports = {
 
           // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
           // (or maybe never did contain) changes to freezeworthy files.
-          if (isMainBranchFrozen) {
+          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+          if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
             sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
@@ -346,7 +364,8 @@ module.exports = {
         } else {
           // If "main" is explicitly frozen, then freeze this PR because it now contains
           // (or maybe always did contain) changes to freezeworthy files.
-          if (isMainBranchFrozen) {
+          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+          if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
             sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
@@ -452,6 +471,39 @@ module.exports = {
       )
       .timeout(5000)
       .retry([{name: 'TimeoutError'}, 'non200Response', 'requestFailed']);
+    } else if(ghNoun === 'release' && ['published'].includes(action) ) {
+      //  ██████╗ ███████╗██╗     ███████╗ █████╗ ███████╗███████╗███████╗
+      //  ██╔══██╗██╔════╝██║     ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝
+      //  ██████╔╝█████╗  ██║     █████╗  ███████║███████╗█████╗  ███████╗
+      //  ██╔══██╗██╔══╝  ██║     ██╔══╝  ██╔══██║╚════██║██╔══╝  ╚════██║
+      //  ██║  ██║███████╗███████╗███████╗██║  ██║███████║███████╗███████║
+      //  ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+      //
+      // Handle new Fleet releases by sending a POST request to Zapier to
+      // trigger an automation that updates Slack channel topics with the latest version of Fleet.
+      let owner = repository.owner.login;
+      let repo = repository.name;
+
+      // Only continue if this release came from the fleetdm/fleet repo,
+      if(owner === 'fleetdm' && repo === 'fleet') {
+        // Only send requests for releases with tag names that start with 'fleet'
+        if(release && _.startsWith(release.tag_name, 'fleet-v')) {
+          // Send a POST request to Zapier with the release object.
+          await sails.helpers.http.post.with({
+            url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
+            data: {
+              'release': release,
+              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+            }
+          })
+          .timeout(5000)
+          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+            sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+            return;
+          });
+        }
+      }//ﬁ
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
       //  ████╗ ████║██║██╔════╝██╔════╝

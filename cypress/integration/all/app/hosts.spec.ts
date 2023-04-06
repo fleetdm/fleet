@@ -161,27 +161,6 @@ describe("Hosts flow", () => {
         cy.getAttached(".button--text-link").first().click();
       });
     });
-    it("runs query on an existing host", () => {
-      cy.getAttached(".host-details__action-button-container").within(() => {
-        cy.getAttached('img[alt="Query host icon"]').click();
-      });
-
-      cy.getAttached(".select-query-modal__modal").within(() => {
-        cy.getAttached(".modal-query-button").eq(2).click();
-      });
-
-      cy.getAttached(".query-form__button-wrap--new-query").within(() => {
-        cy.findByText(/run query/i)
-          .should("exist")
-          .click();
-      });
-      cy.getAttached(".query-page__wrapper").within(() => {
-        cy.getAttached(".data-table").within(() => {
-          cy.findByText(hostname).should("exist");
-        });
-        cy.findByText(/run/i).click();
-      });
-    });
     it("renders and searches the host's users", () => {
       cy.getAttached(".section--users").within(() => {
         cy.getAttached("tbody>tr").should("have.length.greaterThan", 0);
@@ -278,9 +257,5 @@ describe("Hosts flow", () => {
         });
       }
     );
-    it("deletes an existing host", () => {
-      hostDetailsPage.allowsDeleteHost();
-      hostDetailsPage.verifiesDeletedHost(hostname);
-    });
   });
 });

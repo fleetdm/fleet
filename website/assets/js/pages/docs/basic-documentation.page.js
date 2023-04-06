@@ -10,7 +10,7 @@ parasails.registerPage('basic-documentation', {
     inputTimers: {},
     searchString: '',
     showDocsNav: false,
-
+    currentDocsSection: '',
     breadcrumbs: [],
     pages: [],
     pagesBySectionSlug: {},
@@ -81,6 +81,12 @@ parasails.registerPage('basic-documentation', {
   },
 
   mounted: async function() {
+
+    // Set a currentDocsSection value to display different Fleet premium CTAs based on what section is being viewed.
+    if(!this.isDocsLandingPage){
+      this.currentDocsSection = this.thisPage.url.split(/\//).slice(-2)[0];
+    }
+
     // Algolia DocSearch
     if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
       docsearch({
@@ -114,10 +120,10 @@ parasails.registerPage('basic-documentation', {
       let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
-        let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
+        let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
         return {
           title,
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
+          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
         };
       });
       return subtopics;
@@ -171,20 +177,22 @@ parasails.registerPage('basic-documentation', {
     for(let key in Object.values(headingsOnThisPage)){
       let heading = headingsOnThisPage[key];
       $(heading).click(()=> {
-        // Find the child <a> element
-        let linkToCopy = _.first($(heading).find('a.markdown-link'));
-        // If this heading has already been clicked and still has the copied class we'll just ignore this click
-        if(!$(heading).hasClass('copied')){
-          // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
-          if(linkToCopy) {
-            navigator.clipboard.writeText(linkToCopy.href);
-          } else {
-            navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+        if(typeof navigator.clipboard !== 'undefined') {
+          // Find the child <a> element
+          let linkToCopy = _.first($(heading).find('a.markdown-link'));
+          // If this heading has already been clicked and still has the copied class we'll just ignore this click
+          if(!$(heading).hasClass('copied')){
+            // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+            if(linkToCopy) {
+              navigator.clipboard.writeText(linkToCopy.href);
+            } else {
+              navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+            }
+            // Add the copied class to the header to notify the user that the link has been copied.
+            $(heading).addClass('copied');
+            // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+            setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
           }
-          // Add the copied class to the header to notify the user that the link has been copied.
-          $(heading).addClass('copied');
-          // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
-          setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
         }
       });
     }

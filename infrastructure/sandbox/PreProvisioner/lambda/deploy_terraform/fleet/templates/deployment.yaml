@@ -50,10 +50,12 @@ spec:
             memory: {{ .Values.resources.requests.memory }}
         env:
           ## BEGIN FLEET SECTION
+          - name: FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED
+            value: "true"
+          - name: FLEET_SESSION_DURATION
+            value: "1y"
           - name: FLEET_SERVER_SANDBOX_ENABLED
             value: "1"
-          - name: FLEET_VULNERABILITIES_PERIODICITY
-            value: "15m"
           - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
             value: "true"
           - name: FLEET_VULNERABILITIES_DATABASES_PATH

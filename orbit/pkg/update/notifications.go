@@ -35,6 +35,10 @@ type RenewEnrollmentProfileConfigFetcher struct {
 	lastRun time.Time
 }
 
+func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
+	return &RenewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+}
+
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the renew enrollment profile flag to true, executes the command
 // to renew the enrollment profile.

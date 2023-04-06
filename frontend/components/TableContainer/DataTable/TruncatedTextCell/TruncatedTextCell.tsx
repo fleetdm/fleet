@@ -2,6 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITruncatedTextCellProps {
   value: string | number | boolean;
@@ -28,7 +29,7 @@ const TruncatedTextCell = ({
 
   const tooltipId = uniqueId();
   const tooltipDisabled = offsetWidth === scrollWidth;
-
+  const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
   return (
     <div ref={ref} className={`${baseClass} ${classes}`}>
       <div
@@ -39,8 +40,8 @@ const TruncatedTextCell = ({
       >
         <span
           className={`data-table__truncated-text--cell ${
-            tooltipDisabled ? "" : "truncated"
-          }`}
+            isDefaultValue ? "text-muted" : ""
+          } ${tooltipDisabled ? "" : "truncated"}`}
         >
           {value}
         </span>

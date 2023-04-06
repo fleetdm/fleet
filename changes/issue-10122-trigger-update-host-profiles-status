@@ -1,0 +1,1 @@
+* Added updating the hosts' profiles to "pending" immediately after an action that affects their list of profiles, such as moving to another team, a profile being added, etc.

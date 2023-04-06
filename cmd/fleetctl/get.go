@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -289,6 +291,7 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
+			getMDMCommandResultsCommand(),
 		},
 	}
 }
@@ -638,6 +641,14 @@ func getHostsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  "mdm",
+				Usage: "Filters hosts by hosts that have MDM turned on in Fleet and are connected to Fleet's MDM server.",
+			},
+			&cli.BoolFlag{
+				Name:  "mdm-pending",
+				Usage: "Filters hosts by hosts ordered via Apple Business Manager (ABM). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -652,6 +663,31 @@ func getHostsCommand() *cli.Command {
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint("team"); teamID > 0 {
 					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+				}
+
+				if c.Bool("mdm") || c.Bool("mdm-pending") {
+					// print an error if MDM is not configured
+					if err := checkMDMEnabled(client); err != nil {
+						return err
+					}
+
+					// --mdm and --mdm-pending are mutually exclusive, return an error if
+					// both are set (one returns the enrolled hosts, the other the pending
+					// to be enrolled, so it would always return an empty list).
+					if c.Bool("mdm") && c.Bool("mdm-pending") {
+						return errors.New("cannot use --mdm and --mdm-pending together")
+					}
+
+					if c.Bool("mdm") {
+						// hosts enrolled (automatic or manual) in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+					}
+					if c.Bool("mdm-pending") {
+						// hosts pending enrollment in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusPending))
+					}
 				}
 				queryStr := query.Encode()
 
@@ -1071,9 +1107,8 @@ func getSoftwareCommand() *cli.Command {
 
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple"},
+		Name:    "mdm-apple",
+		Aliases: []string{"mdm_apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1108,10 +1143,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mobile-device-management#apple-push-notification-service-apns")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mobile-device-management#apple-push-notification-service-apns")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#renewing-apns")
 			}
 
 			return nil
@@ -1121,9 +1156,8 @@ func getMDMAppleCommand() *cli.Command {
 
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple_bm",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple-bm"},
+		Name:    "mdm-apple-bm",
+		Aliases: []string{"mdm_apple_bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1168,6 +1202,70 @@ func getMDMAppleBMCommand() *cli.Command {
 				// certificate will soon expire, print a warning
 				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandResultsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-command-results",
+		Aliases: []string{"mdm_command_results"},
+		Usage:   "Retrieve results for a specific MDM command.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+			&cli.StringFlag{
+				Name:     "id",
+				Usage:    "Filter MDM commands by ID.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := checkMDMEnabled(client); err != nil {
+				return err
+			}
+
+			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The command doesn't exist. Please provide a valid command ID.")
+					// TODO(mna): once fleetctl get mdm-commands is implemented, reintroduce this section at the end of the message:
+					//   To see a list of commands that were run, run `fleetct get mdm-commands`.
+				}
+
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to view the results of this MDM command for at least one of the hosts: %w", err)
+					}
+				}
+				return err
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range res {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+					string(r.Result),
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
 
 			return nil
 		},

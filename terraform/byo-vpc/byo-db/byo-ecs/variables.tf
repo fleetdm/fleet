@@ -11,16 +11,18 @@ variable "vpc_id" {
 
 variable "fleet_config" {
   type = object({
-    mem                         = optional(number, 512)
-    cpu                         = optional(number, 256)
-    image                       = optional(string, "fleetdm/fleet:v4.22.1")
-    family                      = optional(string, "fleet")
-    extra_environment_variables = optional(map(string), {})
-    extra_iam_policies          = optional(list(string), [])
-    extra_secrets               = optional(map(string), {})
-    security_groups             = optional(list(string), null)
-    security_group_name         = optional(string, "fleet")
-    iam_role_arn                = optional(string, null)
+    mem                          = optional(number, 4096)
+    cpu                          = optional(number, 512)
+    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    family                       = optional(string, "fleet")
+    sidecars                     = optional(list(any), [])
+    extra_environment_variables  = optional(map(string), {})
+    extra_iam_policies           = optional(list(string), [])
+    extra_execution_iam_policies = optional(list(string), [])
+    extra_secrets                = optional(map(string), {})
+    security_groups              = optional(list(string), null)
+    security_group_name          = optional(string, "fleet")
+    iam_role_arn                 = optional(string, null)
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -87,16 +89,18 @@ variable "fleet_config" {
     })
   })
   default = {
-    mem                         = 512
-    cpu                         = 256
-    image                       = "fleetdm/fleet:v4.22.1"
-    family                      = "fleet"
-    extra_environment_variables = {}
-    extra_iam_policies          = []
-    extra_secrets               = {}
-    security_groups             = null
-    security_group_name         = "fleet"
-    iam_role_arn                = null
+    mem                          = 512
+    cpu                          = 256
+    image                        = "fleetdm/fleet:v4.22.1"
+    family                       = "fleet"
+    sidecars                     = []
+    extra_environment_variables  = {}
+    extra_iam_policies           = []
+    extra_execution_iam_policies = []
+    extra_secrets                = {}
+    security_groups              = null
+    security_group_name          = "fleet"
+    iam_role_arn                 = null
     service = {
       name = "fleet"
     }

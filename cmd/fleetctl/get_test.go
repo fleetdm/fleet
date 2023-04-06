@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +16,7 @@ import (
 	"github.com/ghodss/yaml"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -162,53 +166,31 @@ func TestGetTeams(t *testing.T) {
 				}, nil
 			}
 
-			expectedText := `+-----------+------------+------------+
-| TEAM NAME | HOST COUNT | USER COUNT |
-+-----------+------------+------------+
-| team1     |         42 |         99 |
-+-----------+------------+------------+
-| team2     |         43 |         87 |
-+-----------+------------+------------+
-`
-			expectedYaml := `---
-apiVersion: v1
-kind: team
-spec:
-  team:
-    features:
-      enable_host_users: true
-      enable_software_inventory: true
-    mdm:
-      macos_updates:
-        minimum_version: ""
-        deadline: ""
-    name: team1
----
-apiVersion: v1
-kind: team
-spec:
-  team:
-    agent_options:
-      config:
-        foo: bar
-      overrides:
-        platforms:
-          darwin:
-            foo: override
-    features:
-      additional_queries:
-        foo: bar
-      enable_host_users: false
-      enable_software_inventory: false
-    mdm:
-      macos_updates:
-        minimum_version: "12.3.1"
-        deadline: "2021-12-14"
-    name: team2
-`
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"user_count":99,"host_count":42}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"user_count":87,"host_count":43}}}
-`
+			b, err := ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
+			require.NoError(t, err)
+			expectedText := string(b)
+
+			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
+			require.NoError(t, err)
+			expectedYaml := string(b)
+
+			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
+			require.NoError(t, err)
+			// must read each JSON value separately and compact it
+			var buf bytes.Buffer
+			dec := json.NewDecoder(bytes.NewReader(b))
+			for {
+				var raw json.RawMessage
+				if err := dec.Decode(&raw); err != nil {
+					if err == io.EOF {
+						break
+					}
+					require.NoError(t, err)
+				}
+				require.NoError(t, json.Compact(&buf, raw))
+				buf.WriteByte('\n')
+			}
+			expectedJson := buf.String()
 
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -216,6 +198,8 @@ spec:
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			// cannot use assert.JSONEq like we do for YAML because this is not a
+			// single JSON value, it is a list of 2 JSON objects.
 			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
 
 			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
@@ -259,6 +243,10 @@ func TestGetTeamsByName(t *testing.T) {
 
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -368,6 +356,16 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+---------+
 `
 
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
+
+	_, err := runAppNoChecks([]string{"get", "hosts", "--mdm"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "MDM features aren't turned on")
+
+	_, err = runAppNoChecks([]string{"get", "hosts", "--mdm-pending"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "MDM features aren't turned on")
+
 	jsonPrettify := func(t *testing.T, v string) string {
 		var i interface{}
 		err := json.Unmarshal([]byte(v), &i)
@@ -439,8 +437,113 @@ func TestGetHosts(t *testing.T) {
 			}
 		})
 	}
+}
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
+func TestGetHostsMDM(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
+	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)
+		hosts := []*fleet.Host{
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host",
+				Hostname:        "test_host",
+				Additional:      &additional,
+			},
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host2",
+				Hostname:        "test_host2",
+			},
+		}
+		return hosts, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return make([]*fleet.Label, 0), nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return make([]*fleet.Pack, 0), nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		goldenFile string
+		wantErr    string
+	}{
+		{
+			name:    "get hosts --mdm --mdm-pending",
+			args:    []string{"get", "hosts", "--mdm", "--mdm-pending"},
+			wantErr: "cannot use --mdm and --mdm-pending together",
+		},
+		{
+			name:       "get hosts --mdm --json",
+			args:       []string{"get", "hosts", "--mdm", "--json"},
+			goldenFile: "expectedListHostsMDM.json",
+		},
+		{
+			name:       "get hosts --mdm-pending --yaml",
+			args:       []string{"get", "hosts", "--mdm-pending", "--yaml"},
+			goldenFile: "expectedListHostsYaml.yml",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := runAppNoChecks(tt.args)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.goldenFile != "" {
+				expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+				require.NoError(t, err)
+				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
+					// the output of --json is not a json array, but a list of
+					// newline-separated json objects. fix that for the assertion,
+					// turning it into a JSON array.
+					actual := "[" + strings.ReplaceAll(got.String(), "}\n{", "},{") + "]"
+					require.JSONEq(t, string(expected), actual)
+				} else {
+					require.YAMLEq(t, string(expected), got.String())
+				}
+			}
+		})
+	}
 }
 
 func TestGetConfig(t *testing.T) {
@@ -454,166 +557,13 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	t.Run("AppConfig", func(t *testing.T) {
-		expectedYaml := `---
-apiVersion: v1
-kind: config
-spec:
-  fleet_desktop:
-    transparency_url: https://fleetdm.com/transparency
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  features:
-    enable_host_users: true
-    enable_software_inventory: false
-  integrations:
-    jira: null
-    zendesk: null
-  mdm:
-    apple_bm_terms_expired: false
-    enabled_and_configured: false
-    apple_bm_default_team: ""
-    macos_updates:
-      minimum_version: ""
-      deadline: ""
-  org_info:
-    org_logo_url: ""
-    org_name: ""
-  server_settings:
-    deferred_save_host: false
-    enable_analytics: false
-    live_query_disabled: false
-    server_url: ""
-  smtp_settings:
-    authentication_method: ""
-    authentication_type: ""
-    configured: false
-    domain: ""
-    enable_smtp: false
-    enable_ssl_tls: false
-    enable_start_tls: false
-    password: ""
-    port: 0
-    sender_address: ""
-    server: ""
-    user_name: ""
-    verify_ssl_certs: false
-  sso_settings:
-    enable_jit_provisioning: false
-    enable_sso: false
-    enable_sso_idp_login: false
-    entity_id: ""
-    idp_image_url: ""
-    idp_name: ""
-    issuer_uri: ""
-    metadata: ""
-    metadata_url: ""
-  vulnerability_settings:
-    databases_path: /some/path
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: ""
-      enable_failing_policies_webhook: false
-      host_batch_size: 0
-      policy_ids: null
-    host_status_webhook:
-      days_count: 0
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 0
-    interval: 0s
-    vulnerabilities_webhook:
-      destination_url: ""
-      enable_vulnerabilities_webhook: false
-      host_batch_size: 0
-`
-		expectedJson := `
-{
-  "kind": "config",
-  "apiVersion": "v1",
-  "spec": {
-    "org_info": { "org_name": "", "org_logo_url": "" },
-    "server_settings": {
-      "server_url": "",
-      "live_query_disabled": false,
-      "enable_analytics": false,
-      "deferred_save_host": false
-    },
-    "smtp_settings": {
-      "enable_smtp": false,
-      "configured": false,
-      "sender_address": "",
-      "server": "",
-      "port": 0,
-      "authentication_type": "",
-      "user_name": "",
-      "password": "",
-      "enable_ssl_tls": false,
-      "authentication_method": "",
-      "domain": "",
-      "verify_ssl_certs": false,
-      "enable_start_tls": false
-    },
-    "host_expiry_settings": {
-      "host_expiry_enabled": false,
-      "host_expiry_window": 0
-    },
-    "features": {
-      "enable_host_users": true,
-      "enable_software_inventory": false
-    },
-    "mdm": {
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "sso_settings": {
-      "entity_id": "",
-      "issuer_uri": "",
-      "idp_image_url": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": "",
-      "enable_jit_provisioning": false,
-      "enable_sso": false,
-      "enable_sso_idp_login": false
-    },
-    "fleet_desktop": { "transparency_url": "https://fleetdm.com/transparency" },
-    "vulnerability_settings": { "databases_path": "/some/path" },
-    "webhook_settings": {
-      "host_status_webhook": {
-        "enable_host_status_webhook": false,
-        "destination_url": "",
-        "host_percentage": 0,
-        "days_count": 0
-      },
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      },
-      "vulnerabilities_webhook": {
-        "enable_vulnerabilities_webhook": false,
-        "destination_url": "",
-        "host_batch_size": 0
-      },
-      "interval": "0s"
-    },
-    "integrations": { "jira": null, "zendesk": null },
-    "mdm": {
-      "apple_bm_terms_expired": false,
-      "enabled_and_configured": false,
-      "apple_bm_default_team": "",
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    }
-  }
-}
-`
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigJson.json"))
+		require.NoError(t, err)
+		expectedJson := string(b)
 
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
@@ -621,272 +571,13 @@ spec:
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
-		expectedYAML := `---
-apiVersion: v1
-kind: config
-spec:
-  fleet_desktop:
-    transparency_url: https://fleetdm.com/transparency
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  features:
-    enable_host_users: true
-    enable_software_inventory: false
-  integrations:
-    jira: null
-    zendesk: null
-  mdm:
-    apple_bm_default_team: ""
-    apple_bm_terms_expired: false
-    enabled_and_configured: false
-    macos_updates:
-      minimum_version: ""
-      deadline: ""
-  license:
-    expiration: "0001-01-01T00:00:00Z"
-    tier: free
-  logging:
-    debug: true
-    json: false
-    result:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-      plugin: filesystem
-    status:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-      plugin: filesystem
-    audit:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-      plugin: filesystem
-  org_info:
-    org_logo_url: ""
-    org_name: ""
-  server_settings:
-    deferred_save_host: false
-    enable_analytics: false
-    live_query_disabled: false
-    server_url: ""
-  smtp_settings:
-    authentication_method: ""
-    authentication_type: ""
-    configured: false
-    domain: ""
-    enable_smtp: false
-    enable_ssl_tls: false
-    enable_start_tls: false
-    password: ""
-    port: 0
-    sender_address: ""
-    server: ""
-    user_name: ""
-    verify_ssl_certs: false
-  sso_settings:
-    enable_jit_provisioning: false
-    enable_sso: false
-    enable_sso_idp_login: false
-    entity_id: ""
-    idp_image_url: ""
-    idp_name: ""
-    issuer_uri: ""
-    metadata: ""
-    metadata_url: ""
-  update_interval:
-    osquery_detail: 1h0m0s
-    osquery_policy: 1h0m0s
-  vulnerabilities:
-    cpe_database_url: ""
-    cpe_translations_url: ""
-    current_instance_checks: ""
-    cve_feed_prefix_url: ""
-    databases_path: ""
-    disable_data_sync: false
-    disable_win_os_vulnerabilities: false
-    periodicity: 0s
-    recent_vulnerability_max_age: 0s
-  vulnerability_settings:
-    databases_path: /some/path
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: ""
-      enable_failing_policies_webhook: false
-      host_batch_size: 0
-      policy_ids: null
-    host_status_webhook:
-      days_count: 0
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 0
-    interval: 0s
-    vulnerabilities_webhook:
-      destination_url: ""
-      enable_vulnerabilities_webhook: false
-      host_batch_size: 0
-`
-		expectedJSON := `
-{
-  "kind": "config",
-  "apiVersion": "v1",
-  "spec": {
-    "org_info": {
-      "org_name": "",
-      "org_logo_url": ""
-    },
-    "server_settings": {
-      "server_url": "",
-      "live_query_disabled": false,
-      "enable_analytics": false,
-      "deferred_save_host": false
-    },
-    "smtp_settings": {
-      "enable_smtp": false,
-      "configured": false,
-      "sender_address": "",
-      "server": "",
-      "port": 0,
-      "authentication_type": "",
-      "user_name": "",
-      "password": "",
-      "enable_ssl_tls": false,
-      "authentication_method": "",
-      "domain": "",
-      "verify_ssl_certs": false,
-      "enable_start_tls": false
-    },
-    "host_expiry_settings": {
-      "host_expiry_enabled": false,
-      "host_expiry_window": 0
-    },
-    "features": {
-      "enable_host_users": true,
-      "enable_software_inventory": false
-    },
-    "mdm": {
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "sso_settings": {
-      "enable_jit_provisioning": false,
-      "entity_id": "",
-      "issuer_uri": "",
-      "idp_image_url": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": "",
-      "enable_sso": false,
-      "enable_sso_idp_login": false
-    },
-    "fleet_desktop": {
-      "transparency_url": "https://fleetdm.com/transparency"
-    },
-    "vulnerability_settings": {
-      "databases_path": "/some/path"
-    },
-    "webhook_settings": {
-      "host_status_webhook": {
-        "enable_host_status_webhook": false,
-        "destination_url": "",
-        "host_percentage": 0,
-        "days_count": 0
-      },
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      },
-      "vulnerabilities_webhook": {
-        "enable_vulnerabilities_webhook": false,
-        "destination_url": "",
-        "host_batch_size": 0
-      },
-      "interval": "0s"
-    },
-    "integrations": {
-      "jira": null,
-      "zendesk": null
-    },
-    "mdm": {
-      "apple_bm_default_team": "",
-      "apple_bm_terms_expired": false,
-      "enabled_and_configured": false,
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "update_interval": {
-      "osquery_detail": "1h0m0s",
-      "osquery_policy": "1h0m0s"
-    },
-    "vulnerabilities": {
-      "databases_path": "",
-      "periodicity": "0s",
-      "cpe_database_url": "",
-      "cpe_translations_url": "",
-      "cve_feed_prefix_url": "",
-      "current_instance_checks": "",
-      "disable_data_sync": false,
-      "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
-    },
-    "license": {
-      "tier": "free",
-      "expiration": "0001-01-01T00:00:00Z"
-    },
-    "logging": {
-      "debug": true,
-      "json": false,
-      "result": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
-        }
-      },
-      "status": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
-        }
-      },
-      "audit": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
-        }
-      }
-    }
-  }
-}
-`
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigIncludeServerConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYAML := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigIncludeServerConfigJson.json"))
+		require.NoError(t, err)
+		expectedJSON := string(b)
 
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
@@ -1429,7 +1120,8 @@ func TestEnrichedAppConfig(t *testing.T) {
           "idp_name": "",
           "enable_sso": false,
           "enable_sso_idp_login": false,
-          "enable_jit_provisioning": false
+          "enable_jit_provisioning": false,
+          "enable_jit_role_sync": false
         },
         "fleet_desktop": {
           "transparency_url": "https://fleetdm.com/transparency"
@@ -1515,7 +1207,11 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	// can only test when no MDM cert is provided, otherwise they would have to
 	// be valid Apple APNs and SCEP certs.
@@ -1651,8 +1347,10 @@ func TestGetCarveWithError(t *testing.T) {
 // TestGetTeamsYAMLAndApply checks that the output of `get teams --yaml` can be applied
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
+	cfg := config.TestConfig()
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+		FleetConfig: &cfg,
 	})
 
 	created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
@@ -1711,7 +1409,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return []*fleet.Team{team1, team2}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
@@ -1730,9 +1428,135 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
+}
+
+func TestGetMDMCommandResults(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	rawXml := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+</dict>
+</plist>`
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		if len(uuids) == 0 {
+			return nil, nil
+		}
+		require.Len(t, uuids, 2)
+		return []*fleet.Host{
+			{ID: 1, UUID: uuids[0], Hostname: "host1"},
+			{ID: 2, UUID: uuids[1], Hostname: "host2"},
+		}, nil
+	}
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return "test", nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMAppleCommandResult{
+				{
+					DeviceID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+				{
+					DeviceID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+			}, nil
+		}
+	}
+
+	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Required flag "id" not set`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The command doesn't exist.`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `EOF`)
+
+	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+------+------+--------+----------+---------+
+| ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
++----+------+------+--------+----------+---------+
+`))
+
+	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+	require.NoError(t, err)
+	fmt.Println(buf.String())
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+`))
 }

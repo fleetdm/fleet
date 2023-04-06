@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -186,6 +187,26 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 			// only unknown field errors can be forced at this point (other errors
 			// can be forced later, after agent options' validations)
 			return ctxerr.Wrap(ctx, err, "strict decode team specs")
+		}
+	}
+
+	// the MacOSSettings field must be validated separately, since it
+	// JSON-decodes into a free-form map.
+	for _, spec := range req.Specs {
+		if spec == nil || spec.MDM.MacOSSettings == nil {
+			continue
+		}
+
+		var macOSSettings fleet.MacOSSettings
+		validMap := macOSSettings.ToMap()
+
+		// the keys provided must be valid
+		for k := range spec.MDM.MacOSSettings {
+			if _, ok := validMap[k]; !ok {
+				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(
+					fmt.Errorf("json: unknown field %q", k),
+					http.StatusBadRequest), "strict decode team specs")
+			}
 		}
 	}
 	return nil

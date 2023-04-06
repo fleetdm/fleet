@@ -6,12 +6,13 @@ package pwd_policy
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
-	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 	"os/exec"
 	"syscall"
 	"time"
+
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 // Columns is the schema of the table.
@@ -21,6 +22,7 @@ func Columns() []table.ColumnDefinition {
 		table.IntegerColumn("expires_every_n_days"),
 		table.IntegerColumn("days_to_expiration"),
 		table.IntegerColumn("history_depth"),
+		table.IntegerColumn("min_mixed_case_characters"),
 	}
 }
 
@@ -35,7 +37,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "pwpolicy", "-getaccountpolicies")
+	cmd := exec.CommandContext(ctx, "/usr/bin/pwpolicy", "-getaccountpolicies")
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -69,11 +71,19 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		historyDepth = ""
 		log.Debug().Err(err).Msg("get policyAttributePasswordHistoryDepth failed")
 	}
+	minMixedCaseCharacters, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "minimumMixedCaseCharacters", "integer")
+	if err != nil {
+		minMixedCaseCharacters = ""
+		log.Debug().Err(err).Msg("get minimumMixedCaseCharacters failed")
+	}
 
 	return []map[string]string{
-		{"max_failed_attempts": maxFailedAttempts,
-			"expires_every_n_days": expiresEveryNDays,
-			"days_to_expiration":   daysToExpiration,
-			"history_depth":        historyDepth},
+		{
+			"max_failed_attempts":       maxFailedAttempts,
+			"expires_every_n_days":      expiresEveryNDays,
+			"days_to_expiration":        daysToExpiration,
+			"history_depth":             historyDepth,
+			"min_mixed_case_characters": minMixedCaseCharacters,
+		},
 	}, nil
 }

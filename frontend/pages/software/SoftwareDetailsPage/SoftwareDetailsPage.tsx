@@ -9,9 +9,11 @@ import {
   ISoftware,
   IGetSoftwareByIdResponse,
 } from "interfaces/software";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -30,7 +32,7 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, currentTeam } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
@@ -72,7 +74,14 @@ const SoftwareDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to software" path={PATHS.MANAGE_SOFTWARE} />
+          <BackLink
+            text="Back to software"
+            path={
+              currentTeam && currentTeam?.id > APP_CONTEXT_NO_TEAM_ID
+                ? `${PATHS.MANAGE_SOFTWARE}?team_id=${currentTeam?.id}`
+                : PATHS.MANAGE_SOFTWARE
+            }
+          />
         </div>
         <div className="header title">
           <div className="title__inner">
@@ -96,7 +105,9 @@ const SoftwareDetailsPage = ({
               </div>
               <div className="info-flex__item info-flex__item--title">
                 <span className="info-flex__header">Hosts</span>
-                <span className={`info-flex__data`}>{hostCount || "---"}</span>
+                <span className={`info-flex__data`}>
+                  {hostCount || DEFAULT_EMPTY_CELL_VALUE}
+                </span>
               </div>
             </div>
           </div>

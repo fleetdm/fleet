@@ -1,9 +1,16 @@
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
+import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import { DiskEncryptionStatus } from "utilities/constants";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
+
+interface IMutuallyInclusiveHostParams {
+  teamId?: number;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
+}
 
 interface IMutuallyExclusiveHostParams {
   label?: string;
@@ -17,6 +24,7 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 const reduceQueryParams = (
@@ -54,6 +62,18 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   return queryString;
 };
 
+export const reconcileMutuallyInclusiveHostParams = ({
+  teamId,
+  macSettingsStatus,
+}: IMutuallyInclusiveHostParams): Record<string, unknown> => {
+  // ensure macos_settings filter is always applied in
+  // conjuction with a team_id, 0 (no teams) by default
+  const reconciled = { macos_settings: macSettingsStatus, team_id: teamId };
+  if (macSettingsStatus) {
+    reconciled.team_id = teamId ?? 0;
+  }
+  return reconciled;
+};
 export const reconcileMutuallyExclusiveHostParams = ({
   label,
   policyId,
@@ -66,6 +86,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osId,
   osName,
   osVersion,
+  diskEncryptionStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -99,6 +120,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
+    case !!diskEncryptionStatus:
+      return { macos_settings_disk_encryption: diskEncryptionStatus };
     default:
       return {};
   }

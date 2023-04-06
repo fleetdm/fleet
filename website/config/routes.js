@@ -29,7 +29,6 @@ module.exports.routes = {
   'GET /fleetctl-preview': {
     action: 'view-get-started',
     locals: {
-      currentPage: 'get started',
       pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
@@ -38,7 +37,7 @@ module.exports.routes = {
   'GET /pricing': {
     action: 'view-pricing',
     locals: {
-      currentPage: 'pricing',
+      currentSection: 'pricing',
       pageTitleForMeta: 'Pricing | Fleet for osquery',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
@@ -55,7 +54,7 @@ module.exports.routes = {
   'GET /queries': {
     action: 'view-query-library',
     locals: {
-      currentPage: 'queries',
+      currentSection: 'documentation',
       pageTitleForMeta: 'Queries | Fleet for osquery',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
@@ -64,37 +63,34 @@ module.exports.routes = {
   'GET /queries/:slug': {
     action: 'view-query-detail',
     locals: {
-      currentPage: 'queries',
+      currentSection: 'documentation',
     }
   },
 
   'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
-    locals: {
-      currentPage: 'articles',
-    }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
   'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
-    locals: {
-      currentPage: 'articles',
-    }
   },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals: {
-      currentPage: 'docs',
+      currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
 
   'GET /handbook/?*':  {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',
+    locals: {
+      currentSection: 'community',
+    }
   },// handles /handbook and /handbook/foo/bar
 
   'GET /transparency': {
@@ -156,7 +152,7 @@ module.exports.routes = {
   'GET /platform': {
     action: 'view-platform',
     locals: {
-      currentPage: 'platform',
+      currentSection: 'platform',
       pageTitleForMeta: 'Platform | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
@@ -225,6 +221,9 @@ module.exports.routes = {
 
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
+    locals: {
+      currentSection: 'documentation',
+    }
   },
 
   'GET /admin/generate-license': {
@@ -252,8 +251,9 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-fleet-mdm',
     locals: {
-      pageTitleForMeta: 'Device Management | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.'
+      pageTitleForMeta: 'Device management | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
+      currentSection: 'platform',
     }
   },
 
@@ -265,6 +265,49 @@ module.exports.routes = {
     }
   },
 
+  'GET /compliance': {
+    action: 'view-compliance',
+    locals: {
+      currentSection: 'platform',
+      pageTitleForMeta: 'Security compliance | Fleet for osquery',
+      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organization\'s compliance goals. Simplify security compliance with Fleet.',
+    }
+  },
+
+  'GET /osquery-management': {
+    action: 'view-osquery-management',
+    locals: {
+      pageTitleForMeta: 'Osquery management | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
+    }
+  },
+
+
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      optimizeForAppleWebview: true,
+    }
+  },
+
+
+
+
+  //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
+  //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
+  //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
+  'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
+
+  'GET /imagine/launch-party': {
+    action: 'imagine/view-launch-party',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
+      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
+      headerCTAHidden: true,
+    }
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -325,7 +368,7 @@ module.exports.routes = {
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
-
+  'GET /handbook/company/product-groups': '/handbook/company/development-groups',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -337,6 +380,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/fleetctl-preview',
@@ -375,8 +419,8 @@ module.exports.routes = {
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
   'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  'GET /apply':                  'https://fleet-device-management.breezy.hr',
-  'GET /jobs':                   'https://fleet-device-management.breezy.hr',
+  'GET /apply':                  '/jobs',
+  'GET /jobs':                   'https://fleetdm.com/handbook/company#open-positions',
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
@@ -419,4 +463,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
+  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
 };

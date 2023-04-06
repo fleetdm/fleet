@@ -9,12 +9,15 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/test-go.yaml'
+      - 'server/authz/policy.rego'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
+      - 'server/authz/policy.rego'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -57,7 +60,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit &
 
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
@@ -92,11 +95,12 @@ jobs:
           MYSQL_TEST=1 \
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
+          MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
         files: coverage.txt
 
@@ -118,7 +122,7 @@ jobs:
             ]
           }
       env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
     - name: Upload test log

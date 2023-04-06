@@ -7,7 +7,7 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
-import { MdmEnrollmentStatus } from "./mdm";
+import { IMacSettings, MdmEnrollmentStatus } from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -86,11 +86,29 @@ export interface IMunkiData {
   version: string;
 }
 
+type MacDiskEncryptionState =
+  | "applied"
+  | "action_required"
+  | "enforcing"
+  | "failed"
+  | "removing_enforcement"
+  | null;
+
+type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+
+interface IMdmMacOsSettings {
+  disk_encryption: MacDiskEncryptionState;
+  action_required: MacDiskEncryptionActionRequired;
+}
+
 export interface IHostMdmData {
+  encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  name?: string;
   server_url: string;
   id?: number;
-  name?: string;
+  profiles: IMacSettings;
+  macos_settings: IMdmMacOsSettings;
 }
 
 export interface IMunkiIssue {
@@ -147,6 +165,14 @@ export interface IDeviceUserResponse {
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
+}
+
+export interface IHostEncrpytionKeyResponse {
+  host_id: number;
+  encryption_key: {
+    updated_at: string;
+    key: string;
+  };
 }
 
 export interface IHost {

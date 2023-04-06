@@ -33,8 +33,14 @@ const DEFAULT_HOST_MOCK: IHost = {
   hardware_serial: "",
   computer_name: "9b20fc72a247",
   mdm: {
+    encryption_key_available: false,
     enrollment_status: "Off",
     server_url: "https://www.example.com/1",
+    profiles: [],
+    macos_settings: {
+      disk_encryption: null,
+      action_required: null,
+    },
   },
   public_ip: "",
   primary_ip: "172.23.0.3",

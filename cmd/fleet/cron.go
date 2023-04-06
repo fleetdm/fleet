@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/service"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
@@ -23,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -78,6 +81,9 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
+	if config == nil {
+		return errors.New("nil configuration")
+	}
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return nil
@@ -95,21 +101,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	var vulnPath string
-	switch {
-	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-		level.Info(logger).Log(
-			"msg", "fleet config takes precedence over app config when both are configured",
-			"databases_path", vulnPath,
-		)
-	case config.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-	case appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-	}
+	vulnPath := configureVulnPath(*config, appConfig, logger)
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
@@ -170,6 +162,8 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
 	// If no automations enabled, then there is nothing else to do...
@@ -177,9 +171,10 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
+	vulns = append(vulns, macOfficeVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
@@ -301,10 +296,6 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.DisableDataSync {
-		return nil
-	}
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -314,13 +305,15 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// Sync on disk OVAL definitions with current OS Versions.
-	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
-	if err != nil {
-		errHandler(ctx, logger, "updating oval definitions", err)
-	}
-	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-sync-downloaded", d)
+	if !config.DisableDataSync {
+		// Sync on disk OVAL definitions with current OS Versions.
+		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating oval definitions", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("oval-sync-downloaded", d)
+		}
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
@@ -364,7 +357,7 @@ func checkNVDVulnerabilities(
 		}
 	}
 
-	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
@@ -375,13 +368,46 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
 	}
 
 	return vulns
+}
+
+func checkMacOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	if !config.DisableDataSync {
+		err := macoffice.SyncFromGithub(ctx, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating mac office release notes", err)
+		}
+
+		level.Debug(logger).Log("msg", "finished sync mac office release notes")
+	}
+
+	start := time.Now()
+	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	level.Debug(logger).Log(
+		"msg", "mac-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
+	}
+
+	return r
 }
 
 func newAutomationsSchedule(
@@ -645,7 +671,12 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 }
 
 func newCleanupsAndAggregationSchedule(
-	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	enrollHostLimiter fleet.EnrollHostLimiter,
+	config *config.FleetConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -709,11 +740,6 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
-		schedule.WithJob(
-			"cleanup_cron_stats", func(ctx context.Context) error {
-				return ds.CleanupCronStats(ctx)
-			},
-		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -745,9 +771,64 @@ func newCleanupsAndAggregationSchedule(
 				return ds.UpdateOSVersions(ctx)
 			},
 		),
+		schedule.WithJob(
+			"verify_disk_encryption_keys",
+			func(ctx context.Context) error {
+				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+			},
+		),
 	)
 
 	return s, nil
+}
+
+func verifyDiskEncryptionKeys(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		return nil
+	}
+
+	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get unverified disk encryption keys from the database", "details", err)
+		return err
+	}
+
+	cert, _, _, err := config.MDM.AppleSCEP()
+	if err != nil {
+		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
+		return err
+	}
+
+	decryptable := []uint{}
+	undecryptable := []uint{}
+	var latest time.Time
+	for _, key := range keys {
+		if key.UpdatedAt.After(latest) {
+			latest = key.UpdatedAt
+		}
+		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+			undecryptable = append(undecryptable, key.HostID)
+			continue
+		}
+		decryptable = append(decryptable, key.HostID)
+	}
+
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true, latest); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+
+	return nil
 }
 
 func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
@@ -813,12 +894,39 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, loggingDebug)
+	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, loggingDebug)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			return fleetSyncer.Run(ctx)
+			return fleetSyncer.RunAssigner(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMAppleProfileManager(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAppleProfileManager)
+		// Note: per a request from #g-product we are running this cron
+		// every 30 seconds, we should re-evaluate how we handle the
+		// cron interval as we scale to more hosts.
+		defaultInterval = 30 * time.Second
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+			return service.ReconcileProfiles(ctx, ds, commander, logger)
 		}),
 	)
 

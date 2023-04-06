@@ -7,6 +7,7 @@ import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatFloatAsPercentage } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -66,6 +67,7 @@ const condenseVulnerabilities = (
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
+      position="top"
       tipContent={`
         <span>
           <b>Bundle identifier: </b>
@@ -114,7 +116,8 @@ const generateEPSSColumnHeader = () => {
       const vulns = cellProps.cell.value || [];
       const maxProbability = (!!vulns.length && getMaxProbability(vulns)) || 0;
       const displayValue =
-        (maxProbability && formatFloatAsPercentage(maxProbability)) || "---";
+        (maxProbability && formatFloatAsPercentage(maxProbability)) ||
+        DEFAULT_EMPTY_CELL_VALUE;
 
       return (
         <span
@@ -181,7 +184,8 @@ const generateVulnColumnHeader = () => {
 
 const generateTableHeaders = (
   router: InjectedRouter,
-  isPremiumTier?: boolean
+  isPremiumTier?: boolean,
+  teamId?: number
 ): Column[] => {
   const softwareTableHeaders = [
     {
@@ -243,7 +247,10 @@ const generateTableHeaders = (
           </span>
           <span className="hosts-cell__link">
             <ViewAllHostsLink
-              queryParams={{ software_id: cellProps.row.original.id }}
+              queryParams={{
+                software_id: cellProps.row.original.id,
+                team_id: teamId,
+              }}
               className="software-link"
             />
           </span>

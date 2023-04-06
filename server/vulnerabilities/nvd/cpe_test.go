@@ -237,6 +237,65 @@ func (f *fakeSoftwareIterator) Value() (*fleet.Software, error) {
 func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
+func TestConsumeCPEBuffer(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("empty buffer", func(t *testing.T) {
+		var upserted []fleet.SoftwareCPE
+		var deleted []fleet.SoftwareCPE
+
+		ds := new(mock.Store)
+		ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			upserted = append(upserted, cpes...)
+			return int64(len(upserted)), nil
+		}
+
+		ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			deleted = append(deleted, cpes...)
+			return int64(len(deleted)), nil
+		}
+		err := consumeCPEBuffer(ctx, ds, nil, nil)
+		require.NoError(t, err)
+		require.Empty(t, upserted)
+		require.Empty(t, deleted)
+	})
+
+	t.Run("inserts and deletes accordantly", func(t *testing.T) {
+		var upserted []fleet.SoftwareCPE
+		var deleted []fleet.SoftwareCPE
+
+		ds := new(mock.Store)
+		ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			upserted = append(upserted, cpes...)
+			return int64(len(upserted)), nil
+		}
+
+		ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			deleted = append(deleted, cpes...)
+			return int64(len(deleted)), nil
+		}
+
+		cpes := []fleet.SoftwareCPE{
+			{
+				SoftwareID: 1,
+				CPE:        "",
+			},
+			{
+				SoftwareID: 2,
+				CPE:        "cpe-1",
+			},
+		}
+
+		err := consumeCPEBuffer(ctx, ds, nil, cpes)
+		require.NoError(t, err)
+		require.Equal(t, len(upserted), 1)
+		require.Equal(t, upserted[0].CPE, cpes[1].CPE)
+
+		require.Equal(t, len(deleted), 1)
+		require.Equal(t, deleted[0].CPE, cpes[0].CPE)
+	})
+}
+
 func TestTranslateSoftwareToCPE(t *testing.T) {
 	nettest.Run(t)
 
@@ -246,9 +305,11 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 
 	var cpes []string
 
-	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
-		cpes = append(cpes, cpe)
-		return nil
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, vals []fleet.SoftwareCPE) (int64, error) {
+		for _, v := range vals {
+			cpes = append(cpes, v.CPE)
+		}
+		return int64(len(vals)), nil
 	}
 
 	iterator := &fakeSoftwareIterator{
@@ -266,11 +327,22 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 				Version:          "0.3",
 				BundleIdentifier: "vendor2",
 				Source:           "apps",
+				GenerateCPE:      "something_wrong",
+			},
+			// For the following software entry, the matched cpe will match 'GenerateCPE', so we are
+			// adding it to test that that 'UpsertSoftwareCPEs' will only be called iff software.GenerateCPE != detected CPE.
+			{
+				ID:               3,
+				Name:             "Product2",
+				Version:          "0.3",
+				BundleIdentifier: "vendor2",
+				Source:           "apps",
+				GenerateCPE:      "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*",
 			},
 		},
 	}
 
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, q fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		return iterator, nil
 	}
 
@@ -359,7 +431,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "22.002.20191",
 				Vendor:           "",
 				BundleIdentifier: "com.adobe.Reader",
-			}, cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+			},
+			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -424,33 +497,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.apple.mail",
 			}, cpe: "cpe:2.3:a:apple:mail:16.0:*:*:*:*:macos:*:*",
 		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Excel.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Excel",
-			}, cpe: "cpe:2.3:a:microsoft:excel:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft PowerPoint.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Powerpoint",
-			}, cpe: "cpe:2.3:a:microsoft:powerpoint:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Word.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Word",
-			}, cpe: "cpe:2.3:a:microsoft:word:16.65:*:*:*:*:macos:*:*",
-		},
+
 		{
 			software: fleet.Software{
 				Name:             "Music.app",
@@ -1140,6 +1187,63 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "chrome_extensions",
 				Version:          "0.10",
 				BundleIdentifier: "",
+			}, cpe: "",
+		},
+		// We don't use NVD to detect Mac Office vulnerabilities so all these should have an empty CPE
+		{
+			software: fleet.Software{
+				Name:             "Microsoft PowerPoint.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Powerpoint",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Word.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Word",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Excel.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Excel",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker.app",
+				Source:           "apps",
+				Version:          "4.7.1",
+				BundleIdentifier: "com.docker.docker",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker Desktop.app",
+				Source:           "apps",
+				Version:          "4.16.2",
+				BundleIdentifier: "com.electron.dockerdesktop",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker Desktop.app",
+				Source:           "apps",
+				Version:          "3.5.0",
+				BundleIdentifier: "com.electron.docker-frontend",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+		},
+		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "docker",
+				Source:  "python_packages",
+				Version: "6.0.1",
 			}, cpe: "",
 		},
 	}

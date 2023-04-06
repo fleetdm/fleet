@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"github.com/go-kit/kit/log/level"
 	"html/template"
 	"net/http"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -297,6 +299,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
 		}
+		license, _ := license.FromContext(ctx)
+		if license == nil {
+			return nil, ctxerr.New(ctx, "license not found")
+		}
+		if err := fleet.ValidateRoleForLicense(p.GlobalRole, p.Teams, *license); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate role")
+		}
 	}
 
 	if p.NewPassword != nil {
@@ -384,7 +393,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
 		return nil, err
 	}
 
@@ -743,7 +752,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.UserByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -752,7 +761,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.InviteByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -763,7 +772,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 	if err != nil {
 		return err
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -1023,7 +1032,11 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		},
 	}
 
-	return svc.mailService.SendEmail(resetEmail)
+	err = svc.mailService.SendEmail(resetEmail)
+	if err != nil {
+		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+	}
+	return err
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {

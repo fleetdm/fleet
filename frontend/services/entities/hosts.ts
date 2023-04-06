@@ -6,13 +6,31 @@ import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
+import { DiskEncryptionStatus } from "utilities/constants";
+import { ISoftware } from "interfaces/software";
+import { IMdmSolution } from "interfaces/mdm";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
 export interface ISortOption {
   key: string;
   direction: string;
 }
+
+export interface ILoadHostsResponse {
+  hosts: IHost[];
+  software: ISoftware;
+  munki_issue: IMunkiIssuesAggregate;
+  mobile_device_management_solution: IMdmSolution;
+}
+
+export interface ILoadHostsQueryKey extends ILoadHostsOptions {
+  scope: "hosts";
+}
+
+export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 
 export interface ILoadHostsOptions {
   page?: number;
@@ -23,6 +41,7 @@ export interface ILoadHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -35,6 +54,7 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IExportHostsOptions {
@@ -46,6 +66,7 @@ export interface IExportHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -58,6 +79,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
@@ -140,6 +162,7 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
@@ -147,6 +170,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -156,7 +180,7 @@ export default {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
       query: globalFilter,
-      team_id: teamId,
+      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -166,6 +190,7 @@ export default {
         munkiIssueId,
         softwareId,
         lowDiskSpaceHosts,
+        diskEncryptionStatus,
       }),
       status,
       label_id: label,
@@ -186,6 +211,7 @@ export default {
     teamId,
     policyId,
     policyResponse = "passing",
+    macSettingsStatus,
     softwareId,
     status,
     mdmId,
@@ -198,7 +224,8 @@ export default {
     device_mapping,
     selectedLabels,
     sortBy,
-  }: ILoadHostsOptions) => {
+    diskEncryptionStatus,
+  }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -206,11 +233,14 @@ export default {
       page,
       per_page: perPage,
       query: globalFilter,
-      team_id: teamId,
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -223,6 +253,7 @@ export default {
         osId,
         osName,
         osVersion,
+        diskEncryptionStatus,
       }),
     };
 
@@ -301,5 +332,10 @@ export default {
     const params = createMdmParams(platform, teamId);
     const fullPath = params !== "" ? `${MDM_SUMMARY}?${params}` : MDM_SUMMARY;
     return sendRequest("GET", fullPath);
+  },
+
+  getEncryptionKey: (id: number) => {
+    const { HOST_ENCRYPTION_KEY } = endpoints;
+    return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
   },
 };

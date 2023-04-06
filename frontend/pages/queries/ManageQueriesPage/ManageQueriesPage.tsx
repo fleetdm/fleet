@@ -17,6 +17,7 @@ import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -67,7 +68,7 @@ const PLATFORM_FILTER_OPTIONS = [
 const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
-  return platforms || ["---"];
+  return platforms || [DEFAULT_EMPTY_CELL_VALUE];
 };
 
 const enhanceQuery = (q: IQuery) => {

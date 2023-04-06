@@ -87,12 +87,6 @@ describe("Premium tier - Team Admin user", () => {
     it("allows team admin to create an operating system policy", () => {
       hostDetailsPage.allowsCreateOsPolicy();
     });
-    it("allows team admin to query host, delete host but not transfer host", () => {
-      hostDetailsPage.allowsCustomQueryHost();
-      hostDetailsPage.allowsDeleteHost();
-      hostDetailsPage.verifiesDeletedHost;
-      hostDetailsPage.hidesButton("Transfer");
-    });
   });
   describe("Manage software page", () => {
     beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());

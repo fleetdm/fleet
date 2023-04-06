@@ -3,6 +3,7 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -56,6 +57,46 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	return false
 }
 
+// networkInterfaceQuery is the query to use to ingest a host's "Primary IP" and "Primary MAC".
+//
+// "Primary IP"/"Primary MAC" is the IP/MAC of the interface the system uses when it originates traffic to the default route.
+//
+// The following was used to determine private IPs:
+// https://cs.opensource.google/go/go/+/refs/tags/go1.20.1:src/net/ip.go;l=131-148;drc=c53390b078b4d3b18e3aca8970d4b31d4d82cce1
+//
+// NOTE: We cannot use `in_cidr_block` because it's available since osquery 5.3.0, so we use
+// rudimentary split and string matching for IPv4 and and regex_match for IPv6.
+const networkInterfaceQuery = `SELECT
+    ia.address,
+    id.mac
+FROM
+    interface_addresses ia
+    JOIN interface_details id ON id.interface = ia.interface
+	-- On Unix ia.interface is the name of the interface,
+	-- whereas on Windows ia.interface is the IP of the interface.
+    JOIN routes r ON %s
+WHERE
+	-- Destination 0.0.0.0/0 is the default route on route tables.
+    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Type of route is "gateway" for Unix, "remote" for Windows.
+    AND r.type = '%s'
+	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+    AND (
+		-- Private IPv4 addresses.
+		inet_aton(ia.address) IS NOT NULL AND (
+			split(ia.address, '.', 0) = '10'
+			OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+			OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+		)
+		-- Private IPv6 addresses start with 'fc' or 'fd'.
+		OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+	)
+ORDER BY
+    r.metric ASC,
+	-- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+	inet_aton(ia.address) IS NOT NULL DESC
+LIMIT 1;`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -63,45 +104,18 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // This map should not be modified at runtime.
 var hostDetailQueries = map[string]DetailQuery{
 	"network_interface_unix": {
-		Query: `
-select
-    ia.address,
-    id.mac
-from
-    interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.interface
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'gateway'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
-`,
+		Query:      fmt.Sprintf(networkInterfaceQuery, "r.interface = ia.interface", "gateway"),
 		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_windows": {
-		Query: `
-select
-    ia.address,
-    id.mac
-from
-    interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.address
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'remote'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
-`,
+		Query:      fmt.Sprintf(networkInterfaceQuery, "r.interface = ia.address", "remote"),
 		Platforms:  []string{"windows"},
+		IngestFunc: ingestNetworkInterface,
+	},
+	"network_interface_chrome": {
+		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
 	"os_version": {
@@ -154,7 +168,7 @@ limit 1
 	SELECT
 		os.name,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -332,16 +346,40 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
+func isPublicIP(ip net.IP) bool {
+	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
+}
+
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	logger = log.With(logger,
+		"component", "service",
+		"method", "IngestFunc",
+		"host", host.Hostname,
+		"platform", host.Platform,
+	)
+
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "IngestFunc", "err",
-			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-	host.PublicIP = publicip.FromContext(ctx)
+
+	// Attempt to extract public IP from the HTTP request.
+	ipStr := publicip.FromContext(ctx)
+	ip := net.ParseIP(ipStr)
+	if ip != nil {
+		if isPublicIP(ip) {
+			host.PublicIP = ipStr
+		} else {
+			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
+			host.PublicIP = ""
+		}
+	} else {
+		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+	}
+
 	return nil
 }
 
@@ -376,6 +414,8 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 	host.Platform = "kubequery"
 	return nil
 }
+
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
@@ -449,7 +489,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -483,7 +523,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
-		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Query:            usesMacOSDiskEncryptionQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
@@ -504,6 +544,38 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
 		// osquery table on windows, it is always present.
+	},
+}
+
+// mdmQueries are used by the Fleet server to compliment certain MDM
+// features.
+// They are only sent to the device when Fleet's MDM is on and properly
+// configured
+var mdmQueries = map[string]DetailQuery{
+	"mdm_disk_encryption_key_darwin": {
+		// This query has two pre-requisites:
+		//
+		// 1. FileVault must be enabled with a personal recovery key.
+		// 2. The "FileVault Recovery Key Escrow" profile must be configured
+		//    in the host.
+		//
+		// This file is safe to access and well [documented by Apple][1]:
+		//
+		// > If FileVault is enabled after this payload is installed on the system,
+		// > the FileVault PRK will be encrypted with the specified certificate,
+		// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
+		// > encrypted data will be made available to the MDM server as part of the
+		// > SecurityInfo command.
+		// >
+		// > Alternatively, if a site uses its own administration
+		// > software, it can extract the PRK from the foregoing
+		// > location at any time.
+		//
+		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
+		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
+		Discovery:        discoveryTable("file_lines"),
 	},
 }
 
@@ -537,7 +609,7 @@ var softwareMacOS = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
@@ -759,12 +831,31 @@ FROM cached_users CROSS JOIN atom_packages USING (uid);
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var softwareChrome = DetailQuery{
+	Query: `SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source,
+  '' AS vendor
+FROM chrome_extensions`,
+	Platforms:        []string{"chrome"},
+	DirectIngestFunc: directIngestSoftware,
+}
+
 var usersQuery = DetailQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
+	Platforms:        []string{"linux", "darwin", "windows"},
+	DirectIngestFunc: directIngestUsers,
+}
+
+var usersQueryChrome = DetailQuery{
+	Query:            `SELECT uid, username, email FROM users`,
+	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -838,16 +929,20 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 // depend on available data, which varies between operating systems.
 func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
 	var osVersion string
-	if strings.Contains(strings.ToLower(name), "ubuntu") {
+	switch {
+	case strings.Contains(strings.ToLower(name), "ubuntu"):
 		// Ubuntu takes a different approach to updating patch IDs so we instead use
 		// the version string provided after removing the code name.
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
-	} else if major != "0" || minor != "0" || patch != "0" {
+	case strings.Contains(strings.ToLower(name), "chrome"):
+		osVersion = version
+	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
-	} else {
+	default:
 		osVersion = build
 	}
+
 	osVersion = strings.Trim(osVersion, ".")
 
 	return osVersion
@@ -1065,7 +1160,12 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	for _, row := range rows {
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
-			return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
+			if host.Platform == "chrome" {
+				uid = 0
+			} else {
+				return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			}
 		}
 		username := row["username"]
 		type_ := row["type"]
@@ -1191,9 +1291,56 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
+func directIngestDiskEncryptionKeyDarwin(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	if len(rows) > 1 {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
+			"host", host.Hostname,
+		)
+	}
+
+	if rows[0]["encrypted"] == "0" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host does not use disk encryption",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	// it's okay if the key comes empty, this can happen and if the disk is
+	// encrypted it means we need to reset the encryption key
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
 //go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
 
-func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
+func GetDetailQueries(
+	ctx context.Context,
+	fleetConfig config.FleetConfig,
+	appConfig *fleet.AppConfig,
+	features *fleet.Features,
+) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1206,10 +1353,12 @@ func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, featu
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
+		generatedMap["software_chrome"] = softwareChrome
 	}
 
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
 	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
@@ -1218,6 +1367,12 @@ func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, featu
 
 	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
+	}
+
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
+		for key, query := range mdmQueries {
+			generatedMap[key] = query
+		}
 	}
 
 	if features != nil {

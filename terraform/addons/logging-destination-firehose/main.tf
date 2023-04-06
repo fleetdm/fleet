@@ -157,7 +157,7 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
-  name        = "osquery_results"
+  name        = var.osquery_results_s3_bucket.name
   destination = "s3"
 
   s3_configuration {
@@ -167,7 +167,7 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
-  name        = "osquery_status"
+  name        = var.osquery_status_s3_bucket.name
   destination = "s3"
 
   s3_configuration {
@@ -188,7 +188,6 @@ data "aws_iam_policy_document" "firehose-logging" {
 }
 
 resource "aws_iam_policy" "firehose-logging" {
-  name        = "fleet-firehose-logging"
   description = "An IAM policy for fleet to log to Firehose destinations"
   policy      = data.aws_iam_policy_document.firehose-logging.json
 }

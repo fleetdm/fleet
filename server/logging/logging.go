@@ -14,6 +14,9 @@ type FilesystemConfig struct {
 
 	EnableLogRotation    bool
 	EnableLogCompression bool
+	MaxSize              int
+	MaxAge               int
+	MaxBackups           int
 }
 
 type FirehoseConfig struct {
@@ -86,6 +89,9 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			logger,
 			config.Filesystem.EnableLogRotation,
 			config.Filesystem.EnableLogCompression,
+			config.Filesystem.MaxSize,
+			config.Filesystem.MaxAge,
+			config.Filesystem.MaxBackups,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create filesystem %s logger: %w", name, err)

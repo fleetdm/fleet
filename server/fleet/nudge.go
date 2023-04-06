@@ -12,7 +12,6 @@ type NudgeConfig struct {
 	OSVersionRequirements []nudgeOSVersionRequirements `json:"osVersionRequirements"`
 	UserInterface         nudgeUserInterface           `json:"userInterface"`
 	UserExperience        nudgeUserExperience          `json:"userExperience"`
-	UpdateElements        []nudgeUpdateElements        `json:"updateElements"`
 }
 
 type nudgeAboutUpdateURLs struct {
@@ -27,8 +26,9 @@ type nudgeOSVersionRequirements struct {
 }
 
 type nudgeUserInterface struct {
-	SimpleMode        bool `json:"simpleMode"`
-	ShowDeferralCount bool `json:"showDeferralCount"`
+	SimpleMode        bool                  `json:"simpleMode"`
+	ShowDeferralCount bool                  `json:"showDeferralCount"`
+	UpdateElements    []nudgeUpdateElements `json:"updateElements"`
 }
 
 type nudgeUserExperience struct {
@@ -62,12 +62,17 @@ func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
 			RequiredMinimumOSVersion: macOSUpdates.MinimumVersion,
 			AboutUpdateURLs: []nudgeAboutUpdateURLs{{
 				Language:       "en",
-				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates",
+				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mdm-macos-updates",
 			}},
 		}},
 		UserInterface: nudgeUserInterface{
 			SimpleMode:        true,
 			ShowDeferralCount: false,
+			UpdateElements: []nudgeUpdateElements{{
+				Language:         "en",
+				ActionButtonText: "Update",
+				MainHeader:       "Your device requires an update",
+			}},
 		},
 		UserExperience: nudgeUserExperience{
 			/* Initially, we show Nudge once every 24 hours  */
@@ -88,10 +93,5 @@ func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
 			 */
 			ElapsedRefreshCycle: 3600,
 		},
-		UpdateElements: []nudgeUpdateElements{{
-			Language:         "en",
-			ActionButtonText: "Update",
-			MainHeader:       "Your device requires an update",
-		}},
 	}, nil
 }

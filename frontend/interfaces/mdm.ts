@@ -54,3 +54,54 @@ export interface IMdmSummaryResponse {
   mobile_device_management_enrollment_status: IMdmStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }
+
+export interface IMdmProfile {
+  profile_id: number;
+  team_id: number;
+  name: string;
+  identifier: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IMdmProfilesResponse {
+  profiles: IMdmProfile[] | null;
+}
+
+export type MacMdmProfileStatus = "applied" | "pending" | "failed";
+export type MacMdmProfileOperationType = "remove" | "install";
+
+export interface IHostMacMdmProfile {
+  profile_id: number;
+  name: string;
+  operation_type: MacMdmProfileOperationType;
+  status: MacMdmProfileStatus;
+  detail: string;
+}
+export type IMacSettings = IHostMacMdmProfile[];
+export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
+
+export interface IAggregateMacSettingsStatus {
+  latest: number;
+  pending: number;
+  failing: number;
+}
+
+export interface IDiskEncryptionStatusAggregate {
+  applied: number;
+  action_required: number;
+  enforcing: number;
+  failed: number;
+  removing_enforcement: number;
+}
+
+// TODO: update when we have API
+export interface IMdmScript {
+  id: number;
+  name: string;
+  ran: number;
+  pending: number;
+  errors: number;
+  created_at: string;
+  updated_at: string;
+}

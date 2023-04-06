@@ -85,14 +85,15 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address        string
-	Cert           string
-	Key            string
-	TLS            bool
-	TLSProfile     string `yaml:"tls_compatibility"`
-	URLPrefix      string `yaml:"url_prefix"`
-	Keepalive      bool   `yaml:"keepalive"`
-	SandboxEnabled bool   `yaml:"sandbox_enabled"`
+	Address                     string
+	Cert                        string
+	Key                         string
+	TLS                         bool
+	TLSProfile                  string `yaml:"tls_compatibility"`
+	URLPrefix                   string `yaml:"url_prefix"`
+	Keepalive                   bool   `yaml:"keepalive"`
+	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -258,6 +259,20 @@ type KinesisConfig struct {
 	AuditStream      string `yaml:"audit_stream"`
 }
 
+// SESConfig defines configs for the AWS SES service for emailing
+type SESConfig struct {
+	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	SourceArn        string `yaml:"source_arn"`
+}
+
+type EmailConfig struct {
+	EmailBackend string `yaml:"backend"`
+}
+
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
 	Region           string
@@ -298,6 +313,9 @@ type FilesystemConfig struct {
 	AuditLogFile         string `json:"audit_log_file" yaml:"audit_log_file"`
 	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
+	MaxSize              int    `json:"max_size" yaml:"max_size"`
+	MaxAge               int    `json:"max_age" yaml:"max_age"`
+	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
@@ -324,6 +342,7 @@ type VulnerabilitiesConfig struct {
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
@@ -354,6 +373,8 @@ type HTTPBasicAuthConfig struct {
 	Username string `json:"username" yaml:"username"`
 	// Password is the HTTP Basic Auth password.
 	Password string `json:"password" yaml:"password"`
+	// Disable allows running the Prometheus metrics endpoint without Basic Auth.
+	Disable bool `json:"disable" yaml:"disable"`
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages
@@ -363,40 +384,6 @@ type PackagingConfig struct {
 	GlobalEnrollSecret string `yaml:"global_enroll_secret"`
 	// S3 configuration used to retrieve pre-built installers
 	S3 S3Config `yaml:"s3"`
-}
-
-// MDMAppleConfig holds all the configuration for Apple MDM.
-type MDMAppleConfig struct {
-	// Enable enables MDM functionality on Fleet.
-	Enable bool `yaml:"enable"`
-
-	// SCEP holds the SCEP protocol and server configuration.
-	SCEP MDMAppleSCEPConfig `yaml:"scep"`
-	// DEP holds the MDM DEP configuration.
-	DEP MDMAppleDEP `yaml:"dep"`
-}
-
-// MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
-type MDMAppleDEP struct {
-	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
-	// of DEP profiles).
-	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
-}
-
-// MDMAppleSCEPConfig holds SCEP protocol and server configuration.
-type MDMAppleSCEPConfig struct {
-	// Signer holds the SCEP signer configuration.
-	Signer SCEPSignerConfig `yaml:"signer"`
-	// Challenge is the SCEP challenge for SCEP enrollment requests.
-	Challenge string `yaml:"challenge"`
-}
-
-// SCEPSignerConfig holds the SCEP signer configuration.
-type SCEPSignerConfig struct {
-	// ValidityDays are the days signed client certificates will be valid.
-	ValidityDays int `yaml:"validity_days"`
-	// AllowRenewalDays are the allowable renewal days for certificates.
-	AllowRenewalDays int `yaml:"allow_renewal_days"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -418,6 +405,8 @@ type FleetConfig struct {
 	Kinesis          KinesisConfig
 	Lambda           LambdaConfig
 	S3               S3Config
+	Email            EmailConfig
+	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
 	KafkaREST        KafkaRESTConfig
@@ -429,7 +418,6 @@ type FleetConfig struct {
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
 	MDM              MDMConfig
-	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
 }
 
 type MDMConfig struct {
@@ -462,6 +450,25 @@ type MDMConfig struct {
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
 	appleBMToken *nanodep_client.OAuth1Tokens
+
+	OktaClientID        string `yaml:"okta_client_id"`
+	OktaClientSecret    string `yaml:"okta_client_secret"`
+	OktaServerURL       string `yaml:"okta_server_url"`
+	EndUserAgreementURL string `yaml:"eula_url"`
+
+	// AppleEnable enables Apple MDM functionality on Fleet.
+	AppleEnable bool `yaml:"apple_enable"`
+	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
+	// (fetching and setting of DEP profiles).
+	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
+	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
+	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
+	// AppleSCEPSignerValidityDays are the days signed client certificates will
+	// be valid.
+	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"`
+	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
+	// certificates.
+	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
 }
 
 type x509KeyPairConfig struct {
@@ -583,7 +590,7 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 			m.AppleSCEPKey,
 			[]byte(m.AppleSCEPKeyBytes),
 		}
-		cert, err := pair.Parse(false)
+		cert, err := pair.Parse(true)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
 		}
@@ -773,6 +780,7 @@ func (man Manager) addConfigs() {
 		"Controls whether HTTP keep-alives are enabled.")
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
+	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -870,6 +878,16 @@ func (man Manager) addConfigs() {
 	man.addConfigString("logging.tracing_type", "opentelemetry",
 		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
+	// Email
+	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+	// SES
+	man.addConfigString("ses.region", "", "AWS Region to use")
+	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
+	man.addConfigString("ses.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("ses.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
 	man.addConfigString("firehose.endpoint_url", "",
@@ -942,6 +960,9 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+	man.addConfigInt("filesystem.max_size", 500, "Maximum size in megabytes log files will grow until rotated (only valid if enable_log_rotation is true) default is 500MB")
+	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
+	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
@@ -969,6 +990,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
+	man.addConfigBool("vulnerabilities.disable_schedule", false,
+		"Set this to true when the vulnerability processing job is scheduled by an external mechanism")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 	man.addConfigDuration("vulnerabilities.recent_vulnerability_max_age", 30*24*time.Hour,
@@ -992,6 +1015,7 @@ func (man Manager) addConfigs() {
 	// Prometheus
 	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
 	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
+	man.addConfigBool("prometheus.basic_auth.disable", false, "Disable HTTP Basic Auth for Prometheus")
 
 	// Packaging config
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
@@ -1004,13 +1028,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("packaging.s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
-
-	// MDM Apple config (prototype)
-	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
-	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 
 	// MDM config
 	man.addConfigString("mdm.apple_apns_cert", "", "Apple APNs PEM-encoded certificate path")
@@ -1027,29 +1044,15 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
-
-	// Hide the official MDM flags as we don't want it to be discoverable for users for now
-	mdmFlags := []string{
-		"mdm.apple_apns_cert",
-		"mdm.apple_apns_cert_bytes",
-		"mdm.apple_apns_key",
-		"mdm.apple_apns_key_bytes",
-		"mdm.apple_scep_cert",
-		"mdm.apple_scep_cert_bytes",
-		"mdm.apple_scep_key",
-		"mdm.apple_scep_key_bytes",
-		"mdm.apple_bm_server_token",
-		"mdm.apple_bm_server_token_bytes",
-		"mdm.apple_bm_cert",
-		"mdm.apple_bm_cert_bytes",
-		"mdm.apple_bm_key",
-		"mdm.apple_bm_key_bytes",
-	}
-	for _, mdmFlag := range mdmFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
+	man.addConfigString("mdm.okta_client_id", "", "Public client ID of the Okta application")
+	man.addConfigString("mdm.okta_client_secret", "", "Private client secret of the Okta application")
+	man.addConfigString("mdm.okta_server_url", "The Okta server URL, eg: https://my-subdomain.okta.com", "")
+	man.addConfigString("mdm.eula_url", "", "A link to a PDF document containing an EULA document")
+	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
+	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
+	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
+	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1106,14 +1109,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:        man.getConfigString("server.address"),
-			Cert:           man.getConfigString("server.cert"),
-			Key:            man.getConfigString("server.key"),
-			TLS:            man.getConfigBool("server.tls"),
-			TLSProfile:     man.getConfigTLSProfile(),
-			URLPrefix:      man.getConfigString("server.url_prefix"),
-			Keepalive:      man.getConfigBool("server.keepalive"),
-			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
+			Address:                     man.getConfigString("server.address"),
+			Cert:                        man.getConfigString("server.cert"),
+			Key:                         man.getConfigString("server.key"),
+			TLS:                         man.getConfigBool("server.tls"),
+			TLSProfile:                  man.getConfigTLSProfile(),
+			URLPrefix:                   man.getConfigString("server.url_prefix"),
+			Keepalive:                   man.getConfigBool("server.keepalive"),
+			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -1207,6 +1211,17 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
+		Email: EmailConfig{
+			EmailBackend: man.getConfigString("email.backend"),
+		},
+		SES: SESConfig{
+			Region:           man.getConfigString("ses.region"),
+			EndpointURL:      man.getConfigString("ses.endpoint_url"),
+			AccessKeyID:      man.getConfigString("ses.access_key_id"),
+			SecretAccessKey:  man.getConfigString("ses.secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
+			SourceArn:        man.getConfigString("ses.source_arn"),
+		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
 			StatusTopic:   man.getConfigString("pubsub.status_topic"),
@@ -1220,6 +1235,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			AuditLogFile:         man.getConfigString("filesystem.audit_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+			MaxSize:              man.getConfigInt("filesystem.max_size"),
+			MaxAge:               man.getConfigInt("filesystem.max_age"),
+			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
@@ -1240,6 +1258,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
@@ -1257,6 +1276,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			BasicAuth: HTTPBasicAuthConfig{
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
+				Disable:  man.getConfigBool("prometheus.basic_auth.disable"),
 			},
 		},
 		Packaging: PackagingConfig{
@@ -1273,34 +1293,30 @@ func (man Manager) LoadConfig() FleetConfig {
 				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
 			},
 		},
-		MDMApple: MDMAppleConfig{
-			Enable: man.getConfigBool("mdm_apple.enable"),
-			SCEP: MDMAppleSCEPConfig{
-				Signer: SCEPSignerConfig{
-					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
-					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
-				},
-				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
-			},
-			DEP: MDMAppleDEP{
-				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
-			},
-		},
 		MDM: MDMConfig{
-			AppleAPNsCert:           man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes:      man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:            man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:       man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:           man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes:      man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:            man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:       man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:      man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes: man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:             man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:        man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleAPNsCert:                   man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:              man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:                    man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:               man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:                   man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:              man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:                    man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:               man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:              man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes:         man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:                     man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:                man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:                      man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:                 man.getConfigString("mdm.apple_bm_key_bytes"),
+			OktaClientID:                    man.getConfigString("mdm.okta_client_id"),
+			OktaClientSecret:                man.getConfigString("mdm.okta_client_secret"),
+			OktaServerURL:                   man.getConfigString("mdm.okta_server_url"),
+			EndUserAgreementURL:             man.getConfigString("mdm.eula_url"),
+			AppleEnable:                     man.getConfigBool("mdm.apple_enable"),
+			AppleSCEPSignerValidityDays:     man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
+			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
+			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 		},
 	}
 
@@ -1615,6 +1631,7 @@ func TestConfig() FleetConfig {
 			StatusLogFile: testLogFile,
 			ResultLogFile: testLogFile,
 			AuditLogFile:  testLogFile,
+			MaxSize:       500,
 		},
 	}
 }
@@ -1651,12 +1668,6 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleSCEPPEMCert = cert
 	cfg.MDM.appleSCEPPEMKey = key
 	cfg.MDM.appleBMToken = appleBMToken
-	cfg.MDMApple.Enable = true
-
-	cfg.MDMApple.SCEP = MDMAppleSCEPConfig{
-		Signer: SCEPSignerConfig{
-			ValidityDays: 365,
-		},
-		Challenge: "testchallenge",
-	}
+	cfg.MDM.AppleSCEPSignerValidityDays = 365
+	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }

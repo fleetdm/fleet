@@ -26,6 +26,7 @@ import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -60,8 +61,12 @@ interface IManageAutomationsModalProps {
 const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (url === "") {
+  if (!url) {
     errors.url = "Please add a destination URL";
+  } else if (!validUrl({ url })) {
+    errors.url = `${url} is not a valid URL`;
+  } else {
+    delete errors.url;
   }
 
   const valid = !size(errors);
@@ -186,7 +191,7 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid: validUrl, errors: newErrors } = validateWebhookURL(
+    const { valid: newValidUrl, errors: newErrors } = validateWebhookURL(
       destinationUrl
     );
     setErrors({
@@ -232,7 +237,7 @@ const ManageAutomationsModal = ({
         return;
       }
       if (!integrationEnabled) {
-        if (!validUrl) {
+        if (!newValidUrl) {
           return;
         }
         // set enable_vulnerabilities_webhook to true

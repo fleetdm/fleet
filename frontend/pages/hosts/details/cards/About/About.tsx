@@ -3,9 +3,14 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
+
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostLastRestart } from "utilities/helpers";
-import { MDM_STATUS_TOOLTIP } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -21,6 +26,41 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
+  const renderPublicIp = () => {
+    if (aboutData.public_ip !== DEFAULT_EMPTY_CELL_VALUE) {
+      return aboutData.public_ip;
+    }
+    return (
+      <>
+        <span
+          className="text-cell text-muted tooltip"
+          data-tip
+          data-for={"public-ip-tooltip"}
+        >
+          {aboutData.public_ip}
+        </span>
+        <ReactTooltip
+          place="bottom"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id={"public-ip-tooltip"}
+          data-html
+          clickable
+          delayHide={200} // need delay set to hover using clickable
+        >
+          Public IP address could not be
+          <br /> determined.{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
+            text="Learn more"
+            newTab
+            iconColor="core-fleet-white"
+          />
+        </ReactTooltip>
+      </>
+    );
+  };
+
   const renderSerialAndIPs = () => {
     return (
       <>
@@ -34,7 +74,7 @@ const About = ({
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Public IP address</span>
-          <span className="info-grid__data">{aboutData.public_ip}</span>
+          <span className="info-grid__data">{renderPublicIp()}</span>
         </div>
       </>
     );
@@ -45,7 +85,9 @@ const About = ({
       <>
         <div className="info-grid__block">
           <span className="info-grid__header">Munki version</span>
-          <span className="info-grid__data">{munki.version || "---"}</span>
+          <span className="info-grid__data">
+            {munki.version || DEFAULT_EMPTY_CELL_VALUE}
+          </span>
         </div>
       </>
     ) : null;
@@ -70,7 +112,9 @@ const About = ({
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">MDM server URL</span>
-          <span className="info-grid__data">{mdm.server_url || "---"}</span>
+          <span className="info-grid__data">
+            {mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          </span>
         </div>
       </>
     );
@@ -108,7 +152,7 @@ const About = ({
               </ReactTooltip>
             </>
           ) : (
-            deviceMapping[0].email || "---"
+            deviceMapping[0].email || DEFAULT_EMPTY_CELL_VALUE
           )}
         </span>
       </div>

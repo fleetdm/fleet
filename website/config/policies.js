@@ -16,6 +16,7 @@ module.exports.policies = {
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
+  'imagine/*': true,
   'account/logout': true,
   'view-homepage-or-redirect': true,
   'view-faq': true,
@@ -53,4 +54,7 @@ module.exports.policies = {
   'download-rss-feed': true,
   'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
+  'view-compliance': true,
+  'view-osquery-management': true,
+  'experimental/*': true, // For internal Fleet demos
 };

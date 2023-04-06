@@ -164,6 +164,16 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 select version, errors, warnings from munki_info;
 ```
 
+## network_interface_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT address, mac FROM network_interfaces LIMIT 1
+```
+
 ## network_interface_unix
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, darwin
@@ -171,21 +181,36 @@ select version, errors, warnings from munki_info;
 - Query:
 
 ```sql
-select
+SELECT
     ia.address,
     id.mac
-from
+FROM
     interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.interface
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'gateway'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
+    JOIN interface_details id ON id.interface = ia.interface
+	-- On Unix ia.interface is the name of the interface,
+	-- whereas on Windows ia.interface is the IP of the interface.
+    JOIN routes r ON r.interface = ia.interface
+WHERE
+	-- Destination 0.0.0.0/0 is the default route on route tables.
+    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Type of route is "gateway" for Unix, "remote" for Windows.
+    AND r.type = 'gateway'
+	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+    AND (
+		-- Private IPv4 addresses.
+		inet_aton(ia.address) IS NOT NULL AND (
+			split(ia.address, '.', 0) = '10'
+			OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+			OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+		)
+		-- Private IPv6 addresses start with 'fc' or 'fd'.
+		OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+	)
+ORDER BY
+    r.metric ASC,
+	-- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+	inet_aton(ia.address) IS NOT NULL DESC
+LIMIT 1;
 ```
 
 ## network_interface_windows
@@ -195,21 +220,36 @@ limit 1
 - Query:
 
 ```sql
-select
+SELECT
     ia.address,
     id.mac
-from
+FROM
     interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.address
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'remote'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
+    JOIN interface_details id ON id.interface = ia.interface
+	-- On Unix ia.interface is the name of the interface,
+	-- whereas on Windows ia.interface is the IP of the interface.
+    JOIN routes r ON r.interface = ia.address
+WHERE
+	-- Destination 0.0.0.0/0 is the default route on route tables.
+    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Type of route is "gateway" for Unix, "remote" for Windows.
+    AND r.type = 'remote'
+	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+    AND (
+		-- Private IPv4 addresses.
+		inet_aton(ia.address) IS NOT NULL AND (
+			split(ia.address, '.', 0) = '10'
+			OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+			OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+		)
+		-- Private IPv6 addresses start with 'fc' or 'fd'.
+		OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+	)
+ORDER BY
+    r.metric ASC,
+	-- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+	inet_aton(ia.address) IS NOT NULL DESC
+LIMIT 1;
 ```
 
 ## orbit_info

@@ -15,7 +15,19 @@ import (
 //
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
-	HostFeatures func(context context.Context, host *Host) (*Features, error)
+	HostFeatures   func(context context.Context, host *Host) (*Features, error)
+	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
+	// UpdateTeamMDMAppleSettings is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMAppleSettings method.
+	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+
+	// The next two functions are implemented by the ee/service, and called
+	// properly when called from an ee/service method (e.g. Modify Team), but
+	// they also need to be called from the standard server/service method (e.g.
+	// Modify AppConfig), so in this case we need to use the enterprise
+	// overrides.
+	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
+	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -52,8 +64,12 @@ type Service interface {
 
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
-	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
-	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
+	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
+	// and returns the orbit node key if successful.
+	//
+	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
+	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -69,7 +85,7 @@ type Service interface {
 	// TODO: find if there's a better way to accomplish this and standardize.
 	SetEnterpriseOverrides(overrides EnterpriseOverrides)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
 
 	// CreateUserFromInvite creates a new User from a request payload when there is already an existing invitation.
@@ -129,7 +145,7 @@ type Service interface {
 	// write the new email address to user.
 	ChangeUserEmail(ctx context.Context, token string) (string, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Session
 
 	// InitiateSSO is used to initiate an SSO session and returns a URL that can be used in a redirect to the IDP.
@@ -157,7 +173,7 @@ type Service interface {
 	GetSessionByKey(ctx context.Context, key string) (session *Session, err error)
 	DeleteSession(ctx context.Context, id uint) (err error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// PackService is the service interface for managing query packs.
 
 	// ApplyPackSpecs applies a list of PackSpecs to the datastore, creating and updating packs as necessary.
@@ -190,7 +206,7 @@ type Service interface {
 	// ListPacksForHost lists the packs that a host should execute.
 	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
@@ -213,7 +229,7 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// QueryService
 
 	// ApplyQuerySpecs applies a list of queries (creating or updating them as necessary)
@@ -236,7 +252,7 @@ type Service interface {
 	// along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// CampaignService defines the distributed query campaign related service methods
 
 	// NewDistributedQueryCampaignByNames creates a new distributed query campaign with the provided query (or the query
@@ -260,14 +276,14 @@ type Service interface {
 	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
 	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
 
 	// AgentOptionsForHost gets the agent options for the provided host. The host information should be used for
 	// filtering based on team, platform, etc.
 	AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// HostService
 
 	// AuthenticateDevice loads host identified by the device's auth token.
@@ -324,16 +340,19 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
+	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
-	AppConfig(ctx context.Context) (info *AppConfig, err error)
+	// AppConfigObfuscated returns the global application config with obfuscated credentials.
+	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 
@@ -359,6 +378,9 @@ type Service interface {
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 
+	// EmailConfig parses config.FleetConfig and returns an EmailConfig
+	EmailConfig(ctx context.Context) (*EmailConfig, error)
+
 	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
 	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
 
@@ -366,7 +388,7 @@ type Service interface {
 	// the fleet instance.
 	VulnerabilitiesConfig(ctx context.Context) (*VulnerabilitiesConfig, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// InviteService contains methods for a service which deals with user invites.
 
 	// InviteNewUser creates an invite for a new user to join Fleet.
@@ -383,7 +405,7 @@ type Service interface {
 
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// TargetService **NOTE: SearchTargets will be removed in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
@@ -399,7 +421,7 @@ type Service interface {
 	// observer role for.
 	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryService
 
 	GetScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) (queries []*ScheduledQuery, err error)
@@ -408,7 +430,7 @@ type Service interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) (err error)
 	ModifyScheduledQuery(ctx context.Context, id uint, p ScheduledQueryPayload) (query *ScheduledQuery, err error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// StatusService
 
 	// StatusResultStore returns nil if the result store is functioning correctly, or an error indicating the problem.
@@ -418,7 +440,7 @@ type Service interface {
 	// error indicating the problem.
 	StatusLiveQuery(ctx context.Context) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// CarveService
 
 	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
@@ -427,7 +449,7 @@ type Service interface {
 	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, error)
 	GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// TeamService
 
 	// NewTeam creates a new team.
@@ -457,7 +479,7 @@ type Service interface {
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
 	// NewActivity creates the given activity on the datastore.
@@ -471,13 +493,13 @@ type Service interface {
 	// logins, running a live query, etc.
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
 	// ApplyUserRolesSpecs applies a list of user global and team role changes
 	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
@@ -485,12 +507,12 @@ type Service interface {
 	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
 	DeleteGlobalScheduledQueries(ctx context.Context, id uint) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// TeamScheduleService
 
 	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
@@ -500,7 +522,7 @@ type Service interface {
 	) (*ScheduledQuery, error)
 	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
@@ -510,14 +532,14 @@ type Service interface {
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
@@ -526,23 +548,43 @@ type Service interface {
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Installers
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	CheckInstallerExistence(ctx context.Context, installer Installer) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// /////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
+
+	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
+	// specified team.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
@@ -562,8 +604,7 @@ type Service interface {
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	// The map returned has a result for each target device ID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
@@ -594,14 +635,50 @@ type Service interface {
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
 	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
-	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	// EnqueueMDMAppleCommand enqueues a command for execution on the given
+	// devices. Note that a deviceID is the same as a host's UUID.
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
 	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
 
-	///////////////////////////////////////////////////////////////////////////////
+	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
+
+	// MDMAppleDeviceLock remote locks a host
+	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
+
+	// MMDAppleEraseDevice erases a host
+	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
+
+	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
+	// given team that enables FileVault with a config that allows Fleet to
+	// escrow the recovery key.
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
+
+	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
+	// profile for the given team.
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+
+	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
+	// credentials are valid, returns a MDM enrollment profile.
+	//
+	// ROP refers to the "Resource Owner Password Flow" as specified by
+	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
+	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
+
+	// VerifyMDMAppleConfigured verifies that the server is configured for
+	// Apple MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user. See TODO for more details.
+	VerifyMDMAppleConfigured(ctx context.Context) error
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
@@ -610,4 +687,6 @@ type Service interface {
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
+
+	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 }

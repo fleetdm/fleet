@@ -1,5 +1,6 @@
 import React from "react";
 import { getByTestId, render, screen, within } from "@testing-library/react";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import PlatformCell from "./PlatformCell";
 
@@ -23,7 +24,7 @@ describe("Platform cell", () => {
     render(<PlatformCell value={[]} />);
 
     const icons = screen.queryAllByTestId("icon");
-    const emptyText = screen.queryByText("---");
+    const emptyText = screen.queryByText(DEFAULT_EMPTY_CELL_VALUE);
 
     expect(icons).toHaveLength(0);
     expect(emptyText).toBeInTheDocument();

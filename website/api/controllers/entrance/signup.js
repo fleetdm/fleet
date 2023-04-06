@@ -79,6 +79,11 @@ the account verification message.)`,
       'parameters should have been validated/coerced _before_ they were sent.'
     },
 
+    requestToSandboxTimedOut: {
+      statusCode: 408,
+      description: 'The request to the cloud provisioner exceeded the set timeout.',
+    },
+
     emailAlreadyInUse: {
       statusCode: 409,
       description: 'The provided email address is already in use.',
@@ -99,6 +104,21 @@ the account verification message.)`,
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
+
+
+    if (!sails.config.custom.enableBillingFeatures) {
+      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
+    }
+
+    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
+    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+      emailAddress: newEmailAddress
+    })
+    .timeout(5000)
+    .retry()
+    .intercept((error)=>{
+      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
+    });
 
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
@@ -123,14 +143,15 @@ the account verification message.)`,
         'Authorization':sails.config.custom.cloudProvisionerSecret
       }
     )
-    .timeout(5000)
+    .timeout(10000)// FUTURE: set this timeout to be 5000ms
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     })
-    .intercept({name: 'TimeoutError'}, (err)=>{
-      // If the request timed out, we'll throw a 500 error.
-      return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the request to the cloud provisioner took over timed out. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw error: '+err.stack);
+    .intercept({name: 'TimeoutError'},(err)=>{
+      // If the request timed out, log a warning and return a 'requestToSandboxTimedOut' response.
+      sails.log.warn('When attempting to provision a new user who just signed up ('+emailAddress+'), the request to the cloud provisioner took over timed out. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw error: '+err.stack);
+      return 'requestToSandboxTimedOut';
     });
 
     if(!cloudProvisionerResponseData.URL) {
@@ -171,6 +192,7 @@ the account verification message.)`,
       fleetSandboxURL: cloudProvisionerResponseData.URL,
       fleetSandboxExpiresAt,
       fleetSandboxDemoKey,
+      stripeCustomerId,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -199,17 +221,6 @@ the account verification message.)`,
       sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
       return;
     });
-    // If billing feaures are enabled, save a new customer entry in the Stripe API.
-    // Then persist the Stripe customer id in the database.
-    if (sails.config.custom.enableBillingFeatures) {
-      let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-        emailAddress: newEmailAddress
-      }).timeout(5000).retry();
-      await User.updateOne({id: newUserRecord.id})
-      .set({
-        stripeCustomerId
-      });
-    }
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
 

@@ -20,7 +20,7 @@
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Ensure Auto Update Is Enabled </string>
+	<string>Ensure Auto Update Is Enabled</string>
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.cis-1.2</string>
 	<key>PayloadRemovalDisallowed</key>

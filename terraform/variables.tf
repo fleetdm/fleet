@@ -16,6 +16,15 @@ variable "vpc" {
     one_nat_gateway_per_az                = optional(bool, false)
     single_nat_gateway                    = optional(bool, true)
     enable_nat_gateway                    = optional(bool, true)
+    enable_dns_hostnames                  = optional(bool, false)
+    enable_dns_support                    = optional(bool, true)
+    enable_flow_log                           = optional(bool, false)
+    create_flow_log_cloudwatch_log_group      = optional(bool, false)
+    create_flow_log_cloudwatch_iam_role       = optional(bool, false)
+    flow_log_max_aggregation_interval         = optional(number, 600)
+    flow_log_cloudwatch_log_group_name_prefix = optional(string, "/aws/vpc-flow-log/")
+    flow_log_cloudwatch_log_group_name_suffix = optional(string, "")
+    vpc_flow_log_tags                         = optional(map(string), {})
   })
   default = {
     name                = "fleet"
@@ -34,6 +43,15 @@ variable "vpc" {
     one_nat_gateway_per_az                = false
     single_nat_gateway                    = true
     enable_nat_gateway                    = true
+    enable_dns_hostnames                  = false
+    enable_dns_support                    = true
+    enable_flow_log                           = false
+    create_flow_log_cloudwatch_log_group      = false
+    create_flow_log_cloudwatch_iam_role       = false
+    flow_log_max_aggregation_interval         = 600
+    flow_log_cloudwatch_log_group_name_prefix = "/aws/vpc-flow-log/"
+    flow_log_cloudwatch_log_group_name_suffix = ""
+    vpc_flow_log_tags                         = {}
   }
 }
 
@@ -52,9 +70,13 @@ variable "rds_config" {
     apply_immediately               = optional(bool, true)
     monitoring_interval             = optional(number, 10)
     db_parameter_group_name         = optional(string)
+    db_parameters                   = optional(map(string), {})
     db_cluster_parameter_group_name = optional(string)
+    db_cluster_parameters           = optional(map(string), {})
     enabled_cloudwatch_logs_exports = optional(list(string), [])
     master_username                 = optional(string, "fleet")
+    snapshot_identifier             = optional(string)
+    cluster_tags                    = optional(map(string), {})
   })
   default = {
     name                            = "fleet"
@@ -66,9 +88,13 @@ variable "rds_config" {
     apply_immediately               = true
     monitoring_interval             = 10
     db_parameter_group_name         = null
+    db_parameters                   = {}
     db_cluster_parameter_group_name = null
+    db_cluster_parameters           = {}
     enabled_cloudwatch_logs_exports = []
     master_username                 = "fleet"
+    snapshot_identifier             = null
+    cluster_tags                    = {}
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
@@ -94,6 +120,7 @@ variable "redis_config" {
       name  = string
       value = string
     })), [])
+    tags = optional(map(string), {})
   })
   default = {
     name                          = "fleet"
@@ -111,6 +138,7 @@ variable "redis_config" {
     at_rest_encryption_enabled    = true
     transit_encryption_enabled    = true
     parameter                     = []
+    tags                          = {}
   }
 }
 
@@ -183,16 +211,18 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
-    mem                         = optional(number, 512)
-    cpu                         = optional(number, 256)
-    image                       = optional(string, "fleetdm/fleet:v4.22.1")
-    family                      = optional(string, "fleet")
-    extra_environment_variables = optional(map(string), {})
-    extra_iam_policies          = optional(list(string), [])
-    extra_secrets               = optional(map(string), {})
-    security_groups             = optional(list(string), null)
-    security_group_name         = optional(string, "fleet")
-    iam_role_arn                = optional(string, null)
+    mem                          = optional(number, 4096)
+    cpu                          = optional(number, 512)
+    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    family                       = optional(string, "fleet")
+    sidecars                     = optional(list(any), [])
+    extra_environment_variables  = optional(map(string), {})
+    extra_iam_policies           = optional(list(string), [])
+    extra_execution_iam_policies = optional(list(string), [])
+    extra_secrets                = optional(map(string), {})
+    security_groups              = optional(list(string), null)
+    security_group_name          = optional(string, "fleet")
+    iam_role_arn                 = optional(string, null)
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -273,16 +303,18 @@ variable "fleet_config" {
     })
   })
   default = {
-    mem                         = 512
-    cpu                         = 256
-    image                       = "fleetdm/fleet:v4.22.1"
-    family                      = "fleet"
-    extra_environment_variables = {}
-    extra_iam_policies          = []
-    extra_secrets               = {}
-    security_groups             = null
-    security_group_name         = "fleet"
-    iam_role_arn                = null
+    mem                          = 512
+    cpu                          = 256
+    image                        = "fleetdm/fleet:v4.22.1"
+    family                       = "fleet"
+    sidecars                     = []
+    extra_environment_variables  = {}
+    extra_iam_policies           = []
+    extra_execution_iam_policies = []
+    extra_secrets                = {}
+    security_groups              = null
+    security_group_name          = "fleet"
+    iam_role_arn                 = null
     service = {
       name = "fleet"
     }
@@ -350,6 +382,7 @@ variable "alb_config" {
     name            = optional(string, "fleet")
     security_groups = optional(list(string), [])
     access_logs     = optional(map(string), {})
+    allowed_cidrs   = optional(list(string), ["0.0.0.0/0"])
   })
   default = {}
 }

@@ -3,26 +3,32 @@ platforms:
   - darwin
 description: Password Policiy (e.g max failed password attempts).
 columns:
-  - name: maxFailedAttempts
+  - name: max_failed_attempts
     type: integer
     required: false
     description: |
       The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.
-  - name: expiresEveryNDays
+  - name: expires_every_n_days
     type: integer
     required: false
     description: |
       How many days for a new password to expire.
-  - name: daysToExpiration
+  - name: days_to_expiration
     type: integer
     required: false
     description: |
       How many days are left for the expiration of the current password.
-  - name: historyDepth
+  - name: history_depth
     type: integer
     required: false
     description: |
           This parameter indicates the depth of password history which a new password can't be identical to.
-notes: >-
-  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+  - name: min_mixed_case_characters
+    type: integer
+    required: false
+    description: |
+          This parameter indicates the minimum number of mixed characters in a password.
+notes: |
+  This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.
+  Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false

@@ -4,6 +4,7 @@ package mock
 
 import (
 	"crypto/tls"
+	"sync"
 
 	"github.com/micromdm/nanomdm/push"
 )
@@ -15,9 +16,13 @@ type NewPushProviderFunc func(p0 *tls.Certificate) (push.PushProvider, error)
 type APNSPushProviderFactory struct {
 	NewPushProviderFunc        NewPushProviderFunc
 	NewPushProviderFuncInvoked bool
+
+	mu sync.Mutex
 }
 
 func (s *APNSPushProviderFactory) NewPushProvider(p0 *tls.Certificate) (push.PushProvider, error) {
+	s.mu.Lock()
 	s.NewPushProviderFuncInvoked = true
+	s.mu.Unlock()
 	return s.NewPushProviderFunc(p0)
 }

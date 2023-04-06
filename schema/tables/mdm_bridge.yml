@@ -1,0 +1,27 @@
+name: mdm_bridge
+platforms:
+  - windows
+description: Allows querying MDM enrolled devices using "get" commands.
+columns:
+  - name: enrollment_status
+    type: text
+    required: false
+    description: Contains the enrollment status of the device, possible values are "device_enrolled" and "device_unenrolled".
+  - name: enrolled_user
+    type: text
+    required: false
+    description: Contains the enrollment URI of the device.
+  - name: mdm_command_input
+    type: text
+    required: false
+    description: The "get" command to execute on the device. If empty, no command is executed and the "enrollment_status" and "enrolled_user" columns are returned.
+  - name: mdm_command_output
+    type: text
+    required: false
+    description: Value of the "Results" field of the MDM command output.
+  - name: raw_mdm_command_output
+    type: text
+    required: false
+    description: The full raw output of the MDM command execution.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

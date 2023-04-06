@@ -32,6 +32,12 @@ export enum ActivityType {
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
+  ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  CreatedMacOSProfile = "created_macos_profile",
+  DeletedMacOSProfile = "deleted_macos_profile",
+  EditedMacOSProfile = "edited_macos_profile",
+  EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
+  DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
 }
 export interface IActivity {
   created_at: string;
@@ -66,4 +72,6 @@ export interface IActivityDetails {
   installed_from_dep?: boolean;
   minimum_version?: string;
   deadline?: string;
+  profile_name?: string;
+  profile_identifier?: string;
 }

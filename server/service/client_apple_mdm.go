@@ -41,7 +41,7 @@ func (c *Client) ListEnrollments() ([]*fleet.MDMAppleEnrollmentProfile, error) {
 func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {
 	var commandPayload map[string]interface{}
 	if _, err := plist.Unmarshal(rawPlist, &commandPayload); err != nil {
-		return nil, fmt.Errorf("unmarshal command plist: %w", err)
+		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
 	}
 
 	// generate a random command UUID
@@ -55,16 +55,15 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	request := enqueueMDMAppleCommandRequest{
 		Command:   base64.RawStdEncoding.EncodeToString(b),
 		DeviceIDs: deviceIDs,
-		NoPush:    false,
 	}
 	var response enqueueMDMAppleCommandResponse
 	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enqueue", &response); err != nil {
-		return nil, fmt.Errorf("request: %w", err)
+		return nil, fmt.Errorf("run command request: %w", err)
 	}
-	return &response.Result, nil
+	return response.CommandEnqueueResult, nil
 }
 
-func (c *Client) MDMAppleGetCommandResults(commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commandresults"
 
 	query := url.Values{}

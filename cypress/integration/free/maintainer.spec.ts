@@ -99,12 +99,6 @@ describe(
       it("allows maintainer to create an operating system policy", () => {
         hostDetailsPage.allowsCreateOsPolicy();
       });
-      it("allows maintainer to custom query the host", () => {
-        hostDetailsPage.allowsCustomQueryHost();
-      });
-      it("allows maintainer to delete the host", () => {
-        hostDetailsPage.allowsDeleteHost();
-      });
     });
     describe("Manage software page", () => {
       beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());

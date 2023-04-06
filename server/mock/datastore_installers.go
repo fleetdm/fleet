@@ -5,6 +5,7 @@ package mock
 import (
 	"context"
 	"io"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -26,19 +27,27 @@ type InstallerStore struct {
 
 	ExistsFunc        ExistsFunc
 	ExistsFuncInvoked bool
+
+	mu sync.Mutex
 }
 
 func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
+	s.mu.Lock()
 	s.GetFuncInvoked = true
+	s.mu.Unlock()
 	return s.GetFunc(ctx, installer)
 }
 
 func (s *InstallerStore) Put(ctx context.Context, installer fleet.Installer) (string, error) {
+	s.mu.Lock()
 	s.PutFuncInvoked = true
+	s.mu.Unlock()
 	return s.PutFunc(ctx, installer)
 }
 
 func (s *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
+	s.mu.Lock()
 	s.ExistsFuncInvoked = true
+	s.mu.Unlock()
 	return s.ExistsFunc(ctx, installer)
 }

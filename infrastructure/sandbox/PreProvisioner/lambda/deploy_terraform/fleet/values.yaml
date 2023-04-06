@@ -149,8 +149,8 @@ mysql:
   # Only needed if creating secret.
   password: default
   passwordKey: mysql-password
-  maxOpenConns: 50
-  maxIdleConns: 50
+  maxOpenConns: 25
+  maxIdleConns: 25
   connMaxLifetime: 0
   tls:
     enabled: false
@@ -187,3 +187,6 @@ gke:
     useManagedCertificate: false
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
+
+crons:
+  vulnerabilities: "0,15,30,45 * * * *"

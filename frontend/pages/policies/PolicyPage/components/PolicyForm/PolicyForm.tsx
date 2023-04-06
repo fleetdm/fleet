@@ -11,7 +11,7 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
-import usePlatformSelector from "hooks/usePlaformSelector";
+import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
@@ -92,6 +92,7 @@ const PolicyForm = ({
     lastEditedQueryResolution,
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
+    defaultPolicy,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -130,6 +131,7 @@ const PolicyForm = ({
     lastEditedQueryPlatform,
     baseClass
   );
+
   const {
     getSelectedPlatforms,
     setSelectedPlatforms,
@@ -214,7 +216,7 @@ const PolicyForm = ({
     }
 
     let selectedPlatforms: IOsqueryPlatform[] = [];
-    if (isEditMode) {
+    if (isEditMode || defaultPolicy) {
       selectedPlatforms = getSelectedPlatforms();
     } else {
       selectedPlatforms = getCompatiblePlatforms();
@@ -222,7 +224,10 @@ const PolicyForm = ({
     }
 
     const newPlatformString = selectedPlatforms.join(",") as IPlatformString;
-    setLastEditedQueryPlatform(newPlatformString);
+
+    if (!defaultPolicy) {
+      setLastEditedQueryPlatform(newPlatformString);
+    }
 
     if (!isEditMode) {
       setIsNewPolicyModalOpen(true);
@@ -497,7 +502,7 @@ const PolicyForm = ({
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
         </span>
-        {isEditMode && platformSelector.render()}
+        {(isEditMode || defaultPolicy) && platformSelector.render()}
         {isEditMode && isPremiumTier && renderCriticalPolicy()}
         {renderLiveQueryWarning()}
         <div className={`${baseClass}__button-wrap`}>
@@ -570,6 +575,7 @@ const PolicyForm = ({
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
+          lastEditedQueryPlatform={lastEditedQueryPlatform}
           isUpdatingPolicy={isUpdatingPolicy}
         />
       )}

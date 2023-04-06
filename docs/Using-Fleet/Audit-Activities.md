@@ -583,6 +583,116 @@ This activity contains the following fields:
 }
 ```
 
+### Type `read_host_disk_encryption_key`
+
+Generated when a user reads the disk encryption key for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+}
+```
+
+### Type `created_macos_profile`
+
+Generated when a user adds a new macOS profile to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "profile_identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `deleted_macos_profile`
+
+Generated when a user deletes a macOS profile from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "profile_identifier": Identifier of deleted the profile.
+- "team_id": The ID of the team that the profile applied to, null if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, null if it applied to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `edited_macos_profile`
+
+Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `enabled_macos_disk_encryption`
+
+Generated when a user turns on macOS disk encryption for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `disabled_macos_disk_encryption`
+
+Generated when a user turns off macOS disk encryption for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">

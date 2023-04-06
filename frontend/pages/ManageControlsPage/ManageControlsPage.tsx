@@ -1,25 +1,16 @@
-import React, { useContext } from "react";
-
+import React, { useCallback, useContext } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
+
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-
-import mdmAppleAPI from "services/entities/mdm_apple";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
+import TeamsDropdown from "components/TeamsDropdown";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-
-import { IMdmApple } from "interfaces/mdm";
-
-import { find } from "lodash";
-import { useQuery } from "react-query";
-import Spinner from "components/Spinner";
 
 interface IControlsSubNavItem {
   name: string;
@@ -39,7 +30,14 @@ const controlsSubNav: IControlsSubNavItem[] = [
 
 interface IManageControlsPageProps {
   children: JSX.Element;
-  location: any; // no type in react-router v3
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: {
+      team_id?: string;
+    };
+  };
   router: InjectedRouter; // v3
 }
 
@@ -53,69 +51,49 @@ const getTabIndex = (path: string): number => {
 const baseClass = "manage-controls-page";
 
 const ManageControlsPage = ({
+  // TODO(sarah): decide on pattern to pass team id to subcomponents.
+  // using children makes it difficult to centralize page-level control
+  // over team id param
   children,
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const {
+    availableTeams,
+    config,
+    isFreeTier,
+    isOnGlobalTeam,
+    isPremiumTier,
+  } = useContext(AppContext);
 
-  const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
-    IMdmApple,
-    Error
-  >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
-    enabled: isPremiumTier,
-    staleTime: 5000,
-    retry: false,
+  const { currentTeamId, handleTeamChange } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: true,
   });
 
-  const navigateToNav = (i: number): void => {
-    const navPath = controlsSubNav[i].pathname;
-    router.push(navPath);
-  };
-
-  const handleTeamSelect = (ctx: ITeamsDropdownState) => {
-    const teamId = ctx.teamId;
-    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
-    router.replace(location.pathname + queryString);
-    const selectedTeam = find(availableTeams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
-  };
-
-  const renderHeader = () => (
-    <div className={`${baseClass}__header`}>
-      <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          <TeamsDropdownHeader
-            router={router}
-            location={location}
-            baseClass={baseClass}
-            defaultTitle="Controls"
-            onChange={handleTeamSelect}
-            description={() => {
-              return null;
-            }}
-            includeNoTeams
-            includeAll={false}
-          />
-        </div>
-      </div>
-    </div>
+  const navigateToNav = useCallback(
+    (i: number): void => {
+      const navPath = controlsSubNav[i].pathname;
+      router.replace(
+        navPath.concat(location?.search || "").concat(location?.hash || "")
+      );
+    },
+    [location, router]
   );
 
-  const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  const onConnectClick = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
 
   const renderBody = () => {
-    if (isLoadingMdmApple) {
-      return <Spinner />;
-    }
-    return mdmApple ? (
+    return config?.mdm.enabled_and_configured ? (
       <div>
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(location.pathname)}
-            onSelect={(i) => navigateToNav(i)}
+            selectedIndex={getTabIndex(location?.pathname || "")}
+            onSelect={navigateToNav}
           >
             <TabList>
               {controlsSubNav.map((navItem) => {
@@ -150,7 +128,34 @@ const ManageControlsPage = ({
   return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header-wrap`}>
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isFreeTier && <h1>Controls</h1>}
+                  {isPremiumTier &&
+                    availableTeams &&
+                    (availableTeams.length > 1 || isOnGlobalTeam) && (
+                      <TeamsDropdown
+                        currentUserTeams={availableTeams}
+                        selectedTeamId={currentTeamId}
+                        onChange={handleTeamChange}
+                        includeAll={false}
+                        includeNoTeams
+                      />
+                    )}
+                  {isPremiumTier &&
+                    !isOnGlobalTeam &&
+                    availableTeams &&
+                    availableTeams.length === 1 && (
+                      <h1>{availableTeams[0].name}</h1>
+                    )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {renderBody()}
       </div>
     </MainContent>

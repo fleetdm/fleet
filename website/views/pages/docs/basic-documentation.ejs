@@ -109,10 +109,10 @@
           <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
             <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
               <span class="pr-2 m-0">Docs</span>
-              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+              <img class="my-auto" style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
               <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
-              <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
-              <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
+              <img style="width: 6px; height: 9px;" class="ml-auto my-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
+              <img style="width: 9px; height: 6px;" class="ml-auto my-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
             </button>
           </div>
           <div class="border-bottom" v-if="!showDocsNav"></div>
@@ -176,6 +176,22 @@
                   </span>
                 </div>
               </a>
+            </div>
+            <div>
+              <div purpose="premium-cta" style="background: #E59CC4;" v-if="currentDocsSection === 'using-fleet' || currentDocsSection === 'contributing'">
+                <div purpose="docs-cta-image" class="d-flex justify-content-center">
+                  <img alt="A computer next to a coffee cup" src="/images/docs-premium-cta-computer-125x134@2x.png">
+                </div>
+                <p>Even more control with <span>Fleet Premium</span></p>
+                <a purpose="premium-cta-btn" href="/upgrade">Learn more</a>
+              </div>
+              <div purpose="premium-cta" style="background: #A182DF;" v-else-if="currentDocsSection === 'deploying'">
+                <div purpose="docs-cta-image" class="d-flex justify-content-center">
+                  <img alt="A telephone in a glass display case" src="/images/docs-premium-cta-telephone-125x134@2x.png">
+                </div>
+                <p>Expertise on-demand with <span>Fleet Premium</span></p>
+                <a purpose="premium-cta-btn" href="/upgrade">Learn more</a>
+              </div>
             </div>
           </div>
         </div>

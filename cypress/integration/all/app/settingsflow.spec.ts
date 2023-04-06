@@ -183,10 +183,6 @@ describe("App settings flow", () => {
         .click({ force: true })
         .type("my entity id");
 
-      cy.findByLabelText(/issuer uri/i)
-        .click({ force: true })
-        .type("my issuer uri");
-
       cy.findByLabelText(/idp image url/i)
         .click()
         .type("https://http.cat/100");
@@ -194,7 +190,7 @@ describe("App settings flow", () => {
       // specifically targeting this one to avoid conflict
       // with cypress seeing multiple "metadata url" - one
       // in a tooltip, the other as the actual label
-      cy.getAttached("[for='metadataURL']")
+      cy.getAttached("[for='metadataUrl']")
         .click()
         .type("http://github.com/fleetdm/fleet");
 
@@ -216,14 +212,12 @@ describe("App settings flow", () => {
 
       cy.findByLabelText(/entity id/i).should("have.value", "my entity id");
 
-      cy.findByLabelText(/issuer uri/i).should("have.value", "my issuer uri");
-
       cy.findByLabelText(/idp image url/i).should(
         "have.value",
         "https://http.cat/100"
       );
 
-      cy.getAttached("#metadataURL").should(
+      cy.getAttached("#metadataUrl").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );
@@ -280,7 +274,7 @@ describe("App settings flow", () => {
       );
       cy.findByText(/single sign-on options/i).click();
 
-      cy.getAttached("#metadataURL").should(
+      cy.getAttached("#metadataUrl").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );

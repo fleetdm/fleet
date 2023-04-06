@@ -36,13 +36,16 @@
             <div class="invalid-feedback mt-2" v-if="formErrors.password === 'required'">Please enter a password.</div>
           </div>
           <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Sign up</ajax-button>
-          <div class="d-flex flex-column" v-if="cloudError==='emailAlreadyInUse'">
+          <div class="d-flex flex-column" v-if="cloudError === 'emailAlreadyInUse'">
             <cloud-error class="my-0">
               <p purpose="error-message">This email is already linked to a Fleet account.</p>
             </cloud-error>
             <a class="mx-auto font-weight-bold d-flex align-items-center py-3" href="/try-fleet/login">Sign in with existing account <img alt="A blue arrow pointing right" style="height: 10px; margin-left: 6px;" src="/images/arrow-right-blue-18x10@2x.png"></a>
             <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info">Try again</ajax-button>
           </div>
+          <cloud-error purpose="cloud-error" v-else-if="cloudError === 'requestToSandboxTimedOut'">
+            <p purpose="error-message">Fleet Sandbox is experiencing unusually high activity. Please refresh the page in 13 seconds and try signing up again.</p>
+          </cloud-error>
           <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         </ajax-form>
       </div>

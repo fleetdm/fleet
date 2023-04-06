@@ -90,6 +90,8 @@ func TestSanitizeColumn(t *testing.T) {
 		{"foobar*baz", "`foobarbaz`"},
 		{"....", ""},
 		{"h.id", "`h`.`id`"},
+		{"id;delete from hosts", "`iddeletefromhosts`"},
+		{"select * from foo", "`selectfromfoo`"},
 	}
 
 	for _, tt := range testCases {

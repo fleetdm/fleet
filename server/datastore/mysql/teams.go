@@ -111,13 +111,13 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 }
 
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM teams
 			WHERE name = ?
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, ds.reader, team, sql, name); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, team, stmt, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 

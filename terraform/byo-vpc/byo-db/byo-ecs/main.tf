@@ -1,7 +1,11 @@
 locals {
-  environment = [ for k, v in var.fleet_config.extra_environment_variables : {
+  environment = [for k, v in var.fleet_config.extra_environment_variables : {
     name  = k
     value = v
+  }]
+  secrets = [for k, v in var.fleet_config.extra_secrets : {
+    name      = k
+    valueFrom = v
   }]
 }
 
@@ -42,7 +46,7 @@ resource "aws_ecs_task_definition" "backend" {
   cpu                      = var.fleet_config.cpu
   memory                   = var.fleet_config.mem
   container_definitions = jsonencode(
-    [
+    concat([
       {
         name        = "fleet"
         image       = var.fleet_config.image
@@ -74,7 +78,7 @@ resource "aws_ecs_task_definition" "backend" {
             hardLimit = 999999
           }
         ],
-        secrets = [
+        secrets = concat([
           {
             name      = "FLEET_MYSQL_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
@@ -83,7 +87,7 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
           }
-        ]
+        ], local.secrets)
         environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
@@ -123,7 +127,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
         ], local.environment)
       }
-  ])
+  ], var.fleet_config.sidecars))
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {

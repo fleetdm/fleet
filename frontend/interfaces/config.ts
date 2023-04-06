@@ -28,7 +28,6 @@ export default PropTypes.shape({
   verify_sll_certs: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
   entity_id: PropTypes.string,
-  issuer_uri: PropTypes.string,
   idp_image_url: PropTypes.string,
   metadata: PropTypes.string,
   metadata_url: PropTypes.string,
@@ -43,7 +42,6 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
-  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
@@ -97,6 +95,10 @@ export interface IMdmConfig {
     minimum_version: string;
     deadline: string;
   };
+  macos_settings: {
+    custom_settings: null; // TODO: type?
+    enable_disk_encryption: boolean;
+  };
 }
 
 export interface IDeviceGlobalConfig {
@@ -111,36 +113,35 @@ export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
   domain: string;
-  smtpEnableSSLTLS: boolean;
-  enableStartTLS: boolean;
-  serverURL: string;
-  orgLogoURL: string;
+  smtpEnableSslTls: boolean;
+  enableStartTls: boolean;
+  serverUrl: string;
+  orgLogoUrl: string;
   orgName: string;
   smtpPassword: string;
   smtpPort?: number;
   smtpSenderAddress: string;
   smtpServer: string;
   smtpUsername: string;
-  verifySSLCerts: boolean;
-  entityID: string;
-  issuerURI: string;
-  idpImageURL: string;
+  verifySslCerts: boolean;
+  entityId: string;
+  idpImageUrl: string;
   metadata: string;
-  metadataURL: string;
+  metadataUrl: string;
   idpName: string;
-  enableSSO: boolean;
-  enableSSOIDPLogin: boolean;
-  enableSMTP: boolean;
+  enableSso: boolean;
+  enableSsoIdpLogin: boolean;
+  enableSmtp: boolean;
   enableHostExpiry: boolean;
   hostExpiryWindow: number;
   disableLiveQuery: boolean;
   agentOptions: any;
   enableHostStatusWebhook: boolean;
-  hostStatusWebhookDestinationURL?: string;
+  hostStatusWebhookDestinationUrl?: string;
   hostStatusWebhookHostPercentage?: number;
   hostStatusWebhookDaysCount?: number;
   enableUsageStatistics: boolean;
-  transparency_url: string;
+  transparencyUrl: string;
 }
 
 export interface IConfigFeatures {
@@ -176,7 +177,6 @@ export interface IConfig {
   };
   sso_settings: {
     entity_id: string;
-    issuer_uri: string;
     idp_image_url: string;
     metadata: string;
     metadata_url: string;
@@ -235,7 +235,6 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
-  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {

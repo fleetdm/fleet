@@ -3,7 +3,7 @@ import { size } from "lodash";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { IPlatformSelector } from "hooks/usePlaformSelector";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IPolicyFormData } from "interfaces/policy";
 import { IPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -15,6 +15,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
+import { platform } from "process";
 
 export interface INewPolicyModalProps {
   baseClass: string;
@@ -23,6 +24,7 @@ export interface INewPolicyModalProps {
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
+  lastEditedQueryPlatform: IPlatformString | null;
   isUpdatingPolicy: boolean;
 }
 
@@ -44,6 +46,7 @@ const NewPolicyModal = ({
   setIsNewPolicyModalOpen,
   backendValidators,
   platformSelector,
+  lastEditedQueryPlatform,
   isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
@@ -52,6 +55,7 @@ const NewPolicyModal = ({
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    defaultPolicy,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 

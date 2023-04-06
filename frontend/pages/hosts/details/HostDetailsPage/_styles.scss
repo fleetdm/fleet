@@ -56,8 +56,8 @@
               vertical-align: sub;
             }
 
-            .total-issues-count {
-              margin-left: $pad-small;
+            &__text {
+              padding-left: $pad-xsmall;
             }
           }
         }
@@ -346,12 +346,6 @@
     display: flex;
     justify-content: flex-end;
     margin: $pad-xxlarge 0 0;
-  }
-
-  &__action-button-container {
-    display: flex;
-    align-items: center;
-    gap: $pad-large;
   }
 
   &__device_mapping {

@@ -46,7 +46,7 @@ When you install the generated Orbit installer on a host, this host will automat
 
 ### Signing installers
 
-  >**Note:** Currently, the `fleetclt package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
 
 The `fleetctl package` provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
@@ -113,28 +113,29 @@ To generate an osquery installer for a team:
 
 The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
-| Flag                | Options                                                                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| --type              | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
-| --fleet-desktop     | Include Fleet Desktop.                                                                                                                  |
-| --enroll-secret     | Enroll secret for authenticating to Fleet server                                                                                        |
-| --fleet-url         | URL (`host:port`) of Fleet server                                                                                                       |
-| --fleet-certificate | Path to server certificate bundle                                                                                                       |
-| --identifier        | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
-| --version           | Version for package product (default: `0.0.3`)                                                                                          |
-| --insecure          | Disable TLS certificate verification (default: `false`)                                                                                 |
-| --service           | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
-| --sign-identity     | Identity to use for macOS codesigning                                                                                                   |
-| --notarize          | Whether to notarize macOS packages (default: `false`)                                                                                   |
-| --disable-updates   | Disable auto updates on the generated package (default: false)                                                                          |
-| --osqueryd-channel  | Update channel of osqueryd to use (default: `stable`)                                                                                   |
-| --orbit-channel     | Update channel of Orbit to use (default: `stable`)                                                                                      |
-| --desktop-channel   | Update channel of desktop to use (default: `stable`)                                                                                    |
-| --update-url        | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
-| --update-roots      | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
-| --debug             | Enable debug logging (default: `false`)                                                                                                 |
-| --verbose           | Log detailed information when building the package (default: false)                                                                     |
-| --help, -h          | show help (default: `false`)                                                                                                            |
+| Flag                       | Options                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| --type                     | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
+| --fleet-desktop            | Include Fleet Desktop.                                                                                                                  |
+| --enroll-secret            | Enroll secret for authenticating to Fleet server                                                                                        |
+| --fleet-url                | URL (`host:port`) of Fleet server                                                                                                       |
+| --fleet-certificate        | Path to server certificate bundle                                                                                                       |
+| --identifier               | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
+| --version                  | Version for package product (default: `0.0.3`)                                                                                          |
+| --insecure                 | Disable TLS certificate verification (default: `false`)                                                                                 |
+| --service                  | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
+| --sign-identity            | Identity to use for macOS codesigning                                                                                                   |
+| --notarize                 | Whether to notarize macOS packages (default: `false`)                                                                                   |
+| --disable-updates          | Disable auto updates on the generated package (default: false)                                                                          |
+| --osqueryd-channel         | Update channel of osqueryd to use (default: `stable`)                                                                                   |
+| --orbit-channel            | Update channel of Orbit to use (default: `stable`)                                                                                      |
+| --desktop-channel          | Update channel of desktop to use (default: `stable`)                                                                                    |
+| --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
+| --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
+| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)                |
+| --debug                    | Enable debug logging (default: `false`)                                                                                                 |
+| --verbose                  | Log detailed information when building the package (default: false)                                                                     |
+| --help, -h                 | show help (default: `false`)                                                                                                            |
 
 
 Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#add-hosts-with-plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
@@ -182,18 +183,18 @@ In order for osquery to connect to the fleet server, there are some flags that n
  --tls_server_certs=/etc/osquery/fleet.crt
  --tls_hostname=fleet.example.com 
  --host_identifier=uuid 
- --enroll_tls_endpoint=/api/v1/osquery/enroll 
+ --enroll_tls_endpoint=/api/osquery/enroll 
  --config_plugin=tls 
- --config_tls_endpoint=/api/v1/osquery/config 
+ --config_tls_endpoint=/api/osquery/config 
  --config_refresh=10 
  --disable_distributed=false
  --distributed_plugin=tls 
  --distributed_interval=10 
  --distributed_tls_max_attempts=3 
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read 
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write 
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read 
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write 
  --logger_plugin=tls 
- --logger_tls_endpoint=/api/v1/osquery/log 
+ --logger_tls_endpoint=/api/osquery/log 
  --logger_tls_period=10
  ```
 These can be specified directly in the command line or saved to a flag file. 
@@ -208,18 +209,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/v1/osquery/enroll \
+ --enroll_tls_endpoint=/api/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/v1/osquery/config \
+ --config_tls_endpoint=/api/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/v1/osquery/log \
+ --logger_tls_endpoint=/api/osquery/log \
  --logger_tls_period=10
 ```
 

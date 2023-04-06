@@ -257,7 +257,8 @@ func setupSyncChannel(channelId string) error {
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventw
 	ha, err := windows.OpenEvent(windows.EVENT_ALL_ACCESS, false, ev)
 	if (ha != windows.InvalidHandle) && (err == nil) {
-		windows.CloseHandle(ha) // closing the handle to avoid handle leaks
+		// Closing the handle to avoid handle leaks.
+		windows.CloseHandle(ha) //nolint:errcheck
 		return nil              // channel is already present - nothing to do here
 	}
 

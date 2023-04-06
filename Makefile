@@ -151,11 +151,11 @@ test: lint test-go test-js
 generate: clean-assets generate-js generate-go
 
 generate-ci:
-	NODE_ENV=development webpack
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_ENV=production webpack --progress --colors
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=production yarn run webpack --progress --colors
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
@@ -166,14 +166,14 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
-	NODE_ENV=development webpack --progress --colors
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
-	NODE_ENV=development webpack --progress --colors --watch
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors --watch
 
 generate-mock: .prefix
-	go install github.com/fleetdm/mockimpl@8d7943aa39d8f5f464d3d3618d9571d385f7bcc5
+	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix
@@ -235,6 +235,13 @@ binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && cp windows/fleetctl.exe . && zip fleetctl.exe.zip fleetctl.exe
 	cd build/binary-bundle && shasum -a 256 fleet.zip fleetctl.exe.zip fleetctl-macos.tar.gz fleetctl-windows.tar.gz fleetctl-linux.tar.gz
 
+# Build orbit/fleetd fleetd_tables extension
+fleetd-tables-windows:
+	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux:
+	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin:
+	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 
 .pre-binary-arch:
 ifndef GOOS
@@ -333,6 +340,24 @@ endif
 	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
 	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
+	rm -r $(TMP_DIR)
+
+# Generate nudge.app.tar.gz bundle from nudge repo.
+#
+# Usage:
+# make nudge-app-tar-gz version=1.1.10.81462 out-path=.
+nudge-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target nudge-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://github.com/macadmins/nudge/releases/download/v$(version)/Nudge-$(version).pkg --output $(TMP_DIR)/nudge-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/nudge-$(version).pkg $(TMP_DIR)/nudge_pkg_expanded
+	mkdir -p $(TMP_DIR)/nudge_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/nudge_pkg_expanded/nudge-$(version).pkg/Payload --directory $(TMP_DIR)/nudge_pkg_payload_expanded
+	$(TMP_DIR)/nudge_pkg_payload_expanded/Nudge.app/Contents/MacOS/Nudge --version
+	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/ Nudge.app
 	rm -r $(TMP_DIR)
 
 # Build and generate desktop.app.tar.gz bundle.

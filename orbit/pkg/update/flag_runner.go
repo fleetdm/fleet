@@ -12,20 +12,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
-
-// OrbitConfigFetcher allows fetching Orbit configuration.
-type OrbitConfigFetcher interface {
-	// GetConfig returns the Orbit configuration.
-	GetConfig() (*fleet.OrbitConfig, error)
-}
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
+// It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           FlagUpdateOptions
@@ -129,7 +123,8 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 // ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with ExtensionUpdateOptions and updateRunner to connect to Fleet
+// It uses an an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with ExtensionUpdateOptions and updateRunner to connect to Fleet.
 type ExtensionRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           ExtensionUpdateOptions
@@ -268,8 +263,8 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		rootDir := r.updateRunner.updater.opt.RootDirectory
 
 		// update our view of targets
-		r.updateRunner.UpdateRunnerOptTargets(targetName)
-		r.updateRunner.updater.SetExtensionsTargetInfo(targetName, platform, channel, filename)
+		r.updateRunner.AddRunnerOptTarget(targetName)
+		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
 		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
@@ -281,24 +276,10 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 			return false, fmt.Errorf("update metadata: %w", err)
 		}
 
-		meta, err := r.updateRunner.updater.Lookup(targetName)
-		if err != nil {
+		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
 			// we do not want orbit to restart
 			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
-
-		_, localHash, err := fileHashes(meta, path)
-		if err != nil {
-			// OK, not an error, expected on initial run that path doesn't exist
-			// we do not want orbit to restart
-			return false, nil
-		}
-
-		// update local hashes
-		log.Info().Msgf("updating local hash(%s)=%x", targetName, localHash)
-		r.updateRunner.mu.Lock()
-		r.updateRunner.localHashes[targetName] = localHash
-		r.updateRunner.mu.Unlock()
 
 		sb.WriteString(path + "\n")
 	}

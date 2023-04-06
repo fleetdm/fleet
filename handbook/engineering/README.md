@@ -22,8 +22,7 @@
 ### Principles
 
 - Support the [Maker Schedule](http://www.paulgraham.com/makersschedule.html) by keeping meetings to a minimum.
-- Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
-- Each team should have a fixed weekly sync check-in. This helps reinforce team bonds and alignment.
+- Each individual must have a weekly or biweekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
@@ -34,7 +33,7 @@ The following is the subset of proposed engineering meetings. Each group is free
 - Sprints are 3 weeks long to match our release cadence.
 - There are 5 “Scrum Ceremonies” performed during each sprint:
   - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meet daily for updates. Each team member present what they did since the last sync and what they intend to do until next sync. Any impediments are raised.
+  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
   - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
     - Have Stakeholders know in advance the time it will take to achieve those items.
     - Make it easier in the next planning meeting to know what the team can take for the next sprint.
@@ -88,31 +87,19 @@ For each attendee:
 
 A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
 
-e.g., “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
+e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
 
 In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
 
 #### Participants
 
-This would include members of each group.
+This would include anyone who wishes to participate. 
 
 #### Sample Agenda (MDM)
 
-- What’s good?
 - Anything at risk for the release?
-- Bug assignment
 - Confirm response payload matches spec
-- Discuss completion of Redux removal
-
-### Standup
-
-(Optional, varies by group) This is to provide status reports, discover blockers, and keep the group in sync.
-
-If desired, each group can implement daily (or some other cadence) standups. Ultimately, it’s up to the Engineering Manager to make sure that the team is communicating appropriately to deliver results.
-
-#### Participants
-
-This would include any members of the group.
+- Discuss common patterns and conventions in the codebase
 
 ### Engineering Leadership Weekly (Weekly ~ one hour)
 
@@ -162,7 +149,6 @@ How to deploy a new release to dogfood:
 3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-6. Select **Run workflow**. **dogfood_mdm** should be selected under the **Use workflow from** field.
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 > 
@@ -192,7 +178,9 @@ The oncall engineer is a second-line responder to questions raised by customers 
 
 The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy and Zay are responsible for the first response to messages in private customer Slack channels.
 
-We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties.
+We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
+
+> Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
 #### 2. PR reviews
 
@@ -204,9 +192,9 @@ In either case, if the oncall engineer has the knowledge and confidence to revie
 
 #### 3. Customer success meetings
 
-The oncall engineer is asked to attend all the customer success meetings during the week.
+The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-experience Slack channel requesting invitations to upcoming meetings.
 
-The engineer will receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
+This has a dual purpose of providing more context for how our customers use Fleet. The engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### 4. Improve documentation
 
@@ -231,6 +219,18 @@ At the end of your oncall shift, you will be asked to share about how you spent 
 ### How to reach the oncall engineer
 
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
+
+### Escalations
+
+When the oncall engineer is unsure of the answer, they should follow this process for escalation.
+
+To achieve quick "first-response" times, you are encouraged to say something like "I don't know the answer and I'm taking it back to the team," or "I think X, but I'm confirming that with the team (or by looking in the code)."
+
+How to escalate:
+
+1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
+
+2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@zwass` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Zach will work with you to craft an appropriate answer or find another team member who can help.
 
 ### Handoff
 
@@ -264,6 +264,24 @@ At Fleet, we take customer incidents very seriously. After working with customer
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
+### Postmortem document
+
+Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate with some initial data to enable a productive conversation. 
+
+### Postmortem meeting
+
+Invite all stake holders, typically the team involved and QA representatives.
+
+Follow the document topic by topic. Keep the goal in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
+
+Distinguish between the root-cause of the bug, which by that time was solved and released, and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
+
+[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
+
+### Postmortem action items
+
+Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM and/or engineering manager.
+
 ## Outages
 
 At Fleet, we consider an outage to be a situation where new features or previously stable features are broken or unusable.
@@ -282,7 +300,7 @@ Estimating bugs and outages can be helpful in getting on the same page about how
 
 [⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
-## Scaling GOTCHAS
+## Scaling gotchas
 
 ### Overall
 
@@ -309,7 +327,7 @@ This is a document that evolves and will likely always be incomplete. If you fee
 ### Prerequisites
 
 1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
-2. Configure [SSO](https://github.com/fleetdm/fleet-infra/tree/master/sso#how-to-use-sso)
+2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
 
 ### Connecting
 
@@ -361,7 +379,7 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 ### In this section
 
 - [Insert on duplicate update](#insert-on-duplicate-update)
-- [Host extra data and JOINs](#host-extra-data-and-joi-ns)
+- [Host extra data and JOINs](#host-extra-data-and-joins)
 - [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
 - [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
 - [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
@@ -769,14 +787,14 @@ At this state, the [bug review DRI](#rituals) (QA) is responsible for going thro
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
-Requesters have six weeks to provide follow-up information for each request. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but requesters are welcome to re-open and provide context.
-
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
 
 #### Acknowledging bugs
 If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
 
-Once reproduced, QA should document the reproduction steps and move it to the reproduced state.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+
+Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
 #### Reproduced
 When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
@@ -839,7 +857,7 @@ Every week, the head of product is responsible for reviewing these two states to
 #### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+assignee%3Anone).
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+no%3Aassignee+).
 
 #### Acknowledged 
 QA has gone through the inbox and has accepted it as a bug to be reproduced. 
@@ -855,7 +873,7 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
 
 #### Reproduced orphans 
-These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23cx+-label%3A%23mdm+-label%3A%23compliance).
+These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23g-cx+-label%3A%23g-mdm+).
 
 #### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
@@ -889,9 +907,9 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
 | Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 
-## Fleet Sandbox Oncall
+## 24/7 on-call
 
-Oncall for Sandbox will happen in shifts of 1 week. The people involved in them will be:
+The 24/7 on-call (aka infrastructure on-call) team is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility  happen in shifts of 1 week. The people involved in them will be:
 
 First responders:
 
@@ -900,23 +918,26 @@ First responders:
 
 Escalations (in order):
 
-- Zach Wasserman
+- Zay Hanlon
+- Zach Wasserman (Fleet app)
+- Eric Shaw (fleetdm.com)
+- Mike McNeil
 
-The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous weeks oncall will provide a summary in the #g-customer-experience Slack channel with a an update on alarms that came up the week before, open issues with or without direct end user impact, and other things to keep an eye out for.  
 
-Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
+Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
 
-If the issue is non user facing (provisioner/deprovisioner/temporary errors in osquery/etc), we'll proceed to address the issue. If the issue is user facing (as in, the user noticed this error first hand through the Fleet UI), then we'll proceed to identify the user and ping Mike McNeil in #help-p1 with information about the error (see below) so that he can contact them letting them know that we are aware of this issue and working on it.
+For fleetdm.com and sandbox alarms, if the issue is not user facing (e.g. provisioner/deprovisioner/temporary errors in osquery/etc), the oncall engineer will proceed to address the issue. If the issue is user facing (e.g. the user noticed this error first hand through the Fleet UI), then the oncall engineer will proceed to identify the user and contact them letting them know that we are aware of the issue and working on a resolution. They may also request more information from the user if it is needed. They will cc the VP of Customer Success on any user correspondence. 
 
-We should collect both the email for the customer and information for the error. If the error happens in work hours, we should make a best effort to understand where in the app the error might have occurred. For this, the oncall engineer will post in `#help-engineering` the data they know of the issue and see if anybody in the frontend team can help identify what might be causing it. It’s more helpful to say “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”, but sometimes it’s not exactly clear where the API might be used exactly.
+For Fleet managed cloud alarms that are user facing, the first responder should collect the email address for the customer and all available information on the error. If the error occurs during business hours, the first responder should make a best effort to understand where in the app the error might have occurred. Assistance can be requested in `#help-engineering` by including the data they know regarding the issue, and when available, a frontend or backend engineer can help identify what might be causing the problem. If the error occurs outside of business hours, then the oncall engineer will contact the user letting them know that we are aware of the issue and working on a resolution. It’s more helpful to say something like “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”.
 
-Escalation of issues will be done by hand for the moment.
+Escalation of issues will be done manually by the first responder according to the escalation contacts mentioned above. An outage issue (template available) should be created in the Fleet confidential repo addressing: who was affected?, for how long?, what expected behavior occurred?, how do you know?, what near-term resolution can be taken to recover the affected user?, what is the underlying reason or suspected reason for the outage?, and what are the next steps Fleet will take to address the root cause?.  
 
-All infrastructure alarms will go to #g-infrastructure.
+All infrastructure alarms (fleetdm.com, Fleet managed cloud, and sandbox) will go to #help-p1.
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 
-There will not be updates on the Fleet version running in sandbox on Fridays unless there's a critical issue being fixed.
+When an infrastructure oncall engineer is out of office, Mike McNeil will serve as a backup to oncall in #help-p1. All absences must be communicated in advance with Zay Hanlon and Mike McNeil. 
 
 ## Slack channels
 
@@ -926,7 +947,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | :------------------- | :------------------------------------------------------------------- |
 | `#help-engineering`  | Zach Wasserman                                                       |
 | `#g-mdm`             | Luke Heath                                                           |
-| `#g-compliance`      | Sharon Katz                                                          |
+| `#g-customer-experience` | Sharon Katz                                                      |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
 

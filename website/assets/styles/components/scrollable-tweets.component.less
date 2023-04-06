@@ -20,15 +20,13 @@
     padding-left: 120px;
     padding-right: 120px;
     margin-top: 80px;
-    margin-bottom: 16px;
+    padding-bottom: 16px;
     scrollbar-width: none;
-  }
-
-  [purpose='tweet-cards-right-padding'] {
-    min-width: 120px;
+    -ms-overflow-style: none;
   }
 
   [purpose='tweet-card'] {
+    max-width: 367px;
     min-width: 367px;
     display: flex;
     flex-direction: column;
@@ -66,32 +64,31 @@
   @media (max-width: 991px) {
     [purpose='tweets'] {
       padding-left: 80px;
-    }
-    [purpose='tweet-cards-right-padding'] {
-      min-width: 80px;
+      padding-right: 80px;
     }
   }
 
   @media (max-width: 768px) {
     [purpose='tweets'] {
       padding-left: 40px;
-    }
-    [purpose='tweet-cards-right-padding'] {
-      min-width: 40px;
+      padding-right: 40px;
     }
   }
 
   @media (max-width: 575px) {
     [purpose='tweets'] {
       padding-left: 20px;
-    }
-    [purpose='tweet-cards-right-padding'] {
-      min-width: 20px;
+      padding-right: 20px;
     }
     [purpose='tweet-card'] {
       min-width: 280px;
       padding: 20px;
       border-radius: 16px;
+    }
+    [purpose='tweets-page-indicator'] {
+      li {
+        padding: 12px;
+      }
     }
   }
 

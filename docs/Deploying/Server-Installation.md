@@ -264,7 +264,7 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.26.0
+        image: fleetdm/fleet:4.28.0
         env:
           # if running Fleet behind external ingress controller that terminates TLS
           - name: FLEET_SERVER_TLS

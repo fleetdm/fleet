@@ -1,70 +1,44 @@
 ---
 name: 🎟  Story
-about: Specify a Scrum user story.  (e.g. "As a user, I want to sign in with SSO.")
+about: Specify an iterative change to the Fleet product.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story, :product'
+labels: 'story,:product,#cx'
 assignees: ''
 
 ---
 
-## User story 
+> **This issue's remaining effort can be completed in ≤1 sprint.  It will be valuable even if nothing else ships.**
+> 
+> It is [planned and ready](https://fleetdm.com/handbook/company/development-groups#making-changes) to implement.  It is on the proper kanban board.
 
-<!-- Always has an estimation. Always drives business value.  Always gets QA'd.  Always fits within 1 sprint. -->
+## Goal
 
-TODO
+| User story  |
+|:---------------------------------------------------------------------------|
+| As a _________________________________________,
+| I want to _________________________________________
+| so that I can _________________________________________.
 
-<!-- 
-Describe in a way of a user story what needs to be done, who wants it and for what purpose.
-Use this format:
-"As a _________, I want ________________."
-e.g. "As an admin I would like to be asked for confirmation before deleting a user so that I do not accidentally delete a user."
+## Changes
 
-Things to consider:
-- Who is the human? (`As an observer…`)
-- What screen are they looking at?  (`As an observer on the host details page…`)
-- What do they want to do? (`As an observer on the host details page, I want to run a permitted query.`) 
-- What is the current situation? Why does the current situation hurt? 
--->
+This issue's estimation includes completing:
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
+- [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
+- [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. -->
+- [ ] Permissions changes: TODO <!-- Specify what changes to the permissions are required.  Remove this checkbox if there are no changes necessary. -->
+- [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
+- [ ] Outdated documentation changes: TODO <!-- Specify what changes to the documentation are required. Remove this checkbox if there are no changes necessary. -->
+- [ ] Scope transparency changes? TODO <!-- Remove this checkbox if there are no changes necessary. -->
+- [ ] Breaking changes requiring major version bump? TODO  <!-- Breaking changes to the CLI or REST API require a major version bump, which is rarely a good idea.  Remove this checkbox if there are no changes necessary. -->
+- [ ] Changes to paid features or tiers? TODO  <!-- List changes to paid features or tiers required.  Implementation of paid features should live in the `ee/` directory.  Remove this checkbox if there are no changes necessary. -->
+- [ ] QA complete?
+- [ ] ... <!-- If there are any other notable requirements to draw extra attention to, add them as checkboxes here.  Otherwise, remove this checkbox. -->
 
-## Requirements
+> ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
-<!-- Things we tend to forget about -->
-- **Documentation** If the API is changing, then the [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) will need to be updated.
-- **Design changes** Does this story include changes to the user interface, or to how the CLI is used?
-- **Compatibility** Does this story require changes to the database schema and need schema migrations?  Does it introduce breaking changes or non-reversible changes to Fleet's REST API or CLI usage?
-- **Premium feature** Should this be a premium-only feature? If so, make sure to update the pricing page, and that relevant code lives in the `ee/` directory.
-- **Transparency** Do we need to update the [transparency guide](https://fleetdm.com/transparency) to reflect new functionality for end users?
-- **QA** Any special QA notes?
-
-
-### Design
-
-#### UI
-
-TODO?
-<!-- Insert the link to the relevant Figma file. Remove this section if there are no changes to the user interface. -->
-
-#### CLI usage
-
-TODO?
-<!-- Specify what changes to the CLI usage are required. Remove this section if there are no changes to the CLI. -->
-
-
-### Compatibility
-#### REST API changes
-
-TODO?
-<!-- Specify what changes to the API are required.Remove this section if there are no changes necessary. -->
-
-#### Database schema migrations
-
-TODO?
-<!-- Specify what changes to the database schema are required. Remove this section if there are no changes necessary. -->
-
-## Technical sub-tasks (if any)
-N/A
 <!--
-It is simplest to use only a single user story issue.  If additional issues for technical sub-tasks are necessary, they're listed here: 
-- TODO
-- TODO
+## Context
+What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
+1. 
+2. 
 -->

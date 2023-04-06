@@ -11,12 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/gocarina/gocsv"
 )
 
@@ -321,7 +324,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -388,7 +391,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -641,7 +644,13 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -696,7 +705,13 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	}
 
 	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -723,7 +738,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -792,6 +807,32 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 		policies = &hp
 	}
+
+	// If Fleet MDM is enabled and configured, we want to include MDM profiles
+	// and host's disk encryption status.
+	var profiles []fleet.HostMDMAppleProfile
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm profiles")
+	}
+	if ac.MDM.EnabledAndConfigured {
+		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+		}
+
+		// determine disk encryption and action required here based on profiles and
+		// raw decryptable key status.
+		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+		for _, p := range profs {
+			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+			}
+			profiles = append(profiles, p)
+		}
+	}
+	host.MDM.Profiles = &profiles
 
 	return &fleet.HostDetail{
 		Host:      *host,
@@ -871,7 +912,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -963,7 +1004,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -1250,7 +1291,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	// for now, only csv format is allowed
 	if req.Format != "csv" {
 		// prevent returning an "unauthorized" error, we want that specific error
-		if az, ok := authz.FromContext(ctx); ok {
+		if az, ok := authzctx.FromContext(ctx); ok {
 			az.SetChecked()
 		}
 		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
@@ -1364,4 +1405,81 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	return osVersions, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostEncryptionKeyRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostEncryptionKeyResponse struct {
+	Err           error                        `json:"error,omitempty"`
+	EncryptionKey *fleet.HostDiskEncryptionKey `json:"encryption_key,omitempty"`
+	HostID        uint                         `json:"host_id,omitempty"`
+}
+
+func (r getHostEncryptionKeyResponse) error() error { return r.Err }
+
+func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostEncryptionKeyRequest)
+	key, err := svc.HostEncryptionKey(ctx, req.ID)
+	if err != nil {
+		return getHostEncryptionKeyResponse{Err: err}, nil
+	}
+	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
+}
+
+func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+
+	// Permissions to read encryption keys are exactly the same
+	// as the ones required to read hosts.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+
+	if key.Decryptable == nil || !*key.Decryptable {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
+	}
+
+	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+
+	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+
+	key.DecryptedValue = string(decryptedKey)
+
+	err = svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeReadHostDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create read host disk encryption key activity")
+	}
+
+	return key, nil
 }

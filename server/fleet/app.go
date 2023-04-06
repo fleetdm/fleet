@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"time"
@@ -56,6 +57,9 @@ type SSOSettings struct {
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
 	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
+	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
+	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -118,7 +122,8 @@ type MDM struct {
 	// the server starts.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings MacOSSettings `json:"macos_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -162,6 +167,68 @@ func (m MacOSUpdates) Validate() error {
 	}
 
 	return nil
+}
+
+// MacOSSettings contains settings specific to macOS.
+type MacOSSettings struct {
+	CustomSettings       []string `json:"custom_settings"`
+	EnableDiskEncryption bool     `json:"enable_disk_encryption"`
+
+	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
+}
+
+func (s MacOSSettings) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"custom_settings":        s.CustomSettings,
+		"enable_disk_encryption": s.EnableDiskEncryption,
+	}
+}
+
+// FromMap sets the macOS settings from the provided map, which is the map type
+// from the ApplyTeams spec struct. It returns a map of fields that were set in
+// the map (ie. the key was present even if empty) or an error. If the
+// operation updates an existing team, it should be called on the existing
+// MacOSSettings so that its fields are replaced only if present in the map.
+func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
+	set := make(map[string]bool)
+
+	if v, ok := m["custom_settings"]; ok {
+		set["custom_settings"] = true
+
+		vals, ok := v.([]interface{})
+		if v == nil || ok {
+			strs := make([]string, 0, len(vals))
+			for _, v := range vals {
+				str, ok := v.(string)
+				if !ok {
+					// error, must be a []string
+					return nil, &json.UnmarshalTypeError{
+						Value: fmt.Sprintf("%T", v),
+						Type:  reflect.TypeOf(s.CustomSettings),
+						Field: "macos_settings.custom_settings",
+					}
+				}
+				strs = append(strs, str)
+			}
+			s.CustomSettings = strs
+		}
+	}
+
+	if v, ok := m["enable_disk_encryption"]; ok {
+		set["enable_disk_encryption"] = true
+		b, ok := v.(bool)
+		if !ok {
+			// error, must be a bool
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeOf(s.EnableDiskEncryption),
+				Field: "macos_settings.enable_disk_encryption",
+			}
+		}
+		s.EnableDiskEncryption = b
+	}
+
+	return set, nil
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -249,7 +316,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
-	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -270,6 +336,11 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 	}
 
+	if c.MDM.MacOSSettings.CustomSettings != nil {
+		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
+		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+	}
+
 	return &clone
 }
 
@@ -287,6 +358,7 @@ type enrichedAppConfigFields struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+	Email           *EmailConfig           `json:"email,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -562,6 +634,8 @@ type ApplySpecOptions struct {
 	// DryRun indicates that the spec should not be applied, but the validation
 	// errors should be returned.
 	DryRun bool
+	// TeamForPolicies is the name of the team to set in policy specs.
+	TeamForPolicies string
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
@@ -614,13 +688,17 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// tierBasic is for backward compatibility with previous tier names
-	tierBasic = "basic"
+	// tierBasicDeprecated is for backward compatibility with previous tier names
+	tierBasicDeprecated = "basic"
 
 	// TierPremium is Fleet Premium aka the paid license.
 	TierPremium = "premium"
 	// TierFree is Fleet Free aka the free license.
 	TierFree = "free"
+	// TierTrial is Fleet Premium but in trial mode
+	// this is used to distinguish between Premium, enabling different functionality
+	// when the license is expired, like disabling certain features
+	TierTrial = "trial"
 )
 
 // LicenseInfo contains information about the Fleet license.
@@ -638,11 +716,17 @@ type LicenseInfo struct {
 }
 
 func (l *LicenseInfo) IsPremium() bool {
-	return l.Tier == TierPremium || l.Tier == tierBasic
+	return l.Tier == TierPremium || l.Tier == tierBasicDeprecated || l.Tier == TierTrial
 }
 
 func (l *LicenseInfo) IsExpired() bool {
 	return l.Expiration.Before(time.Now())
+}
+
+func (l *LicenseInfo) ForceUpgrade() {
+	if l.Tier == tierBasicDeprecated {
+		l.Tier = TierPremium
+	}
 }
 
 const (
@@ -656,6 +740,16 @@ type Logging struct {
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
 	Audit  LoggingPlugin `json:"audit"`
+}
+
+type EmailConfig struct {
+	Backend string      `json:"backend"`
+	Config  interface{} `json:"config"`
+}
+
+type SESConfig struct {
+	Region    string `json:"region"`
+	SourceARN string `json:"source_arn"`
 }
 
 type UpdateIntervalConfig struct {

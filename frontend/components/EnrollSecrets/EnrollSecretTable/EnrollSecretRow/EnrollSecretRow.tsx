@@ -98,6 +98,7 @@ const EnrollSecretRow = ({
       key={uniqueId()}
       data-testid="osquery-secret"
     >
+      {/* TODO: replace with InputFieldHiddenContent component */}
       <InputField
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}

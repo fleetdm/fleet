@@ -1,4 +1,4 @@
-name: Generate osqueryd targets for Orbit
+name: Generate osqueryd targets for Fleetd
 
 on:
   push:
@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.7.0
+  OSQUERY_VERSION: 5.8.2
 
 permissions:
   contents: read

@@ -25,7 +25,8 @@ services:
     ports:
       - "443"
 
-  fleet-a: &default-fleet
+  fleet-a:
+    &default-fleet
     image: fleetdm/fleet:${FLEET_VERSION_A:-latest}
     environment:
       FLEET_MYSQL_ADDRESS: mysql:3306
@@ -36,7 +37,6 @@ services:
       FLEET_SERVER_ADDRESS: 0.0.0.0:8080
       FLEET_SERVER_TLS: 'false'
       FLEET_LOGGING_JSON: 'true'
-      FLEET_BETA_SOFTWARE_INVENTORY: 1
       FLEET_LICENSE_KEY: ${FLEET_LICENSE_KEY}
       FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
       FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "yes"

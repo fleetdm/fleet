@@ -1,3 +1,0 @@
-- Made the 'Back to all hosts' link on the host details page fall back to the default path to the
-  manage hosts page. This addresses a bug in this functionality when the user navigates directly
-  with the URL

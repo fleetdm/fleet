@@ -47,7 +47,51 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
+
+// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
+// status of MDM configuration profiles applied to the host.
+type MacOSSettingsStatus string
+
+const (
+	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
+	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
+	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
+)
+
+func (s MacOSSettingsStatus) IsValid() bool {
+	switch s {
+	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+		return true
+	default:
+		return false
+	}
+}
+
+type MacOSDiskEncryptionStatus string
+
+const (
+	MacOSDiskEncryptionStatusApplied             = MacOSDiskEncryptionStatus("applied")
+	MacOSDiskEncryptionStatusActionRequired      = MacOSDiskEncryptionStatus("action_required")
+	MacOSDiskEncryptionStatusEnforcing           = MacOSDiskEncryptionStatus("enforcing")
+	MacOSDiskEncryptionStatusFailed              = MacOSDiskEncryptionStatus("failed")
+	MacOSDiskEncryptionStatusRemovingEnforcement = MacOSDiskEncryptionStatus("removing_enforcement")
+)
+
+func (s MacOSDiskEncryptionStatus) IsValid() bool {
+	switch s {
+	case
+		MacOSDiskEncryptionStatusApplied,
+		MacOSDiskEncryptionStatusActionRequired,
+		MacOSDiskEncryptionStatusEnforcing,
+		MacOSDiskEncryptionStatusFailed,
+		MacOSDiskEncryptionStatusRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
+}
 
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
@@ -56,6 +100,8 @@ const (
 // - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
 // - GET /labels/{id}/hosts (list hosts in label)
 // - GET /hosts/report
+// - POST /hosts/delete (calls svc.hostIDsFromFilters)
+// - POST /hosts/transfer/filter (calls svc.hostIDsFromFilters)
 //
 // Make sure the docs are updated accordingly and all endpoints behave as expected.
 type HostListOptions struct {
@@ -83,8 +129,19 @@ type HostListOptions struct {
 
 	DisableFailingPolicies bool
 
+	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
+	// applied to the hosts.
+	MacOSSettingsFilter MacOSSettingsStatus
+
+	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// MDM profile.
+	MacOSSettingsDiskEncryptionFilter MacOSDiskEncryptionStatus
+
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
+	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
+	// fleet.WellKnownMDM... constants).
+	MDMNameFilter *string
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
@@ -111,6 +168,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
 		h.MDMIDFilter == nil &&
+		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil
@@ -195,6 +253,10 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
+	// DiskEncryptionResetRequested is only fetched when loading a host by
+	// orbit_node_key, and so it's not used in the UI.
+	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
+
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
@@ -220,14 +282,173 @@ type MDMHostData struct {
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
+	// Name is the name of the MDM solution for the host.
+	Name string `json:"name" db:"name" csv:"-"`
+
+	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
+	// decode an encryption key for the host.
+	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+
+	// this is set to nil if the key exists but decryptable is NULL in the db, 1
+	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
+	// exists for this host. Used internally to determine the disk_encryption
+	// status and action_required fields. See MDMHostData.Scan as for where this
+	// gets filled.
+	rawDecryptable *int
+
+	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
+	// other host fields, it is not filled in by all host-returning datastore methods.
+	//
+	// It is a pointer to a slice so that when set, it gets marhsaled even
+	// if the slice is empty, but when unset, it doesn't get marshaled
+	// (e.g. we don't return that information for the List Hosts endpoint).
+	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+
+	// MacOSSettings indicates macOS-specific MDM settings for the host, such
+	// as disk encryption status and whether any user action is required to
+	// complete the disk encryption process.
+	//
+	// It is not filled in by all host-returning datastore methods.
+	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+}
+
+type DiskEncryptionState string
+
+const (
+	DiskEncryptionApplied             DiskEncryptionState = "applied"
+	DiskEncryptionActionRequired      DiskEncryptionState = "action_required"
+	DiskEncryptionEnforcing           DiskEncryptionState = "enforcing"
+	DiskEncryptionFailed              DiskEncryptionState = "failed"
+	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
+)
+
+func (s DiskEncryptionState) addrOf() *DiskEncryptionState {
+	return &s
+}
+
+type ActionRequiredState string
+
+const (
+	ActionRequiredLogOut    ActionRequiredState = "log_out"
+	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+)
+
+func (s ActionRequiredState) addrOf() *ActionRequiredState {
+	return &s
+}
+
+type MDMHostMacOSSettings struct {
+	DiskEncryption *DiskEncryptionState `json:"disk_encryption" csv:"-"`
+	ActionRequired *ActionRequiredState `json:"action_required" csv:"-"`
+}
+
+// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// host based on the file-vault profile in its list of profiles and whether its
+// disk encryption key is available and decryptable. The file-vault profile
+// identifier is received as argument to avoid a circular dependency.
+func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+	var settings MDMHostMacOSSettings
+
+	var fvprof *HostMDMAppleProfile
+	for _, p := range profiles {
+		p := p
+		if p.Identifier == fileVaultIdentifier {
+			fvprof = &p
+			break
+		}
+	}
+	if fvprof != nil {
+		switch fvprof.OperationType {
+		case MDMAppleOperationTypeInstall:
+			switch {
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
+					//  if a FileVault profile has been successfully installed on the host
+					//  AND we have fetched and are able to decrypt the key
+					settings.DiskEncryption = DiskEncryptionApplied.addrOf()
+				} else if d.rawDecryptable != nil {
+					// if a FileVault profile has been successfully installed on the host
+					// but either we didn't get an encryption key or we're not able to
+					// decrypt the key we've got
+					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
+					if *d.rawDecryptable == 0 {
+						settings.ActionRequired = ActionRequiredRotateKey.addrOf()
+					} else {
+						settings.ActionRequired = ActionRequiredLogOut.addrOf()
+					}
+				} else {
+					// if [a FileVault profile is pending to be installed or] the
+					// matching row in host_disk_encryption_keys has a field decryptable
+					// = NULL
+					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+				}
+
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+				// if a FileVault profile failed to be installed [or removed]
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
+
+			default:
+				// if a FileVault profile is pending to be installed [or the matching
+				// row in host_disk_encryption_keys has a field decryptable = NULL]
+				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+			}
+
+		case MDMAppleOperationTypeRemove:
+			switch {
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+				// successfully removed, same as if	no filevault profile was found
+
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+				// if a FileVault profile failed to be [installed or] removed
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
+
+			default:
+				// if a FileVault profile is pending to be removed
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
+			}
+		}
+	}
+	d.MacOSSettings = &settings
+}
+
+func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
+	if d.MacOSSettings == nil || d.MacOSSettings.DiskEncryption == nil {
+		return currStatus
+	}
+	switch *d.MacOSSettings.DiskEncryption {
+	case DiskEncryptionActionRequired, DiskEncryptionEnforcing, DiskEncryptionRemovingEnforcement:
+		return &MDMAppleDeliveryPending
+	case DiskEncryptionFailed:
+		return &MDMAppleDeliveryFailed
+	case DiskEncryptionApplied:
+		return &MDMAppleDeliveryApplied
+	default:
+		return currStatus
+	}
+}
+
+// Only exposed for Datastore tests, to be able to assert the rawDecryptable
+// unexported field.
+func (d *MDMHostData) TestGetRawDecryptable() *int {
+	return d.rawDecryptable
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
 // JSON object from the database into a MDMHostData struct.
 func (d *MDMHostData) Scan(v interface{}) error {
+	var dst struct {
+		MDMHostData
+		RawDecryptable *int `json:"raw_decryptable"`
+	}
 	switch v := v.(type) {
 	case []byte:
-		return json.Unmarshal(v, d)
+		if err := json.Unmarshal(v, &dst); err != nil {
+			return err
+		}
+		*d = dst.MDMHostData
+		d.rawDecryptable = dst.RawDecryptable
+		return nil
+
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
 	}
@@ -265,7 +486,7 @@ func (h Host) AuthzType() string {
 }
 
 // HostDetail provides the full host metadata along with associated labels and
-// packs.
+// packs. It also includes policies, batteries, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
@@ -347,7 +568,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -381,7 +602,10 @@ func PlatformFromHost(hostPlatform string) string {
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows",
 		// Some customers have custom agents that support ChromeOS
-		hostPlatform == "CrOS":
+		// TODO remove this once that customer migrates to Fleetd for Chrome
+		hostPlatform == "CrOS",
+		// Fleet now supports Chrome via fleetd
+		hostPlatform == "chrome":
 		return hostPlatform
 	default:
 		return ""
@@ -638,4 +862,12 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName      string `json:"display_name" db:"display_name"`
+}
+
+type HostDiskEncryptionKey struct {
+	HostID          uint      `json:"-" db:"host_id"`
+	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
+	Decryptable     *bool     `json:"-" db:"decryptable"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue  string    `json:"key" db:"-"`
 }

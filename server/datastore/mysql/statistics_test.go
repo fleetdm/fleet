@@ -155,12 +155,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.writer.ExecContext(ctx, `
 		INSERT INTO
-			aggregated_stats (id, type, json_value, created_at, updated_at)
-		VALUES (?, ?, CAST(? AS JSON), ?, ?)
+			aggregated_stats (id, global_stats, type, json_value, created_at, updated_at)
+		VALUES (?, ?, ?, CAST(? AS JSON), ?, ?)
 		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value),
 			updated_at = VALUES(updated_at)
-	`, 0, "policy_violation_days", pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
+	`, 0, true, aggregatedStatsTypePolicyViolationsDays, pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
 	require.NoError(t, err)
 
 	require.NoError(t, err)

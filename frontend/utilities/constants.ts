@@ -10,11 +10,25 @@ export enum PolicyResponse {
   FAILING = "failing",
 }
 
+export enum DiskEncryptionStatus {
+  APPLIED = "applied",
+  ACTION_REQUIRED = "action_required",
+  ENFORCING = "enforcing",
+  FAILED = "failed",
+  REMOVING_ENFORCEMENT = "removing_enforcement",
+}
+
 export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_FALLBACK =
+  "/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
+  "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
@@ -231,3 +245,5 @@ export const DEFAULT_CREATE_USER_ERRORS = {
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
 };
+
+export const DEFAULT_EMPTY_CELL_VALUE = "---";

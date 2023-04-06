@@ -5,19 +5,28 @@ module "vpc" {
   name = var.vpc.name
   cidr = var.vpc.cidr
 
-  azs                                   = var.vpc.azs
-  private_subnets                       = var.vpc.private_subnets
-  public_subnets                        = var.vpc.public_subnets
-  database_subnets                      = var.vpc.database_subnets
-  elasticache_subnets                   = var.vpc.elasticache_subnets
-  create_database_subnet_group          = var.vpc.create_database_subnet_group
-  create_database_subnet_route_table    = var.vpc.create_database_subnet_route_table
-  create_elasticache_subnet_group       = var.vpc.create_elasticache_subnet_group
-  create_elasticache_subnet_route_table = var.vpc.create_elasticache_subnet_route_table
-  enable_vpn_gateway                    = var.vpc.enable_vpn_gateway
-  one_nat_gateway_per_az                = var.vpc.one_nat_gateway_per_az
-  single_nat_gateway                    = var.vpc.single_nat_gateway
-  enable_nat_gateway                    = var.vpc.enable_nat_gateway
+  azs                                       = var.vpc.azs
+  private_subnets                           = var.vpc.private_subnets
+  public_subnets                            = var.vpc.public_subnets
+  database_subnets                          = var.vpc.database_subnets
+  elasticache_subnets                       = var.vpc.elasticache_subnets
+  create_database_subnet_group              = var.vpc.create_database_subnet_group
+  create_database_subnet_route_table        = var.vpc.create_database_subnet_route_table
+  create_elasticache_subnet_group           = var.vpc.create_elasticache_subnet_group
+  create_elasticache_subnet_route_table     = var.vpc.create_elasticache_subnet_route_table
+  enable_vpn_gateway                        = var.vpc.enable_vpn_gateway
+  one_nat_gateway_per_az                    = var.vpc.one_nat_gateway_per_az
+  single_nat_gateway                        = var.vpc.single_nat_gateway
+  enable_nat_gateway                        = var.vpc.enable_nat_gateway
+  enable_flow_log                           = var.vpc.enable_flow_log
+  create_flow_log_cloudwatch_log_group      = var.vpc.create_flow_log_cloudwatch_log_group
+  create_flow_log_cloudwatch_iam_role       = var.vpc.create_flow_log_cloudwatch_iam_role
+  flow_log_max_aggregation_interval         = var.vpc.flow_log_max_aggregation_interval
+  flow_log_cloudwatch_log_group_name_prefix = var.vpc.flow_log_cloudwatch_log_group_name_prefix
+  flow_log_cloudwatch_log_group_name_suffix = var.vpc.flow_log_cloudwatch_log_group_name_suffix
+  vpc_flow_log_tags                         = var.vpc.vpc_flow_log_tags
+  enable_dns_hostnames                      = var.vpc.enable_dns_hostnames
+  enable_dns_support                        = var.vpc.enable_dns_support
 }
 
 module "byo-vpc" {
