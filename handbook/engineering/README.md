@@ -49,11 +49,11 @@ The following is the subset of proposed engineering meetings. Each group is free
 
 ### Eng Together
 
-This is to promote cohesion across groups within the engineering team. Disseminate engineering-wide announcements. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-This includes all of engineering.
+Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
 
 #### Sample agenda
 
