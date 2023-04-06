@@ -91,4 +91,26 @@ var (
 			},
 		},
 	}
+	UserObserverPlus = &fleet.User{
+		ID:         12,
+		GlobalRole: ptr.String(fleet.RoleObserverPlus),
+	}
+	UserTeamObserverPlusTeam1 = &fleet.User{
+		ID: 13,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+	UserTeamObserverPlusTeam2 = &fleet.User{
+		ID: 14,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
 )

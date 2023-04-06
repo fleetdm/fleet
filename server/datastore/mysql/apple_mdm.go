@@ -273,20 +273,29 @@ WHERE
 func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
 	var rt string
 	err := sqlx.GetContext(ctx, ds.reader, &rt, `SELECT request_type FROM nano_commands WHERE command_uuid = ?`, commandUUID)
+	if err == sql.ErrNoRows {
+		return "", ctxerr.Wrap(ctx, notFound("MDMAppleCommand").WithName(commandUUID))
+	}
 	return rt, err
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	query := `
 SELECT
-    id,
-    command_uuid,
-    status,
-    result
+    ncr.id as device_id,
+    ncr.command_uuid,
+    ncr.status,
+    ncr.result,
+		ncr.updated_at,
+		nc.request_type
 FROM
-    nano_command_results
+    nano_command_results ncr
+INNER JOIN
+    nano_commands nc
+ON
+    ncr.command_uuid = nc.command_uuid
 WHERE
-    command_uuid = ?
+    ncr.command_uuid = ?
 `
 
 	var results []*fleet.MDMAppleCommandResult
@@ -300,13 +309,7 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
-
-	resultsMap := make(map[string]*fleet.MDMAppleCommandResult, len(results))
-	for _, result := range results {
-		resultsMap[result.ID] = result
-	}
-
-	return resultsMap, nil
+	return results, nil
 }
 
 func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
@@ -1374,38 +1377,20 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
-func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	sqlFmt := `
-	SELECT
-	COUNT(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
+const SQLDiskEncryptionApplied = `h.uuid = hmap.host_uuid
 				AND hdek.decryptable = 1
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
 				AND hmap.status = 'applied'
-				AND hmap.operation_type = 'install') THEN
-			1
-		END) AS applied, COUNT(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
+				AND hmap.operation_type = 'install'`
+
+const SQLDiskEncryptionActionRequired = `h.uuid = hmap.host_uuid
 				AND(hdek.decryptable = 0
 					OR (hdek.host_id IS NULL AND hdek.decryptable IS NULL))
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
 				AND hmap.status = 'applied'
-				AND hmap.operation_type = 'install') THEN
-			1
-		END) AS action_required, COUNT(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
+				AND hmap.operation_type = 'install'`
+
+const SQLDiskEncryptionEnforcing = `h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
 				AND (hmap.status IS NULL OR hmap.status = 'pending')
 				AND hmap.operation_type = 'install'
@@ -1417,27 +1402,49 @@ func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *ui
 						AND (hmap.status IS NOT NULL AND hmap.status = 'applied')
 						AND hmap.operation_type = 'install'
 						AND hdek.decryptable IS NULL
-						AND hdek.host_id IS NOT NULL
-				) THEN
+						AND hdek.host_id IS NOT NULL`
+
+const SQLDiskEncryptionFailed = `h.uuid = hmap.host_uuid
+				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
+				AND hmap.status = 'failed'`
+
+const SQLDiskEncryptionRemovingEnforcement = `h.uuid = hmap.host_uuid
+				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
+				AND (hmap.status IS NULL OR hmap.status = 'pending')
+				AND hmap.operation_type = 'remove'`
+
+func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	sqlFmt := `
+	SELECT
+	COUNT(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE %s) THEN
+			1
+		END) AS applied, COUNT(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE %s) THEN
+			1
+		END) AS action_required, COUNT(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE %s) THEN
 			1
 		END) AS enforcing, COUNT(
 		CASE WHEN EXISTS (
 			SELECT
 				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = 'failed') THEN
+			WHERE %s) THEN
 			1
 		END) AS failed, COUNT(
 		CASE WHEN EXISTS (
 			SELECT
 				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND (hmap.status IS NULL OR hmap.status = 'pending')
-				AND hmap.operation_type = 'remove') THEN
+			WHERE %s) THEN
 			1
 		END) AS removing_enforcement
 FROM
@@ -1453,8 +1460,13 @@ WHERE
 
 	var res fleet.MDMAppleFileVaultSummary
 
-	// QUESTION: GetContext vs SelectContext
-	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt,
+		SQLDiskEncryptionApplied,
+		SQLDiskEncryptionActionRequired,
+		SQLDiskEncryptionEnforcing,
+		SQLDiskEncryptionFailed,
+		SQLDiskEncryptionRemovingEnforcement,
+		teamFilter))
 	if err != nil {
 		return nil, err
 	}

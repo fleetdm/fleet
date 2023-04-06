@@ -240,6 +240,7 @@ const allHostTableHeaders: IDataColumn[] = [
              hosts won’t respond to a live query because<br/>
              they may be shut down, asleep, or not<br/>
              connected to the internet.`}
+          className="last-col-header-with-tip"
         >
           Status
         </TooltipWrapper>
