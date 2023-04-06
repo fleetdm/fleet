@@ -637,7 +637,6 @@ const HostDetailsPage = ({
           diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
-          isObserverPlus={isObserverPlus}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           hostMacSettings={host?.mdm.profiles}

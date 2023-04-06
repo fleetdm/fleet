@@ -28,7 +28,6 @@ interface IHostSummaryProps {
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
-  isObserverPlus?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   hostMacSettings?: IMacSettings;
@@ -47,7 +46,6 @@ const HostSummary = ({
   diskEncryption,
   isPremiumTier,
   isOnlyObserver,
-  isObserverPlus,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
   hostMacSettings,
