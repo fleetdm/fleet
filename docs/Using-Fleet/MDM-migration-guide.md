@@ -81,7 +81,7 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 2. On your **My device** page, select **Turn on MDM** the button in the yellow banner and follow the instructions. 
     a. If you don’t see the yellow banner or the **Turn on MDM** button, select the purple **Refetch** button at the top of the page. 
-    b. If you still don't see the **Turn on MDM** button or the **My device page** presents you with an error, please contact your IT administrator.
+    b. If you still don't see the **Turn on MDM** button or the **My device** page presents you with an error, please contact your IT administrator.
 
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 

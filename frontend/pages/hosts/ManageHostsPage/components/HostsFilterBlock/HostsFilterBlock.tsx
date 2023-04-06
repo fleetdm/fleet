@@ -15,6 +15,7 @@ import { IPolicy } from "interfaces/policy";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
 import {
+  DiskEncryptionStatus,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -30,6 +31,7 @@ import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../../assets/images/icon-trash-14x14@2x.png";
 import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
+import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 
 const baseClass = "hosts-filter-block";
 
@@ -58,12 +60,14 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
+    diskEncryptionStatus?: DiskEncryptionStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
+  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
   onChangeMacSettingsFilter: (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => void;
@@ -93,12 +97,14 @@ const HostsFilterBlock = ({
     softwareDetails,
     policy,
     mdmSolutionDetails,
+    diskEncryptionStatus,
   },
   selectedLabel,
   isOnlyObserver,
   handleClearRouteParam,
   handleClearFilter,
   onChangePoliciesFilter,
+  onChangeDiskEncryptionStatusFilter,
   onChangeMacSettingsFilter,
   onClickEditLabel,
   onClickDeleteLabel,
@@ -347,6 +353,23 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderDiskEncryptionStatusBlock = () => {
+    if (!diskEncryptionStatus) return null;
+
+    return (
+      <>
+        <DiskEncryptionStatusFilter
+          diskEncryptionStatus={diskEncryptionStatus}
+          onChange={onChangeDiskEncryptionStatusFilter}
+        />
+        <FilterPill
+          label="macOS settings: Disk encryption"
+          onClear={() => handleClearFilter(["macos_settings_disk_encryption"])}
+        />
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -359,7 +382,8 @@ const HostsFilterBlock = ({
     lowDiskSpaceHosts ||
     osId ||
     (osName && osVersion) ||
-    munkiIssueId
+    munkiIssueId ||
+    diskEncryptionStatus
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -402,6 +426,8 @@ const HostsFilterBlock = ({
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
+        case !!diskEncryptionStatus:
+          return renderDiskEncryptionStatusBlock();
         default:
           return null;
       }

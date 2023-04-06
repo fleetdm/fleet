@@ -2057,6 +2057,107 @@ kafkarest:
   status_topic: osquery_status
 ```
 
+#### Email backend
+
+By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
+SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
+configure Fleet to use AWS SES natively rather than through SMTP.
+
+##### backend
+
+Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
+
+````yaml
+email:
+  backend: ses
+````
+
+#### SES
+
+The following configurations only have an effect if SES email backend is enabled `FLEET_EMAIL_BACKEND=ses`.
+
+##### ses_region
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS region to use for SES connection.
+
+- Default value: none
+- Environment variable: `FLEET_SES_REGION`
+- Config file format:
+  ```yaml
+  ses:
+  	region: us-east-2
+  ```
+
+##### ses_access_key_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  ses:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### ses_secret_access_key
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS secret access key to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  ses:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### ses_sts_assume_role_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS role ARN to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
+##### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+The ARN of the identity that is associated with the sending authorization policy that permits you to send
+for the email address specified in the Source parameter of SendRawEmail.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -3056,7 +3157,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer` and `observer`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer` and `observer_plus`.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.

@@ -79,6 +79,7 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		test.UserNoRoles,
 		test.UserMaintainer,
 		test.UserObserver,
+		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
 		testAuthdMethods(t, user, true)

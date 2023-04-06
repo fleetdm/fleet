@@ -1,0 +1,1 @@
+* introduce new email backend capable of sending email directly using SES APIs
