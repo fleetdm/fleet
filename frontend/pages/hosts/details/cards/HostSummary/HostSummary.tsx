@@ -213,7 +213,7 @@ const HostSummary = ({
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
           <span className="info-flex__data">
-            {(isOnlyObserver && !isObserverPlus) || deviceUser ? (
+            {isOnlyObserver || deviceUser ? (
               `${titleData.os_version}`
             ) : (
               <Button
