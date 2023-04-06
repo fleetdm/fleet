@@ -30,6 +30,8 @@ interface IPoliciesTableProps {
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
+  isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
 }
 
 const PoliciesTable = ({
@@ -41,6 +43,8 @@ const PoliciesTable = ({
   tableType,
   currentTeam,
   currentAutomatedPolicies,
+  isPremiumTier,
+  isSandboxMode,
 }: IPoliciesTableProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
@@ -120,11 +124,15 @@ const PoliciesTable = ({
       ) : (
         <TableContainer
           resultsTitle={"policies"}
-          columns={generateTableHeaders({
-            selectedTeamId: currentTeam?.id,
-            canAddOrDeletePolicy,
-            tableType,
-          })}
+          columns={generateTableHeaders(
+            {
+              selectedTeamId: currentTeam?.id,
+              canAddOrDeletePolicy,
+              tableType,
+            },
+            isPremiumTier,
+            isSandboxMode
+          )}
           data={generateDataSet(
             policiesList,
             currentAutomatedPolicies,
