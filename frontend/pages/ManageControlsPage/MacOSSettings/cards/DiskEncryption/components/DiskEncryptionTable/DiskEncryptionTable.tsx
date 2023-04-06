@@ -37,7 +37,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   );
 
   const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(data);
+  const tableData = generateTableData(data, currentTeamId);
 
   if (error) {
     return <DataError />;
