@@ -216,64 +216,6 @@ Whether the integration is configured to create Zendesk tickets for recent softw
         enable_software_vulnerabilities: true
   ```
 
-## Setup for macOS hosts that automatically enroll
-
-Automatic enrollment is an MDM feature available in Fleet Premium.
-
-These configuration options were built for a proof of concept for a prospective Fleet customer.
-
-### Okta
-
-#### mdm.okta_server_url
-
-This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_SERVER_URL`
-- Config file format:
-  ```
-  mdm:
-    okta_server_url: https://example.okta.com
-  ```
-
-#### mdm.okta_client_id
-
-This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_ID`
-- Config file format:
-  ```
-  mdm:
-    okta_client_id: 9oa4eoxample2rpdi1087
-  ```
-
-#### mdm.okta_client_secret
-
-This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_SECRET`
-- Config file format:
-  ```
-  mdm:
-    okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
-  ```
-
-### End user license agreement (EULA)
-
-#### mdm.eula_url
-
-An URL containing a PDF file that will be used as an EULA during DEP onboarding.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_EULA_URL`
-- Config file format:
-  ```
-  mdm:
-    eula_url: https://example.com/eula.pdf
-  ```
-
 ## SMTP settings
 
 SMTP settings in Fleet can be configured using the `smtp_settings` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
