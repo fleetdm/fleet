@@ -4,11 +4,8 @@ import ReactTooltip from "react-tooltip";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-<<<<<<< HEAD
 import CustomLink from "components/CustomLink";
-=======
 import TooltipWrapper from "components/TooltipWrapper";
->>>>>>> a3df83b31 (Create observer plus to be part of observer role, and modify ui to allow observer plus access)
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
