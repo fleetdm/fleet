@@ -10,6 +10,7 @@ import {
 
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
+import { IRole } from "interfaces/role";
 import { IFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -21,6 +22,11 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: number };
+}
+
+interface IRoleOptionsParams {
+  isPremiumTier?: boolean;
+  isApiOnly?: boolean;
 }
 
 /**
@@ -92,7 +98,49 @@ export const getNextLocationPath = ({
   return `/${nextLocation}`;
 };
 
+export const roleOptions = ({
+  isPremiumTier,
+  isApiOnly,
+}: IRoleOptionsParams): IRole[] => {
+  const roles: IRole[] = [
+    {
+      disabled: false,
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      disabled: false,
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      disabled: false,
+      label: "Admin",
+      value: "admin",
+    },
+  ];
+
+  if (isPremiumTier) {
+    roles.unshift({
+      disabled: false,
+      label: "Observer+",
+      value: "observer_plus",
+    });
+    // Next release:
+    // if (isApiOnly) {
+    //   roles.splice(3, 0, {
+    //     disabled: false,
+    //     label: "GitOps",
+    //     value: "gitops",
+    //   });
+    // }
+  }
+
+  return roles;
+};
+
 export default {
   generateUpdateData,
   getNextLocationPath,
+  roleOptions,
 };

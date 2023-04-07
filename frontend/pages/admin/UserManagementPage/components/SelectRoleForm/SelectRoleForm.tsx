@@ -7,6 +7,7 @@ import { UserRole } from "interfaces/user";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { AppContext } from "context/app";
+import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ISelectRoleFormProps {
   defaultTeamRole: UserRole;
@@ -18,49 +19,6 @@ interface ISelectRoleFormProps {
 }
 
 const baseClass = "select-role-form";
-
-interface RoleParams {
-  isPremiumTier?: boolean;
-  isApiOnly?: boolean;
-}
-
-const roleOptions = ({ isPremiumTier, isApiOnly }: RoleParams): IRole[] => {
-  const roles: IRole[] = [
-    {
-      disabled: false,
-      label: "Observer",
-      value: "observer",
-    },
-    {
-      disabled: false,
-      label: "Maintainer",
-      value: "maintainer",
-    },
-    {
-      disabled: false,
-      label: "Admin",
-      value: "admin",
-    },
-  ];
-
-  if (isPremiumTier) {
-    roles.unshift({
-      disabled: false,
-      label: "Observer+",
-      value: "observer_plus",
-    });
-    // Next release:
-    // if (isApiOnly) {
-    //   roles.splice(3, 0, {
-    //     disabled: false,
-    //     label: "GitOps",
-    //     value: "gitops",
-    //   });
-    // }
-  }
-
-  return roles;
-};
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],

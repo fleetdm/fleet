@@ -220,6 +220,7 @@ const ManageQueriesPage = ({
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
               isObserverPlus={isObserverPlus}
+              isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
             />
           )}
         </div>

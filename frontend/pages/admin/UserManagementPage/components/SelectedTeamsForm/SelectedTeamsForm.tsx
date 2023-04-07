@@ -2,10 +2,10 @@ import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-import { IRole } from "interfaces/role";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ITeamCheckboxListItem extends ITeam {
   isChecked: boolean | undefined;
@@ -19,42 +19,6 @@ interface ISelectedTeamsFormProps {
 }
 
 const baseClass = "selected-teams-form";
-
-const roleOptions = (isApiOnly = false): IRole[] => {
-  const roles: IRole[] = [
-    {
-      disabled: false,
-      label: "Observer+",
-      value: "observer_plus",
-    },
-    {
-      disabled: false,
-      label: "Observer",
-      value: "observer",
-    },
-    {
-      disabled: false,
-      label: "Maintainer",
-      value: "maintainer",
-    },
-    {
-      disabled: false,
-      label: "Admin",
-      value: "admin",
-    },
-  ];
-
-  // Next release:
-  // if (isApiOnly) {
-  //   roles.splice(3, 0, {
-  //     disabled: false,
-  //     label: "GitOps",
-  //     value: "gitops",
-  //   });
-  // }
-
-  return roles;
-};
 
 const generateFormListItems = (
   allTeams: ITeam[],
@@ -167,7 +131,7 @@ const SelectedTeamsForm = ({
               <Dropdown
                 value={role}
                 className={`${baseClass}__role-dropdown`}
-                options={roleOptions(isApiOnly)}
+                options={roleOptions({ isPremiumTier: true, isApiOnly })}
                 searchable={false}
                 onChange={(newValue: UserRole) =>
                   updateSelectedTeams(teamItem.id, newValue)

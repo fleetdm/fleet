@@ -491,9 +491,7 @@ export const generateRole = (
   globalRole: UserRole | null
 ): UserRole => {
   if (globalRole === null) {
-    const listOfRoles: (UserRole | undefined)[] = teams.map(
-      (team) => team.role
-    );
+    const listOfRoles = teams.map<UserRole | undefined>((team) => team.role);
 
     if (teams.length === 0) {
       // no global role and no teams
@@ -501,18 +499,10 @@ export const generateRole = (
     } else if (teams.length === 1) {
       // no global role and only one team
       return stringUtils.capitalizeRole(teams[0].role || "Unassigned");
-    } else if (
-      listOfRoles.every(
-        (role: UserRole | undefined): boolean => role === "maintainer"
-      )
-    ) {
+    } else if (listOfRoles.every((role): boolean => role === "maintainer")) {
       // only team maintainers
       return "Maintainer";
-    } else if (
-      listOfRoles.every(
-        (role: UserRole | undefined): boolean => role === "observer"
-      )
-    ) {
+    } else if (listOfRoles.every((role): boolean => role === "observer")) {
       // only team observers
       return "Observer";
     }
