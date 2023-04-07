@@ -647,9 +647,11 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if err := svc.ds.ReconcileProfilesOnTeamChange(ctx, hostIDs, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile fleet managed profiles on team change")
 	}
+	// TODO(sarah): Any other events where we need to do this or something similar?
+
 	return nil
 }
 
@@ -708,8 +710,8 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if err := svc.ds.ReconcileProfilesOnTeamChange(ctx, hostIDs, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile fleet managed profiles on team change")
 	}
 	return nil
 }

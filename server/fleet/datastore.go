@@ -659,6 +659,8 @@ type Datastore interface {
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
 	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error
+	// BulkDeleteHostDiskEncryptionKeys deletes disk encryption key records for the specified hosts.
+	BulkDeleteHostDiskEncryptionKeys(ctx context.Context, hostIDs []uint) error
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)
@@ -740,6 +742,10 @@ type Datastore interface {
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile id.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+
+	// GetMDMAppleConfigProfileByTeamAndIdentifier returns a configuration profile using the unique
+	// key defined by `team_id` and `identifier`
+	GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*MDMAppleConfigProfile, error)
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
@@ -834,6 +840,10 @@ type Datastore interface {
 	// BulkDeleteMDMAppleHostProfiles bulk deletes records from `host_mdm_apple_profiles`
 	BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload []MDMAppleBulkDeleteHostProfilePayload) error
 
+	// BulkReconcileMDMAppleHostProfiles combines the BulkUpsertMDMAppleHostProfiles and
+	// BulkDeleteMDMAppleHostProfiles into a single transaction.
+	ReconcileMDMAppleHostProfiles(ctx context.Context, upserts []*MDMAppleBulkUpsertHostProfilePayload, deletes []MDMAppleBulkDeleteHostProfilePayload) error
+
 	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
 	// or to remove for each affected host to pending for the provided criteria,
 	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
@@ -852,6 +862,9 @@ type Datastore interface {
 	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
 	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
 
+	// DeleteHostMDMAppleProfilesByIdentifier deletes the identified profile for the specified hosts.
+	DeleteHostMDMAppleProfilesByIdentifier(ctx context.Context, hostIDs []uint, identifier string) error
+
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 
@@ -867,6 +880,10 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// ReconcileProfilesOnTeamChange updates the status of Fleet-managed profiles
+	// along with related tables (e.g., `host_disk_encryption_keys`).
+	ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 }
 
 const (

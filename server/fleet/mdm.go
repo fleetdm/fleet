@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 )
 
 type AppleMDM struct {
@@ -61,4 +63,12 @@ type MDMIdPAccount struct {
 	SaltedSHA512PBKDF2Dictionary
 	UUID     string
 	Username string
+}
+
+type MDMAppleCommanderService interface {
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, cmdUUID string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, cmdUUID string) error
+	DeviceLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	EraseDevice(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	// enqueue(ctx context.Context, hostUUIDs []string, rawCommand string) error
 }

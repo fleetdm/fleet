@@ -383,12 +383,28 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 	name := team.Name
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
+	}
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
+	// TODO(Sarah): From team profiles from team-related tables (like mdm_apple_configuraion_profiles)?
+
 	// team id 0 is provided since the team's hosts are now part of no team
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if err := svc.ds.ReconcileProfilesOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile fleet managed profiles on team change")
 	}
 
 	logging.WithExtras(ctx, "id", teamID)

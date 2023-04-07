@@ -910,7 +910,7 @@ func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	commander *service.MDMAppleCommander,
+	commander fleet.MDMAppleCommanderService,
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {

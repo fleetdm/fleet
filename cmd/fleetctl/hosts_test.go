@@ -42,6 +42,10 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
+		return nil
+	}
+
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
@@ -77,6 +81,10 @@ func TestHostsTransferByLabel(t *testing.T) {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
+		return nil
+	}
+
+	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
 		return nil
 	}
 
@@ -117,6 +125,10 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
+		return nil
+	}
+
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
@@ -153,6 +165,10 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
+		return nil
+	}
+
+	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
 		return nil
 	}
 

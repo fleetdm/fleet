@@ -49,6 +49,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
+	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostUUIDs []uint, teamID *uint) error {
+		return nil
+	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}

@@ -1504,6 +1504,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if tmID != nil {
 		bulkTeamID = *tmID
 	}
+	// TODO(Sarah): Should we use team reconile here?
 	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
@@ -2022,7 +2023,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
-	commander *MDMAppleCommander,
+	commander fleet.MDMAppleCommanderService,
 	logger kitlog.Logger,
 ) error {
 	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
@@ -2133,11 +2134,8 @@ func ReconcileProfiles(
 	//
 	// We'll do another pass at the end to revert any changes for failed
 	// delivieries.
-	if err := ds.BulkDeleteMDMAppleHostProfiles(ctx, replacedHostProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting replaced host profiles")
-	}
-	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	if err := ds.ReconcileMDMAppleHostProfiles(ctx, hostProfiles, replacedHostProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconciling host profiles")
 	}
 
 	// Grab the contents of all the profiles we need to install

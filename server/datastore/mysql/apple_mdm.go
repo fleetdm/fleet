@@ -133,6 +133,36 @@ WHERE
 	return &res, nil
 }
 
+func (ds *Datastore) GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+
+	stmt := `
+SELECT 
+	profile_id, 
+	team_id, 
+	name, 
+	identifier, 
+	mobileconfig, 
+	created_at, 
+	updated_at 
+FROM 
+	mdm_apple_configuration_profiles 
+WHERE 
+	team_id=? AND identifier=?`
+
+	var profile fleet.MDMAppleConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader, &profile, stmt, teamID, profileIdentifier)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(profileIdentifier))
+		}
+		return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
+	}
+	return &profile, nil
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
 	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_id=?`, profileID)
 	if err != nil {
@@ -936,6 +966,10 @@ VALUES
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
 func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
+	return bulkSetPendingMDMAppleHostProfilesDB(ctx, ds.writer, hostIDs, teamIDs, profileIDs, hostUUIDs)
+}
+
+func bulkSetPendingMDMAppleHostProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
 	var countArgs int
 	if len(hostIDs) > 0 {
 		countArgs++
@@ -1003,7 +1037,7 @@ WHERE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
-		if err := sqlx.SelectContext(ctx, ds.writer, &uuids, uuidStmt, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &uuids, uuidStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 		}
 	}
@@ -1108,7 +1142,7 @@ ON DUPLICATE KEY UPDATE
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
 	}
-	_, err = ds.writer.ExecContext(ctx, stmt, args...)
+	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 }
 
@@ -1235,7 +1269,23 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint
 	return results, nil
 }
 
+func (ds *Datastore) ReconcileMDMAppleHostProfiles(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := bulkUpsertMDMAppleHostProfilesDB(ctx, tx, upserts); err != nil {
+			return err
+		}
+		if err := bulkDeleteMDMAppleHostProfilesDB(ctx, tx, deletes); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	return bulkUpsertMDMAppleHostProfilesDB(ctx, ds.writer, payload)
+}
+
+func bulkUpsertMDMAppleHostProfilesDB(ctx context.Context, tx sqlx.ExtContext, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -1266,11 +1316,15 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 		strings.TrimSuffix(sb.String(), ","),
 	)
 
-	_, err := ds.writer.ExecContext(ctx, stmt, args...)
+	_, err := tx.ExecContext(ctx, stmt, args...)
 	return err
 }
 
 func (ds *Datastore) BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+	return bulkDeleteMDMAppleHostProfilesDB(ctx, ds.writer, payload)
+}
+
+func bulkDeleteMDMAppleHostProfilesDB(ctx context.Context, tx sqlx.ExtContext, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -1292,11 +1346,96 @@ WHERE (host_uuid, profile_id)
 	}
 	args := append(argsIn1, argsIn2...)
 
-	_, err := ds.writer.ExecContext(ctx, fmt.Sprintf(sqlFmt, placeholders, fleet.MDMAppleOperationTypeRemove, placeholders), args...)
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(sqlFmt, placeholders, fleet.MDMAppleOperationTypeRemove, placeholders), args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete replaced profiles status execute")
 	}
 	return nil
+}
+
+func (ds *Datastore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	if newTeamID == nil {
+		newTeamID = ptr.Uint(0)
+	}
+
+	// TODO(Sarah): Get diff of profiles between old and new team. Set status to install pending for new
+	// profiles, remove pending for old profiles that do not have the shared profile identifier with the
+	// new team. The bulk set method needs to be updated.
+	if err := ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+
+	fvProf, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// the new team does not have a filevault profile so we need to delete the existing ones
+			if err := ds.DeleteHostMDMAppleProfilesByIdentifier(ctx, hostIDs, mobileconfig.FleetFileVaultPayloadIdentifier); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host profiles")
+			}
+			if err := ds.BulkDeleteHostDiskEncryptionKeys(ctx, hostIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
+			}
+		} else {
+			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
+		}
+	}
+
+	// new team has a filevault profile but we mark it as pending only on hosts that don't already have
+	// a filevault profile installed (the other hosts will still be updated with the new profile but
+	// we don't need to mark those as pending now because it just causes a lot of noise in the UI)
+	toInstallHosts, err := getHostUUIDsWithoutProfileIdentifierDB(ctx, ds.writer, hostIDs, mobileconfig.FleetFileVaultPayloadIdentifier)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get hosts without profile")
+	}
+	payload := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstallHosts))
+	for _, hostUUID := range toInstallHosts {
+		payload = append(payload, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileID:         fvProf.ProfileID,
+			ProfileIdentifier: fvProf.Identifier,
+			ProfileName:       fvProf.Name,
+			HostUUID:          hostUUID,
+			Status:            &fleet.MDMAppleDeliveryPending,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+		})
+	}
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk upsert host profiles")
+	}
+
+	return nil
+}
+
+func getHostUUIDsWithoutProfileIdentifierDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, profileIdentifier string) ([]string, error) {
+	stmt := `
+SELECT DISTINCT
+	h.uuid
+FROM
+	hosts h
+WHERE
+	h.id IN(?)
+	AND NOT EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_profiles hmap
+		WHERE
+			h.uuid = hmap.host_uuid
+			AND hmap.profile_identifier = ?
+			AND hmap.operation_type = ?)`
+
+	stmt, args, err := sqlx.In(stmt, hostIDs, profileIdentifier, fleet.MDMAppleOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getHostUUIDsWithoutProfileIdentifierDB build query")
+	}
+	var uuids []string
+	if err := sqlx.SelectContext(ctx, tx, &uuids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getHostUUIDsWithoutProfileIdentifierDB execute query")
+	}
+	return uuids, nil
 }
 
 func (ds *Datastore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
@@ -1304,6 +1443,18 @@ func (ds *Datastore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ?
         `, hostUUID)
+	return err
+}
+
+func (ds *Datastore) DeleteHostMDMAppleProfilesByIdentifier(ctx context.Context, hostIDs []uint, profileIdentifier string) error {
+	stmt := `
+DELETE FROM host_mdm_apple_profiles 
+WHERE host_uuid IN (SELECT uuid AS host_uuid FROM hosts h WHERE h.id IN (?) AND h.platform = 'darwin') AND profile_identifier = ?`
+	stmt, args, err := sqlx.In(stmt, hostIDs, profileIdentifier)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "DeleteHostMDMAppleProfilesByIdentifier build query")
+	}
+	_, err = ds.writer.ExecContext(ctx, stmt, args...)
 	return err
 }
 
@@ -1492,6 +1643,10 @@ WHERE
 }
 
 func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+	return bulkUpsertMDMAppleConfigProfilesDB(ctx, ds.writer, payload)
+}
+
+func bulkUpsertMDMAppleConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, payload []*fleet.MDMAppleConfigProfile) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -1515,7 +1670,7 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
           ON DUPLICATE KEY UPDATE
             mobileconfig = VALUES(mobileconfig)`, strings.TrimSuffix(sb.String(), ","))
 
-	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "upsert mdm config profiles")
 	}
 

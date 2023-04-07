@@ -474,6 +474,8 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string) error
 
+type BulkDeleteHostDiskEncryptionKeysFunc func(ctx context.Context, hostIDs []uint) error
+
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
 type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
@@ -521,6 +523,8 @@ type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConf
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
@@ -572,6 +576,8 @@ type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fle
 
 type BulkDeleteMDMAppleHostProfilesFunc func(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error
 
+type ReconcileMDMAppleHostProfilesFunc func(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error
+
 type BulkSetPendingMDMAppleHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error
 
 type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
@@ -580,6 +586,8 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type DeleteMDMAppleProfilesForHostFunc func(ctx context.Context, hostUUID string) error
 
+type DeleteHostMDMAppleProfilesByIdentifierFunc func(ctx context.Context, hostIDs []uint, identifier string) error
+
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
@@ -587,6 +595,8 @@ type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint)
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
+
+type ReconcileProfilesOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1276,6 +1286,9 @@ type DataStore struct {
 	SetOrUpdateHostDiskEncryptionKeyFunc        SetOrUpdateHostDiskEncryptionKeyFunc
 	SetOrUpdateHostDiskEncryptionKeyFuncInvoked bool
 
+	BulkDeleteHostDiskEncryptionKeysFunc        BulkDeleteHostDiskEncryptionKeysFunc
+	BulkDeleteHostDiskEncryptionKeysFuncInvoked bool
+
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
 
@@ -1347,6 +1360,9 @@ type DataStore struct {
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleConfigProfileByTeamAndIdentifierFunc        GetMDMAppleConfigProfileByTeamAndIdentifierFunc
+	GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
@@ -1423,6 +1439,9 @@ type DataStore struct {
 	BulkDeleteMDMAppleHostProfilesFunc        BulkDeleteMDMAppleHostProfilesFunc
 	BulkDeleteMDMAppleHostProfilesFuncInvoked bool
 
+	ReconcileMDMAppleHostProfilesFunc        ReconcileMDMAppleHostProfilesFunc
+	ReconcileMDMAppleHostProfilesFuncInvoked bool
+
 	BulkSetPendingMDMAppleHostProfilesFunc        BulkSetPendingMDMAppleHostProfilesFunc
 	BulkSetPendingMDMAppleHostProfilesFuncInvoked bool
 
@@ -1435,6 +1454,9 @@ type DataStore struct {
 	DeleteMDMAppleProfilesForHostFunc        DeleteMDMAppleProfilesForHostFunc
 	DeleteMDMAppleProfilesForHostFuncInvoked bool
 
+	DeleteHostMDMAppleProfilesByIdentifierFunc        DeleteHostMDMAppleProfilesByIdentifierFunc
+	DeleteHostMDMAppleProfilesByIdentifierFuncInvoked bool
+
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
 
@@ -1446,6 +1468,9 @@ type DataStore struct {
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
+
+	ReconcileProfilesOnTeamChangeFunc        ReconcileProfilesOnTeamChangeFunc
+	ReconcileProfilesOnTeamChangeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3053,6 +3078,13 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key)
 }
 
+func (s *DataStore) BulkDeleteHostDiskEncryptionKeys(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.BulkDeleteHostDiskEncryptionKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkDeleteHostDiskEncryptionKeysFunc(ctx, hostIDs)
+}
+
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.GetUnverifiedDiskEncryptionKeysFuncInvoked = true
@@ -3219,6 +3251,13 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint
 	s.GetMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
+func (s *DataStore) GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
 }
 
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -3396,6 +3435,13 @@ func (s *DataStore) BulkDeleteMDMAppleHostProfiles(ctx context.Context, payload 
 	return s.BulkDeleteMDMAppleHostProfilesFunc(ctx, payload)
 }
 
+func (s *DataStore) ReconcileMDMAppleHostProfiles(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+	s.mu.Lock()
+	s.ReconcileMDMAppleHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileMDMAppleHostProfilesFunc(ctx, upserts, deletes)
+}
+
 func (s *DataStore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error {
 	s.mu.Lock()
 	s.BulkSetPendingMDMAppleHostProfilesFuncInvoked = true
@@ -3424,6 +3470,13 @@ func (s *DataStore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID 
 	return s.DeleteMDMAppleProfilesForHostFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) DeleteHostMDMAppleProfilesByIdentifier(ctx context.Context, hostIDs []uint, identifier string) error {
+	s.mu.Lock()
+	s.DeleteHostMDMAppleProfilesByIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostMDMAppleProfilesByIdentifierFunc(ctx, hostIDs, identifier)
+}
+
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
@@ -3450,4 +3503,11 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	s.GetMDMAppleFileVaultSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	s.mu.Lock()
+	s.ReconcileProfilesOnTeamChangeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileProfilesOnTeamChangeFunc(ctx, hostIDs, newTeamID)
 }

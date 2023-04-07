@@ -2608,6 +2608,23 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
 	return err
 }
 
+func (ds *Datastore) BulkDeleteHostDiskEncryptionKeys(ctx context.Context, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
+		"DELETE FROM host_disk_encryption_keys WHERE host_id IN (?)",
+		hostIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query")
+	}
+
+	_, err = ds.writer.ExecContext(ctx, query, args...)
+	return err
+}
+
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	var keys []fleet.HostDiskEncryptionKey
 	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
@@ -3696,7 +3713,6 @@ func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID ui
 		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
 	}
 	return nil
-
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.

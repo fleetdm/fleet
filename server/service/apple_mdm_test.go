@@ -1562,6 +1562,116 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func newMDMAppleMockCommander() fleet.MDMAppleCommanderService {
+	cmdr := mockMDMAppleCommander{}
+	return &cmdr
+}
+
+type mockMDMAppleCommander struct{}
+
+func (m *mockMDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, cmdUUID string) error {
+	fmt.Println("InstallProfile called", hostUUIDs, cmdUUID)
+	return nil
+}
+
+func (m *mockMDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, cmdUUID string) error {
+	fmt.Println("RemoveProfile called", hostUUIDs, cmdUUID)
+	return nil
+}
+
+func (m *mockMDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	fmt.Println("DeviceLock called", hostUUIDs, cmdUUID)
+	return nil
+}
+
+func (m *mockMDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	fmt.Println("EraseDevice called", hostUUIDs, cmdUUID)
+	return nil
+}
+
+func TestBugFix(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	cmdr := newMDMAppleMockCommander()
+
+	hostUUID, hostUUID2 := "host1", "host2"
+
+	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+		return []*fleet.MDMAppleProfilePayload{
+			{ProfileID: 1, ProfileIdentifier: "add.profile", HostUUID: hostUUID},
+			{ProfileID: 2, ProfileIdentifier: "add.profile.two", HostUUID: hostUUID},
+			{ProfileID: 2, ProfileIdentifier: "add.profile.two", HostUUID: hostUUID2},
+			{ProfileID: 4, ProfileIdentifier: "replace.profile.four", HostUUID: hostUUID2},
+		}, nil
+	}
+
+	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+		return []*fleet.MDMAppleProfilePayload{
+			{ProfileID: 3, ProfileIdentifier: "remove.profile", HostUUID: hostUUID},
+			{ProfileID: 3, ProfileIdentifier: "remove.profile", HostUUID: hostUUID2},
+			{ProfileID: 4, ProfileIdentifier: "replace.profile.four", HostUUID: hostUUID2},
+		}, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		return appCfg, nil
+	}
+
+	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{}, nil
+	}
+
+	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+		fmt.Println("BulkUpsertMDMAppleConfigProfilesFunc called", len(payload))
+		for _, p := range payload {
+			fmt.Println(fmt.Sprintf("%+v", p))
+		}
+		return nil
+	}
+
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		fmt.Println("BulkUpsertMDMAppleHostProfilesFunc called", len(payload))
+		for _, p := range payload {
+			fmt.Println(p.HostUUID, p.ProfileIdentifier, p.OperationType, *p.Status)
+		}
+		return nil
+	}
+
+	// ds.BulkDeleteMDMAppleHostProfilesFunc = func(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+	// 	fmt.Println("BulkDeleteMDMAppleHostProfilesFunc called", len(payload))
+	// 	for _, p := range payload {
+	// 		fmt.Println(fmt.Sprintf("%+v", p))
+	// 	}
+
+	// 	return nil
+	// }
+
+	ds.ReconcileMDMAppleHostProfilesFunc = func(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+		fmt.Println("ReconcileMDMAppleHostProfilesFunc called: upserts", len(upserts))
+		for _, p := range upserts {
+			fmt.Println(p.HostUUID, p.ProfileIdentifier, p.OperationType, *p.Status)
+		}
+
+		fmt.Println("ReconcileMDMAppleHostProfilesFunc called: deletes", len(deletes))
+		for _, p := range deletes {
+			fmt.Println(fmt.Sprintf("%+v", p))
+		}
+		return nil
+	}
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
+		fmt.Println("GetMDMAppleProfilesContentsFunc called", profileIDs)
+		res := make(map[uint]mobileconfig.Mobileconfig, len(profileIDs))
+		for _, id := range profileIDs {
+			res[id] = []byte(fmt.Sprintf("contents%d", id))
+		}
+		return res, nil
+	}
+
+	ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+}
+
 func TestMDMAppleReconcileProfiles(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &nanomdm_mock.Storage{}

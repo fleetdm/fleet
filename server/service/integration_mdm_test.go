@@ -372,7 +372,12 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 		s.onScheduleDone = func() { close(ch) }
 		_, err := s.profileSchedule.Trigger()
 		require.NoError(t, err)
-		<-ch
+		select {
+		case <-ch:
+			return
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "timed out waiting for schedule to finish")
+		}
 	}
 
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
