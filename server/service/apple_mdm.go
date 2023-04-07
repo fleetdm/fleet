@@ -1192,14 +1192,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	// Since the host is unenrolled, delete all profiles assigned to the
-	// host manually, the device won't Acknowledge any more requests (eg:
-	// to delete profiles) and profiles are automatically removed on
-	// unenrollment.
-	if err := svc.ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
-	}
-
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
 		HostSerial:       h.HardwareSerial,
 		HostDisplayName:  h.DisplayName(),
@@ -1772,6 +1764,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 	if err != nil {
 		return err
 	}
+
 	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
 		return err
 	}

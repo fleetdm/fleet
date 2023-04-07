@@ -725,6 +725,38 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	profiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "z"),
+	}
+
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         profiles[0].ProfileID,
+			ProfileIdentifier: profiles[0].Identifier,
+			ProfileName:       profiles[0].Name,
+			HostUUID:          testUUID,
+			Status:            &fleet.MDMAppleDeliveryApplied,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			CommandUUID:       "command-uuid",
+		},
+	},
+	)
+	require.NoError(t, err)
+
+	hostProfs, err := ds.GetHostMDMProfiles(ctx, testUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, len(profiles))
+
+	var hostID uint
+	err = sqlx.GetContext(context.Background(), ds.reader, &hostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, "asdf")
+	require.NoError(t, err)
+
+	key, err := ds.GetHostDiskEncryptionKey(ctx, hostID)
+	require.NoError(t, err)
+	require.NotNil(t, key)
+
 	// check that an entry in host_mdm exists
 	var count int
 	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, testUUID)
@@ -737,6 +769,13 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+
+	hostProfs, err = ds.GetHostMDMProfiles(ctx, testUUID)
+	require.NoError(t, err)
+	require.Empty(t, hostProfs)
+	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Nil(t, key)
 }
 
 func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
@@ -1419,7 +1458,10 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
 
 	// hosts[6] deletes all its profiles
-	require.NoError(t, ds.DeleteMDMAppleProfilesForHost(ctx, hosts[6].UUID))
+	tx, err := ds.writer.BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, hosts[6].UUID))
+	require.NoError(t, tx.Commit())
 	pendingHosts := append(hosts[2:6:6], hosts[7:]...)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
@@ -1690,7 +1732,10 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 
-	err = ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID)
+	tx, err := ds.writer.BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, h.UUID))
+	require.NoError(t, tx.Commit())
 	require.NoError(t, err)
 	gotProfs, err = ds.GetHostMDMProfiles(ctx, h.UUID)
 	require.NoError(t, err)
