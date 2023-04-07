@@ -91,6 +91,7 @@ type InitialStateType = {
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
   isOnGlobalTeam?: boolean;
+  isAnyTeamObserverPlus?: boolean;
   isAnyTeamMaintainer?: boolean;
   isAnyTeamMaintainerOrTeamAdmin?: boolean;
   isTeamObserver?: boolean;
@@ -99,6 +100,7 @@ type InitialStateType = {
   isAnyTeamAdmin?: boolean;
   isTeamAdmin?: boolean;
   isOnlyObserver?: boolean;
+  isObserverPlus?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
@@ -133,6 +135,7 @@ export const initialState = {
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
+  isAnyTeamObserverPlus: undefined,
   isAnyTeamMaintainer: undefined,
   isAnyTeamMaintainerOrTeamAdmin: undefined,
   isTeamObserver: undefined,
@@ -141,6 +144,7 @@ export const initialState = {
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
+  isObserverPlus: undefined,
   isNoAccess: undefined,
   filteredHostsPath: undefined,
   setAvailableTeams: () => null,
@@ -181,6 +185,7 @@ const setPermissions = (
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
+    isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
     isAnyTeamMaintainerOrTeamAdmin: permissions.isAnyTeamMaintainerOrTeamAdmin(
       user
@@ -194,6 +199,7 @@ const setPermissions = (
       teamId
     ),
     isOnlyObserver: permissions.isOnlyObserver(user),
+    isObserverPlus: permissions.isObserverPlus(user, teamId),
     isNoAccess: permissions.isNoAccess(user),
   };
 };
@@ -307,6 +313,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
+    isAnyTeamObserverPlus: state.isAnyTeamObserverPlus,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
     isAnyTeamMaintainerOrTeamAdmin: state.isAnyTeamMaintainerOrTeamAdmin,
     isTeamObserver: state.isTeamObserver,
@@ -315,6 +322,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
+    isObserverPlus: state.isObserverPlus,
     isNoAccess: state.isNoAccess,
     setAvailableTeams: (user: IUser | null, availableTeams: ITeamSummary[]) => {
       dispatch({

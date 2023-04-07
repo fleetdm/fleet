@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
@@ -11,8 +11,8 @@ interface IEditUserModalProps {
   onSubmit: (formData: IFormData) => void;
   defaultName?: string;
   defaultEmail?: string;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
   currentTeam?: ITeam;
@@ -20,6 +20,7 @@ interface IEditUserModalProps {
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isApiOnly?: boolean;
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
@@ -41,6 +42,7 @@ const EditUserModal = ({
   smtpConfigured,
   canUseSso,
   isSsoEnabled,
+  isApiOnly,
   currentTeam,
   editUserErrors,
   isModifiedByGlobalAdmin,
@@ -68,6 +70,7 @@ const EditUserModal = ({
         smtpConfigured={smtpConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
+        isApiOnly={isApiOnly}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         isInvitePending={isInvitePending}
         currentTeam={currentTeam}
