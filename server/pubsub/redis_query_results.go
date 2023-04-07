@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -71,7 +72,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 	select {
 	case ch <- item:
 	case <-ctx.Done():
-		fmt.Println("live_query: writeOrDone context is done")
+		fmt.Fprintln(os.Stderr, "live_query: writeOrDone context is done")
 		return true
 	}
 	return false
@@ -83,7 +84,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // passed into this function)
 func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}) {
 	defer close(outChan)
-	defer fmt.Println("live_query: receiveMessages completing")
+	defer fmt.Fprintln(os.Stderr, "live_query: receiveMessages completing")
 
 	for {
 		// Add a timeout to try to cleanup in the case the server has somehow gone completely unresponsive.
@@ -97,13 +98,17 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 		switch msg := msg.(type) {
 		case error:
 			// If an error occurred (i.e. connection was closed), then we should exit.
+			fmt.Fprintf(os.Stderr, "live_query: return error %v\n", msg)
 			return
 		case redigo.Subscription:
 			// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
 			// and we can exit.
 			if msg.Count == 0 {
+				fmt.Fprintf(os.Stderr, "live_query: return count 0 \n")
 				return
 			}
+		default:
+			fmt.Fprintf(os.Stderr, "live_query: unexpected type %T %v\n", msg, msg)
 		}
 	}
 }
@@ -130,21 +135,21 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 		defer wg.Done()
 
 		receiveMessages(ctx, psc, msgChannel)
-		fmt.Println("live_query: receiveMessages completed")
+		fmt.Fprintln(os.Stderr, "live_query: receiveMessages completed")
 	}()
 
 	wg.Add(+1)
 	go func() {
 		defer wg.Done()
 		defer close(outChannel)
-		defer fmt.Println("live_query: go func live query loop done")
+		defer fmt.Fprintln(os.Stderr, "live_query: go func live query loop done")
 
 		for {
 			// Loop reading messages from conn.Receive() (via msgChannel) until the context is cancelled.
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
-					fmt.Println("live_query: unexpected exit in receiveMessages")
+					fmt.Fprintln(os.Stderr, "live_query: unexpected exit in receiveMessages")
 					writeOrDone(ctx, outChannel, ctxerr.New(ctx, "unexpected exit in receiveMessages"))
 					return
 				}
@@ -168,7 +173,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 				}
 
 			case <-ctx.Done():
-				fmt.Println("live_query: context done")
+				fmt.Fprintln(os.Stderr, "live_query: context done")
 				return
 			}
 		}
@@ -177,7 +182,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	go func() {
 		wg.Wait()
 		err := psc.Unsubscribe(pubSubName) //nolint:errcheck
-		fmt.Println("live_query: Unsubscribe err: ", err)
+		fmt.Fprintln(os.Stderr, "live_query: Unsubscribe err: ", err)
 		conn.Close()
 	}()
 
