@@ -406,7 +406,7 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      {(!isObserverPlus || !isAnyTeamObserverPlus) && (
+      {((!isObserverPlus && isGlobalObserver) || !isAnyTeamObserverPlus) && (
         <RevealButton
           isShowing={showQueryEditor}
           className={baseClass}
