@@ -16,7 +16,12 @@ export default PropTypes.shape({
   teams: PropTypes.arrayOf(teamInterface),
 });
 
-export const USERS_ROLES = ["admin", "maintainer", "observer"] as const;
+export const USERS_ROLES = [
+  "admin",
+  "maintainer",
+  "observer",
+  "observer_plus",
+] as const;
 export type IUserRole = typeof USERS_ROLES[number];
 export type UserRole =
   | "admin"
