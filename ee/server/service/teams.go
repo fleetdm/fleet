@@ -401,9 +401,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 	// TODO(Sarah): From team profiles from team-related tables (like mdm_apple_configuraion_profiles)?
-
-	// team id 0 is provided since the team's hosts are now part of no team
-	if err := svc.ds.ReconcileProfilesOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
+	if err := svc.ds.ReconcileProfilesOnTeamDelete(ctx, hostIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "reconcile fleet managed profiles on team change")
 	}
 

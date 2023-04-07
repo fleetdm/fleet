@@ -2418,6 +2418,8 @@ func TestReconcileOnTeamChange(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	nanoEnroll(t, ds, host, false)
+
 	// Create a no team config profile
 	noTeamCP, err := ds.NewMDMAppleConfigProfile(context.Background(), fleet.MDMAppleConfigProfile{
 		Name:         "DummyTestName",
@@ -2459,10 +2461,8 @@ func TestReconcileOnTeamChange(t *testing.T) {
 	fmt.Println(hostProfiles)
 	require.NoError(t, err)
 	require.Len(t, hostProfiles, 1)
-	// require.Equal(t, teamCP.ProfileID, hostProfiles[0].ProfileID)
+	require.Equal(t, teamCP.ProfileID, hostProfiles[0].ProfileID)
 	require.Equal(t, teamCP.Identifier, hostProfiles[0].Identifier)
 	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfiles[0].OperationType)
-	// require.Nil(t, hostProfiles[0].Status)
-	require.NotNil(t, hostProfiles[0].Status)
-	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfiles[0].Status)
+	require.Nil(t, hostProfiles[0].Status)
 }

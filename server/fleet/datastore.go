@@ -881,9 +881,13 @@ type Datastore interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// ReconcileProfilesOnTeamChange updates the status of Fleet-managed profiles
+	// ReconcileProfilesOnBulkApply updates the status of Fleet-managed profiles
 	// along with related tables (e.g., `host_disk_encryption_keys`).
-	ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+	ReconcileProfilesOnBulkApply(ctx context.Context, newTeamID *uint) error
+
+	// ReconcileProfilesOnTeamDelete updates the status of Fleet-managed profiles
+	// along with related tables (e.g., `host_disk_encryption_keys`).
+	ReconcileProfilesOnTeamDelete(ctx context.Context, hostIDs []uint) error
 }
 
 const (

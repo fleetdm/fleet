@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -1146,6 +1147,7 @@ ON DUPLICATE KEY UPDATE
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
 	}
+	fmt.Println(stmt)
 	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 }
@@ -1357,19 +1359,43 @@ WHERE (host_uuid, profile_id)
 	return nil
 }
 
-func (ds *Datastore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
-	// if len(hostIDs) == 0 {
-	// 	return nil
-	// }
+func (ds *Datastore) ReconcileProfilesOnBulkApply(ctx context.Context, newTeamID *uint) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, TeamID: newTeamID}
+	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: newTeamID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
+	}
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
 
-	// if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-	// 	fmt.Println("reconcile profiles on team change")
-	// 	return cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs)
-	// }); err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "reconcile profiles on team change")
-	// }
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup profile status")
+		}
+		if err := cleanupDiskEncryptionKeysOnTeamChange(ctx, tx, hostIDs, newTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
+		}
+		return nil
+	})
+}
 
-	return nil
+func (ds *Datastore) ReconcileProfilesOnTeamDelete(ctx context.Context, hostIDs []uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup profile status")
+		}
+		// team id is 0 because the team is being deleted
+		if err := cleanupDiskEncryptionKeysOnTeamChange(ctx, tx, hostIDs, ptr.Uint(0)); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
+		}
+		return nil
+	})
 }
 
 func cleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
@@ -1394,7 +1420,7 @@ func cleanupProfileStatusOnTeamChange(ctx context.Context, tx sqlx.ExtContext, h
 	}
 
 	// delete rows that are pending removal and are being replaced by a new profile
-	replacedProfiles, err := getReplacedProfilesBD(ctx, tx, hostIDs)
+	replacedProfiles, err := getReplacedProfilesDB(ctx, tx, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get replaced profiles")
 	}
@@ -1405,7 +1431,7 @@ func cleanupProfileStatusOnTeamChange(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func getReplacedProfilesBD(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]fleet.MDMAppleBulkDeleteHostProfilePayload, error) {
+func getReplacedProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]fleet.MDMAppleBulkDeleteHostProfilePayload, error) {
 	var replacedProfiles []fleet.MDMAppleBulkDeleteHostProfilePayload
 	selectStmt := `
 SELECT

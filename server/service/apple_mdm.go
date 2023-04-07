@@ -1504,8 +1504,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if tmID != nil {
 		bulkTeamID = *tmID
 	}
-	// TODO(Sarah): Should we use team reconile here?
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+	if err := svc.ds.ReconcileProfilesOnBulkApply(ctx, &bulkTeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
