@@ -229,6 +229,10 @@ func main() {
 			}
 		}
 
+		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
 		// if neither are set, this might be an agent deployed via MDM, try to read
 		// both configs from a configuration profile
 		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
@@ -254,6 +258,9 @@ func main() {
 					if err := c.Set("fleet-url", config.FleetURL); err != nil {
 						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
 					}
+					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write enroll secret: %w", err)
+					}
 				}
 
 				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
@@ -264,10 +271,6 @@ func main() {
 				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
 				time.Sleep(30 * time.Second)
 			}
-		}
-
-		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -1144,4 +1147,24 @@ func (f *capabilitiesChecker) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
+}
+
+// writeSecret writes the orbit enroll secret to the designated file. We do
+// this at runtime for packages that are using --use-system-config, since they
+// don't contain a secret file in their payload.
+//
+// This implementation is very similar to the one in orbit/pkg/packaging but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
+func writeSecret(enrollSecret string, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
 }
