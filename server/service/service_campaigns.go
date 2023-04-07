@@ -77,12 +77,20 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		conn.WriteJSONError("error getting campaign reader: " + err.Error()) //nolint:errcheck
 		return
 	}
-	defer cancelFunc()
+	defer func() {
+		level.Info(svc.logger).Log("msg", "live_query: calling cancelFunc")
+		cancelFunc()
+		level.Info(svc.logger).Log("msg", "live_query: cancelFunc completed")
+	}()
 
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+	defer func() {
+		level.Info(svc.logger).Log("msg", "live_query: calling CompleteCampaign")
+		err := svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+		level.Info(svc.logger).Log("msg", "live_query: CompleteCampaign completed", "err", err)
+	}()
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -167,6 +175,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
+				level.Info(svc.logger).Log("msg", "live_query: got result", "host", res.Host.ID)
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
@@ -181,6 +190,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 
 		case <-ticker.C:
+			level.Info(svc.logger).Log("msg", "live_query: case ticker.C")
 			if conn.GetSessionState() == sockjs.SessionClosed {
 				// return and stop sending the query if the session was closed
 				// by the client
