@@ -64,6 +64,7 @@ interface ICreateUserFormProps {
   defaultTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured?: boolean;
+  sesConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isApiOnly?: boolean;
@@ -89,6 +90,7 @@ const UserForm = ({
   defaultTeams,
   isPremiumTier,
   smtpConfigured,
+  sesConfigured,
   canUseSso,
   isSsoEnabled,
   isApiOnly,
@@ -394,10 +396,10 @@ const UserForm = ({
         onChange={onInputChange("email")}
         placeholder="Email"
         value={formData.email || ""}
-        disabled={!isNewUser && !smtpConfigured}
+        disabled={!isNewUser && !(smtpConfigured || sesConfigured)}
         tooltip={
           "\
-              Editing an email address requires that SMTP is configured in order to send a validation email. \
+              Editing an email address requires that SMTP or SES is configured in order to send a validation email. \
               <br /><br /> \
               Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
             "
@@ -462,16 +464,16 @@ const UserForm = ({
                   className={`${baseClass}__radio-input`}
                   label={"Invite user"}
                   id={"invite-user"}
-                  disabled={!smtpConfigured}
+                  disabled={!(smtpConfigured || sesConfigured)}
                   checked={formData.newUserType === NewUserType.AdminInvited}
                   value={NewUserType.AdminInvited}
                   name={"newUserType"}
                   onChange={onRadioChange("newUserType")}
                   tooltip={
-                    smtpConfigured
+                    smtpConfigured || sesConfigured
                       ? ""
                       : `
-                      The &quot;Invite user&quot; feature requires that SMTP
+                      The &quot;Invite user&quot; feature requires that SMTP or SES
                       is configured in order to send invitation emails.
                       <br /><br />
                       SMTP can be configured in Settings &gt; Organization settings.
