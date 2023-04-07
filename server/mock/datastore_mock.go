@@ -596,7 +596,9 @@ type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAcco
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
-type ReconcileProfilesOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+type ReconcileProfilesOnBulkApplyFunc func(ctx context.Context, newTeamID *uint) error
+
+type ReconcileProfilesOnTeamDeleteFunc func(ctx context.Context, hostIDs []uint) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1469,8 +1471,11 @@ type DataStore struct {
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
 
-	ReconcileProfilesOnTeamChangeFunc        ReconcileProfilesOnTeamChangeFunc
-	ReconcileProfilesOnTeamChangeFuncInvoked bool
+	ReconcileProfilesOnBulkApplyFunc        ReconcileProfilesOnBulkApplyFunc
+	ReconcileProfilesOnBulkApplyFuncInvoked bool
+
+	ReconcileProfilesOnTeamDeleteFunc        ReconcileProfilesOnTeamDeleteFunc
+	ReconcileProfilesOnTeamDeleteFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3505,9 +3510,16 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+func (s *DataStore) ReconcileProfilesOnBulkApply(ctx context.Context, newTeamID *uint) error {
 	s.mu.Lock()
-	s.ReconcileProfilesOnTeamChangeFuncInvoked = true
+	s.ReconcileProfilesOnBulkApplyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReconcileProfilesOnTeamChangeFunc(ctx, hostIDs, newTeamID)
+	return s.ReconcileProfilesOnBulkApplyFunc(ctx, newTeamID)
+}
+
+func (s *DataStore) ReconcileProfilesOnTeamDelete(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ReconcileProfilesOnTeamDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileProfilesOnTeamDeleteFunc(ctx, hostIDs)
 }

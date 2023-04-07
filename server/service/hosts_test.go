@@ -396,9 +396,6 @@ func TestHostAuth(t *testing.T) {
 		}
 		return nil
 	}
-	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
-		return nil
-	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
@@ -618,9 +615,6 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
-		return nil
-	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
@@ -650,9 +644,6 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
-		return nil
-	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
@@ -670,9 +661,6 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return []*fleet.Host{}, nil
 	}
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		return nil
-	}
-	ds.ReconcileProfilesOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, teamID *uint) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
