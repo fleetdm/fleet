@@ -119,7 +119,7 @@ Logs out the authenticated user.
 
 ### Forgot password
 
-Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
+Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
 `POST /api/v1/fleet/forgot_password`
 
