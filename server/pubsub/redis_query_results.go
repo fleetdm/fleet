@@ -165,6 +165,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
+					fmt.Fprintf(os.Stderr, "live_query: case error %v\n", msg)
 					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}
