@@ -229,6 +229,10 @@ func main() {
 			}
 		}
 
+		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
 		// if neither are set, this might be an agent deployed via MDM, try to read
 		// both configs from a configuration profile
 		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
@@ -254,20 +258,19 @@ func main() {
 					if err := c.Set("fleet-url", config.FleetURL); err != nil {
 						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
 					}
+					log.Info().Msg("found configuration values in system profile")
+					if err := osquery.WriteSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write enroll secret: %w", err)
+					}
 				}
 
 				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
-					log.Info().Msg("found configuration values in system profile")
 					break
 				}
 
 				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
 				time.Sleep(30 * time.Second)
 			}
-		}
-
-		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))

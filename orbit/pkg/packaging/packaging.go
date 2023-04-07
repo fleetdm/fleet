@@ -196,20 +196,6 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}, nil
 }
 
-func writeSecret(opt Options, orbitRoot string) error {
-	// Enroll secret
-	path := filepath.Join(orbitRoot, "secret.txt")
-	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-
-	if err := os.WriteFile(path, []byte(opt.EnrollSecret), constant.DefaultFileMode); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	return nil
-}
-
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 	path := filepath.Join(orbitRoot, "osquery.flags")
 
