@@ -300,7 +300,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{ds: ds, commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)},
+				&MDMAppleCheckinAndCommandService{
+					ds:        ds,
+					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+					logger:    kitlog.NewNopLogger(),
+				},
 			)
 			require.NoError(t, err)
 		}
