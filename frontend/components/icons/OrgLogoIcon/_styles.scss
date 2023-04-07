@@ -3,6 +3,7 @@
   max-height: 46px;
 }
 
-.default-fleet-logo {
+.default-fleet-logo,
+.org-logo-icon[src*="svg"] {
   transform: scale(0.5);
 }
