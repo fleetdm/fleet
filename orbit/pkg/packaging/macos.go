@@ -13,7 +13,6 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -98,7 +97,7 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeScripts(opt, tmpDir); err != nil {
 		return "", fmt.Errorf("write postinstall: %w", err)
 	}
-	if err := osquery.WriteSecret(opt.EnrollSecret, orbitRoot); err != nil {
+	if err := writeSecret(opt, orbitRoot); err != nil {
 		return "", fmt.Errorf("write enroll secret: %w", err)
 	}
 	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {

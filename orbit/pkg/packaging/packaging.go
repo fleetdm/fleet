@@ -196,6 +196,24 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}, nil
 }
 
+// writeSecret writes the orbit enroll secret to the designated file.
+//
+// This implementation is very similar to the one in orbit/cmd/orbit but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
+func writeSecret(opt Options, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(opt.EnrollSecret), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 	path := filepath.Join(orbitRoot, "osquery.flags")
 

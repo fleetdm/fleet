@@ -10,7 +10,6 @@ import (
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -70,7 +69,7 @@ func BuildMSI(opt Options) (string, error) {
 
 	// Write files
 
-	if err := osquery.WriteSecret(opt.EnrollSecret, orbitRoot); err != nil {
+	if err := writeSecret(opt, orbitRoot); err != nil {
 		return "", fmt.Errorf("write enroll secret: %w", err)
 	}
 
