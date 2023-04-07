@@ -1884,6 +1884,14 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
+		if err := cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup profile status")
+		}
+
+		if err := cleanupDiskEncryptionKeysOnTeamChange(ctx, tx, hostIDs, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+		}
+
 		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
@@ -2609,6 +2617,10 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
 }
 
 func (ds *Datastore) BulkDeleteHostDiskEncryptionKeys(ctx context.Context, hostIDs []uint) error {
+	return bulkDeleteHostDiskEncryptionKeysDB(ctx, ds.writer, hostIDs)
+}
+
+func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -2621,7 +2633,7 @@ func (ds *Datastore) BulkDeleteHostDiskEncryptionKeys(ctx context.Context, hostI
 		return ctxerr.Wrap(ctx, err, "building query")
 	}
 
-	_, err = ds.writer.ExecContext(ctx, query, args...)
+	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
 

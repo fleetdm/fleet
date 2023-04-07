@@ -2123,12 +2123,18 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	// (meant to be called from the MDMDirector in response from MDM commands), it would delete/update
 	// all rows in this test since we don't have command uuids.
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
-			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove,
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove,
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
+			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove,
+		},
 	})
 	require.NoError(t, err)
 
@@ -2388,4 +2394,75 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
 	require.NoError(t, err)
 	checkProfiles()
+}
+
+func TestReconcileOnTeamChange(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	// Create a team
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "test"})
+	fmt.Println(team)
+	require.NoError(t, err)
+
+	// Create a host
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		Hostname:        "test",
+		PrimaryIP:       "123",
+		PrimaryMac:      "00:00:00:00:00:00",
+		Platform:        "darwin",
+		OsqueryVersion:  "1.0.0",
+		UUID:            "test",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Create a no team config profile
+	noTeamCP, err := ds.NewMDMAppleConfigProfile(context.Background(), fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("TestConfigProfile")),
+		TeamID:       ptr.Uint(0),
+	})
+	require.NoError(t, err)
+
+	// Create a team config profile
+	teamCP, err := ds.NewMDMAppleConfigProfile(context.Background(), fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("TestConfigProfile")),
+		TeamID:       &team.ID,
+	})
+	require.NoError(t, err)
+
+	// upsert the no team config profile
+	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		HostUUID:          host.UUID,
+		ProfileID:         noTeamCP.ProfileID,
+		OperationType:     fleet.MDMAppleOperationTypeInstall,
+		Status:            &fleet.MDMAppleDeliveryApplied,
+		ProfileIdentifier: noTeamCP.Identifier,
+		ProfileName:       noTeamCP.Name,
+		CommandUUID:       "test",
+	}})
+	require.NoError(t, err)
+	hostProfiles, err := ds.GetHostMDMProfiles(context.Background(), host.UUID)
+	fmt.Println(hostProfiles)
+
+	// transfer the host to a new team
+	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// list the host profiles
+	hostProfiles, err = ds.GetHostMDMProfiles(context.Background(), host.UUID)
+	fmt.Println(hostProfiles)
+	require.NoError(t, err)
+	require.Len(t, hostProfiles, 1)
+	// require.Equal(t, teamCP.ProfileID, hostProfiles[0].ProfileID)
+	require.Equal(t, teamCP.Identifier, hostProfiles[0].Identifier)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfiles[0].OperationType)
+	// require.Nil(t, hostProfiles[0].Status)
+	require.NotNil(t, hostProfiles[0].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfiles[0].Status)
 }

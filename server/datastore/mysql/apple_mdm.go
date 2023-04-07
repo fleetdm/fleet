@@ -134,6 +134,10 @@ WHERE
 }
 
 func (ds *Datastore) GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
+	return getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, ds.reader, teamID, profileIdentifier)
+}
+
+func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
 	if teamID == nil {
 		teamID = ptr.Uint(0)
 	}
@@ -153,7 +157,7 @@ WHERE
 	team_id=? AND identifier=?`
 
 	var profile fleet.MDMAppleConfigProfile
-	err := sqlx.GetContext(ctx, ds.reader, &profile, stmt, teamID, profileIdentifier)
+	err := sqlx.GetContext(ctx, tx, &profile, stmt, teamID, profileIdentifier)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(profileIdentifier))
@@ -1354,36 +1358,36 @@ WHERE (host_uuid, profile_id)
 }
 
 func (ds *Datastore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
+	// if len(hostIDs) == 0 {
+	// 	return nil
+	// }
 
-	if newTeamID == nil {
-		newTeamID = ptr.Uint(0)
-	}
+	// if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// 	fmt.Println("reconcile profiles on team change")
+	// 	return cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs)
+	// }); err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "reconcile profiles on team change")
+	// }
 
-	_, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+	return nil
+}
+
+func cleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
+	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := ds.BulkDeleteHostDiskEncryptionKeys(ctx, hostIDs); err != nil {
+			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
 				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
 			}
 		} else {
 			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
 		}
 	}
-
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return transactReconcileProfilesOnTeamChange(ctx, tx, hostIDs)
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change")
-	}
-
 	return nil
 }
 
-func transactReconcileProfilesOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+func cleanupProfileStatusOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// first bulk set pending status
 	if err := bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
@@ -1407,12 +1411,12 @@ func getReplacedProfilesBD(ctx context.Context, tx sqlx.ExtContext, hostIDs []ui
 SELECT
 	host_uuid,
 	profile_id,
-	p.identifier
+	profile_identifier
 FROM
 	host_mdm_apple_profiles hmap
 WHERE
 	hmap.operation_type = 'remove'
-	AND host_uuid IN(SELECT uuid FROM hosts WHERE id IN(?))
+	AND host_uuid IN(SELECT h.uuid AS host_uuid FROM hosts h WHERE h.id IN(?))
 	AND EXISTS (
 		SELECT
 			1
@@ -1430,6 +1434,7 @@ WHERE
 	if err := sqlx.SelectContext(ctx, tx, &replacedProfiles, selectStmt, args...); err != nil {
 		return replacedProfiles, ctxerr.Wrap(ctx, err, "get profiles to delete")
 	}
+	fmt.Println("replaced profiles", replacedProfiles)
 	return replacedProfiles, nil
 }
 
