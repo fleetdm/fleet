@@ -203,8 +203,13 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 
 	hashBuf := bytes.NewBuffer(nil)
 	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+		msg := "invalid package"
+		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
+			msg = err.Error()
+		}
+
 		return &fleet.BadRequestError{
-			Message:     "invalid package",
+			Message:     msg,
 			InternalErr: err,
 		}
 	}
