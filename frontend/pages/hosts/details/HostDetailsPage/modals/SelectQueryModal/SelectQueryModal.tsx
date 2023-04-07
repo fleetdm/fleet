@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useContext } from "react";
 
 import { filter, includes } from "lodash";
 import { IQuery } from "interfaces/query";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -9,6 +10,7 @@ import Modal from "components/Modal";
 import InputField from "components/forms/fields/InputField";
 
 import DataError from "components/DataError";
+import permissions from "utilities/permissions";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
@@ -17,7 +19,7 @@ export interface ISelectQueryModalProps {
   queries: IQuery[] | [];
   queryErrors: Error | null;
   isOnlyObserver?: boolean;
-  isObserverPlus?: boolean;
+  hostsTeamId: number | null;
 }
 
 const baseClass = "select-query-modal";
@@ -29,13 +31,21 @@ const SelectQueryModal = ({
   queries,
   queryErrors,
   isOnlyObserver,
-  isObserverPlus,
+  hostsTeamId,
 }: ISelectQueryModalProps): JSX.Element => {
   let queriesAvailableToRun = queries;
 
+  const { currentUser, isObserverPlus } = useContext(AppContext);
+
+  /*  Context team id might be different that host's team id
+  Observer plus must be checked against host's team id  */
+  const isHostsTeamObserverPlus = currentUser
+    ? permissions.isObserverPlus(currentUser, hostsTeamId)
+    : false;
+
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  if (isOnlyObserver && !isObserverPlus) {
+  if (isOnlyObserver && !isObserverPlus && !isHostsTeamObserverPlus) {
     queriesAvailableToRun = queries.filter(
       (query) => query.observer_can_run === true
     );
@@ -96,7 +106,8 @@ const SelectQueryModal = ({
             catches up.
           </span>
           <div className="modal-cta-wrap">
-            {(!isOnlyObserver || isObserverPlus) && customQueryButton()}
+            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) &&
+              customQueryButton()}
           </div>
         </div>
       );
@@ -130,7 +141,7 @@ const SelectQueryModal = ({
                 autofocus
               />
             </div>
-            {(!isOnlyObserver || isObserverPlus) && (
+            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
               <div className={`${baseClass}__create-query`}>
                 <span>OR</span>
                 {customQueryButton()}
@@ -155,7 +166,7 @@ const SelectQueryModal = ({
                 autofocus
               />
             </div>
-            {(!isOnlyObserver || isObserverPlus) && (
+            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
               <div className={`${baseClass}__create-query`}>
                 <span>OR</span>
                 {customQueryButton()}
