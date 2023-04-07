@@ -67,14 +67,16 @@ const config = {
     rules: [
       {
         test: /\.(png|gif)$/,
-        use: { loader: "url-loader?name=[name]@[hash].[ext]&limit=6000" },
+        use: {
+          loader: "url-loader?name=[name]@[contenthash].[ext]&limit=6000",
+        },
       },
       {
         test: /\.(pdf|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
         use: {
           loader: "file-loader",
           options: {
-            name: "[name]@[hash].[ext]",
+            name: "[name]@[contenthash].[ext]",
             useRelativePath: true,
           },
         },
@@ -140,7 +142,7 @@ const config = {
 };
 
 if (process.env.NODE_ENV === "production") {
-  config.output.filename = "[name]-[hash].js";
+  config.output.filename = "[name]-[contenthash].js";
 }
 
 module.exports = config;
