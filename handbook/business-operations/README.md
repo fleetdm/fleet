@@ -753,12 +753,11 @@ The steps for doing this are highlighted in this loom, TODO.
 
 #### Commission payroll
 
-> TODO: bit more process here.  Maybe revops is DRI of commission calculator, creates "2023-03 commission payroll", transfered to Nathan when it's time to run?  SLA == payroll run by the 7th, with commission sheet 100% accurate.
-
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
+- At the end of each month CRO and RevOps will meet to update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Contact Mike McNeil in Slack and let her know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
+- Contact Nathan Holliday in Slack and let him know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
+- For commissions or quarterly MBOs paid to overseas employees, you will have to log in to Pilot.co and contact their support team via Pilot's support chat.  They will ask for the individual's name receiving the one time payment, the payment amount (provide this in both US dollars and local currency amounts), and the date you want the payment to be run.
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
