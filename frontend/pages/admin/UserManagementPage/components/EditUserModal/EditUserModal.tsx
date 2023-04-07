@@ -18,6 +18,7 @@ interface IEditUserModalProps {
   currentTeam?: ITeam;
   isPremiumTier: boolean;
   smtpConfigured: boolean;
+  sesConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isApiOnly?: boolean;
@@ -40,6 +41,7 @@ const EditUserModal = ({
   availableTeams,
   isPremiumTier,
   smtpConfigured,
+  sesConfigured,
   canUseSso,
   isSsoEnabled,
   isApiOnly,
@@ -68,6 +70,7 @@ const EditUserModal = ({
         submitText={"Save"}
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
+        sesConfigured={sesConfigured}
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
         isApiOnly={isApiOnly}

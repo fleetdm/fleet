@@ -68,6 +68,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   });
 
   const smtpConfigured = config?.smtp_settings.configured || false;
+  const sesConfigured = config?.email?.backend === "ses" || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -477,6 +478,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           availableTeams={teams || []}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
@@ -498,6 +500,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           availableTeams={teams}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           currentTeam={currentTeamDetails}
           isModifiedByGlobalAdmin={isGlobalAdmin}
