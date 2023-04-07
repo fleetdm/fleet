@@ -33,13 +33,12 @@ if (process.env.NODE_ENV === "production") {
     }),
     new MiniCssExtractPlugin({
       filename: "bundle-[contenthash].css",
-      allChunks: false,
     }),
   ]);
 } else {
   // development
   plugins = plugins.concat([
-    new MiniCssExtractPlugin({ filename: "bundle.css", allChunks: false }),
+    new MiniCssExtractPlugin({ filename: "bundle.css" }),
   ]);
 }
 
@@ -100,7 +99,6 @@ const config = {
             loader: MiniCssExtractPlugin.loader,
             options: {
               publicPath: "./",
-              hmr: process.env.NODE_ENV === "development",
             },
           },
           { loader: "css-loader" },
@@ -109,8 +107,10 @@ const config = {
             loader: "sass-loader",
             options: {
               sourceMap: true,
-              includePaths: [bourbon],
-              importer: globImporter(),
+              sassOptions: {
+                includePaths: bourbon,
+                importer: globImporter(),
+              },
             },
           },
         ],
@@ -120,9 +120,7 @@ const config = {
         use: [
           {
             loader: MiniCssExtractPlugin.loader,
-            options: {
-              hmr: process.env.NODE_ENV === "development",
-            },
+            options: {},
           },
           "css-loader",
           "postcss-loader",
