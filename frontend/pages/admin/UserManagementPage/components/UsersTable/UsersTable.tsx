@@ -446,6 +446,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             smtpConfigured={config?.smtp_settings.configured || false}
             canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
+            isApiOnly={userData?.api_only || false}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}

@@ -27,6 +27,8 @@ interface IQueriesTableProps {
   customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
   isOnlyObserver?: boolean;
+  isObserverPlus?: boolean;
+  isAnyTeamObserverPlus: boolean;
 }
 
 const QueriesTable = ({
@@ -37,6 +39,8 @@ const QueriesTable = ({
   customControl,
   selectedDropdownFilter,
   isOnlyObserver,
+  isObserverPlus,
+  isAnyTeamObserverPlus,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState("");
@@ -56,7 +60,7 @@ const QueriesTable = ({
       emptyQueries.header = "No queries match the current search criteria.";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
-    } else if (!isOnlyObserver) {
+    } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
       emptyQueries.additionalInfo = (
         <>
           Create a new query, or{" "}

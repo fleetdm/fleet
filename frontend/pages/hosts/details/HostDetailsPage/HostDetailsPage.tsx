@@ -110,6 +110,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isPremiumTier = false,
     isOnlyObserver,
+    isObserverPlus,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -730,6 +731,7 @@ const HostDetailsPage = ({
             isOnlyObserver={isOnlyObserver}
             onQueryHostCustom={onQueryHostCustom}
             onQueryHostSaved={onQueryHostSaved}
+            hostsTeamId={host?.team_id}
           />
         )}
         {!!host && showTransferHostModal && (
