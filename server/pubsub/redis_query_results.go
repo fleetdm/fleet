@@ -107,8 +107,6 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 				fmt.Fprintf(os.Stderr, "live_query: return count 0 \n")
 				return
 			}
-		default:
-			fmt.Fprintf(os.Stderr, "live_query: unexpected type %T %v\n", msg, msg)
 		}
 	}
 }
