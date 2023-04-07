@@ -91,6 +91,7 @@ type InitialStateType = {
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
   isOnGlobalTeam?: boolean;
+  isAnyTeamObserverPlus?: boolean;
   isAnyTeamMaintainer?: boolean;
   isAnyTeamMaintainerOrTeamAdmin?: boolean;
   isTeamObserver?: boolean;
@@ -134,6 +135,7 @@ export const initialState = {
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
+  isAnyTeamObserverPlus: undefined,
   isAnyTeamMaintainer: undefined,
   isAnyTeamMaintainerOrTeamAdmin: undefined,
   isTeamObserver: undefined,
@@ -183,6 +185,7 @@ const setPermissions = (
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
+    isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
     isAnyTeamMaintainerOrTeamAdmin: permissions.isAnyTeamMaintainerOrTeamAdmin(
       user
@@ -310,6 +313,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
+    isAnyTeamObserverPlus: state.isAnyTeamObserverPlus,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
     isAnyTeamMaintainerOrTeamAdmin: state.isAnyTeamMaintainerOrTeamAdmin,
     isTeamObserver: state.isTeamObserver,

@@ -98,6 +98,7 @@ const QueryForm = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isObserverPlus,
+    isAnyTeamObserverPlus,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -105,7 +106,7 @@ const QueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
-    isObserverPlus || false
+    isObserverPlus || isAnyTeamObserverPlus || false
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -405,7 +406,7 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      {!isObserverPlus && (
+      {(!isObserverPlus || !isAnyTeamObserverPlus) && (
         <RevealButton
           isShowing={showQueryEditor}
           className={baseClass}
@@ -420,7 +421,7 @@ const QueryForm = ({
           name="query editor"
           label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly={!isObserverPlus}
+          readOnly={!isObserverPlus || !isAnyTeamObserverPlus}
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
@@ -429,7 +430,9 @@ const QueryForm = ({
         {renderPlatformCompatibility()}
       </span>
       {renderLiveQueryWarning()}
-      {(lastEditedQueryObserverCanRun || isObserverPlus) && (
+      {(lastEditedQueryObserverCanRun ||
+        isObserverPlus ||
+        isAnyTeamObserverPlus) && (
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
@@ -572,7 +575,12 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver || isObserverPlus) {
+  if (
+    isOnlyObserver ||
+    isGlobalObserver ||
+    isObserverPlus ||
+    isAnyTeamObserverPlus
+  ) {
     return renderRunForObserver;
   }
 

@@ -19,6 +19,7 @@ const AuthAnyMaintainerAdminObserverPlusRoutes = ({
     isGlobalMaintainer,
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
+    isAnyTeamObserverPlus,
     isObserverPlus,
   } = useContext(AppContext);
 
@@ -31,7 +32,8 @@ const AuthAnyMaintainerAdminObserverPlusRoutes = ({
     !isGlobalMaintainer &&
     !isAnyTeamAdmin &&
     !isAnyTeamMaintainer &&
-    !isObserverPlus
+    !isObserverPlus &&
+    !isAnyTeamObserverPlus
   ) {
     handlePageError({ status: 403 });
     return null;

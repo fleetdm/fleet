@@ -47,6 +47,7 @@ const QueryPage = ({
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
+    isAnyTeamObserverPlus,
   } = useContext(AppContext);
   const {
     selectedOsqueryTable,
@@ -234,7 +235,8 @@ const QueryPage = ({
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isAnyTeamMaintainerOrTeamAdmin ||
-      isObserverPlus);
+      isObserverPlus ||
+      isAnyTeamObserverPlus);
 
   return (
     <>
