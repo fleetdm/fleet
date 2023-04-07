@@ -1362,20 +1362,10 @@ func (ds *Datastore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs 
 		newTeamID = ptr.Uint(0)
 	}
 
-	// TODO(Sarah): Get diff of profiles between old and new team. Set status to install pending for new
-	// profiles, remove pending for old profiles that do not have the shared profile identifier with the
-	// new team. The bulk set method needs to be updated.
-	if err := ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
-	fvProf, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+	_, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := ds.DeleteHostMDMAppleProfilesByIdentifier(ctx, hostIDs, mobileconfig.FleetFileVaultPayloadIdentifier); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host profiles")
-			}
 			if err := ds.BulkDeleteHostDiskEncryptionKeys(ctx, hostIDs); err != nil {
 				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
 			}
@@ -1384,29 +1374,63 @@ func (ds *Datastore) ReconcileProfilesOnTeamChange(ctx context.Context, hostIDs 
 		}
 	}
 
-	// new team has a filevault profile but we mark it as pending only on hosts that don't already have
-	// a filevault profile installed (the other hosts will still be updated with the new profile but
-	// we don't need to mark those as pending now because it just causes a lot of noise in the UI)
-	toInstallHosts, err := getHostUUIDsWithoutProfileIdentifierDB(ctx, ds.writer, hostIDs, mobileconfig.FleetFileVaultPayloadIdentifier)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get hosts without profile")
-	}
-	payload := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstallHosts))
-	for _, hostUUID := range toInstallHosts {
-		payload = append(payload, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileID:         fvProf.ProfileID,
-			ProfileIdentifier: fvProf.Identifier,
-			ProfileName:       fvProf.Name,
-			HostUUID:          hostUUID,
-			Status:            &fleet.MDMAppleDeliveryPending,
-			OperationType:     fleet.MDMAppleOperationTypeInstall,
-		})
-	}
-	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, payload); err != nil {
-		return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk upsert host profiles")
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return transactReconcileProfilesOnTeamChange(ctx, tx, hostIDs)
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change")
 	}
 
 	return nil
+}
+
+func transactReconcileProfilesOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// first bulk set pending status
+	if err := bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+
+	// delete rows that are pending removal and are being replaced by a new profile
+	replacedProfiles, err := getReplacedProfilesBD(ctx, tx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get replaced profiles")
+	}
+	if err := bulkDeleteMDMAppleHostProfilesDB(ctx, tx, replacedProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete host profiles")
+	}
+
+	return nil
+}
+
+func getReplacedProfilesBD(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]fleet.MDMAppleBulkDeleteHostProfilePayload, error) {
+	var replacedProfiles []fleet.MDMAppleBulkDeleteHostProfilePayload
+	selectStmt := `
+SELECT
+	host_uuid,
+	profile_id,
+	p.identifier
+FROM
+	host_mdm_apple_profiles hmap
+WHERE
+	hmap.operation_type = 'remove'
+	AND host_uuid IN(SELECT uuid FROM hosts WHERE id IN(?))
+	AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_profiles hmap2
+		WHERE
+			hmap2.host_uuid = hmap.host_uuid
+			AND hmap.profile_identifier = hmap2.profile_identifier
+			AND hmap2.operation_type = 'install')`
+
+	selectStmt, args, err := sqlx.In(selectStmt, hostIDs)
+	if err != nil {
+		return replacedProfiles, ctxerr.Wrap(ctx, err, "build select query")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &replacedProfiles, selectStmt, args...); err != nil {
+		return replacedProfiles, ctxerr.Wrap(ctx, err, "get profiles to delete")
+	}
+	return replacedProfiles, nil
 }
 
 func getHostUUIDsWithoutProfileIdentifierDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, profileIdentifier string) ([]string, error) {

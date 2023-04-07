@@ -2026,6 +2026,7 @@ func ReconcileProfiles(
 	commander fleet.MDMAppleCommanderService,
 	logger kitlog.Logger,
 ) error {
+	// TODO(Sarah): This is causing the profile id to increment every time the cron runs.
 	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
