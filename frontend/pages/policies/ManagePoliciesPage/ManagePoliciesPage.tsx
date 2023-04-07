@@ -53,6 +53,7 @@ const ManagePolicyPage = ({
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
@@ -61,6 +62,8 @@ const ManagePolicyPage = ({
     setConfig,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  console.log("currentUser: ", currentUser);
 
   const {
     setLastEditedQueryName,
@@ -89,7 +92,8 @@ const ManagePolicyPage = ({
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
-      observer: false,
+      observer: true,
+      observer_plus: true,
     },
   });
 

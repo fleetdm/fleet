@@ -64,6 +64,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       admin: true,
       maintainer: false,
       observer: false,
+      observer_plus: false,
     },
   });
 
