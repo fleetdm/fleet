@@ -88,6 +88,9 @@
 			"macos_settings": {
 				"custom_settings": null,
 				"enable_disk_encryption": false
+			},
+			"macos_setup": {
+				"bootstrap_package": ""
 			}
 		}
 	}

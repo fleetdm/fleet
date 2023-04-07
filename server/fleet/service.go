@@ -675,10 +675,18 @@ type Service interface {
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
-	// error can be raised to the user. See TODO for more details.
+	// error can be raised to the user.
 	VerifyMDMAppleConfigured(ctx context.Context) error
 
-	// /////////////////////////////////////////////////////////////////////////////
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
+
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
+
+	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.

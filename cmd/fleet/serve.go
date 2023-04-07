@@ -535,7 +535,7 @@ the way that the Fleet server works.
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 

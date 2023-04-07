@@ -124,6 +124,7 @@ type MDM struct {
 
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -229,6 +230,11 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 	}
 
 	return set, nil
+}
+
+// MacOSSetup contains settings related to the setup of DEP enrolled devices.
+type MacOSSetup struct {
+	BootstrapPackage string `json:"bootstrap_package"`
 }
 
 // AppConfig holds server configuration that can be changed via the API.
