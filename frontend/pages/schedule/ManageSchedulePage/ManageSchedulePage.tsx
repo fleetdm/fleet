@@ -141,6 +141,7 @@ const ManageSchedulePage = ({
       admin: true,
       maintainer: true,
       observer: false,
+      observer_plus: false,
     },
   });
 

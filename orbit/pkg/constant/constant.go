@@ -29,6 +29,9 @@ const (
 	OsquerydName = "osqueryd"
 	// OsqueryPidfile is the file containing the PID of the running osqueryd process
 	OsqueryPidfile = "osquery.pid"
+	// OsqueryEnrollSecretFileName is the filename on disk where we write
+	// the orbit enroll secret.
+	OsqueryEnrollSecretFileName = "secret.txt"
 	// SystemServiceName is the name of Orbit system service
 	// The service name is used by the OS service management framework
 	SystemServiceName = "Fleet osquery"

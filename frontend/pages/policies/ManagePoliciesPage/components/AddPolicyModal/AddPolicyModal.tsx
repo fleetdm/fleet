@@ -6,7 +6,6 @@ import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 
-import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
 import Button from "components/buttons/Button";
@@ -27,7 +26,6 @@ const AddPolicyModal = ({
   teamId,
   teamName,
 }: IAddPolicyModalProps): JSX.Element => {
-  const { currentTeam } = useContext(AppContext);
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -54,10 +52,10 @@ const AddPolicyModal = ({
   };
 
   const onCreateYourOwnPolicyClick = useCallback(() => {
-    setPolicyTeamId(currentTeam?.id || 0);
+    setPolicyTeamId(teamId);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
     router.push(PATHS.NEW_POLICY);
-  }, [currentTeam]);
+  }, [router, setLastEditedQueryBody, setPolicyTeamId, teamId]);
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
     return (

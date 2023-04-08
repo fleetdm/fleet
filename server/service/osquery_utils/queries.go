@@ -609,7 +609,7 @@ var softwareMacOS = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,

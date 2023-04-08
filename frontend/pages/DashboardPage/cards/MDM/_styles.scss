@@ -36,12 +36,13 @@
           text-overflow: ellipsis;
         }
         .mdm-solution-link {
-          visibility: hidden;
+          opacity: 0;
+          transition: 250ms;
           text-overflow: none;
         }
         tr:hover {
           .mdm-solution-link {
-            visibility: visible;
+            opacity: 1;
           }
         }
       }

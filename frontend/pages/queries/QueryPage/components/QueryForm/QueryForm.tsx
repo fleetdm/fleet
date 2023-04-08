@@ -76,14 +76,6 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
 }: IQueryFormProps): JSX.Element => {
-  const isEditMode = !!queryIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [showQueryEditor, setShowQueryEditor] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
@@ -105,8 +97,20 @@ const QueryForm = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const isEditMode = !!queryIdForEdit;
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showQueryEditor, setShowQueryEditor] = useState(
+    isObserverPlus || isAnyTeamObserverPlus || false
+  );
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -402,19 +406,23 @@ const QueryForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <RevealButton
-        isShowing={showQueryEditor}
-        className={baseClass}
-        hideText="Hide SQL"
-        showText="Show SQL"
-        onClick={() => setShowQueryEditor(!showQueryEditor)}
-      />
+      {((!isObserverPlus && isGlobalObserver) || !isAnyTeamObserverPlus) && (
+        <RevealButton
+          isShowing={showQueryEditor}
+          className={baseClass}
+          hideText="Hide SQL"
+          showText="Show SQL"
+          onClick={() => setShowQueryEditor(!showQueryEditor)}
+        />
+      )}
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
           name="query editor"
+          label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
+          readOnly={!isObserverPlus || !isAnyTeamObserverPlus}
+          labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
       )}
@@ -422,7 +430,9 @@ const QueryForm = ({
         {renderPlatformCompatibility()}
       </span>
       {renderLiveQueryWarning()}
-      {lastEditedQueryObserverCanRun && (
+      {(lastEditedQueryObserverCanRun ||
+        isObserverPlus ||
+        isAnyTeamObserverPlus) && (
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
@@ -565,7 +575,12 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (
+    isOnlyObserver ||
+    isGlobalObserver ||
+    isObserverPlus ||
+    isAnyTeamObserverPlus
+  ) {
     return renderRunForObserver;
   }
 

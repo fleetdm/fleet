@@ -333,6 +333,17 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 }
 
+// those host refs cannot be deleted using the host.id like the hostRefs above,
+// they use the host.uuid instead. Additionally, the column name that refers to
+// the host.uuid is not always named the same, so the map key is the table name
+// and the map value is the column name to match to the host.uuid.
+var additionalHostRefsByUUID = map[string]string{
+	"host_mdm_apple_profiles": "host_uuid",
+	// deleting from nano_devices causes cascading deletes to nano_enrollments and
+	// any other tables that reference nano_devices.
+	"nano_devices": "id",
+}
+
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
 		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
@@ -340,6 +351,12 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting %s for host %d", table, hid)
 		}
 		return nil
+	}
+
+	// load just the host uuid for the MDM tables that rely on this to be cleared.
+	var hostUUID string
+	if err := ds.writer.GetContext(ctx, &hostUUID, `SELECT uuid FROM hosts WHERE id = ?`, hid); err != nil {
+		return ctxerr.Wrapf(ctx, err, "get uuid for host %d", hid)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -358,6 +375,15 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetHost, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
+		}
+
+		// no point trying the uuid-based tables if the host's uuid is missing
+		if hostUUID != "" {
+			for table, col := range additionalHostRefsByUUID {
+				if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM `%s` WHERE `%s`=?", table, col), hostUUID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "deleting %s for host uuid %s", table, hostUUID)
+				}
+			}
 		}
 
 		return nil
@@ -2748,7 +2774,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		SELECT
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
-			hd.display_name
+			hd.display_name,
+			COALESCE(h.team_id, 0) as team_id
 		FROM
 			hosts h
 		LEFT JOIN

@@ -444,8 +444,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             availableTeams={teams || []}
             isPremiumTier={isPremiumTier || false}
             smtpConfigured={config?.smtp_settings.configured || false}
+            sesConfigured={config?.email?.backend === "ses" || false}
             canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
+            isApiOnly={userData?.api_only || false}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
@@ -467,6 +469,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
+        sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
         isModifiedByGlobalAdmin

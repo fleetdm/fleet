@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -48,6 +49,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
+		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
 	}
 
 	for _, c := range cases {
@@ -2502,6 +2504,27 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Result:      []byte(rawCmd2),
 		},
 	})
+
+	// delete host [0] and verify that it did delete its command results
+	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
+	require.NoError(t, err)
+
+	// command now has only the hosts[1] result
+	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid2,
+			Status:      "Error",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+	})
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
@@ -2565,4 +2588,66 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
 	require.NoError(t, err)
 	checkProfiles()
+}
+
+func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	var nfe fleet.NotFoundError
+	var aerr fleet.AlreadyExistsError
+
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{})
+	require.Error(t, err)
+
+	bp1 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name(),
+		Sha256: sha256.New().Sum(nil),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	require.NoError(t, err)
+
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	require.ErrorAs(t, err, &aerr)
+
+	bp2 := &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(2),
+		Name:   t.Name(),
+		Sha256: sha256.New().Sum(nil),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	}
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2)
+	require.NoError(t, err)
+
+	meta, err := ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, bp1.TeamID, meta.TeamID)
+	require.Equal(t, bp1.Name, meta.Name)
+	require.Equal(t, bp1.Sha256, meta.Sha256)
+	require.Equal(t, bp1.Token, meta.Token)
+
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 3)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
+
+	bytes, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token)
+	require.NoError(t, err)
+	require.Equal(t, bp1.Bytes, bytes.Bytes)
+
+	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, bytes)
+
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	require.NoError(t, err)
+
+	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
+
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, meta)
 }

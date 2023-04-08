@@ -1504,3 +1504,58 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 
 	return nil
 }
+
+func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+	stmt := `
+          INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token)
+	  VALUES (?, ?, ?, ?, ?)
+	`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+		}
+		return ctxerr.Wrap(ctx, err, "create bootstrap pacckage")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	stmt := "DELETE FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
+	res, err := ds.writer.ExecContext(ctx, stmt, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete bootstrap package")
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithID(teamID))
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	stmt := "SELECT name, bytes FROM mdm_apple_bootstrap_packages WHERE token = ?"
+	var bp fleet.MDMAppleBootstrapPackage
+	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, token); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithMessage(token))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package bytes")
+	}
+	return &bp, nil
+}
+
+func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	stmt := "SELECT team_id, name, sha256, token FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
+	var bp fleet.MDMAppleBootstrapPackage
+	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithID(teamID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package meta")
+	}
+	return &bp, nil
+}

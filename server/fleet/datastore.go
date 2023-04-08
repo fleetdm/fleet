@@ -863,6 +863,15 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 }
 
 const (

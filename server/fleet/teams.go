@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	RoleAdmin      = "admin"
-	RoleMaintainer = "maintainer"
-	RoleObserver   = "observer"
+	RoleAdmin        = "admin"
+	RoleMaintainer   = "maintainer"
+	RoleObserver     = "observer"
+	RoleObserverPlus = "observer_plus"
 )
 
 type TeamPayload struct {
@@ -29,6 +30,7 @@ type TeamPayload struct {
 type TeamPayloadMDM struct {
 	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings *MacOSSettings `json:"macos_settings"`
+	MacOSSetup    *MacOSSetup    `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -142,6 +144,7 @@ type TeamWebhookSettings struct {
 type TeamMDM struct {
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 }
 
@@ -154,6 +157,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]interface{} `json:"macos_settings"`
+	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -195,15 +199,21 @@ type TeamUser struct {
 	Role string `json:"role" db:"role"`
 }
 
-var teamRoles = map[string]bool{
-	RoleAdmin:      true,
-	RoleObserver:   true,
-	RoleMaintainer: true,
+var teamRoles = map[string]struct{}{
+	RoleAdmin:        {},
+	RoleObserver:     {},
+	RoleMaintainer:   {},
+	RoleObserverPlus: {},
+}
+
+var premiumTeamRoles = map[string]struct{}{
+	RoleObserverPlus: {},
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
 func ValidTeamRole(role string) bool {
-	return teamRoles[role]
+	_, ok := teamRoles[role]
+	return ok
 }
 
 // ValidTeamRoles returns the list of valid roles for a team user.
@@ -215,15 +225,21 @@ func ValidTeamRoles() []string {
 	return roles
 }
 
-var globalRoles = map[string]bool{
-	RoleObserver:   true,
-	RoleMaintainer: true,
-	RoleAdmin:      true,
+var globalRoles = map[string]struct{}{
+	RoleObserver:     {},
+	RoleMaintainer:   {},
+	RoleAdmin:        {},
+	RoleObserverPlus: {},
+}
+
+var premiumGlobalRoles = map[string]struct{}{
+	RoleObserverPlus: {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
 func ValidGlobalRole(role string) bool {
-	return globalRoles[role]
+	_, ok := globalRoles[role]
+	return ok
 }
 
 // ValidGlobalRoles returns the list of valid roles for a global user.
@@ -244,7 +260,7 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 		}
 		for _, t := range teamUsers {
 			if !ValidTeamRole(t.Role) {
-				return NewError(ErrNoRoleNeeded, "Team roles can be observer or maintainer")
+				return NewErrorf(ErrNoRoleNeeded, "invalid team role: %s", t.Role)
 			}
 		}
 		return nil
@@ -255,9 +271,34 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	}
 
 	if !ValidGlobalRole(*globalRole) {
-		return NewError(ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+		return NewErrorf(ErrNoRoleNeeded, "invalid global role: %s", *globalRole)
 	}
 
+	return nil
+}
+
+func ValidateRoleForLicense(globalRole *string, teamUsers *[]UserTeam, license LicenseInfo) error {
+	var teamUsers_ []UserTeam
+	if teamUsers != nil {
+		teamUsers_ = *teamUsers
+	}
+	if err := ValidateRole(globalRole, teamUsers_); err != nil {
+		return err
+	}
+	premiumRolesPresent := false
+	if globalRole != nil {
+		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+			premiumRolesPresent = true
+		}
+	}
+	for _, teamUser := range teamUsers_ {
+		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
+			premiumRolesPresent = true
+		}
+	}
+	if !license.IsPremium() && premiumRolesPresent {
+		return ErrMissingLicense
+	}
 	return nil
 }
 

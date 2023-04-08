@@ -1,6 +1,7 @@
 import React from "react";
 
 import classnames from "classnames";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderCellProps {
   value: string | JSX.Element; // either a string or a TooltipWrapper
@@ -27,7 +28,7 @@ const HeaderCell = ({
   let lastColumnHeaderWithTooltipClass = "";
   if (
     typeof value !== "string" &&
-    value.type.name === "TooltipWrapper" &&
+    value.type === TooltipWrapper &&
     isLastColumn
   ) {
     lastColumnHeaderWithTooltipClass = "last-col-header-with-tip";

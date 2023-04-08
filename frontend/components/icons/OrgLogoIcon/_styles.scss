@@ -1,4 +1,9 @@
 .org-logo-icon {
   // ensures consistant nav bar height regardless of the logo image used
-  max-height: 92px;
+  max-height: 46px;
+}
+
+.default-fleet-logo,
+.org-logo-icon[src*="svg"] {
+  transform: scale(0.5);
 }

@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -555,10 +556,19 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
 
-	// enroll one of the hosts
 	d := newDevice(s)
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	// enroll one of the hosts
 	d.serial = devices[0].SerialNumber
 	d.mdmEnroll(s)
+
+	// make sure the host gets a request to install fleetd
+	cmd := d.idle()
+	require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+	require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
 
 	// only one shows up as pending
 	listHostsRes = listHostsResponse{}
@@ -2608,6 +2618,63 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, cmdResResp.Results[0])
 }
 
+func (s *integrationMDMTestSuite) TestBootstrapPackage() {
+	//ctx := context.Background()
+	t := s.T()
+
+	read := func(name string) []byte {
+		b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", name))
+		require.NoError(t, err)
+		return b
+	}
+	invalidPkg := read("invalid.tar.gz")
+	unsignedPkg := read("unsigned.pkg")
+	wrongTOCPkg := read("wrong-toc.pkg")
+	signedPkg := read("signed.pkg")
+
+	// empty bootstrap package
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{}, http.StatusBadRequest, "package multipart field is required")
+	// no name
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required")
+	// invalid
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type")
+	// unsigned
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
+	// wrong TOC
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package")
+	// successfully upload a package
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+
+	// get package metadata
+	var metadataResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
+	require.Equal(t, metadataResp.Metadata.Name, "pkg.pkg")
+	require.NotEmpty(t, metadataResp.Metadata.Sha256, "")
+	require.NotEmpty(t, metadataResp.Metadata.Token)
+
+	// download a package, wrong token
+	var downloadResp downloadBootstrapPackageResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
+
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap?token=%s", metadataResp.Metadata.Token), nil, http.StatusOK)
+	respBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, signedPkg, respBytes)
+
+	// missing package
+	metadataResp = bootstrapPackageMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
+
+	// delete package
+	var deleteResp deleteBootstrapPackageResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusOK, &deleteResp)
+	metadataResp = bootstrapPackageMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
+	// trying to delete again is a bad request
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
+
+}
+
 // only asserts the profile identifier, status and operation (per host)
 func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()
@@ -2688,6 +2755,42 @@ func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
 		"Authorization": fmt.Sprintf("Bearer %s", token),
 	}
 	return &body, headers
+}
+
+func (s *integrationMDMTestSuite) uploadBootstrapPackage(
+	pkg *fleet.MDMAppleBootstrapPackage,
+	expectedStatus int,
+	wantErr string,
+) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the package field
+	fw, err := w.CreateFormFile("package", pkg.Name)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(pkg.Bytes))
+	require.NoError(t, err)
+
+	// add the team_id field
+	err = w.WriteField("team_id", fmt.Sprint(pkg.TeamID))
+	require.NoError(t, err)
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/bootstrap", b.Bytes(), expectedStatus, headers)
+
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
 }
 
 type device struct {

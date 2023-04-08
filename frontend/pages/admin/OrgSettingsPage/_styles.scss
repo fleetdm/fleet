@@ -77,6 +77,19 @@
           }
         }
 
+        .smtp-status {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .empty-table__container {
+          margin: 96px 0 1.5rem;
+
+          @media (min-width: $break-990) {
+            max-width: 65%;
+          }
+        }
+
         .smtp-options {
           font-size: 15px;
           font-weight: $bold;

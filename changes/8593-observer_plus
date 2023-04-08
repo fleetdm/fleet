@@ -1,0 +1,1 @@
+* Add `observer_plus` user role to Fleet. Observers+ are observers that can run any live query.
