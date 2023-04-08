@@ -576,8 +576,6 @@ type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
-type DeleteMDMAppleProfilesForHostFunc func(ctx context.Context, hostUUID string) error
-
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
@@ -1434,9 +1432,6 @@ type DataStore struct {
 
 	UpdateOrDeleteHostMDMAppleProfileFunc        UpdateOrDeleteHostMDMAppleProfileFunc
 	UpdateOrDeleteHostMDMAppleProfileFuncInvoked bool
-
-	DeleteMDMAppleProfilesForHostFunc        DeleteMDMAppleProfilesForHostFunc
-	DeleteMDMAppleProfilesForHostFuncInvoked bool
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
@@ -3423,13 +3418,6 @@ func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profi
 	s.UpdateOrDeleteHostMDMAppleProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOrDeleteHostMDMAppleProfileFunc(ctx, profile)
-}
-
-func (s *DataStore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleProfilesForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleProfilesForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {

@@ -776,12 +776,48 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
+func (ds *Datastore) deleteMDMAppleProfilesForHost(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
+	_, err := tx.ExecContext(ctx, `
+                    DELETE FROM host_mdm_apple_profiles
+                    WHERE host_uuid = ?`, uuid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
+	}
+	return nil
+}
+
 func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `
+		var hostID uint
+		row := tx.QueryRowxContext(ctx, `SELECT id FROM hosts WHERE uuid = ?`, uuid)
+		err := row.Scan(&hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
+		}
+
+		_, err = tx.ExecContext(ctx, `
 			DELETE FROM host_mdm
-			WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, uuid)
-		return err
+			WHERE host_id = ?`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing host_mdm rows for host")
+		}
+
+		// Since the host is unenrolled, delete all profiles assigned to the
+		// host manually, the device won't Acknowledge any more requests (eg:
+		// to delete profiles) and profiles are automatically removed on
+		// unenrollment.
+		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
+		}
+
+		_, err = tx.ExecContext(ctx, `
+                    DELETE FROM host_disk_encryption_keys
+                    WHERE host_id = ?`, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing all profiles from host")
+		}
+
+		return nil
 	})
 }
 
@@ -1270,14 +1306,6 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	)
 
 	_, err := ds.writer.ExecContext(ctx, stmt, args...)
-	return err
-}
-
-func (ds *Datastore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
-	_, err := ds.writer.ExecContext(ctx, `
-          DELETE FROM host_mdm_apple_profiles
-          WHERE host_uuid = ?
-        `, hostUUID)
 	return err
 }
 
