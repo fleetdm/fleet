@@ -355,6 +355,7 @@ type MDMAppleProfilePayload struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	ProfileName       string `db:"profile_name"`
 	HostUUID          string `db:"host_uuid"`
+	Checksum          []byte `db:"checksum"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -365,6 +366,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+	Checksum          []byte
 }
 
 // MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration

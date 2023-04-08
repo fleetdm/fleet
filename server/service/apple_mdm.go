@@ -2207,6 +2207,7 @@ func ReconcileProfiles(
 			CommandUUID:       target.cmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
+			Checksum:          p.Checksum,
 		})
 	}
 
@@ -2229,6 +2230,7 @@ func ReconcileProfiles(
 			CommandUUID:       target.cmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
+			Checksum:          p.Checksum,
 		})
 	}
 
