@@ -1431,7 +1431,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.ReconcileProfilesOnBulkApplyFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
 

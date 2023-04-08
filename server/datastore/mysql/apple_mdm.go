@@ -1147,7 +1147,6 @@ ON DUPLICATE KEY UPDATE
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
 	}
-	fmt.Println(stmt)
 	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 }
@@ -1364,7 +1363,7 @@ func (ds *Datastore) ReconcileProfilesOnBulkApply(ctx context.Context, newTeamID
 	if !ok {
 		return fleet.ErrNoContext
 	}
-	filter := fleet.TeamFilter{User: vc.User, TeamID: newTeamID}
+	filter := fleet.TeamFilter{User: vc.User}
 	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: newTeamID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
@@ -1414,6 +1413,9 @@ func cleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, tx sqlx.ExtConte
 }
 
 func cleanupProfileStatusOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
 	// first bulk set pending status
 	if err := bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")

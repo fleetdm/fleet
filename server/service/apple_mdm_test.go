@@ -1062,7 +1062,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+	ds.ReconcileProfilesOnBulkApplyFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
 
@@ -1860,6 +1860,10 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 			},
 		}, copies)
 		return nil
+	}
+
+	ds.ReconcileMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+		return ds.BulkUpsertMDMAppleHostProfiles(ctx, payload)
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

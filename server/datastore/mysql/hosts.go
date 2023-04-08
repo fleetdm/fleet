@@ -1884,14 +1884,6 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
-		if err := cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup profile status")
-		}
-
-		if err := cleanupDiskEncryptionKeysOnTeamChange(ctx, tx, hostIDs, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
-		}
-
 		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
@@ -1899,6 +1891,14 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
+		}
+
+		if err := cleanupProfileStatusOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup profile status")
+		}
+
+		if err := cleanupDiskEncryptionKeysOnTeamChange(ctx, tx, hostIDs, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
 		}
 
 		return nil

@@ -2152,7 +2152,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 		},
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
@@ -2169,7 +2168,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h4: {
@@ -2187,7 +2185,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h4: {
@@ -2195,7 +2192,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 	})
@@ -2409,7 +2405,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 		h3: {
@@ -2417,7 +2412,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
 		},
 	})
