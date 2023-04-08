@@ -66,7 +66,7 @@ It takes reliable execution and a fully-activated mind to achieve ambitious goal
 - **Take responsibility.** Follow through on commitments. Own up to mistakes. Loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
 - **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
 - **Think bigger.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals. Think long-term.
-- **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **No one is coming.** Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints). Take initiative.
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
