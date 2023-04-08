@@ -11,6 +11,7 @@ import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
+import permissionUtils from "utilities/permissions";
 
 interface IControlsSubNavItem {
   name: string;
@@ -61,9 +62,11 @@ const ManageControlsPage = ({
   const {
     availableTeams,
     config,
+    currentUser,
     isFreeTier,
     isOnGlobalTeam,
     isPremiumTier,
+    isGlobalAdmin,
   } = useContext(AppContext);
 
   const { currentTeamId, handleTeamChange } = useTeamIdParam({
@@ -72,6 +75,15 @@ const ManageControlsPage = ({
     includeAllTeams: false,
     includeNoTeam: true,
   });
+
+  // Filter out any teams that the user is not a maintainer or admin of
+  // TODO: Abstract this to the AppContext so that availableTeams is already filtered
+  // based on the current page
+  let userAdminOrMaintainerTeams = availableTeams;
+  userAdminOrMaintainerTeams = availableTeams?.filter(
+    (team) =>
+      permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, team.id) === true
+  );
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -85,6 +97,28 @@ const ManageControlsPage = ({
 
   const onConnectClick = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
+
+  const renderConnectButton = () => {
+    if (isGlobalAdmin) {
+      return (
+        <Button
+          variant="brand"
+          onClick={onConnectClick}
+          className={`${baseClass}__connectAPC-button`}
+        >
+          Connect
+        </Button>
+      );
+    }
+    return <></>;
+  };
+
+  const getInfoText = () => {
+    if (isGlobalAdmin) {
+      return "Connect Fleet to the Apple Push Certificates Portal to get started.";
+    }
+    return "Your Fleet administrator must connect Fleet to the Apple Push Certificates Portal to get started.";
   };
 
   const renderBody = () => {
@@ -111,16 +145,8 @@ const ManageControlsPage = ({
     ) : (
       <EmptyTable
         header="Manage your macOS hosts"
-        info="Connect Fleet to the Apple Push Certificates Portal to get started."
-        primaryButton={
-          <Button
-            variant="brand"
-            onClick={onConnectClick}
-            className={`${baseClass}__connectAPC-button`}
-          >
-            Connect
-          </Button>
-        }
+        info={getInfoText()}
+        primaryButton={renderConnectButton()}
       />
     );
   };
@@ -135,10 +161,11 @@ const ManageControlsPage = ({
                 <div className={`${baseClass}__title`}>
                   {isFreeTier && <h1>Controls</h1>}
                   {isPremiumTier &&
-                    availableTeams &&
-                    (availableTeams.length > 1 || isOnGlobalTeam) && (
+                    userAdminOrMaintainerTeams &&
+                    (userAdminOrMaintainerTeams.length > 1 ||
+                      isOnGlobalTeam) && (
                       <TeamsDropdown
-                        currentUserTeams={availableTeams}
+                        currentUserTeams={userAdminOrMaintainerTeams}
                         selectedTeamId={currentTeamId}
                         onChange={handleTeamChange}
                         includeAll={false}
@@ -147,9 +174,9 @@ const ManageControlsPage = ({
                     )}
                   {isPremiumTier &&
                     !isOnGlobalTeam &&
-                    availableTeams &&
-                    availableTeams.length === 1 && (
-                      <h1>{availableTeams[0].name}</h1>
+                    userAdminOrMaintainerTeams &&
+                    userAdminOrMaintainerTeams.length === 1 && (
+                      <h1>{userAdminOrMaintainerTeams[0].name}</h1>
                     )}
                 </div>
               </div>
