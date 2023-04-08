@@ -55,7 +55,7 @@ This way, everybody knows what to expect from the people they work with.
 ### 🔴 Empathy
 Empathy leads to smarter decisions.  Take an interest in what people are going through, so you can help make it better.
 
-- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and assume others are doing the same.
+- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
 - **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
 - **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
@@ -74,24 +74,23 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
 - **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 - **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Be realistic.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  [Schedule time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge.  Practice self-care.
+- **Be realistic.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge.  Practice self-care.
 
 ### 🔵 Objectivity
 To reach our goals, we need to see reality clearly.
 
-- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
-- **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
 - **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). <!-- and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering). -->
-- **Stop and think.** Understand why it's broken. A lucky fix can do more harm than good. <!--  Beware [the "happy path"](https://en.wikipedia.org/wiki/Happy_path). -->
-
+- **Seek the truth.** [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Interrogate luck.** Understand why it's broken first. A lucky fix can do more harm than good. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
 
 ### 🟣 Openness
 Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
-- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
-- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact non-public info with care.
-- **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).  Interrupt and be interrupted.
+- **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
+- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [confidential info](https://fleetdm.com/handbook/business-operations#confidentiality-levels) carefully.
+- **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
 ## History
