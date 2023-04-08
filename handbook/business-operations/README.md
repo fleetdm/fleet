@@ -536,9 +536,10 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
-   - _Review and update the team database_ to be sure everything is accurate, **one last time**:
+   - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
      - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
        - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(derive this from the physical address)_
        - **GitHub username**  _(username of 2FA-enabled GitHub account)_
      - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
        - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
