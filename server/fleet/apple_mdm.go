@@ -296,8 +296,10 @@ type MDMAppleConfigProfile struct {
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
-	CreatedAt    time.Time                 `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time                 `db:"updated_at" json:"updated_at"`
+	// Checksum is an MD5 hash of the Mobileconfig bytes
+	Checksum  []byte    `db:"checksum" json:"-"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {

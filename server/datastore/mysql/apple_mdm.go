@@ -896,11 +896,12 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    team_id, identifier, name, mobileconfig
+    team_id, identifier, name, mobileconfig, checksum
   )
 VALUES
   ( ?, ?, ?, ?, UNHEX(MD5(mobileconfig)) )
 ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
   mobileconfig = VALUES(mobileconfig),
   checksum = UNHEX(MD5(VALUES(mobileconfig)))
 `
@@ -941,7 +942,6 @@ ON DUPLICATE KEY UPDATE
 		for _, p := range existingProfiles {
 			if newP := incomingProfs[p.Identifier]; newP != nil {
 				keepIdents = append(keepIdents, p.Identifier)
-				delete(incomingProfs, p.Identifier)
 			}
 		}
 
