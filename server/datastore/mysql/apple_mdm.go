@@ -1154,19 +1154,21 @@ WHERE
 			return nil
 		}
 
-		// before doing the inserts, remove profiles with identifiers that will be sent again from the database
-		var dargs []any
-		var dsb strings.Builder
-		for identifier, hostUUIDs := range identifierToHosts {
-			for _, hostUUID := range hostUUIDs {
-				dargs = append(dargs, hostUUID, identifier)
-				dsb.WriteString("(?,?),")
+		// before doing the inserts, remove profiles with identifiers that will be re-sent
+		if len(profilesToInstall) > 0 {
+			var dargs []any
+			var dsb strings.Builder
+			for identifier, hostUUIDs := range identifierToHosts {
+				for _, hostUUID := range hostUUIDs {
+					dargs = append(dargs, hostUUID, identifier)
+					dsb.WriteString("(?,?),")
+				}
 			}
-		}
-		stmt = fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (host_uuid, profile_identifier) IN(%s)`, strings.TrimSuffix(dsb.String(), ","))
-		_, err = tx.ExecContext(ctx, stmt, dargs...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+			stmt = fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (host_uuid, profile_identifier) IN(%s)`, strings.TrimSuffix(dsb.String(), ","))
+			_, err = tx.ExecContext(ctx, stmt, dargs...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+			}
 		}
 
 		var pargs []any

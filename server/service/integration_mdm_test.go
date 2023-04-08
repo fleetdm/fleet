@@ -913,6 +913,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 			CommandUUID:       hostCmdUUID,
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
 			Status:            &fleet.MDMAppleDeliveryApplied,
+			Checksum:          []byte("csum"),
 		},
 	})
 	require.NoError(t, err)
@@ -1442,6 +1443,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 					CommandUUID:       hostCmdUUID,
 					OperationType:     operationType,
 					Status:            status,
+					Checksum:          []byte("csum"),
 				},
 			})
 			require.NoError(t, err)
