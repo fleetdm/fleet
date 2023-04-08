@@ -1098,8 +1098,13 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 		}
 		installIdentifiers := []string{}
+		identifierToHosts := map[string][]string{}
 		for _, p := range profilesToInstall {
 			installIdentifiers = append(installIdentifiers, p.ProfileIdentifier)
+			if _, ok := identifierToHosts[p.ProfileIdentifier]; !ok {
+				identifierToHosts[p.ProfileIdentifier] = []string{}
+			}
+			identifierToHosts[p.ProfileIdentifier] = append(identifierToHosts[p.ProfileIdentifier], p.HostUUID)
 		}
 
 		profilesToRemoveStmt := `
@@ -1150,11 +1155,16 @@ WHERE
 		}
 
 		// before doing the inserts, remove profiles with identifiers that will be sent again from the database
-		stmt, args, err = sqlx.In("DELETE FROM host_mdm_apple_profiles WHERE host_uuid IN (?) AND profile_identifier IN (?)", uuids, installIdentifiers)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete statement to remove unused profiles")
+		var dargs []any
+		var dsb strings.Builder
+		for identifier, hostUUIDs := range identifierToHosts {
+			for _, hostUUID := range hostUUIDs {
+				dargs = append(dargs, hostUUID, identifier)
+				dsb.WriteString("(?,?),")
+			}
 		}
-		_, err = tx.ExecContext(ctx, stmt, args...)
+		stmt = fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (host_uuid, profile_identifier) IN(%s)`, strings.TrimSuffix(dsb.String(), ","))
+		_, err = tx.ExecContext(ctx, stmt, dargs...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 		}
