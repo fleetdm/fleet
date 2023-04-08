@@ -183,9 +183,10 @@ SELECT
 FROM
 	host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
+	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') = '%s')`,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleOperationTypeRemove,
+		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleDeliveryApplied,
 	)
 
@@ -1101,7 +1102,7 @@ WHERE
 			installIdentifiers = append(installIdentifiers, p.ProfileIdentifier)
 		}
 
-		const profilesToRemoveStmt = `
+		profilesToRemoveStmt := `
 		SELECT
 			hmap.profile_id as profile_id,
 			hmap.host_uuid as host_uuid,
@@ -1125,11 +1126,16 @@ WHERE
 		-- except "remove" operations in any state
 		AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? )
 		-- profiles that are being installed
-		AND hmap.profile_identifier NOT IN (?)
 	`
-		stmt, args, err = sqlx.In(profilesToRemoveStmt,
-			uuids, uuids, fleet.MDMAppleOperationTypeRemove, installIdentifiers,
-		)
+
+		inArgs := []any{uuids, uuids, fleet.MDMAppleOperationTypeRemove}
+		if len(installIdentifiers) > 0 {
+			profilesToRemoveStmt += `AND hmap.profile_identifier NOT IN (?)`
+			inArgs = append(inArgs, installIdentifiers)
+
+		}
+
+		stmt, args, err = sqlx.In(profilesToRemoveStmt, inArgs...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 		}
