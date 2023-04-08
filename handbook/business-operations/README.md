@@ -535,7 +535,7 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 
 Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
-   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
+   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
    - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
      - **Physical address** _(The full street address of the location where work will typically be performed.)_
      - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
