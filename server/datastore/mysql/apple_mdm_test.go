@@ -1673,6 +1673,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 		CommandUUID:       "c1",
 		OperationType:     fleet.MDMAppleOperationTypeRemove,
 		Status:            &fleet.MDMAppleDeliveryPending,
+		Checksum:          []byte("csum"),
 	}}))
 	cps, err := ds.GetHostMDMProfiles(ctx, "h1")
 	require.NoError(t, err)
