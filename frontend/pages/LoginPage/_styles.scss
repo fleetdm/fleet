@@ -1,7 +1,6 @@
 .login-form-animation-leave {
   transform: scale(1);
   opacity: 1;
-  height: 100%;
 
   &.login-form-animation-leave-active {
     transition: opacity 300ms ease-in, transform 300ms ease-in;
