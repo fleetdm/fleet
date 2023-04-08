@@ -74,7 +74,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
 - **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 - **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Practice self-care.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up.  Set boundaries.  Schedule time off to recharge.
+- **Set boundaries.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up.  Schedule time off to recharge.  Practice self-care.
 
 ### 🔵 Objectivity
 To reach our goals, we need to see reality clearly.
