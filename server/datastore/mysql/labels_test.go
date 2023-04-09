@@ -485,6 +485,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 			CommandUUID:       "command-uuid-1",
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
 			Status:            &fleet.MDMAppleDeliveryApplied,
+			Checksum:          []byte("csum"),
 		},
 	}))
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1) // h1
@@ -502,6 +503,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 			CommandUUID:       "command-uuid-2",
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
 			Status:            &fleet.MDMAppleDeliveryApplied,
+			Checksum:          []byte("csum"),
 		},
 	}))
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1) // h1
