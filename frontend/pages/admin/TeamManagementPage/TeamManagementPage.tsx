@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useContext } from "react";
-import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -8,6 +7,7 @@ import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData,
@@ -29,7 +29,12 @@ const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { currentTeam, setCurrentTeam } = useContext(AppContext);
+  const {
+    currentTeam,
+    setCurrentTeam,
+    setCurrentUser,
+    setAvailableTeams,
+  } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -40,6 +45,14 @@ const TeamManagementPage = (): JSX.Element => {
     [key: string]: string;
   }>({});
   const handlePageError = useErrorHandler();
+
+  const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
+    enabled: false,
+    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(user, available_teams);
+    },
+  });
 
   const {
     data: teams,
@@ -106,6 +119,7 @@ const TeamManagementPage = (): JSX.Element => {
           renderFlash("success", `Successfully created ${formData.name}.`);
           setBackendValidators({});
           toggleCreateTeamModal();
+          refetchMe();
           refetchTeams();
         })
         .catch((createError: { data: IApiError }) => {
@@ -144,6 +158,7 @@ const TeamManagementPage = (): JSX.Element => {
         })
         .finally(() => {
           setIsUpdatingTeams(false);
+          refetchMe();
           refetchTeams();
           toggleDeleteTeamModal();
         });
