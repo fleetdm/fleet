@@ -11,7 +11,6 @@ import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-import permissionUtils from "utilities/permissions";
 
 interface IControlsSubNavItem {
   name: string;
@@ -60,30 +59,25 @@ const ManageControlsPage = ({
   router,
 }: IManageControlsPageProps): JSX.Element => {
   const {
-    availableTeams,
     config,
-    currentUser,
     isFreeTier,
     isOnGlobalTeam,
     isPremiumTier,
     isGlobalAdmin,
   } = useContext(AppContext);
 
-  const { currentTeamId, handleTeamChange } = useTeamIdParam({
+  const { currentTeamId, userTeams, handleTeamChange } = useTeamIdParam({
     location,
     router,
     includeAllTeams: false,
     includeNoTeam: true,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: false,
+      observer_plus: false,
+    },
   });
-
-  // Filter out any teams that the user is not a maintainer or admin of
-  // TODO: Abstract this to the AppContext so that availableTeams is already filtered
-  // based on the current page
-  let userAdminOrMaintainerTeams = availableTeams;
-  userAdminOrMaintainerTeams = availableTeams?.filter(
-    (team) =>
-      permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, team.id) === true
-  );
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -161,11 +155,10 @@ const ManageControlsPage = ({
                 <div className={`${baseClass}__title`}>
                   {isFreeTier && <h1>Controls</h1>}
                   {isPremiumTier &&
-                    userAdminOrMaintainerTeams &&
-                    (userAdminOrMaintainerTeams.length > 1 ||
-                      isOnGlobalTeam) && (
+                    userTeams &&
+                    (userTeams.length > 1 || isOnGlobalTeam) && (
                       <TeamsDropdown
-                        currentUserTeams={userAdminOrMaintainerTeams}
+                        currentUserTeams={userTeams}
                         selectedTeamId={currentTeamId}
                         onChange={handleTeamChange}
                         includeAll={false}
@@ -174,10 +167,8 @@ const ManageControlsPage = ({
                     )}
                   {isPremiumTier &&
                     !isOnGlobalTeam &&
-                    userAdminOrMaintainerTeams &&
-                    userAdminOrMaintainerTeams.length === 1 && (
-                      <h1>{userAdminOrMaintainerTeams[0].name}</h1>
-                    )}
+                    userTeams &&
+                    userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
                 </div>
               </div>
             </div>
