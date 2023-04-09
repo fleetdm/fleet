@@ -569,7 +569,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showOperatingSystemsUI,
     children: (
       <OperatingSystems
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
         selectedPlatform={selectedPlatform}
         showTitle={showOperatingSystemsUI}
         setShowTitle={setShowOperatingSystemsUI}

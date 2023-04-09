@@ -22,6 +22,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
+import { AxiosError } from "axios";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
@@ -64,7 +65,7 @@ const OperatingSystems = ({
 }: IOperatingSystemsCardProps): JSX.Element => {
   const { data: osInfo, error, isFetching } = useQuery<
     IOSVersionsResponse,
-    Error,
+    AxiosError,
     IOSVersionsResponse,
     IGetOSVersionsQueryKey[]
   >(
@@ -85,6 +86,7 @@ const OperatingSystems = ({
       enabled: OS_VERSIONS_API_SUPPORTED_PLATFORMS.includes(selectedPlatform),
       staleTime: 10000,
       keepPreviousData: true,
+      retry: 0,
     }
   );
 
@@ -146,7 +148,7 @@ const OperatingSystems = ({
         </div>
       )}
       <div style={opacity}>
-        {error ? (
+        {error?.status && error?.status >= 500 ? (
           <TableDataError card />
         ) : (
           <TableContainer

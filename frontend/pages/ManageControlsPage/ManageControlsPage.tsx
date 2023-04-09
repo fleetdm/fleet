@@ -66,7 +66,12 @@ const ManageControlsPage = ({
     isGlobalAdmin,
   } = useContext(AppContext);
 
-  const { currentTeamId, userTeams, handleTeamChange } = useTeamIdParam({
+  const {
+    currentTeamId,
+    userTeams,
+    teamIdForApi,
+    handleTeamChange,
+  } = useTeamIdParam({
     location,
     router,
     includeAllTeams: false,
@@ -134,7 +139,7 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabsWrapper>
-        {children}
+        {React.cloneElement(children, { teamIdForApi })}
       </div>
     ) : (
       <EmptyTable
