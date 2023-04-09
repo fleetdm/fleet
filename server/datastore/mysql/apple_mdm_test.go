@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
@@ -939,7 +939,7 @@ func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MD
 </plist>
 `, name, identifier, uuid))
 	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
-	sum := md5.Sum(prof)
+	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
 	require.NoError(t, err)
 	return cp
