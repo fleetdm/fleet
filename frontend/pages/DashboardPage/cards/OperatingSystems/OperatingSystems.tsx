@@ -20,9 +20,9 @@ import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import { AxiosError } from "axios";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
-import { AxiosError } from "axios";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
