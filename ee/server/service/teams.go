@@ -383,14 +383,6 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 	name := team.Name
 
-	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
-		return err
-	}
-	// team id 0 is provided since the team's hosts are now part of no team
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -403,6 +395,14 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	hostIDs := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
+	}
+
+	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
+		return err
+	}
+	// team id 0 is provided since the team's hosts are now part of no team
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
