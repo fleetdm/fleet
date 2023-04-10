@@ -2,7 +2,7 @@
   // ensures consistent nav bar height regardless of the logo image used
   min-height: 12px;
   max-height: 46px;
-  max-width: 140px; // Safari crops wider logos
+  max-width: 85px; // Safari crops wider logos
   padding: 0 $pad-small;
 }
 
