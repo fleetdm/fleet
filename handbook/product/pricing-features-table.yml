@@ -5,23 +5,31 @@
       comingSoon: false
     - name: User-initiated enrollment of macOS computers
       tier: Free
+      comingSoon: false
     - name: Remotely enforce macOS settings
       tier: Free
+      comingSoon: false
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
+      comingSoon: false
     - name: Native macOS update reminders
       tier: Free
+      comingSoon: false
     - name: Zero-touch setup for macOS computers
       tier: Premium
+      comingSoon: false
     - name: End-user macOS update reminders (via Nudge)
       tier: Premium
+      comingSoon: false
     - name: Encrypt macOS hard disks with FileVault
       tier: Premium
+      comingSoon: false
     - name: Manage queued MDM commands on macOS
       tier: Premium
       comingSoon: true
     - name: Remotely lock and wipe macOS computers
       tier: Premium
+      comingSoon: false
     - name: Trigger a workflow based on a failing policy
       tier: Premium
       comingSoon: true
