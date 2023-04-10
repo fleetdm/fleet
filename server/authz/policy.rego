@@ -685,6 +685,22 @@ allow {
   action == [read, write][_]
 }
 
+# Global admins and maintainers can read and write bootstrap packages.
+allow {
+  object.type == "mdm_apple_bootstrap_package"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team admins and maintainers can read and write bootstrap packages on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_bootstrap_package"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
 ##
 # Version
 ##

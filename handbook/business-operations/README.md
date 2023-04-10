@@ -493,7 +493,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      - No need to check with the CEO first.  You can just book the meeting on his calendar.
      - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
+   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
    - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
@@ -535,15 +535,19 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 
 Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
-   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
-   - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-     - **Physical address** _(The full street address of the location where work will typically be performed.)_
-     - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
-     - **"Offer accepted?"** _(Set this to `TRUE`)_
-     - **OTE** _(salary, expressed as anticipated "on-target" earnings)_
-     - **Equity** _(stock options)_
-     - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
-     - Be sure everything is accurate, one last time!
+   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
+   - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
+     - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
+       - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(derive this from the physical address)_
+       - **GitHub username**  _(username of 2FA-enabled GitHub account)_
+     - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+       - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
+       - **Equity** _(stock options)_
+       - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
+       - **Physical address** _(The full street address of the location where work will typically be performed.)_
+       - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
+       - **"Offer accepted?"** _(Set this to `TRUE`)_
    - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
    - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
      ```

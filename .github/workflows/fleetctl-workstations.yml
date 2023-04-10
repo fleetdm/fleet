@@ -1,8 +1,8 @@
-# This workflow applies the latest MDM profiles to the workstations team.
-# It uses a fleet instance also built and executed from source.
+# This workflow applies the latest configuration profiles (macOS settings) and macOS updates minimum version and deadline to the workstations team.
+# It uses a Fleet instance also built and executed from source.
 #
-# It runs automatically when a file is changed in /mdm_profiles.
-name: Apply latest MDM profiles
+# It runs when the GitHub action is triggered manually
+name: Apply latest configuration profiles and macOS updates
 
 on:
   push:
@@ -61,7 +61,11 @@ jobs:
           team:
             name: 💻 Workstations
             mdm:
+              macos_updates:
+                minimum_version: "13.3.0"
+                deadline: "2023-04-07"
               macos_settings:
+                enable_disk_encryption: true
                 custom_settings:
                   $profiles
         " > team-workstations-config.yml

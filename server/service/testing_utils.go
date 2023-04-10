@@ -96,7 +96,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
 		if opts[0].UseMailService {
-			mailer = mail.NewService()
+			mailer, err = mail.NewService(config.TestConfig())
+			require.NoError(t, err)
 		}
 
 		// allow to explicitly set installer store to nil
@@ -299,7 +300,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{ds: ds, commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)},
+				&MDMAppleCheckinAndCommandService{
+					ds:        ds,
+					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+					logger:    kitlog.NewNopLogger(),
+				},
 			)
 			require.NoError(t, err)
 		}
@@ -320,6 +325,19 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		server.Close()
 	})
 	return users, server
+}
+
+func testSESPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Email = config.EmailConfig{EmailBackend: "ses"}
+	c.SES = config.SESConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		SourceArn:        "qux",
+	}
+	return c
 }
 
 func testKinesisPluginConfig() config.FleetConfig {

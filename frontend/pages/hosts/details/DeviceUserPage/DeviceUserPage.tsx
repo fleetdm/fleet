@@ -334,7 +334,7 @@ const DeviceUserPage = ({
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
                 // Turn on MDM banner
-                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                <InfoBanner color="yellow" cta={turnOnMdmButton}>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
                   lets your organization keep your device up to date so you
@@ -345,8 +345,8 @@ const DeviceUserPage = ({
               // MDM - Disk Encryption: Logout or restart banner
               <InfoBanner color="yellow">
                 Disk encryption: Log out of your device or restart to turn on
-                disk encryption. This prevents unauthorized access to the
-                information on your device.
+                disk encryption. Then, select <strong>Refetch</strong>. This
+                prevents unauthorized access to the information on your device.
               </InfoBanner>
             )}
             {showDiskEncryptionKeyResetRequired && (

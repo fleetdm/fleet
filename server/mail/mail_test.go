@@ -1,9 +1,11 @@
 package mail
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +28,8 @@ func TestMail(t *testing.T) {
 	}
 
 	for _, f := range testFunctions {
-		r := NewService()
+		r, err := NewService(config.TestConfig())
+		require.NoError(t, err)
 
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)
@@ -177,4 +180,32 @@ func TestTemplateProcessor(t *testing.T) {
 	out, err := mailer.Message()
 	require.Nil(t, err)
 	assert.NotNil(t, out)
+}
+
+func Test_getFrom(t *testing.T) {
+	type args struct {
+		e fleet.Email
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "should return SMTP formatted From string",
+			args:    args{e: fleet.Email{Config: &fleet.AppConfig{SMTPSettings: fleet.SMTPSettings{SMTPSenderAddress: "foo@bar.com"}}}},
+			want:    "From: foo@bar.com\r\n",
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getFrom(tt.args.e)
+			if !tt.wantErr(t, err, fmt.Sprintf("getFrom(%v)", tt.args.e)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "getFrom(%v)", tt.args.e)
+		})
+	}
 }

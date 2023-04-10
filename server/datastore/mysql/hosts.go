@@ -1945,6 +1945,10 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 		}
 
+		if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+		}
+
 		return nil
 	})
 }
@@ -2774,7 +2778,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		SELECT
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
-			hd.display_name
+			hd.display_name,
+			COALESCE(h.team_id, 0) as team_id
 		FROM
 			hosts h
 		LEFT JOIN

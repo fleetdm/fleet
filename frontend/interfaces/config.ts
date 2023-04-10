@@ -78,6 +78,13 @@ export default PropTypes.shape({
       }),
     }),
   }),
+  email: PropTypes.shape({
+    backend: PropTypes.string,
+    config: PropTypes.shape({
+      region: PropTypes.string,
+      source_arn: PropTypes.string,
+    }),
+  }),
 });
 
 export interface ILicense {
@@ -232,6 +239,13 @@ export interface IConfig {
         enable_log_rotation: boolean;
         enable_log_compression: boolean;
       };
+    };
+  };
+  email?: {
+    backend: string;
+    config: {
+      region: string;
+      source_arn: string;
     };
   };
   mdm: IMdmConfig;

@@ -813,10 +813,6 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return nil
 	}
 
-	ds.DeleteMDMAppleProfilesForHostFunc = func(ctx context.Context, hostUUID string) error {
-		return nil
-	}
-
 	var mdmEnabled atomic.Bool
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
@@ -982,13 +978,15 @@ func TestMDMTokenUpdate(t *testing.T) {
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, commander: cmdr}
-	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+	svc := MDMAppleCheckinAndCommandService{ds: ds, commander: cmdr, logger: kitlog.NewNopLogger()}
+	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
+	serverURL := "https://example.com"
+	installEnterpriseApplicationCalls := 0
 
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		installEnterpriseApplicationCalls++
 		require.NotNil(t, cmd)
 		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-		require.Contains(t, string(cmd.Raw), apple_mdm.FleetdPublicManifestURL)
 		return nil, nil
 	}
 
@@ -1011,6 +1009,15 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return &cert, "", err
 	}
 
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = serverURL
+		return appCfg, nil
+	}
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
@@ -1021,10 +1028,16 @@ func TestMDMTokenUpdate(t *testing.T) {
 			HardwareSerial:   serial,
 			DisplayName:      model,
 			InstalledFromDEP: true,
+			TeamID:           wantTeamID,
 		}, nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
+	}
+
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		require.Equal(t, wantTeamID, teamID)
+		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 
 	err := svc.TokenUpdate(
@@ -1038,6 +1051,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.Equal(t, 2, installEnterpriseApplicationCalls)
 }
 
 func TestMDMCheckout(t *testing.T) {

@@ -124,6 +124,7 @@ type MDM struct {
 
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -229,6 +230,11 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 	}
 
 	return set, nil
+}
+
+// MacOSSetup contains settings related to the setup of DEP enrolled devices.
+type MacOSSetup struct {
+	BootstrapPackage string `json:"bootstrap_package"`
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -358,6 +364,7 @@ type enrichedAppConfigFields struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+	Email           *EmailConfig           `json:"email,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -752,6 +759,16 @@ type Logging struct {
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
 	Audit  LoggingPlugin `json:"audit"`
+}
+
+type EmailConfig struct {
+	Backend string      `json:"backend"`
+	Config  interface{} `json:"config"`
+}
+
+type SESConfig struct {
+	Region    string `json:"region"`
+	SourceARN string `json:"source_arn"`
 }
 
 type UpdateIntervalConfig struct {

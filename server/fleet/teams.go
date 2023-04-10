@@ -31,6 +31,7 @@ type TeamPayload struct {
 type TeamPayloadMDM struct {
 	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings *MacOSSettings `json:"macos_settings"`
+	MacOSSetup    *MacOSSetup    `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -144,6 +145,7 @@ type TeamWebhookSettings struct {
 type TeamMDM struct {
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 }
 
@@ -156,6 +158,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]interface{} `json:"macos_settings"`
+	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
