@@ -202,13 +202,15 @@
         text-align: center;
 
         img {
-          border-radius: 20%;
-          height: 120px;
-          width: 120px;
+          border-radius: $border-radius;
+          max-height: 80px;
+          max-width: 150px;
           border: 1px solid $ui-fleet-black-10;
           background-color: $ui-light-grey;
           position: relative;
-          bottom: -20px;
+          bottom: -29px;
+          padding: $small;
+          transform: initial;
         }
 
         p {
