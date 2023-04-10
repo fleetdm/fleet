@@ -89,7 +89,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/business-operatio
 
 - **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Everyone can contribute.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
-- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#confidentiality-levels) carefully.
+- **Be transparent.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **[Commit](https://www.audible.com/pd/The-15-Commitments-of-Conscious-Leadership-Audiobook/B00SKV11H2) to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
 
 
