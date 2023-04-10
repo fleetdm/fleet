@@ -6,6 +6,7 @@ import {
   Route,
   RouteComponent,
   Router,
+  Redirect,
 } from "react-router";
 
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
@@ -51,6 +52,7 @@ import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 
 import PATHS from "router/paths";
+
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
@@ -60,20 +62,18 @@ import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
 import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
+import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
-  location?: {
-    pathname: string;
-  };
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children, location }: IAppWrapperProps) => (
+const AppWrapper = ({ children }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App location={location}>{children}</App>
+      <App>{children}</App>
     </RoutingProvider>
   </AppProvider>
 );
@@ -128,10 +128,13 @@ const routes = (
                 </Route>
               </Route>
             </Route>
-            <Route path="teams/:team_id" component={TeamDetailsWrapper}>
+            <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
             </Route>
+            <Redirect from="teams/:team_id" to="teams" />
+            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
             <IndexRedirect to={"new"} />
@@ -191,16 +194,14 @@ const routes = (
             <Route path="schedule">
               <IndexRedirect to={"manage"} />
               <Route path="manage" component={ManageSchedulePage} />
-              <Route
-                path="manage/teams/:team_id"
-                component={ManageSchedulePage}
-              />
+              <Redirect from="manage/teams" to="manage" />
+              <Redirect from="manage/teams/:team_id" to="manage" />
             </Route>
           </Route>
           <Route path="queries">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageQueriesPage} />
-            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
               <Route path="new" component={QueryPage} />
             </Route>
             <Route path=":id" component={QueryPage} />

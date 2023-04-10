@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
-import classnames from "classnames";
 
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
@@ -23,14 +22,16 @@ import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
-  location:
-    | {
-        pathname: string;
-      }
-    | undefined;
+  location?: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: QueryParams;
+  };
 }
 
 const baseClass = "app";
@@ -76,7 +77,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     try {
       const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       fetchConfig();
     } catch (error) {
       if (!location?.pathname.includes("/login/reset")) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -289,6 +291,7 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
+			getMDMCommandResultsCommand(),
 		},
 	}
 }
@@ -664,12 +667,8 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					appCfg, err := client.GetAppConfig()
-					if err != nil {
+					if err := client.CheckMDMEnabled(); err != nil {
 						return err
-					}
-					if !appCfg.MDM.EnabledAndConfigured {
-						return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
 					}
 
 					// --mdm and --mdm-pending are mutually exclusive, return an error if
@@ -1108,9 +1107,8 @@ func getSoftwareCommand() *cli.Command {
 
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple"},
+		Name:    "mdm-apple",
+		Aliases: []string{"mdm_apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1158,9 +1156,8 @@ func getMDMAppleCommand() *cli.Command {
 
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "mdm_apple_bm",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
-		Aliases: []string{"mdm-apple-bm"},
+		Name:    "mdm-apple-bm",
+		Aliases: []string{"mdm_apple_bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
@@ -1205,6 +1202,70 @@ func getMDMAppleBMCommand() *cli.Command {
 				// certificate will soon expire, print a warning
 				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandResultsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-command-results",
+		Aliases: []string{"mdm_command_results"},
+		Usage:   "Retrieve results for a specific MDM command.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+			&cli.StringFlag{
+				Name:     "id",
+				Usage:    "Filter MDM commands by ID.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckMDMEnabled(); err != nil {
+				return err
+			}
+
+			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The command doesn't exist. Please provide a valid command ID.")
+					// TODO(mna): once fleetctl get mdm-commands is implemented, reintroduce this section at the end of the message:
+					//   To see a list of commands that were run, run `fleetct get mdm-commands`.
+				}
+
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to view the results of this MDM command for at least one of the hosts: %w", err)
+					}
+				}
+				return err
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range res {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+					string(r.Result),
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
 
 			return nil
 		},

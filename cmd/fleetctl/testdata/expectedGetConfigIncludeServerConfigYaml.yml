@@ -23,6 +23,8 @@ spec:
     macos_settings:
       custom_settings:
       enable_disk_encryption: false
+    macos_setup:
+      bootstrap_package: ""
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
