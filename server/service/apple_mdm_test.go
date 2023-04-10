@@ -1589,28 +1589,99 @@ func (m *mockMDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []str
 	return nil
 }
 
-func TestBugFix(t *testing.T) {
+func TestMDMAppleReconcileProfilesUpsert(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	cmdr := newMDMAppleMockCommander()
 
-	hostUUID, hostUUID2 := "host1", "host2"
-
-	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-		return []*fleet.MDMAppleProfilePayload{
-			{ProfileID: 1, ProfileIdentifier: "add.profile", HostUUID: hostUUID},
-			{ProfileID: 2, ProfileIdentifier: "add.profile.two", HostUUID: hostUUID},
-			{ProfileID: 2, ProfileIdentifier: "add.profile.two", HostUUID: hostUUID2},
-			{ProfileID: 4, ProfileIdentifier: "replace.profile.four", HostUUID: hostUUID2},
-		}, nil
+	hostProfilePayload := func(hostUUID string, profileID uint, profileIdentifier string) *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			HostUUID:          hostUUID,
+			ProfileID:         profileID,
+			ProfileIdentifier: profileIdentifier,
+		}
 	}
 
-	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-		return []*fleet.MDMAppleProfilePayload{
-			{ProfileID: 3, ProfileIdentifier: "remove.profile", HostUUID: hostUUID},
-			{ProfileID: 3, ProfileIdentifier: "remove.profile", HostUUID: hostUUID2},
-			{ProfileID: 4, ProfileIdentifier: "replace.profile.four", HostUUID: hostUUID2},
-		}, nil
+	isProfileInList := func(prof fleet.MDMAppleBulkUpsertHostProfilePayload, list []*fleet.MDMAppleProfilePayload) bool {
+		for _, p := range list {
+			if p.HostUUID == prof.HostUUID && p.ProfileIdentifier == prof.ProfileIdentifier && p.ProfileID == prof.ProfileID {
+				return true
+			}
+		}
+		return false
+	}
+
+	cases := []struct {
+		testName      string
+		listToInstall []*fleet.MDMAppleProfilePayload
+		listToRemove  []*fleet.MDMAppleProfilePayload
+		replaced      []fleet.MDMAppleBulkDeleteHostProfilePayload
+	}{
+		{
+			testName: "Install profiles",
+			listToInstall: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 1, "profile1"),
+				hostProfilePayload("hostB", 1, "profile1"),
+				hostProfilePayload("hostA", 2, "profile2"),
+				hostProfilePayload("hostB", 2, "profile2"),
+			},
+			listToRemove: []*fleet.MDMAppleProfilePayload{},
+			replaced:     []fleet.MDMAppleBulkDeleteHostProfilePayload{},
+		},
+		{
+			testName:      "Remove profiles",
+			listToInstall: []*fleet.MDMAppleProfilePayload{},
+			listToRemove: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 1, "profile1"),
+				hostProfilePayload("hostB", 1, "profile1"),
+				hostProfilePayload("hostA", 2, "profile2"),
+				hostProfilePayload("hostB", 2, "profile2"),
+			},
+			replaced: []fleet.MDMAppleBulkDeleteHostProfilePayload{},
+		},
+		{
+			testName: "Install and remove profiles",
+			listToInstall: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 2, "profile2"),
+				hostProfilePayload("hostB", 2, "profile2"),
+			},
+			listToRemove: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 1, "profile1"),
+				hostProfilePayload("hostB", 1, "profile1"),
+			},
+			replaced: []fleet.MDMAppleBulkDeleteHostProfilePayload{},
+		},
+		{
+			testName: "Install and remove profiles",
+			listToInstall: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 1, "profile1"),
+				hostProfilePayload("hostB", 2, "profile2"),
+			},
+			listToRemove: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostB", 1, "profile1"),
+				hostProfilePayload("hostA", 2, "profile2"),
+			},
+			replaced: []fleet.MDMAppleBulkDeleteHostProfilePayload{},
+		},
+		{
+			testName: "Install, replace, and remove profiles",
+			listToInstall: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 1, "profile1"),
+				hostProfilePayload("hostB", 1, "profile1"),
+				hostProfilePayload("hostA", 3, "profile3"),
+				hostProfilePayload("hostB", 3, "profile3"),
+			},
+			listToRemove: []*fleet.MDMAppleProfilePayload{
+				hostProfilePayload("hostA", 2, "profile2"),
+				hostProfilePayload("hostB", 2, "profile2"),
+				hostProfilePayload("hostA", 3, "profile3"),
+				hostProfilePayload("hostB", 3, "profile3"),
+			},
+			replaced: []fleet.MDMAppleBulkDeleteHostProfilePayload{
+				{HostUUID: "hostA", ProfileID: 3, ProfileIdentifier: "profile3"},
+				{HostUUID: "hostB", ProfileID: 3, ProfileIdentifier: "profile3"},
+			},
+		},
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1624,44 +1695,19 @@ func TestBugFix(t *testing.T) {
 	}
 
 	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
-		fmt.Println("BulkUpsertMDMAppleConfigProfilesFunc called", len(payload))
-		for _, p := range payload {
-			fmt.Println(fmt.Sprintf("%+v", p))
-		}
+		// this is called by ensureFleetdConfig (not covered by this test))
+		require.Len(t, payload, 0)
 		return nil
 	}
 
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		fmt.Println("BulkUpsertMDMAppleHostProfilesFunc called", len(payload))
-		for _, p := range payload {
-			fmt.Println(p.HostUUID, p.ProfileIdentifier, p.OperationType, *p.Status)
-		}
+		// this is called at the end of ReconcileProfiles to upsert command errors (not
+		// covered by this test)
+		require.Len(t, payload, 0)
 		return nil
 	}
 
-	// ds.BulkDeleteMDMAppleHostProfilesFunc = func(ctx context.Context, payload []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
-	// 	fmt.Println("BulkDeleteMDMAppleHostProfilesFunc called", len(payload))
-	// 	for _, p := range payload {
-	// 		fmt.Println(fmt.Sprintf("%+v", p))
-	// 	}
-
-	// 	return nil
-	// }
-
-	ds.ReconcileMDMAppleHostProfilesFunc = func(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
-		fmt.Println("ReconcileMDMAppleHostProfilesFunc called: upserts", len(upserts))
-		for _, p := range upserts {
-			fmt.Println(p.HostUUID, p.ProfileIdentifier, p.OperationType, *p.Status)
-		}
-
-		fmt.Println("ReconcileMDMAppleHostProfilesFunc called: deletes", len(deletes))
-		for _, p := range deletes {
-			fmt.Println(fmt.Sprintf("%+v", p))
-		}
-		return nil
-	}
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
-		fmt.Println("GetMDMAppleProfilesContentsFunc called", profileIDs)
 		res := make(map[uint]mobileconfig.Mobileconfig, len(profileIDs))
 		for _, id := range profileIDs {
 			res[id] = []byte(fmt.Sprintf("contents%d", id))
@@ -1669,7 +1715,42 @@ func TestBugFix(t *testing.T) {
 		return res, nil
 	}
 
-	ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+	for _, c := range cases {
+		ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+			return c.listToInstall, nil
+		}
+		ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+			return c.listToRemove, nil
+		}
+		ds.ReconcileMDMAppleHostProfilesFunc = func(ctx context.Context, upserts []*fleet.MDMAppleBulkUpsertHostProfilePayload, deletes []fleet.MDMAppleBulkDeleteHostProfilePayload) error {
+			fmt.Println("ReconcileMDMAppleHostProfilesFunc called: upserts", len(upserts))
+			for _, p := range upserts {
+				fmt.Println(p.HostUUID, p.ProfileIdentifier, p.OperationType, *p.Status)
+			}
+
+			fmt.Println("ReconcileMDMAppleHostProfilesFunc called: deletes", len(deletes))
+			for _, p := range deletes {
+				fmt.Println(fmt.Sprintf("%+v", p))
+			}
+			require.Len(t, upserts, len(c.listToInstall)+len(c.listToRemove)-len(c.replaced))
+			for _, u := range upserts {
+				if u.OperationType == fleet.MDMAppleOperationTypeInstall {
+					require.True(t, isProfileInList(*u, c.listToInstall))
+				} else if u.OperationType == fleet.MDMAppleOperationTypeRemove {
+					require.True(t, isProfileInList(*u, c.listToRemove))
+				}
+			}
+
+			require.Len(t, deletes, len(c.replaced))
+			require.ElementsMatch(t, deletes, c.replaced)
+			return nil
+		}
+		t.Run(c.testName, func(t *testing.T) {
+			err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+			require.NoError(t, err)
+		})
+
+	}
 }
 
 func TestMDMAppleReconcileProfiles(t *testing.T) {

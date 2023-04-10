@@ -1040,8 +1040,13 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 		Description: "desc team1_" + t.Name(),
 	})
 	require.NoError(t, err)
-	// TODO: Add a filevault policy fo rthe new team. It is now the expected behavior that the key
-	// will be deleted when a host is transferred to a team without a filevault policy.
+
+	// add a filevault policy fo rthe new team (the key will be deleted if a host is transferred
+	// to a team without a filevault policy.
+	s.token = s.getTestAdminToken()
+	s.DoRaw("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage(fmt.Sprintf(`{
+		"enable_disk_encryption": true, "team_id": %d
+  }`, team.ID)), http.StatusNoContent)
 
 	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
 	require.NoError(t, err)
