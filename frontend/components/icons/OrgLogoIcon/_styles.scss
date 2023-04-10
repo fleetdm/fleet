@@ -1,8 +1,8 @@
 .org-logo-icon {
   // ensures consistent nav bar height regardless of the logo image used
-  min-height: 12px;
+  min-height: 24px;
   max-height: 46px;
-  max-width: 85px; // Safari crops wider logos
+  max-width: 150px;
   padding: 0 $pad-small;
 }
 
