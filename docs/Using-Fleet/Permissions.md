@@ -71,35 +71,35 @@ Users can be a member of multiple teams in Fleet.
 
 Users that are members of multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
 
-| **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | GitOps |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ------ |
-| View hosts                                                                                                                       | ✅             | ✅              | ✅               | ✅          |        |
-| Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅             | ✅              | ✅               | ✅          |        |
-| Target hosts using labels                                                                                                        | ✅             | ✅              | ✅               | ✅          |        |
-| Add and delete hosts                                                                                                             |               |                | ✅               | ✅          |        |
-| Filter software by [vulnerabilities](<(https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)>) | ✅             | ✅              | ✅               | ✅          |        |
-| Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |        |
-| Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |        |
-| Run only designated, **observer can run** ,queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |        |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |        |
-| Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅      |
-| Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅               | ✅          | ✅      |
-| View policies                                                                                                                    | ✅             | ✅              | ✅               | ✅          |        |
-| View global (inherited) policies                                                                                                 | ✅             | ✅              | ✅               | ✅          |        |
-| Filter hosts using policies                                                                                                      | ✅             | ✅              | ✅               | ✅          |        |
-| Create, edit, and delete policies                                                                                                |               |                | ✅               | ✅          | ✅      |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅          | ✅      |
-| Add and remove team members                                                                                                      |               |                |                 | ✅          | ✅      |
-| Edit team name                                                                                                                   |               |                |                 | ✅          | ✅      |
-| Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅               | ✅          |        |
-| Read agent options\*                                                                                                             | ✅             | ✅              | ✅               | ✅          |        |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅          | ✅      |
-| Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅               | ✅          |        |
-| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅             | ✅              | ✅               | ✅          |        |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          |        |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅               | ✅          |        |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |        |
-| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |        |
+| **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
+| View hosts                                                                                                                       | ✅             | ✅              | ✅               | ✅          |             |
+| Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅             | ✅              | ✅               | ✅          |             |
+| Target hosts using labels                                                                                                        | ✅             | ✅              | ✅               | ✅          |             |
+| Add and delete hosts                                                                                                             |               |                | ✅               | ✅          |             |
+| Filter software by [vulnerabilities](<(https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)>) | ✅             | ✅              | ✅               | ✅          |             |
+| Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
+| Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
+| Run only designated, **observer can run** ,queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
+| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
+| Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
+| Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅               | ✅          | ✅           |
+| View policies                                                                                                                    | ✅             | ✅              | ✅               | ✅          |             |
+| View global (inherited) policies                                                                                                 | ✅             | ✅              | ✅               | ✅          |             |
+| Filter hosts using policies                                                                                                      | ✅             | ✅              | ✅               | ✅          |             |
+| Create, edit, and delete policies                                                                                                |               |                | ✅               | ✅          | ✅           |
+| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅          | ✅           |
+| Add and remove team members                                                                                                      |               |                |                 | ✅          | ✅           |
+| Edit team name                                                                                                                   |               |                |                 | ✅          | ✅           |
+| Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅               | ✅          |             |
+| Read agent options\*                                                                                                             | ✅             | ✅              | ✅               | ✅          |             |
+| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅          | ✅           |
+| Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅               | ✅          |             |
+| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅             | ✅              | ✅               | ✅          |             |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          |             |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅               | ✅          |             |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
+| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
