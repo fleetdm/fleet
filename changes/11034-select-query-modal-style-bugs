@@ -1,3 +1,0 @@
-- Fix styling bugs on the SelectQueryModal:
-  - y-misaligned "OR"
-  - x- and y-misaligned query list

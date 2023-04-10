@@ -1,3 +1,75 @@
+## Fleet 4.30.0 (Apr 10, 2023)
+
+* Removed both `FLEET_MDM_APPLE_ENABLE` and `FLEET_DEV_MDM_ENABLED` feature flags.
+
+* Automatically send a configuration profile for the `fleetd` agent to teams that use DEP enrollment.
+
+* DEP JSON profiles are now automatically created with default values when the server is run.
+
+* Added the `--mdm` and `--mdm-pending` flags to the `fleetctl get hosts` command to list hosts enrolled in Fleet MDM and pending enrollment in Fleet MDM, respectively.
+
+* Added support for the "enrolled" value for the `mdm_enrollment_status` filter and the new `mdm_name` filter for the "List hosts", "Count hosts" and "List hosts in label" endpoints.
+
+* Added the `fleetctl mdm run-command` command, to run any of the [Apple-supported MDM commands](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) on a host.
+
+* Added the `fleetctl get mdm-command-results` sub-command to get the results for a previously-executed MDM command.
+
+* Added API support to filter the host by the disk encryption status on "GET /hosts", "GET /hosts/count",  and "GET /labels/:id/hosts" endpoints.
+
+* Added API endpoint for disk encryption aggregate status data.
+
+* Automatically install `fleetd` for DEP enrolled hosts.
+
+* Updated hosts' profiles status sync to set to "pending" immediately after an action that affects their list of profiles.
+
+* Updated FileVault configuration profile to disallow device user from disabling full-disk encryption. 
+
+* Updated MDM settings so that they are consistent, and updated documentation for clarity, completeness and correctness.
+
+* Added `observer_plus` user role to Fleet. Observers+ are observers that can run any live query.
+
+* Added a premium-only "Published" column to the vulnerabilities table to display when a vulnerability was first published.
+
+* Improved version detection for macOS apps. This fixes some false positives in macOS vulnerability detection.
+
+* If a new CPE translation rule is pushed, the data in the database should reflect that.
+
+* If a false positive is patched, the data in the database should reflect that.
+
+* Include the published date from NVD in the vulnerability object in the API and the vulnerability webhooks (premium feature only).
+
+* User management table informs which users only have API accesss.
+
+* Added configuration option `websockets_allow_unsafe_origin` to optionally disable the websocket origin check.
+
+* Added new config `prometheus.basic_auth.disable` to allow running the Prometheus endpoint without HTTP Basic Auth.
+
+* Added missing tables to be cleared on host deletion (those that reference the host by UUID instead of ID).
+
+* Introduced new email backend capable of sending email directly using SES APIs.
+
+* Upgraded Go version to 1.19.8 (includes minor security fixes for HTTP DoS issues).
+
+* Uninstalling applications from hosts will remove the corresponding entry in `software` if no more hosts have the application installed.
+
+* Removed the unused "Issuer URI" field from the single sign-on configuration page of the UI.
+
+* Fixed an issue where some icons would appear clipped at certain zoom levels.
+
+* Fixed a bug where some empty table cells were slightly different colors.
+
+* Fixed e-mail sending on user invites and user e-mail change when SMTP server has credentials.
+
+* Fixed logo misalignment.
+
+* Fixed a bug where for certain org logos, the user could still click on it even outside the navbar.
+
+* Fixed styling bugs on the SelectQueryModal.
+
+* Fixed an issue where custom org logos might be displayed off-center.
+
+* Fixed a UI bug where in certain states, there would be extra space at the right edge of the Manage Hosts table.
+
 ## Fleet 4.29.1 (Mar 31, 2023)
 
 * Fixed a migration that was causing `fleet prepare db` to fail due to changes in the collation of the tables. IMPORTANT: please make sure to have a database backup before running migrations.
