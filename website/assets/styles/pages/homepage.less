@@ -27,7 +27,6 @@
     margin-bottom: 4px;
   }
   p {
-    font-family: inter;
     color: @core-fleet-black-75;
   }
   a {
@@ -35,39 +34,45 @@
   }
   [purpose='hero-container'] {
     background: linear-gradient(115.34deg, #FBFDFF 24.56%, #E8F1F7 48.6%, #FFFFFF 88.68%);
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
     overflow: hidden;
+    height: ;
+  }
+  [purpose='hero-filter'] {
+    filter: drop-shadow(0px -50px 200px rgba(58, 220, 255, 0.1));
   }
   [purpose='homepage-hero'] {
-    padding-top: 33px;
-    padding-bottom: 10px;
+    padding-top: 40px;
     padding-left: 40px;
     padding-right: 40px;
     max-width: 1200px;
-    max-height: 552px;
-    background: url('/images/homepage-hero-background.svg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right 15% bottom 45%;
-    overflow: hidden;
+    max-height: 550px;
   }
   [purpose='homepage-hero-images'] {
-    overflow-y: hidden;
     img {
       filter: drop-shadow(0px -8.73361px 29.9438px rgba(63, 23, 148, 0.1));
     }
+    position: relative;
+  }
+  [purpose='homepage-hero-images']::before {
+    content: '';
+    position: absolute;
+    height: 100%;
+    width: 167%;
+    right: -142px;
+    bottom: 40px;
+    z-index: -1;
+    background-image: url(/images/homepage-hero-background.svg);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    overflow: visible;
   }
   [purpose='middle-hero-image'] {
     backdrop-filter: blur(2.96438px);
   }
-  [purpose='bottom-hero-image'] {
-    overflow-y: hidden;
-  }
   [purpose='hero-ribbon'] {
-    width: 100%;
-    background-color: #FFFFFF;
+    z-index: 2;
+    position: relative;
     background: url('/images/homepage-hero-ribbon.svg');
     background-size: cover;
     background-position: center bottom;
@@ -352,9 +357,9 @@
 
   @media (min-width: 1200px) {
     [purpose='homepage-hero'] {
-      padding-left: 40px;
-      padding-right: 40px;
-      padding-bottom: 0px;
+      padding-left: 80px;
+      padding-right: 80px;
+      padding-bottom: 10px;
     }
     [purpose='homepage-content'] {
       max-width: 1200px;
@@ -370,6 +375,10 @@
   }
 
   @media (max-width: 991px) {
+    [purpose='homepage-hero-images']::before {
+      background-image: none;
+    }
+
     [purpose='hero-text'] {
       h1 {
         font-size: 48px;
@@ -463,7 +472,7 @@
       max-height: unset;
     }
     [purpose='homepage-hero-images'] {
-      height: 480px;
+      max-height: 480px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -621,7 +630,20 @@
     }
   }
 
-  @media (max-width: 395px) {
+  @media (max-width: 375px) {
+
+    h1 {
+      font-size: 30px;
+      line-height: 46px;
+    }
+    h4 {
+      font-size: 14px;
+    }
+
+
+    [purpose='homepage-hero-images'] {
+      max-height: 360px;
+    }
     [purpose='hero-text'] {
       p {
         font-size: 16px;
