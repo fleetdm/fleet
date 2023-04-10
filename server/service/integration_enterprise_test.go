@@ -2491,14 +2491,17 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	barPayload := resp.Software[0]
-	if barPayload.Name != "bar" {
-		barPayload = resp.Software[1]
-	}
+	var fooPayload, barPayload fleet.Software
+	for _, s := range resp.Software {
+		switch s.Name {
+		case "foo":
+			fooPayload = s
+		case "bar":
+			barPayload = s
+		default:
+			require.Failf(t, "unrecognized software %s", s.Name)
 
-	fooPayload := resp.Software[1]
-	if barPayload.Name != "bar" {
-		barPayload = resp.Software[0]
+		}
 	}
 
 	require.Empty(t, fooPayload.Vulnerabilities)
