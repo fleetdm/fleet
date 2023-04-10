@@ -61,5 +61,5 @@ Fleet is a cross-platform mobile device management (MDM) solution that uses osqu
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-04-11">
-<meta name="articleTitle" value="Introducing Fleet MDM">
+<meta name="articleTitle" value="Fleet introduces MDM">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-mdm-launch-cover-800x450@2x.jpg">
