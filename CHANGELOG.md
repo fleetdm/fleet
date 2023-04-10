@@ -38,7 +38,7 @@
 
 * Include the published date from NVD in the vulnerability object in the API and the vulnerability webhooks (premium feature only).
 
-* User management table informs which users only have API accesss.
+* User management table informs which users only have API access.
 
 * Added configuration option `websockets_allow_unsafe_origin` to optionally disable the websocket origin check.
 
