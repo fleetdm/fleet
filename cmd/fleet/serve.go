@@ -59,7 +59,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"go.elastic.co/apm/module/apmhttp"
+	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
 	"go.opentelemetry.io/otel"
