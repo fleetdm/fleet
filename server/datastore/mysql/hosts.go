@@ -339,9 +339,6 @@ var hostRefs = []string{
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles": "host_uuid",
-	// deleting from nano_devices causes cascading deletes to nano_enrollments and
-	// any other tables that reference nano_devices.
-	"nano_devices": "id",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
