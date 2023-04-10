@@ -9,4 +9,4 @@ To learn more about Fleet's MDM features, see:
 
 
 <meta name="pageOrderInSection" value="1499">
-<meta name="title" value="Mobile Device Management in Fleet">
+<meta name="title" value="Mobile device management in Fleet">
