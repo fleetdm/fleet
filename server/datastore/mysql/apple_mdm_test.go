@@ -2572,18 +2572,26 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	// delete host [0] and verify that it did delete its command results
+	// delete host [0] and verify that it didn't delete its command results
 	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
 	require.NoError(t, err)
 
-	// command now has only the hosts[1] result
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
 	require.NoError(t, err)
-	require.Len(t, res, 1)
+	require.Len(t, res, 2)
 
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
 	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
 		{
 			DeviceID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid2,

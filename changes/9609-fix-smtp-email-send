@@ -1,1 +1,0 @@
-* Fix e-mail sending on user invites and user e-mail change when SMTP server has credentials.
