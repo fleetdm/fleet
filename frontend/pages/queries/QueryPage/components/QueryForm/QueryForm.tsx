@@ -576,10 +576,11 @@ const QueryForm = ({
   }
 
   if (
-    isOnlyObserver ||
-    isGlobalObserver ||
-    isObserverPlus ||
-    isAnyTeamObserverPlus
+    (isOnlyObserver ||
+      isGlobalObserver ||
+      isObserverPlus ||
+      isAnyTeamObserverPlus) &&
+    !isAnyTeamMaintainerOrTeamAdmin
   ) {
     return renderRunForObserver;
   }
