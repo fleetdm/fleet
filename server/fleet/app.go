@@ -862,8 +862,10 @@ type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 }
 
+// Version is the authz type used to check access control to the version endpoint.
 type Version struct{}
 
+// AuthzType implements authz.AuthzTyper.
 func (v *Version) AuthzType() string {
 	return "version"
 }
