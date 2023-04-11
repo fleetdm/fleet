@@ -3,31 +3,6 @@ parasails.registerPage('homepage', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    // Main syncing/loading state for this page.
-    syncing: false,
-
-    // Form data
-    formData: {
-      subscribeTo: 'releases'
-    },
-
-    // For tracking client-side validation errors in our form.
-    // > Has property set to `true` for each invalid property in `formData`.
-    formErrors: { /* … */ },
-
-    // Form rules
-    formRules: {
-      emailAddress: {isEmail: true, required: true},
-    },
-
-    // Server error state for the form
-    cloudError: '',
-
-    // Success state when form has been submitted
-    cloudSuccess: false,
-    showAllTweets: false,
-    modal: undefined,
-
     currentTweetPage: 0,
     numberOfTweetCards: 6,
     numberOfTweetPages: 0,
