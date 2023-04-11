@@ -2746,25 +2746,11 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
-
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
 This section is a reference for the configuration required to turn on MDM features in production.
 
 If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
-
-##### mdm.apple_enable
-
-This is the second feature flag required to turn on MDM features. This environment variable flag must be set to `1` (or `true` in the `yaml`) at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_ENABLE`
-- Config file format:
-  ```
-  mdm:
-    apple_enable: true
-  ```
 
 ##### mdm.apple_apns_cert_bytes
 
