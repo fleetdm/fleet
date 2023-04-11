@@ -1,6 +1,6 @@
 # Fleet 4.30.0 | MDM public beta, Observer+ role, Vulnerability publication dates.
 
-![Fleet 4.29.0](../website/assets/images/articles/fleet-4.30.0-1600x900@2x.png)
+![Fleet 4.30.0](../website/assets/images/articles/fleet-4.30.0-1600x900@2x.png)
 
 Fleet 4.30.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.30.0) or continue reading to get the highlights.
 
@@ -20,7 +20,7 @@ Fleet has enabled MDM features in the latest release of Fleet as a public beta b
 ## Granular roles added
 _Available in Fleet Premium and Fleet Ultimate_
 
-With this update, you can take 🟠 Ownership of Fleet account roles with greater granularity. Flett 4.30.0 includes a new user role, `observer+.`
+With this update, you can take 🟠 Ownership of Fleet account roles with greater granularity. Fleet 4.30.0 includes a new user role, `observer+.`
 
 The `observer+` user role extends the observer user role. The observer+ user role can edit and run SQL for a given query without saving the query allowing for greater discovery without overriding the original query. Users with the `observer+` role can also execute [live queries.](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)
 Vulnerability objects include publication date
