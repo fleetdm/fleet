@@ -77,6 +77,6 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-03-22">
+<meta name="publishedOn" value="2023-04-11">
 <meta name="articleTitle" value="Fleet 4.30.0 | MDM public beta, Observer+ role, Vulnerability publication dates">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.30.0-1600x900@2x.png">
