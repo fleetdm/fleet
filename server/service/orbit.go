@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -130,6 +132,10 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// OK: We are either in the middle of a secret rotation or the secret is invalid ...
+			return "", fleet.NewAuthFailedError("invalid secret")
+		}
 		return "", orbitError{message: err.Error()}
 	}
 
