@@ -1290,7 +1290,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := checkMDMEnabled(client); err != nil {
+			if err := client.CheckMDMEnabled(); err != nil {
 				return err
 			}
 
