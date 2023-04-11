@@ -3,7 +3,6 @@ package elasticapmerrorpropagator
 
 import (
 	"context"
-	"errors"
 
 	"github.com/go-kit/kit/endpoint"
 	"go.elastic.co/apm/v2"
@@ -22,7 +21,7 @@ func (m *Middleware) ElasticAPMErrorPropagator() endpoint.Middleware {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			response, err := next(ctx, req)
 			if err != nil {
-				apm.CaptureError(req.Context(), err).Send()
+				apm.CaptureError(ctx, err).Send()
 			}
 			return response, err
 		}
