@@ -124,7 +124,7 @@ const ManagePolicyPage = ({
       return globalPoliciesAPI.loadAll();
     },
     {
-      enabled: isRouteOk && !teamIdForApi,
+      enabled: isRouteOk,
       select: (data) => data.policies,
       staleTime: 5000,
     }
