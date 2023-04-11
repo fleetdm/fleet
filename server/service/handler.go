@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/elasticapmerrorpropagator"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -623,7 +624,7 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 	// endpoint handler, any middleware that raises errors before the handler is reached will end up
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
-	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	e = elasticapmerrorpropagator.NewMiddleware().ElasticAPMErrorPropagator()(authzcheck.NewMiddleware().AuthzCheck()(e))
 	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
 
