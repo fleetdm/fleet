@@ -610,18 +610,20 @@ const HostDetailsPage = ({
 
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
-  const isHostsTeamObserverPlus =
+  const isGlobalOrHostsTeamObserverPlus =
     currentUser && host?.team_id
       ? permissions.isObserverPlus(currentUser, host.team_id)
       : false;
 
   const isHostsTeamObserver =
     currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
+      ? permissions.isTeamObserver(currentUser, host.team_id)
       : false;
 
   const canViewPacks =
-    !isGlobalObserver && !isHostsTeamObserverPlus && !isHostsTeamObserver;
+    !isGlobalObserver &&
+    !isGlobalOrHostsTeamObserverPlus &&
+    !isHostsTeamObserver;
 
   return (
     <MainContent className={baseClass}>
