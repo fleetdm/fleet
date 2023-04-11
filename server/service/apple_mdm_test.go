@@ -262,36 +262,37 @@ func TestAppleMDMAuthorization(t *testing.T) {
 </dict>
 </plist>`))
 
-	enqueueCmdCases := []struct {
-		desc              string
-		user              *fleet.User
-		uuids             []string
-		shoudFailWithAuth bool
-	}{
-		{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, true},
-		{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, false},
-		{"admin can run", test.UserAdmin, []string{"host1", "host2", "host3", "host4"}, false},
-		{"observer cannot run", test.UserObserver, []string{"host1", "host2", "host3", "host4"}, true},
-		{"team 1 admin can run team 1", test.UserTeamAdminTeam1, []string{"host1", "host2"}, false},
-		{"team 2 admin can run team 2", test.UserTeamAdminTeam2, []string{"host3"}, false},
-		{"team 1 maintainer can run team 1", test.UserTeamMaintainerTeam1, []string{"host1", "host2"}, false},
-		{"team 1 observer cannot run team 1", test.UserTeamObserverTeam1, []string{"host1", "host2"}, true},
-		{"team 1 admin cannot run team 2", test.UserTeamAdminTeam1, []string{"host3"}, true},
-		{"team 1 admin cannot run no team", test.UserTeamAdminTeam1, []string{"host4"}, true},
-		{"team 1 admin cannot run mix of team 1 and 2", test.UserTeamAdminTeam1, []string{"host1", "host3"}, true},
-	}
-	for _, c := range enqueueCmdCases {
-		t.Run(c.desc, func(t *testing.T) {
-			ctx = test.UserContext(ctx, c.user)
-			_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids, false)
-			checkAuthErr(t, err, c.shoudFailWithAuth)
-		})
-	}
+	t.Run("EnqueueMDMAppleCommand", func(t *testing.T) {
+		enqueueCmdCases := []struct {
+			desc              string
+			user              *fleet.User
+			uuids             []string
+			shoudFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, true},
+			{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, false},
+			{"admin can run", test.UserAdmin, []string{"host1", "host2", "host3", "host4"}, false},
+			{"observer cannot run", test.UserObserver, []string{"host1", "host2", "host3", "host4"}, true},
+			{"team 1 admin can run team 1", test.UserTeamAdminTeam1, []string{"host1", "host2"}, false},
+			{"team 2 admin can run team 2", test.UserTeamAdminTeam2, []string{"host3"}, false},
+			{"team 1 maintainer can run team 1", test.UserTeamMaintainerTeam1, []string{"host1", "host2"}, false},
+			{"team 1 observer cannot run team 1", test.UserTeamObserverTeam1, []string{"host1", "host2"}, true},
+			{"team 1 admin cannot run team 2", test.UserTeamAdminTeam1, []string{"host3"}, true},
+			{"team 1 admin cannot run no team", test.UserTeamAdminTeam1, []string{"host4"}, true},
+			{"team 1 admin cannot run mix of team 1 and 2", test.UserTeamAdminTeam1, []string{"host1", "host3"}, true},
+		}
+		for _, c := range enqueueCmdCases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx = test.UserContext(ctx, c.user)
+				_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids, false)
+				checkAuthErr(t, err, c.shoudFailWithAuth)
+			})
+		}
 
-	// test with a command that requires a premium license
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+		// test with a command that requires a premium license
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -304,9 +305,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
-	_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"}, false)
-	require.Error(t, err)
-	require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
+		_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"}, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
+	})
 
 	cmdUUIDToHostUUIDs := map[string][]string{
 		"uuidTm1":       {"host1", "host2"},
@@ -325,53 +327,94 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		return res, nil
 	}
 
-	cmdResultsCases := []struct {
-		desc              string
-		user              *fleet.User
-		cmdUUID           string
-		shoudFailWithAuth bool
-	}{
-		{"no role", test.UserNoRoles, "uuidTm1", true},
-		{"maintainer can view", test.UserMaintainer, "uuidTm1", false},
-		{"maintainer can view", test.UserMaintainer, "uuidTm2", false},
-		{"maintainer can view", test.UserMaintainer, "uuidNoTm", false},
-		{"maintainer can view", test.UserMaintainer, "uuidMixTm1Tm2", false},
-		{"observer can view", test.UserObserver, "uuidTm1", false},
-		{"observer can view", test.UserObserver, "uuidTm2", false},
-		{"observer can view", test.UserObserver, "uuidNoTm", false},
-		{"observer can view", test.UserObserver, "uuidMixTm1Tm2", false},
-		{"observer+ can view", test.UserObserverPlus, "uuidTm1", false},
-		{"observer+ can view", test.UserObserverPlus, "uuidTm2", false},
-		{"observer+ can view", test.UserObserverPlus, "uuidNoTm", false},
-		{"observer+ can view", test.UserObserverPlus, "uuidMixTm1Tm2", false},
-		{"admin can view", test.UserAdmin, "uuidTm1", false},
-		{"admin can view", test.UserAdmin, "uuidTm2", false},
-		{"admin can view", test.UserAdmin, "uuidNoTm", false},
-		{"admin can view", test.UserAdmin, "uuidMixTm1Tm2", false},
-		{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, "uuidTm1", false},
-		{"tm1 maintainer cannot view tm2", test.UserTeamMaintainerTeam1, "uuidTm2", true},
-		{"tm1 maintainer cannot view no team", test.UserTeamMaintainerTeam1, "uuidNoTm", true},
-		{"tm1 maintainer cannot view mix", test.UserTeamMaintainerTeam1, "uuidMixTm1Tm2", true},
-		{"tm1 observer can view tm1", test.UserTeamObserverTeam1, "uuidTm1", false},
-		{"tm1 observer cannot view tm2", test.UserTeamObserverTeam1, "uuidTm2", true},
-		{"tm1 observer cannot view no team", test.UserTeamObserverTeam1, "uuidNoTm", true},
-		{"tm1 observer cannot view mix", test.UserTeamObserverTeam1, "uuidMixTm1Tm2", true},
-		{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, "uuidTm1", false},
-		{"tm1 observer+ cannot view tm2", test.UserTeamObserverPlusTeam1, "uuidTm2", true},
-		{"tm1 observer+ cannot view no team", test.UserTeamObserverPlusTeam1, "uuidNoTm", true},
-		{"tm1 observer+ cannot view mix", test.UserTeamObserverPlusTeam1, "uuidMixTm1Tm2", true},
-		{"tm1 admin can view tm1", test.UserTeamAdminTeam1, "uuidTm1", false},
-		{"tm1 admin cannot view tm2", test.UserTeamAdminTeam1, "uuidTm2", true},
-		{"tm1 admin cannot view no team", test.UserTeamAdminTeam1, "uuidNoTm", true},
-		{"tm1 admin cannot view mix", test.UserTeamAdminTeam1, "uuidMixTm1Tm2", true},
-	}
-	for _, c := range cmdResultsCases {
-		t.Run(c.desc, func(t *testing.T) {
-			ctx = test.UserContext(ctx, c.user)
-			_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
-			checkAuthErr(t, err, c.shoudFailWithAuth)
-		})
-	}
+	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
+		cmdResultsCases := []struct {
+			desc              string
+			user              *fleet.User
+			cmdUUID           string
+			shoudFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, "uuidTm1", true},
+			{"maintainer can view", test.UserMaintainer, "uuidTm1", false},
+			{"maintainer can view", test.UserMaintainer, "uuidTm2", false},
+			{"maintainer can view", test.UserMaintainer, "uuidNoTm", false},
+			{"maintainer can view", test.UserMaintainer, "uuidMixTm1Tm2", false},
+			{"observer can view", test.UserObserver, "uuidTm1", false},
+			{"observer can view", test.UserObserver, "uuidTm2", false},
+			{"observer can view", test.UserObserver, "uuidNoTm", false},
+			{"observer can view", test.UserObserver, "uuidMixTm1Tm2", false},
+			{"observer+ can view", test.UserObserverPlus, "uuidTm1", false},
+			{"observer+ can view", test.UserObserverPlus, "uuidTm2", false},
+			{"observer+ can view", test.UserObserverPlus, "uuidNoTm", false},
+			{"observer+ can view", test.UserObserverPlus, "uuidMixTm1Tm2", false},
+			{"admin can view", test.UserAdmin, "uuidTm1", false},
+			{"admin can view", test.UserAdmin, "uuidTm2", false},
+			{"admin can view", test.UserAdmin, "uuidNoTm", false},
+			{"admin can view", test.UserAdmin, "uuidMixTm1Tm2", false},
+			{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, "uuidTm1", false},
+			{"tm1 maintainer cannot view tm2", test.UserTeamMaintainerTeam1, "uuidTm2", true},
+			{"tm1 maintainer cannot view no team", test.UserTeamMaintainerTeam1, "uuidNoTm", true},
+			{"tm1 maintainer cannot view mix", test.UserTeamMaintainerTeam1, "uuidMixTm1Tm2", true},
+			{"tm1 observer can view tm1", test.UserTeamObserverTeam1, "uuidTm1", false},
+			{"tm1 observer cannot view tm2", test.UserTeamObserverTeam1, "uuidTm2", true},
+			{"tm1 observer cannot view no team", test.UserTeamObserverTeam1, "uuidNoTm", true},
+			{"tm1 observer cannot view mix", test.UserTeamObserverTeam1, "uuidMixTm1Tm2", true},
+			{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, "uuidTm1", false},
+			{"tm1 observer+ cannot view tm2", test.UserTeamObserverPlusTeam1, "uuidTm2", true},
+			{"tm1 observer+ cannot view no team", test.UserTeamObserverPlusTeam1, "uuidNoTm", true},
+			{"tm1 observer+ cannot view mix", test.UserTeamObserverPlusTeam1, "uuidMixTm1Tm2", true},
+			{"tm1 admin can view tm1", test.UserTeamAdminTeam1, "uuidTm1", false},
+			{"tm1 admin cannot view tm2", test.UserTeamAdminTeam1, "uuidTm2", true},
+			{"tm1 admin cannot view no team", test.UserTeamAdminTeam1, "uuidNoTm", true},
+			{"tm1 admin cannot view mix", test.UserTeamAdminTeam1, "uuidMixTm1Tm2", true},
+		}
+		for _, c := range cmdResultsCases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx = test.UserContext(ctx, c.user)
+				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
+				checkAuthErr(t, err, c.shoudFailWithAuth)
+			})
+		}
+	})
+
+	t.Run("ListMDMAppleCommands", func(t *testing.T) {
+		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+			return []*fleet.MDMAppleCommand{
+				{DeviceID: "no team", TeamID: nil},
+				{DeviceID: "tm1", TeamID: ptr.Uint(1)},
+				{DeviceID: "tm2", TeamID: ptr.Uint(2)},
+			}, nil
+		}
+
+		listCmdsCases := []struct {
+			desc string
+			user *fleet.User
+			want []string // the expected device ids in the results
+		}{
+			{"no role", test.UserNoRoles, []string{}},
+			{"maintainer can view", test.UserMaintainer, []string{"no team", "tm1", "tm2"}},
+			{"observer can view", test.UserObserver, []string{"no team", "tm1", "tm2"}},
+			{"observer+ can view", test.UserObserverPlus, []string{"no team", "tm1", "tm2"}},
+			{"admin can view", test.UserAdmin, []string{"no team", "tm1", "tm2"}},
+			{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, []string{"tm1"}},
+			{"tm1 observer can view tm1", test.UserTeamObserverTeam1, []string{"tm1"}},
+			{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, []string{"tm1"}},
+			{"tm1 admin can view tm1", test.UserTeamAdminTeam1, []string{"tm1"}},
+		}
+		for _, c := range listCmdsCases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx = test.UserContext(ctx, c.user)
+				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{})
+				require.NoError(t, err) // never fails with authz error, it just filters out unauthorized results
+
+				got := make([]string, len(res))
+				for i, r := range res {
+					got[i] = r.DeviceID
+				}
+				require.Equal(t, c.want, got)
+			})
+		}
+	})
 }
 
 func TestMDMAppleEnrollURL(t *testing.T) {
