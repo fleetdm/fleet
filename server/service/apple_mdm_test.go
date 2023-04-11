@@ -1040,6 +1040,12 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 
+	ds.RecordHostBootstrapPackageFunc = func(ctx context.Context, commandUUID string, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		require.NotEmpty(t, commandUUID)
+		return nil
+	}
+
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.TokenUpdate{
@@ -1052,6 +1058,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.AppConfigFuncInvoked)
+	require.True(t, ds.RecordHostBootstrapPackageFuncInvoked)
 	require.Equal(t, 2, installEnterpriseApplicationCalls)
 }
 
