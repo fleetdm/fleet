@@ -4,7 +4,7 @@ We couldn’t be more excited to announce that as of today, Fleet has enabled MD
 
 ## Is there really a need for another MDM?
  
-Before we set out to create Fleet, we sat down with leaders from some of the biggest and most innovative companies on the planet. Companies like GitLab, Attlassian, Uber, and Facebook. Across the board, they told us about their need to build a more customizable MDM solution for their ever-expanding organization. They needed:
+Before we set out to create Fleet, we sat down with leaders from some of the biggest and most innovative companies on the planet. Companies like GitLab, Atlassian, Uber, and Facebook. Across the board, they told us about their need to build a more customizable MDM solution for their ever-expanding organization. They needed:
 - More control over how profiles got changed
 - More visibility cross-functionally from Security to IT teams
 - Less ramp time for new team members to onboard to the tooling
