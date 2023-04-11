@@ -599,7 +599,7 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 
 We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
 
-1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ROOT_DIR>/nudge-config.json`
+1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
 2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
 3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
 
@@ -619,7 +619,7 @@ open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/or
 log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
 ```
 
-- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nude with `-print-json-config` or `-print-profile-config` like this:
+- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
 
 ```
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
