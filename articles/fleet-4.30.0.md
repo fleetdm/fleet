@@ -23,7 +23,9 @@ _Available in Fleet Premium and Fleet Ultimate_
 With this update, you can take 🟠 Ownership of Fleet account roles with greater granularity. Fleet 4.30.0 includes a new user role, `observer+.`
 
 The `observer+` user role extends the observer user role. The observer+ user role can edit and run SQL for a given query without saving the query allowing for greater discovery without overriding the original query. Users with the `observer+` role can also execute [live queries.](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)
-Vulnerability objects include publication date
+
+## Vulnerability objects include publication date
+
 Knowing how long ago a vulnerability was published, helps gauge the urgency of the vulnerability. Vulnerability objects now include the date a vulnerability was published in the National Vulnerability Database (NVD) to provide you with better 🟢 Results. The published date from NVD in the vulnerability object is also available in the Fleet API and when using the vulnerability webhooks.
 
 ## Go updated to 1.19.8
