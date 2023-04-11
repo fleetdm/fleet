@@ -2892,14 +2892,14 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 
 	// page-by-page: first page
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
-		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3},
+		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
 	require.Len(t, res, 3)
 
 	// page-by-page: second page
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
-		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3},
+		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
 	require.Len(t, res, 1)

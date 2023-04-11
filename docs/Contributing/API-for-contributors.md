@@ -542,6 +542,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
 - [Enqueue MDM command](#enqueue-mdm-command)
 - [Get MDM command results](#get-mdm-command-results)
+- [List MDM commands](#list-mdm-commands)
 
 ### Get Apple MDM
 
@@ -1070,13 +1071,53 @@ This endpoint returns the results for an MDM command.
 ```json
 {
   "results": [
-    "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
-    "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-    "status": "Acknowledged",
-    "updated_at": "2023-04-04:00:00Z",
-    "request_type": "ProfileList",
-    "hostname": "mycomputer",
-    "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+    {
+      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer",
+      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+    }
+  ]
+}
+```
+
+### List MDM commands
+
+This endpoint returns the list of MDM commands that have been executed.
+
+`GET /api/v1/fleet/mdm/apple/commands`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| page                      | integer | query | Page number of the results to fetch.                                      |
+| per_page                  | integer | query | Results per page.                                                         |
+| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
+| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/commands?per_page=5
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer"
+    }
   ]
 }
 ```

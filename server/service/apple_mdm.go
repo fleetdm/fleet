@@ -295,7 +295,7 @@ type listMDMAppleCommandsRequest struct {
 }
 
 type listMDMAppleCommandsResponse struct {
-	Results []*fleet.MDMAppleCommand `json:"results,omitempty"`
+	Results []*fleet.MDMAppleCommand `json:"results"`
 	Err     error                    `json:"error,omitempty"`
 }
 

@@ -462,6 +462,7 @@ type MDMAppleCommand struct {
 	// Hostname is the hostname of the host that executed the command.
 	Hostname string `json:"hostname" db:"hostname"`
 	// TeamID is the host's team, null if the host is in no team. This is used
-	// to authorize the user to see the command.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
 }
