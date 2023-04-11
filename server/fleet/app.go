@@ -277,6 +277,19 @@ type AppConfig struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// Obfuscate overrides credentials with obfuscated characters.
+func (c *AppConfig) Obfuscate() {
+	if c.SMTPSettings.SMTPPassword != "" {
+		c.SMTPSettings.SMTPPassword = MaskedPassword
+	}
+	for _, jiraIntegration := range c.Integrations.Jira {
+		jiraIntegration.APIToken = MaskedPassword
+	}
+	for _, zdIntegration := range c.Integrations.Zendesk {
+		zdIntegration.APIToken = MaskedPassword
+	}
+}
+
 // legacyConfig holds settings that have been replaced, superceded or
 // deprecated by other AppConfig settings.
 type legacyConfig struct {

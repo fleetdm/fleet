@@ -500,10 +500,6 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 var jsonNull = json.RawMessage(`null`)
 
 func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return err
-	}
-
 	// check auth for all teams specified first
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
@@ -525,10 +521,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
+	appConfig.Obfuscate()
 
 	var details []fleet.TeamActivityDetail
 

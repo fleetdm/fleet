@@ -164,23 +164,9 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	obfuscateAppConfig(ac)
+	ac.Obfuscate()
 
 	return ac, nil
-}
-
-func obfuscateAppConfig(ac *fleet.AppConfig) {
-	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
-	}
-
-	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = fleet.MaskedPassword
-	}
-
-	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = fleet.MaskedPassword
-	}
 }
 
 // //////////////////////////////////////////////////////////////////////////////
@@ -411,7 +397,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
-	obfuscateAppConfig(obfuscatedAppConfig)
+	obfuscatedAppConfig.Obfuscate()
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
