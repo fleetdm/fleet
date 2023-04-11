@@ -20,7 +20,7 @@ You can run any command supported by Apple's MDM protocol as a custom command in
 
 > The "Erase a device" and "Lock a device" commands are only available in Fleet Premium
 
-Each command has example request payloads in XML format. For example, if we want to restart a host, we'll use the "Restart a Device" request payload documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428)
+Each command has example request payloads in XML format. For example, if we want to restart a host, we'll use the "Restart a Device" request payload documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428).
 
 To run the "Restart a device" command, we'll need to create a `restart-device.xml` file locally and copy and paste the request payload into this `.xml` file:
 
