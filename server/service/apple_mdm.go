@@ -25,17 +25,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
 type createMDMAppleEnrollmentProfileRequest struct {
@@ -195,8 +193,8 @@ type getMDMAppleCommandResultsRequest struct {
 }
 
 type getMDMAppleCommandResultsResponse struct {
-	Results map[string]*fleet.MDMAppleCommandResult `json:"results,omitempty"`
-	Err     error                                   `json:"error,omitempty"`
+	Results []*fleet.MDMAppleCommandResult `json:"results,omitempty"`
+	Err     error                          `json:"error,omitempty"`
 }
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
@@ -215,16 +213,80 @@ func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{},
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleCommandResult{}, fleet.ActionRead); err != nil {
+func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	// first, authorize that the user has the right to list hosts
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// check that command exists first, to return 404 on invalid commands
+	// (the command may exist but have no results yet).
+	if _, err := svc.ds.GetMDMAppleCommandRequestType(ctx, commandUUID); err != nil {
+		return nil, err
+	}
+
+	// next, we need to read the command results before we know what hosts (and
+	// therefore what teams) we're dealing with.
 	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
 	if err != nil {
 		return nil, err
 	}
 
+	// now we can load the hosts (lite) corresponding to those command results,
+	// and do the final authorization check with the proper team(s). Include observers,
+	// as they are able to view command results for their teams' hosts.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	hostUUIDs := make([]string, len(results))
+	for i, res := range results {
+		hostUUIDs[i] = res.DeviceID
+	}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) == 0 {
+		// do not return 404 here, as it's possible for a command to not have
+		// results yet
+		return nil, nil
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams. Index the hosts by uuid for easly lookup as
+	// afterwards we'll want to store the hostname on the returned results.
+	hostsByUUID := make(map[string]*fleet.Host, len(hosts))
+	teamIDs := make(map[uint]bool)
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+		hostsByUUID[h.UUID] = h
+	}
+
+	var command fleet.MDMAppleCommand
+	for tmID := range teamIDs {
+		command.TeamID = &tmID
+		if tmID == 0 {
+			command.TeamID = nil
+		}
+
+		if err := svc.authz.Authorize(ctx, command, fleet.ActionRead); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	// add the hostnames to the results
+	for _, res := range results {
+		if h := hostsByUUID[res.DeviceID]; h != nil {
+			res.Hostname = hostsByUUID[res.DeviceID].Hostname
+		}
+	}
 	return results, nil
 }
 
@@ -684,7 +746,7 @@ func (svc *Service) installerURL(token string, appConfig *fleet.AppConfig) strin
 }
 
 func createManifest(size int64, installer io.Reader, url string) (string, error) {
-	manifest, err := appmanifest.Create(&readerWithSize{
+	manifest, err := appmanifest.New(&readerWithSize{
 		Reader: installer,
 		size:   size,
 	}, url)
@@ -976,9 +1038,10 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		}
 	}
 
-	if err := svc.mdmAppleCommander.enqueue(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
-		// if at least one UUID enqueued properly, return success, otherwise return 500
-		var apnsErr *APNSDeliveryError
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+		// if at least one UUID enqueued properly, return success, otherwise return
+		// 500
+		var apnsErr *apple_mdm.APNSDeliveryError
 		var mysqlErr *mysql.MySQLError
 		if errors.As(err, &apnsErr) {
 			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
@@ -1127,14 +1190,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{h.UUID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
-	}
-
-	// Since the host is unenrolled, delete all profiles assigned to the
-	// host manually, the device won't Acknowledge any more requests (eg:
-	// to delete profiles) and profiles are automatically removed on
-	// unenrollment.
-	if err := svc.ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
@@ -1613,6 +1668,187 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Upload a bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type uploadBootstrapPackageRequest struct {
+	Package *multipart.FileHeader
+	TeamID  uint
+}
+
+type uploadBootstrapPackageResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+// TODO: We parse the whole body before running svc.authz.Authorize.
+// An authenticated but unauthorized user could abuse this.
+func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadBootstrapPackageRequest{}
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["package"] == nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "package multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.Package = r.MultipartForm.File["package"][0]
+
+	// default is no team
+	decoded.TeamID = 0
+	val, ok := r.MultipartForm.Value["team_id"]
+	if ok && len(val) > 0 {
+		teamID, err := strconv.Atoi(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+		}
+		decoded.TeamID = uint(teamID)
+	}
+
+	return &decoded, nil
+}
+
+func (r uploadBootstrapPackageResponse) error() error { return r.Err }
+
+func uploadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadBootstrapPackageRequest)
+	ff, err := req.Package.Open()
+	if err != nil {
+		return uploadBootstrapPackageResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	if err := svc.MDMAppleUploadBootstrapPackage(ctx, req.Package.Filename, ff, req.TeamID); err != nil {
+		return uploadBootstrapPackageResponse{Err: err}, nil
+	}
+	return &uploadBootstrapPackageResponse{}, nil
+}
+
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Download a bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type downloadBootstrapPackageRequest struct {
+	Token string `query:"token"`
+}
+
+type downloadBootstrapPackageResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// fields used by hijackRender for the response.
+	pkg *fleet.MDMAppleBootstrapPackage
+}
+
+func (r downloadBootstrapPackageResponse) error() error { return r.Err }
+
+func (r downloadBootstrapPackageResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(r.pkg.Bytes)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(r.pkg.Bytes); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+}
+
+func downloadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*downloadBootstrapPackageRequest)
+	pkg, err := svc.GetMDMAppleBootstrapPackageBytes(ctx, req.Token)
+	if err != nil {
+		return downloadBootstrapPackageResponse{Err: err}, nil
+	}
+	return downloadBootstrapPackageResponse{pkg: pkg}, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get metadata about a bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type bootstrapPackageMetadataRequest struct {
+	TeamID uint `url:"team_id"`
+}
+
+type bootstrapPackageMetadataResponse struct {
+	Err      error                           `json:"error,omitempty"`
+	Metadata *fleet.MDMAppleBootstrapPackage `json:"metadata,omitempty"`
+}
+
+func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
+
+func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*bootstrapPackageMetadataRequest)
+	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID)
+	if err != nil {
+		return bootstrapPackageMetadataResponse{Err: err}, nil
+	}
+	return bootstrapPackageMetadataResponse{Metadata: meta}, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete a bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteBootstrapPackageRequest struct {
+	TeamID uint `url:"team_id"`
+}
+
+type deleteBootstrapPackageResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteBootstrapPackageResponse) error() error { return r.Err }
+
+func deleteBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteBootstrapPackageRequest)
+	if err := svc.DeleteMDMAppleBootstrapPackage(ctx, req.TeamID); err != nil {
+		return deleteBootstrapPackageResponse{Err: err}, nil
+	}
+	return deleteBootstrapPackageResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1629,11 +1865,13 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds fleet.Datastore
+	ds        fleet.Datastore
+	logger    kitlog.Logger
+	commander *apple_mdm.MDMAppleCommander
 }
 
-func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
-	return &MDMAppleCheckinAndCommandService{ds: ds}
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds, commander: commander, logger: logger}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -1681,6 +1919,48 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
 		}
+
+		info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+		if err != nil {
+			return err
+		}
+		if info.InstalledFromDEP {
+			svc.logger.Log("info", "running post-enroll commands in newly enrolled DEP device", "host_uuid", r.ID)
+			cmdUUID := uuid.New().String()
+			if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
+				return err
+			}
+			svc.logger.Log("info", "sent command to install fleetd", "host_uuid", r.ID)
+
+			meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(r.Context, info.TeamID)
+			if err != nil {
+				var nfe fleet.NotFoundError
+				if errors.As(err, &nfe) {
+					svc.logger.Log("info", "unable to find a bootstrap package for DEP enrolled device, skppping installation", "host_uuid", r.ID)
+					return nil
+				}
+
+				return err
+			}
+
+			appCfg, err := svc.ds.AppConfig(r.Context)
+			if err != nil {
+				return err
+			}
+
+			url, err := meta.URL(appCfg.ServerSettings.ServerURL)
+			if err != nil {
+				return err
+			}
+
+			manifest := appmanifest.NewFromSha(meta.Sha256, url)
+			cmdUUID = uuid.New().String()
+			err = svc.commander.InstallEnterpriseApplicationWithEmbeddedManifest(r.Context, []string{m.Enrollment.UDID}, cmdUUID, manifest)
+			if err != nil {
+				return err
+			}
+			svc.logger.Log("info", "sent command to install bootstrap package", "host_uuid", r.ID)
+		}
 	}
 	return nil
 }
@@ -1697,6 +1977,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 	if err != nil {
 		return err
 	}
+
 	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
 		return err
 	}
@@ -1796,162 +2077,6 @@ func (svc *MDMAppleCheckinAndCommandService) fmtErrorChain(chain []mdm.ErrorChai
 	return sb.String()
 }
 
-// MDMAppleCommander contains methods to enqueue commands managed by Fleet and
-// send push notifications to hosts.
-//
-// It's intentionally decoupled from fleet.Service so it can be used internally
-// in crons and other services, leaving authentication/permission handling to
-// the caller.
-type MDMAppleCommander struct {
-	storage nanomdm_storage.AllStorage
-	pusher  nanomdm_push.Pusher
-}
-
-// NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
-	return &MDMAppleCommander{
-		storage: mdmStorage,
-		pusher:  mdmPushService,
-	}
-}
-
-// InstallProfile sends the homonymous MDM command to the given hosts, it also
-// takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	base64Profile := base64.StdEncoding.EncodeToString(profile)
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>InstallProfile</string>
-		<key>Payload</key>
-		<data>%s</data>
-	</dict>
-</dict>
-</plist>`, uuid, base64Profile)
-	err := svc.enqueue(ctx, hostUUIDs, raw)
-	return ctxerr.Wrap(ctx, err, "commander install profile")
-}
-
-// InstallProfile sends the homonymous MDM command to the given hosts.
-func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>RemoveProfile</string>
-		<key>Identifier</key>
-		<string>%s</string>
-	</dict>
-</dict>
-</plist>`, uuid, profileIdentifier)
-	err := svc.enqueue(ctx, hostUUIDs, raw)
-	return ctxerr.Wrap(ctx, err, "commander remove profile")
-}
-
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error {
-	pin := apple_mdm.GenerateRandomPin(6)
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-    <key>Command</key>
-    <dict>
-      <key>RequestType</key>
-      <string>DeviceLock</string>
-      <key>PIN</key>
-      <string>%s</string>
-    </dict>
-  </dict>
-</plist>`, uuid, pin)
-	return svc.enqueue(ctx, hostUUIDs, raw)
-}
-
-func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
-	pin := apple_mdm.GenerateRandomPin(6)
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-    <key>Command</key>
-    <dict>
-      <key>RequestType</key>
-      <string>EraseDevice</string>
-      <key>PIN</key>
-      <string>%s</string>
-    </dict>
-  </dict>
-</plist>`, uuid, pin)
-	return svc.enqueue(ctx, hostUUIDs, raw)
-}
-
-// enqueue takes care of enqueuing the commands and sending push notifications
-// to the devices.
-//
-// Always sending the push notification when a command is enqueued was decided
-// internally, leaving making pushes optional as an optimization to be tackled
-// later.
-func (svc *MDMAppleCommander) enqueue(ctx context.Context, hostUUIDs []string, rawCommand string) error {
-	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
-	}
-
-	// MySQL implementation always returns nil for the first parameter
-	_, err = svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
-	}
-
-	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander push")
-	}
-
-	// Even if we didn't get an error, some of the APNs
-	// responses might have failed, signal that to the caller.
-	var failed []string
-	for uuid, response := range apnsResponses {
-		if response.Err != nil {
-			failed = append(failed, uuid)
-		}
-	}
-	if len(failed) > 0 {
-		return &APNSDeliveryError{FailedUUIDs: failed, Err: err}
-	}
-
-	return nil
-}
-
-// APNSDeliveryError records an error and the associated host UUIDs in which it
-// occurred.
-type APNSDeliveryError struct {
-	FailedUUIDs []string
-	Err         error
-}
-
-func (e *APNSDeliveryError) Error() string {
-	return fmt.Sprintf("APNS delivery failed with: %e, for UUIDs: %v", e.Err, e.FailedUUIDs)
-}
-
-func (e *APNSDeliveryError) Unwrap() error { return e.Err }
-
-func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
-
 // ensureFleetdConfig ensures there's a fleetd configuration profile in
 // mdm_apple_configuration_profiles for each team and for "no team"
 //
@@ -2022,7 +2147,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
-	commander *MDMAppleCommander,
+	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
 	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
@@ -2082,6 +2207,7 @@ func ReconcileProfiles(
 			CommandUUID:       target.cmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
+			Checksum:          p.Checksum,
 		})
 	}
 
@@ -2104,6 +2230,7 @@ func ReconcileProfiles(
 			CommandUUID:       target.cmdUUID,
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
+			Checksum:          p.Checksum,
 		})
 	}
 
@@ -2147,7 +2274,7 @@ func ReconcileProfiles(
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
 
-		var e *APNSDeliveryError
+		var e *apple_mdm.APNSDeliveryError
 		switch {
 		case errors.As(err, &e):
 			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)

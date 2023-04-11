@@ -13,12 +13,13 @@
   }
 
   .os-hosts-link {
-    visibility: hidden;
+    opacity: 0;
+    transition: 250ms;
   }
 
   tr:hover {
     .os-hosts-link {
-      visibility: visible;
+      opacity: 1;
     }
   }
 

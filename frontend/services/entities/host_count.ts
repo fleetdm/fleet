@@ -8,6 +8,7 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
+import { DiskEncryptionStatus } from "utilities/constants";
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
@@ -41,6 +42,7 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export default {
@@ -63,6 +65,7 @@ export default {
     const osId = options?.osId;
     const osName = options?.osName;
     const osVersion = options?.osVersion;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     const queryParams = {
       query: globalFilter,
@@ -79,6 +82,7 @@ export default {
         osName,
         osId,
         osVersion,
+        diskEncryptionStatus,
       }),
       label_id: label,
       status,

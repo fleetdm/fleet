@@ -689,6 +689,7 @@ func TestRefetchHost(t *testing.T) {
 
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserAdmin), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserObserver), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserObserverPlus), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserMaintainer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
@@ -809,6 +810,7 @@ func TestHostEncryptionKey(t *testing.T) {
 				test.UserAdmin,
 				test.UserMaintainer,
 				test.UserObserver,
+				test.UserObserverPlus,
 			},
 			disallowedUsers: []*fleet.User{
 				test.UserTeamAdminTeam1,
@@ -831,14 +833,17 @@ func TestHostEncryptionKey(t *testing.T) {
 				test.UserAdmin,
 				test.UserMaintainer,
 				test.UserObserver,
+				test.UserObserverPlus,
 				test.UserTeamAdminTeam1,
 				test.UserTeamMaintainerTeam1,
 				test.UserTeamObserverTeam1,
+				test.UserTeamObserverPlusTeam1,
 			},
 			disallowedUsers: []*fleet.User{
 				test.UserTeamAdminTeam2,
 				test.UserTeamMaintainerTeam2,
 				test.UserTeamObserverTeam2,
+				test.UserTeamObserverPlusTeam2,
 				test.UserNoRoles,
 			},
 		},

@@ -89,7 +89,8 @@ const ManagePolicyPage = ({
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
-      observer: false,
+      observer: true,
+      observer_plus: true,
     },
   });
 

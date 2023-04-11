@@ -221,6 +221,17 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }
 
+func (c *Client) CheckMDMEnabled() error {
+	appCfg, err := c.GetAppConfig()
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+	}
+	return nil
+}
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -300,6 +311,20 @@ func (c *Client) ApplyGroup(
 				return fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
+		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
+			if macosSetup.BootstrapPackage != "" {
+				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage)
+				if err != nil {
+					return err
+				}
+
+				if !opts.DryRun {
+					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
+						return err
+					}
+				}
+			}
+		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -340,6 +365,18 @@ func (c *Client) ApplyGroup(
 			tmFileContents[k] = fileContents
 		}
 
+		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
+		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
+		for k, setup := range tmMacSetup {
+			if setup.BootstrapPackage != "" {
+				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage)
+				if err != nil {
+					return err
+				}
+				tmBootstrapPackages[k] = bp
+			}
+		}
+
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
@@ -350,6 +387,23 @@ func (c *Client) ApplyGroup(
 			for tmName, profs := range tmFileContents {
 				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
 					return fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmBootstrapPackages) > 0 && !opts.DryRun {
+			// TODO: we need to chat an define on a better way to do
+			// this, maybe make the endpoints support both id/name? have
+			// separate endpoints?
+			tms, err := c.ListTeams("")
+			if err != nil {
+				return err
+			}
+
+			for _, tm := range tms {
+				if bp, ok := tmBootstrapPackages[tm.Name]; ok {
+					if err := c.EnsureBootstrapPackage(bp, tm.ID); err != nil {
+						return fmt.Errorf("uploading bootstrap package for team %q: %w", tm.Name, err)
+					}
 				}
 			}
 		}
@@ -371,6 +425,30 @@ func (c *Client) ApplyGroup(
 		}
 	}
 	return nil
+}
+
+func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mos, ok := mmdm["macos_setup"].(map[string]interface{})
+	if !ok || mos == nil {
+		return nil
+	}
+	bp := ""
+	rbp, ok := mos["bootstrap_package"]
+	if ok {
+		bp = rbp.(string)
+	}
+	return &fleet.MacOSSetup{
+		BootstrapPackage: bp,
+	}
+
 }
 
 func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
@@ -456,6 +534,30 @@ func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]s
 				cs = []string{}
 			}
 			m[spec.Name] = cs
+		}
+	}
+	return m
+}
+
+// returns the macos_setup keyed by team name.
+func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOSSetup {
+	var m map[string]*fleet.MacOSSetup
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name string `json:"name"`
+			MDM  struct {
+				MacOSSetup fleet.MacOSSetup `json:"macos_setup"`
+			} `json:"mdm"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		if spec.Name != "" {
+			if m == nil {
+				m = make(map[string]*fleet.MacOSSetup)
+			}
+			m[spec.Name] = &spec.MDM.MacOSSetup
 		}
 	}
 	return m

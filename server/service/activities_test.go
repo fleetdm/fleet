@@ -16,7 +16,7 @@ func TestListActivities(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	globalUsers := []*fleet.User{test.UserAdmin, test.UserMaintainer, test.UserObserver}
+	globalUsers := []*fleet.User{test.UserAdmin, test.UserMaintainer, test.UserObserver, test.UserObserverPlus}
 	teamUsers := []*fleet.User{test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1, test.UserTeamObserverTeam1}
 
 	ds.ListActivitiesFunc = func(ctx context.Context, opts fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
