@@ -2,7 +2,30 @@
 
 Users have different abilities depending on the access level they have.
 
-Users with the Admin role receive all permissions.
+## Roles
+
+### Admin
+
+Users with the admin role receive all permissions.
+
+### Maintainer
+
+Maintainers can manage most entities in Fleet, like queries, policies, labels and schedules.
+Unlike admins, maintainers cannot edit higher level settings like application configuration, teams or users.
+
+### Observer
+
+The Observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, schedules, application configuration, teams, etc.
+They can also run queries configured with the `observer_can_run` flag set to `true`.
+
+### Observer+
+
+Observer+ is an Observer with the added ability to run *any* query.
+
+### GitOps
+
+GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations.
+GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## User permissions
 
