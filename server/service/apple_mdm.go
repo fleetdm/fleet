@@ -269,14 +269,14 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 		hostsByUUID[h.UUID] = h
 	}
 
-	var command fleet.MDMAppleCommand
+	var commandAuthz fleet.MDMAppleCommandAuthz
 	for tmID := range teamIDs {
-		command.TeamID = &tmID
+		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
-			command.TeamID = nil
+			commandAuthz.TeamID = nil
 		}
 
-		if err := svc.authz.Authorize(ctx, command, fleet.ActionRead); err != nil {
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
@@ -1007,14 +1007,14 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		teamIDs[id] = true
 	}
 
-	var command fleet.MDMAppleCommand
+	var commandAuthz fleet.MDMAppleCommandAuthz
 	for tmID := range teamIDs {
-		command.TeamID = &tmID
+		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
-			command.TeamID = nil
+			commandAuthz.TeamID = nil
 		}
 
-		if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionWrite); err != nil {
 			return 0, nil, ctxerr.Wrap(ctx, err)
 		}
 	}
