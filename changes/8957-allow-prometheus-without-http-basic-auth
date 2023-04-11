@@ -1,1 +1,0 @@
-* New config `prometheus.basic_auth.disable` to allow running the Prometheus endpoint without HTTP Basic Auth.

@@ -7,11 +7,19 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/groob/plist"
 	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
+
+// commandPayload is the common structure all MDM commands use
+type commandPayload struct {
+	CommandUUID string
+	Command     any
+}
 
 // MDMAppleCommander contains methods to enqueue commands managed by Fleet and
 // send push notifications to hosts.
@@ -134,6 +142,33 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, 
   </dict>
 </plist>`, manifestURL, uuid)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+type installEnterpriseApplicationPayload struct {
+	Manifest    *appmanifest.Manifest
+	RequestType string
+}
+
+func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
+	ctx context.Context,
+	hostUUIDs []string,
+	uuid string,
+	manifest *appmanifest.Manifest,
+) error {
+	cmd := commandPayload{
+		CommandUUID: uuid,
+		Command: installEnterpriseApplicationPayload{
+			RequestType: "InstallEnterpriseApplication",
+			Manifest:    manifest,
+		},
+	}
+
+	raw, err := plist.Marshal(cmd)
+	if err != nil {
+		return fmt.Errorf("marshal command payload plist: %w", err)
+	}
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
 // EnqueueCommand takes care of enqueuing the commands and sending push

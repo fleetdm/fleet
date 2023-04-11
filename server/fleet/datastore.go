@@ -756,6 +756,8 @@ type Datastore interface {
 	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
+	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
@@ -845,9 +847,6 @@ type Datastore interface {
 	// and the status is "applied" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
-	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
-	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
-
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 
@@ -863,6 +862,15 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 }
 
 const (

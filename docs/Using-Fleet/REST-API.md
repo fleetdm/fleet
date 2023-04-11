@@ -6,6 +6,7 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
+- [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule](#schedule)
@@ -119,7 +120,7 @@ Logs out the authenticated user.
 
 ### Forgot password
 
-Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
+Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
 `POST /api/v1/fleet/forgot_password`
 
@@ -3505,6 +3506,440 @@ Deletes the label specified by ID.
 
 ---
 
+## Mobile device management (MDM)
+
+These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](./Mobile-device-management.md).
+
+- [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
+- [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)
+- [Download custom macOS setting (configuration profile)](#download-custom-macos-setting-configuration-profile)
+- [Delete custom macOS setting (configuration profile)](#delete-custom-macos-setting-configuration-profile)
+- [Update disk encryption enforcement](#update-disk-encryption-enforcement)
+- [Get disk encryption statistics](#get-disk-encryption-statistics)
+- [Get macOS settings statistics](#get-macos-settings-statistics)
+- [Run custom MDM command](#run-custom-mdm-command)
+- [Get custom MDM command results](#get-custom-mdm-command-results)
+- [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
+- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Turn off MDM for a host](#turn-off-mdm-for-a-host)
+
+### Add custom macOS setting (configuration profile)
+
+Add a configuration profile to enforce custom settings on macOS hosts.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                               |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+
+#### Example
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 42
+}
+```
+
+###### Additional notes
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier.
+
+
+### List custom macOS settings (configuration profiles)
+
+Get a list of the configuration profiles in Fleet. 
+
+For Fleet Premium, the list can
+optionally be filtered by team ID. If no team ID is specified, team profiles are excluded from the
+results (i.e., only profiles that are associated with "No team" are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profiles": [
+    {
+        "profile_id": 1337,
+        "team_id": 0,
+        "name": "Example profile",
+        "identifier": "com.example.profile",
+        "created_at": "2023-03-31T00:00:00Z",
+        "updated_at": "2023-03-31T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Download custom macOS setting (configuration profile)
+
+`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Delete custom macOS setting (configuration profile)
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+### Update disk encryption enforcement
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+##### Default response
+
+`204`
+
+### Get disk encryption statistics
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of disk encryption enforced on hosts. 
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
+### Get macOS settings statistics
+
+Get aggregate status counts of all macOS settings (configuraiton profiles and disk encryption) enforced on hosts. 
+
+For Fleet Premium uses, the statistics can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are associated with "No team" are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "latest": 123,
+  "failing": 123,
+  "pending": 123
+}
+```
+
+### Run custom MDM command
+
+This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
+```
+
+### Get custom MDM command results
+
+This endpoint returns the results for a specific custom MDM command.
+
+`GET /api/v1/fleet/mdm/apple/commandresults`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string | query | The unique identifier of the command.                                     |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+    "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+    "status": "Acknowledged",
+    "updated_at": "2023-04-04:00:00Z",
+    "request_type": "ProfileList",
+    "hostname": "mycomputer",
+    "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+  ]
+}
+```
+
+### Get Apple Push Notification service (APNs)
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
+### Get Apple Business Manager (ABM)
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
+}
+```
+
+### Turn off MDM for a host
+
+`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet. |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
+
+### 
+
+---
+
 ## Policies
 
 - [List policies](#list-policies)
@@ -3513,10 +3948,6 @@ Deletes the label specified by ID.
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
 - [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
-
-`In Fleet 4.3.0, the Policies feature was introduced.`
-
-> Fleet 4.7.0 (release on 2021-12-08), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.7.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
 
 Policies are yes or no questions you can ask about your hosts.
 

@@ -339,9 +339,6 @@ var hostRefs = []string{
 // and the map value is the column name to match to the host.uuid.
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles": "host_uuid",
-	// deleting from nano_devices causes cascading deletes to nano_enrollments and
-	// any other tables that reference nano_devices.
-	"nano_devices": "id",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1945,6 +1942,10 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 		}
 
+		if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+		}
+
 		return nil
 	})
 }
@@ -2774,7 +2775,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		SELECT
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
-			hd.display_name
+			hd.display_name,
+			COALESCE(h.team_id, 0) as team_id
 		FROM
 			hosts h
 		LEFT JOIN

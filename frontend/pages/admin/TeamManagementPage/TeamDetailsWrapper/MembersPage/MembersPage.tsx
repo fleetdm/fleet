@@ -8,7 +8,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { IApiError } from "interfaces/errors";
 import { INewMembersBody, ITeam } from "interfaces/team";
-import { IUser, IUserFormErrors } from "interfaces/user";
+import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
@@ -64,10 +64,12 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       admin: true,
       maintainer: false,
       observer: false,
+      observer_plus: false,
     },
   });
 
   const smtpConfigured = config?.smtp_settings.configured || false;
+  const sesConfigured = config?.email?.backend === "ses" || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -296,7 +298,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
 
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
-      const updatedAttrs = userManagementHelpers.generateUpdateData(
+      const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
       );
@@ -477,11 +479,13 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           availableTeams={teams || []}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingMembers}
+          isApiOnly={userEditing?.api_only || false}
         />
       )}
       {showCreateUserModal && currentTeamDetails && (
@@ -497,6 +501,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           availableTeams={teams}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           currentTeam={currentTeamDetails}
           isModifiedByGlobalAdmin={isGlobalAdmin}

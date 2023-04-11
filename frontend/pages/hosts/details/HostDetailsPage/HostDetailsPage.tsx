@@ -110,6 +110,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isPremiumTier = false,
     isOnlyObserver,
+    isObserverPlus,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -608,23 +609,23 @@ const HostDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-links`}>
-          {host?.platform === "darwin" &&
-            isMdmUnenrolled &&
-            config?.mdm.enabled_and_configured && (
-              <InfoBanner color="yellow" pageLevel>
-                To change settings and install software, ask the end user to
-                follow the <strong>Turn on MDM</strong> instructions on their{" "}
-                <strong>My device</strong> page.
-              </InfoBanner>
-            )}
-          {showDiskEncryptionUserActionRequired && (
+        {host?.platform === "darwin" &&
+          isMdmUnenrolled &&
+          config?.mdm.enabled_and_configured && (
             <InfoBanner color="yellow">
-              Disk encryption: Requires action from the end user. Ask the end
-              user to follow <b>Disk encryption</b> instructions on their{" "}
-              <b>My device</b> page.
+              To change settings and install software, ask the end user to
+              follow the <strong>Turn on MDM</strong> instructions on their{" "}
+              <strong>My device</strong> page.
             </InfoBanner>
           )}
+        {showDiskEncryptionUserActionRequired && (
+          <InfoBanner color="yellow">
+            Disk encryption: Requires action from the end user. Ask the end user
+            to follow <b>Disk encryption</b> instructions on their{" "}
+            <b>My device</b> page.
+          </InfoBanner>
+        )}
+        <div className={`${baseClass}__header-links`}>
           <BackLink
             text="Back to all hosts"
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
@@ -730,6 +731,7 @@ const HostDetailsPage = ({
             isOnlyObserver={isOnlyObserver}
             onQueryHostCustom={onQueryHostCustom}
             onQueryHostSaved={onQueryHostSaved}
+            hostsTeamId={host?.team_id}
           />
         )}
         {!!host && showTransferHostModal && (

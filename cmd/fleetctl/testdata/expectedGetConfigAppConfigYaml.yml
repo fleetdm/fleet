@@ -23,6 +23,8 @@ spec:
     macos_settings:
       custom_settings:
       enable_disk_encryption: false
+    macos_setup:
+      bootstrap_package: ""
   org_info:
     org_logo_url: ""
     org_name: ""

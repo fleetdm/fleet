@@ -1,1 +1,0 @@
-* Uninstalling applications from hosts will remove the corresponding entry in `software` if no more hosts have the application installed.

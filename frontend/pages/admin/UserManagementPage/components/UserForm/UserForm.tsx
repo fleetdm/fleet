@@ -4,7 +4,8 @@ import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IRole } from "interfaces/role";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -21,6 +22,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
+import { roleOptions } from "../../helpers/userManagementHelpers";
 
 const baseClass = "create-user-form";
 
@@ -34,34 +36,17 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-const globalUserRoles = [
-  {
-    disabled: false,
-    label: "Observer",
-    value: "observer",
-  },
-  {
-    disabled: false,
-    label: "Maintainer",
-    value: "maintainer",
-  },
-  {
-    disabled: false,
-    label: "Admin",
-    value: "admin",
-  },
-];
-
 export interface IFormData {
   email: string;
   name: string;
   newUserType?: NewUserType | null;
   password?: string | null;
   sso_enabled?: boolean;
-  global_role: string | null;
+  global_role: UserRole | null;
   teams: ITeam[];
   currentUserId?: number;
   invited_by?: number;
+  role?: UserRole;
 }
 
 interface ICreateUserFormProps {
@@ -74,13 +59,15 @@ interface ICreateUserFormProps {
   currentUserId?: number;
   currentTeam?: ITeam;
   isModifiedByGlobalAdmin?: boolean | false;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured?: boolean;
+  sesConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
@@ -103,8 +90,10 @@ const UserForm = ({
   defaultTeams,
   isPremiumTier,
   smtpConfigured,
+  sesConfigured,
   canUseSso,
   isSsoEnabled,
+  isApiOnly,
   isNewUser,
   isInvitePending,
   serverErrors,
@@ -306,7 +295,10 @@ const UserForm = ({
           label="Role"
           value={formData.global_role || "Observer"}
           className={`${baseClass}__global-role-dropdown`}
-          options={globalUserRoles}
+          options={roleOptions({
+            isPremiumTier,
+            isApiOnly,
+          })}
           searchable={false}
           onChange={onGlobalUserRoleChange}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--global-role`}
@@ -357,6 +349,7 @@ const UserForm = ({
                 availableTeams={availableTeams}
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
+                isApiOnly={isApiOnly}
               />
             </>
           ) : (
@@ -366,6 +359,7 @@ const UserForm = ({
               teams={formData.teams}
               defaultTeamRole={defaultTeamRole || "observer"}
               onFormChange={onTeamRoleChange}
+              isApiOnly={isApiOnly}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -402,10 +396,10 @@ const UserForm = ({
         onChange={onInputChange("email")}
         placeholder="Email"
         value={formData.email || ""}
-        disabled={!isNewUser && !smtpConfigured}
+        disabled={!isNewUser && !(smtpConfigured || sesConfigured)}
         tooltip={
           "\
-              Editing an email address requires that SMTP is configured in order to send a validation email. \
+              Editing an email address requires that SMTP or SES is configured in order to send a validation email. \
               <br /><br /> \
               Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
             "
@@ -470,16 +464,16 @@ const UserForm = ({
                   className={`${baseClass}__radio-input`}
                   label={"Invite user"}
                   id={"invite-user"}
-                  disabled={!smtpConfigured}
+                  disabled={!(smtpConfigured || sesConfigured)}
                   checked={formData.newUserType === NewUserType.AdminInvited}
                   value={NewUserType.AdminInvited}
                   name={"newUserType"}
                   onChange={onRadioChange("newUserType")}
                   tooltip={
-                    smtpConfigured
+                    smtpConfigured || sesConfigured
                       ? ""
                       : `
-                      The &quot;Invite user&quot; feature requires that SMTP
+                      The &quot;Invite user&quot; feature requires that SMTP or SES
                       is configured in order to send invitation emails.
                       <br /><br />
                       SMTP can be configured in Settings &gt; Organization settings.

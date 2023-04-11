@@ -50,8 +50,7 @@ const (
 
 	// FleetdPublicManifestURL contains a valid manifest that can be used
 	// by InstallEnterpriseApplication to install `fleetd` in a host.
-	// TODO: update this URL with the value TBD in #10960
-	FleetdPublicManifestURL = "https://download.fleetdm.com/fleetd-base.plist"
+	FleetdPublicManifestURL = "https://download.fleetdm.com/fleetd-base-manifest.plist"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
