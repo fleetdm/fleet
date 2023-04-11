@@ -46,46 +46,12 @@ parasails.registerPage('homepage', {
     const tweetsDiv = document.querySelector('div[purpose="tweets"]');
     tweetsDiv.addEventListener('scroll', this.updatePageIndicator, {passive: true}); // Add a scroll event listener to update the tweet page indicator when a user scrolls the div.
     window.addEventListener('resize', this.updateNumberOfTweetPages); // Add an event listener to update the number of tweet pages based on how many tweet cards can fit on the screen.
-    // window.addEventListener('scroll', this.scrollBackground); // Add an event listener to update the number of tweet pages based on how many tweet cards can fit on the screen.
-
-
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-    // scrollBackground: function() {
-    //   let farBackgroundContainer = document.querySelector('div[purpose="cloud-city-bottom-banner"]');
-    //   let innerBackgroundContainer = document.querySelector('div[purpose="background"]');
-    //   let pageHeight = $('[purpose=page-wrap]')[0].clientHeight;
-    //   let howFarToTheBottom = window.pageYOffset - pageHeight + window.innerHeight;
-
-    //   if (howFarToTheBottom > -253) {
-    //     farBackgroundContainer.style.backgroundAttachment = 'scroll';
-    //     farBackgroundContainer.style.backgroundPosition = 'center bottom';
-    //     innerBackgroundContainer.style.backgroundAttachment = 'scroll';
-    //     innerBackgroundContainer.style.backgroundPosition = 'center bottom';
-    //   } else if (howFarToTheBottom < -525) {
-    //     farBackgroundContainer.style.backgroundAttachment = 'scroll';
-    //     farBackgroundContainer.style.backgroundPosition = 'center top';
-    //     innerBackgroundContainer.style.backgroundAttachment = 'scroll';
-    //     innerBackgroundContainer.style.backgroundPosition = 'center top';
-    //   } else {
-    //     if (howFarToTheBottom < -363) {
-    //       innerBackgroundContainer.style.backgroundAttachment = 'scroll';
-    //       innerBackgroundContainer.style.backgroundPosition = 'center top';
-    //     } else {
-    //       innerBackgroundContainer.style.backgroundAttachment = 'fixed';
-    //       innerBackgroundContainer.style.backgroundPosition = 'center bottom';
-    //     }
-
-    //     farBackgroundContainer.style.backgroundAttachment = 'fixed';
-    //     farBackgroundContainer.style.backgroundPosition = 'center bottom';
-    //   }
-    // },
-
 
     updateNumberOfTweetPages: async function() {
       // Get the width of the first tweet card.
@@ -135,6 +101,7 @@ parasails.registerPage('homepage', {
       // Scroll the div to the specified 'page'
       tweetsDiv.scrollBy(amountToScroll, 0);
     },
+
     clickChatButton: function() {
       // Temporary hack to open the chat
       // (there's currently no official API for doing this outside of React)
