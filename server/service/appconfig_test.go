@@ -134,11 +134,68 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
-// TODO: Test Version
-/*
-	_, err = svc.Version(ctx)
-	checkAuthErr(t, tt.shouldFailRead, err)
-*/
+// TestVersion tests that all users can access the version endpoint.
+func TestVersion(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+		},
+		{
+			"team admin",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+		},
+		{
+			"team maintainer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+		},
+		{
+			"team observer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+		},
+		{
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+		},
+		{
+			"user without roles",
+			&fleet.User{ID: 777},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			_, err := svc.Version(ctx)
+			require.NoError(t, err)
+		})
+	}
+}
 
 func TestEnrollSecretAuth(t *testing.T) {
 	ds := new(mock.Store)
