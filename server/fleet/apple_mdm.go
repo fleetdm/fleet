@@ -371,10 +371,10 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Checksum          []byte
 }
 
-// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// MDMAppleHostStatusSummary reports the number of hosts being managed with MDM configuration
 // profiles. Each host may be counted in only one of three mutually-exclusive categories:
 // Failed, Pending, or Latest.
-type MDMAppleHostsProfilesSummary struct {
+type MDMAppleHostStatusSummary struct {
 	// Latest includes each host that has successfully applied all of the profiles currently
 	// applicable to the host. If any of the profiles are pending or failed for the host, the host
 	// is not counted as latest.

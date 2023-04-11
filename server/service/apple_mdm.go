@@ -594,7 +594,7 @@ type getMDMAppleProfilesSummaryRequest struct {
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
-	fleet.MDMAppleHostsProfilesSummary
+	fleet.MDMAppleHostStatusSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -616,7 +616,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 	return &res, nil
 }
 
-func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1849,6 +1849,38 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID u
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get aggregated summary about a team's bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleBootstrapPackageSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleBootstrapPackageSummaryResponse struct {
+	fleet.MDMAppleHostStatusSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleBootstrapPackageSummaryResponse) error() error { return r.Err }
+
+func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleBootstrapPackageSummaryRequest)
+	summary, err := svc.GetMDMAppleBootstrapPackageSummary(ctx, req.TeamID)
+	if err != nil {
+		return getMDMAppleBootstrapPackageSummaryResponse{Err: err}, nil
+	}
+	return getMDMAppleBootstrapPackageSummaryResponse{MDMAppleHostStatusSummary: summary}, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (fleet.MDMAppleHostStatusSummary, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.MDMAppleHostStatusSummary{}, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1956,6 +1988,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			manifest := appmanifest.NewFromSha(meta.Sha256, url)
 			cmdUUID = uuid.New().String()
 			err = svc.commander.InstallEnterpriseApplicationWithEmbeddedManifest(r.Context, []string{m.Enrollment.UDID}, cmdUUID, manifest)
+			if err != nil {
+				return err
+			}
+			err = svc.ds.RecordHostBootstrapPackage(r.Context, cmdUUID, r.ID)
 			if err != nil {
 				return err
 			}

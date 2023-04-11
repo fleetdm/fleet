@@ -3522,6 +3522,10 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
+- [Upload a bootstrap package](#upload-a-bootstrap-package)
+- [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
+- [Delete a bootstrap package](#delete-a-bootstrap-package)
+- [Download a bootstrap package](#download-a-bootstrap-package)
 
 ### Add custom macOS setting (configuration profile)
 
@@ -3935,6 +3939,170 @@ None.
 ##### Default response
 
 `Status: 200`
+
+
+### Upload a bootstrap package
+
+_Available in Fleet Premium_
+
+Upload a bootstrap package that will be automatically installed during DEP setup.
+
+`POST /api/v1/fleet/mdm/apple/bootstrap`
+
+#### Parameters
+
+| Name    | Type   | In   | Description                                                                                                                                                                                                            |
+| ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| team_id | string | form | The team id for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+
+#### Example
+
+Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`package`.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="package"; filename="bootstrap-package.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get metadata about a bootstrap package
+
+_Available in Fleet Premium_
+
+Get information about a bootstrap pacakge that was uploaded to Fleet.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
+
+#### Parameters
+
+| Name    | Type   | In  | Description                                                                                                                                               |
+| ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id | string | url | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/0/metadata`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "bootstrap-package.pkg",
+  "team_id": 0,
+  "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233"
+}
+```
+
+### Delete a bootstrap package
+
+_Available in Fleet Premium_
+
+Delete a team's bootstrap package.
+
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/{team_id}`
+
+#### Parameters
+
+| Name    | Type   | In  | Description                                                                                                                                               |
+| ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id | string | url | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/1`
+
+##### Default response
+
+`Status: 200`
+
+### Download a bootstrap package
+
+_Available in Fleet Premium_
+
+Download a bootstrap package.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                                      |
+| ----- | ------ | ----- | ------------------------------------------------ |
+| token | string | query | **Required** The token of the bootstrap package. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+```
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Get a summary of bootstrap package status 
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of bootstrap packages delivered to DEP enrolled hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | The team id to filter the summary.                                        |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 10,
+  "failed": 1,
+  "pending": 4
+}
+```
 
 ### 
 

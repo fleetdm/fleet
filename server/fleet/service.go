@@ -579,7 +579,7 @@ type Service interface {
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostStatusSummary, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -685,6 +685,8 @@ type Service interface {
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+
+	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (MDMAppleHostStatusSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

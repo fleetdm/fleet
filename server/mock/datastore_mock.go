@@ -580,7 +580,7 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
+type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
@@ -593,6 +593,10 @@ type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) e
 type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
+
+type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (fleet.MDMAppleHostStatusSummary, error)
+
+type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1461,6 +1465,12 @@ type DataStore struct {
 
 	GetMDMAppleBootstrapPackageBytesFunc        GetMDMAppleBootstrapPackageBytesFunc
 	GetMDMAppleBootstrapPackageBytesFuncInvoked bool
+
+	GetMDMAppleBootstrapPackageSummaryFunc        GetMDMAppleBootstrapPackageSummaryFunc
+	GetMDMAppleBootstrapPackageSummaryFuncInvoked bool
+
+	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
+	RecordHostBootstrapPackageFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3439,7 +3449,7 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
@@ -3486,4 +3496,18 @@ func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	s.GetMDMAppleBootstrapPackageBytesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
+}
+
+func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (fleet.MDMAppleHostStatusSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAppleBootstrapPackageSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleBootstrapPackageSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
+	s.mu.Lock()
+	s.RecordHostBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
 }
