@@ -414,7 +414,7 @@ parasails.registerPage('state-of-device-management', {
                 fontColor: '#000',
                 usePointStyle: true,
                 fontSize: 14,
-                fontFamily: '"Nunito Sans"',
+                fontFamily: 'Inter',
               }
             }
           }

@@ -69,30 +69,35 @@
     </div>
 
   </div>
-
-  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
-    <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
-      <h4>Don’t know osquery?</h4>
-      <h2>Dedicated support from osquery experts</h2>
-
-      <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+  <%/* End of page gradient */%>
+  <div purpose="bottom-gradient">
+    <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+      <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
+        <h4>Don’t know osquery?</h4>
+        <h2>Dedicated support from osquery experts</h2>
+        <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+      </div>
     </div>
-  </div>
 
-  <div style="background-color: #F9FAFC;">
     <scrollable-tweets></scrollable-tweets>
-  </div>
+    <div purpose="page-container" class="pb-0 container">
 
-  <div purpose="tweets-container" class="container-fluid px-md-0 d-flex pt-0 flex-column justify-content-center">
-    <div purpose="logos" class="d-flex flex-wrap justify-content-center align-items-center">
-      <img alt="The Snowflake logo" purpose="snowflake-logo" src="/images/logo-snowflake-muted-151x30@2x.png">
-      <img alt="The Wayfair logo" purpose="wayfair-logo" src="/images/logo-wayfair-muted-150x33@2x.png">
-      <img alt="The Uber logo" purpose="uber-logo" src="/images/logo-uber-muted-84x29@2x.png">
-      <img alt="The Atlassian logo" purpose="atlassian-logo" src="/images/logo-atlassian-muted-172x22@2x.png">
-      <img alt="The Twilio Segment logo" purpose="segment-logo" src="/images/logo-segment-muted-150x34@2x.png">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Open-source device management</h4>
+        <h1>Think for yourself</h1>
+        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
+          <a href="https://calendly.com/fleetdm/demo?utm_source=compliance+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+        </div>
+      </div>
     </div>
+    <%/* Cloud city banner */%>
   </div>
-
+  <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-lg-flex" src="/images/homepage-cloud-city-banner-lg.svg">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md.svg">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm.svg">
+  </div>
 </div>
 
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
