@@ -35,6 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	"go.elastic.co/apm/module/apmgorilla/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
@@ -137,8 +138,12 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
-		r.Use(otmiddleware.Middleware("fleet"))
+	if config.Logging.TracingEnabled {
+		if config.Logging.TracingType == "opentelemetry" {
+			r.Use(otmiddleware.Middleware("fleet"))
+		} else {
+			apmgorilla.Instrument(r)
+		}
 	}
 
 	r.Use(publicIP)

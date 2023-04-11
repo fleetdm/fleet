@@ -1253,6 +1253,8 @@ github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c h1:TWQ2UvXPkhPxI2KmApKBO
 github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c/go.mod h1:OYYulo9tUqRadRLwB0+LE914sa1ui2yL7OrcU3Q/1XY=
 go.elastic.co/apm v1.15.0 h1:uPk2g/whK7c7XiZyz/YCUnAUBNPiyNeE3ARX3G6Gx7Q=
 go.elastic.co/apm v1.15.0/go.mod h1:dylGv2HKR0tiCV+wliJz1KHtDyuD8SPe69oV7VyK6WY=
+go.elastic.co/apm/module/apmgorilla/v2 v2.3.0 h1:jHw8N252UTwKTk945+Am8AaawhHC6DWpFVeTXQO8Gko=
+go.elastic.co/apm/module/apmgorilla/v2 v2.3.0/go.mod h1:2LXDBbVhFf9rF65jZecvl78IZMuvSRldQ+9A/fjfIo0=
 go.elastic.co/apm/module/apmhttp/v2 v2.3.0 h1:yGZyp26uJXUCfRTwvMmDt1d1jJrHgTBBncZfpYAxR8s=
 go.elastic.co/apm/module/apmhttp/v2 v2.3.0/go.mod h1:JCszLIey4ndJGuUUu5FQjNOiTfaln1dqCqXnRcXVxVc=
 go.elastic.co/apm/module/apmsql v1.15.0 h1:QAy7tM9NwWvqMOdl8KZQsCPzy5XwYdGDkHqdd6QmGj8=
