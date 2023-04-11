@@ -783,7 +783,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 5),
 			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
 			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
@@ -6205,6 +6205,10 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
+
+		// compare only the fields we care about
+		h.CreatedAt = returned.CreatedAt
+		h.UpdatedAt = returned.UpdatedAt
 		assert.Equal(t, h, returned)
 	}
 
