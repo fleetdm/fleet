@@ -432,29 +432,25 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     const userData = getUser(userEditing.type, userEditing.id);
 
     return (
-      <Modal title="Edit user" onExit={toggleEditUserModal}>
-        <>
-          <EditUserModal
-            defaultEmail={userData?.email}
-            defaultName={userData?.name}
-            defaultGlobalRole={userData?.global_role}
-            defaultTeams={userData?.teams}
-            onCancel={toggleEditUserModal}
-            onSubmit={onEditUser}
-            availableTeams={teams || []}
-            isPremiumTier={isPremiumTier || false}
-            smtpConfigured={config?.smtp_settings.configured || false}
-            sesConfigured={config?.email?.backend === "ses" || false}
-            canUseSso={config?.sso_settings.enable_sso || false}
-            isSsoEnabled={userData?.sso_enabled}
-            isApiOnly={userData?.api_only || false}
-            isModifiedByGlobalAdmin
-            isInvitePending={userEditing.type === "invite"}
-            editUserErrors={editUserErrors}
-            isUpdatingUsers={isUpdatingUsers}
-          />
-        </>
-      </Modal>
+      <EditUserModal
+        defaultEmail={userData?.email}
+        defaultName={userData?.name}
+        defaultGlobalRole={userData?.global_role}
+        defaultTeams={userData?.teams}
+        onCancel={toggleEditUserModal}
+        onSubmit={onEditUser}
+        availableTeams={teams || []}
+        isPremiumTier={isPremiumTier || false}
+        smtpConfigured={config?.smtp_settings.configured || false}
+        sesConfigured={config?.email?.backend === "ses" || false}
+        canUseSso={config?.sso_settings.enable_sso || false}
+        isSsoEnabled={userData?.sso_enabled}
+        isApiOnly={userData?.api_only || false}
+        isModifiedByGlobalAdmin
+        isInvitePending={userEditing.type === "invite"}
+        editUserErrors={editUserErrors}
+        isUpdatingUsers={isUpdatingUsers}
+      />
     );
   };
 
