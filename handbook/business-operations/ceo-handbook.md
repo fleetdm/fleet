@@ -124,12 +124,12 @@ In the notes document include:
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
 ### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Charlie completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
+ - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
+ - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
+ - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Tee will update the monthly "All Hands" link and grant Sid viewing access. 
+ - Tee will send Mike links to the new document and the backup copy in a direct message in Slack. 
  
 The day before the meeting, Mike will prepare the "Vision" section of the original document. Mike will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
