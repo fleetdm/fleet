@@ -51,11 +51,11 @@ Fleet UI:
 1. Head to the **Hosts** page in Fleet and find your target host.
 2. Make sure the **Hostname** column is visible (select **Edit columns** if not) and find your host's hostname. You'll need this hostname to run the command.
 
-> A host must be communicating with a Fleet MDM server to run an command against it.
+> A host must be enrolled to Fleet and have MDM turned on to run an command against it.
 
 `fleetctl` CLI:
 
-1. Run the `fleetctl get hosts --mdm` command to get a list of hosts that a
+1. Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled to Fleet and have MDM turned on.
 2. Find your host's hostname. You'll need this hostname to run the command.
 
 ### Step 3: run the command
