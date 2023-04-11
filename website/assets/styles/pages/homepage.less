@@ -41,6 +41,7 @@
     filter: drop-shadow(0px -50px 200px rgba(58, 220, 255, 0.1));
   }
   [purpose='homepage-hero'] {
+
     padding-top: 40px;
     padding-left: 40px;
     padding-right: 40px;
@@ -49,7 +50,7 @@
   }
   [purpose='homepage-hero-images'] {
     img {
-      filter: drop-shadow(0px -8.73361px 29.9438px rgba(63, 23, 148, 0.1));
+      filter: drop-shadow(0px -8.73361px 29.9438px rgba(58, 220, 255, 0.1));
     }
     position: relative;
   }
@@ -62,6 +63,7 @@
     bottom: 40px;
     z-index: -1;
     background-image: url(/images/homepage-hero-background.svg);
+    opacity: 0.75;
     background-position: center center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -71,15 +73,20 @@
     backdrop-filter: blur(2.96438px);
   }
   [purpose='hero-ribbon'] {
+    [purpose='ribbon-banner'] {
+      display: none;
+    }
+    height: 80px;
     z-index: 2;
     position: relative;
     background: url('/images/homepage-hero-ribbon.svg');
     background-size: cover;
     background-position: center bottom;
     background-repeat: no-repeat;
-    height: 80px;
+    filter: drop-shadow(0px -8.73361px 29.9438px rgba(58, 220, 255, 0.25));
   }
   [purpose='hero-text'] {
+    padding-top: 24px;
     min-width: 540px;
     h1 {
       margin-bottom: 40px;
@@ -115,6 +122,7 @@
   }
   [purpose='hero-logos'] {
     margin-bottom: 120px;
+    opacity: 0.75;
     [purpose='snowflake-logo'] {
       height: 30px;
     }
@@ -350,6 +358,17 @@
       }
       li.selected {
         background-color: @core-fleet-black-50;
+      }
+    }
+  }
+  @media (min-width: 1600px) {
+    [purpose='hero-ribbon'] {
+      background-image: none;
+      height: auto;
+      [purpose='ribbon-banner'] {
+        display: block;
+        height: auto;
+        width: 100%;
       }
     }
   }
@@ -621,7 +640,6 @@
        }
      }
      [purpose='fleet-cloud-banner'] {
-      height: 680px;
       margin-top: 60px;
       margin-bottom: 60px;
       [purpose='banner-text'] {
@@ -632,19 +650,19 @@
 
   @media (max-width: 375px) {
 
-    h1 {
-      font-size: 30px;
-      line-height: 46px;
-    }
-    h4 {
-      font-size: 14px;
-    }
 
 
     [purpose='homepage-hero-images'] {
       max-height: 360px;
     }
     [purpose='hero-text'] {
+      h1 {
+        font-size: 30px;
+        line-height: 46px;
+      }
+      h4 {
+        font-size: 14px;
+      }
       p {
         font-size: 16px;
       }
@@ -661,6 +679,21 @@
         display: flex;
       }
     }
+     [purpose='fleet-cloud-banner'] {
+      height: 480px;
+      [purpose='banner-text'] {
+        padding: 24px;
+        h2 {
+          font-size: 18px;
+          line-height: 24px;
+        }
+        p {
+          font-size: 16px;
+          line-height: 20px;
+        }
+      }
+    }
+
   }
 
 
