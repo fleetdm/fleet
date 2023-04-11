@@ -40,6 +40,7 @@ import {
   humanHostDiskEncryptionEnabled,
   wrapFleetHelper,
 } from "utilities/helpers";
+import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -107,10 +108,11 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const {
     config,
+    currentUser,
     isGlobalAdmin = false,
+    isGlobalObserver,
     isPremiumTier = false,
     isOnlyObserver,
-    isObserverPlus,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -606,6 +608,21 @@ const HostDetailsPage = ({
     host?.mdm.name === "Fleet" &&
     host?.mdm.macos_settings.disk_encryption === "action_required";
 
+  /*  Context team id might be different that host's team id
+  Observer plus must be checked against host's team id  */
+  const isHostsTeamObserverPlus =
+    currentUser && host?.team_id
+      ? permissions.isObserverPlus(currentUser, host.team_id)
+      : false;
+
+  const isHostsTeamObserver =
+    currentUser && host?.team_id
+      ? permissions.isObserverPlus(currentUser, host.team_id)
+      : false;
+
+  const canViewPacks =
+    !isGlobalObserver && !isHostsTeamObserverPlus && !isHostsTeamObserver;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -704,7 +721,9 @@ const HostDetailsPage = ({
                 scheduleState={scheduleState}
                 isLoading={isLoadingHost}
               />
-              <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              {canViewPacks && (
+                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              )}
             </TabPanel>
             <TabPanel>
               <PoliciesCard
