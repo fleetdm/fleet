@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -499,7 +500,23 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 
 var jsonNull = json.RawMessage(`null`)
 
+// setAuthCheckedOnPreAuthErr can be used to set the authentication as checked
+// in case of errors that happened before an auth check can be performed.
+// Otherwise the endpoints return a "authentication skipped" error instead of
+// the actual returned error.
+func setAuthCheckedOnPreAuthErr(ctx context.Context) {
+	if az, ok := authz_ctx.FromContext(ctx); ok {
+		az.SetChecked()
+	}
+}
+
 func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+	if len(specs) == 0 {
+		setAuthCheckedOnPreAuthErr(ctx)
+		// Nothing to do.
+		return nil
+	}
+
 	// check auth for all teams specified first
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
