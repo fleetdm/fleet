@@ -15,7 +15,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Fleet introduces MDM public beta
 
-Fleet has enabled MDM features in the latest release of Fleet as a public beta broadly available to everyone. 🟣 Openness is at the heart of open-source, and we are excited to bring an open-source MDM. Read the full announcement.
+Fleet has enabled MDM features in the latest release of Fleet as a public beta broadly available to everyone. 🟣 Openness is at the heart of open-source, and we are excited to bring an open-source MDM. [Read the full announcement.](https://fleetdm.com/releases/fleet-introduces-mdm)
 
 ## Granular roles added
 _Available in Fleet Premium and Fleet Ultimate_
@@ -72,7 +72,7 @@ Fleet has updated Go to 1.19.8 in light of Go’s [crypto/elliptic](https://gith
 
 ## Ready to upgrade?
 
-Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.29.0.
+Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.30.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
