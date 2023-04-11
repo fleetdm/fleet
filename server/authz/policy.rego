@@ -195,9 +195,9 @@ allow {
 
 # Global gitops can write global enroll secrets.
 allow {
-	object.type == "enroll_secret"
+  object.type == "enroll_secret"
   object.is_global_secret
-	subject.global_role == gitops
+  subject.global_role == gitops
   action == write
 }
 
