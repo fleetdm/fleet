@@ -510,25 +510,20 @@ func setAuthCheckedOnPreAuthErr(ctx context.Context) {
 	}
 }
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
-	if len(specs) == 0 {
-		setAuthCheckedOnPreAuthErr(ctx)
-		// Nothing to do.
-		return nil
-	}
-
-	// check auth for all teams specified first
+func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec) error {
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
 			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				// can the user create a new team?
+				// Can the user create a new team?
 				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
 				}
 				continue
 			}
 
+			// Set authorization as checked to return a proper error.
+			setAuthCheckedOnPreAuthErr(ctx)
 			return err
 		}
 
@@ -536,6 +531,19 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if err := svc.authz.Authorize(ctx, team, fleet.ActionWrite); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+	if len(specs) == 0 {
+		setAuthCheckedOnPreAuthErr(ctx)
+		// Nothing to do.
+		return nil
+	}
+
+	if err := svc.checkAuthorizationForTeams(ctx, specs); err != nil {
+		return err
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)

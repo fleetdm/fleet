@@ -272,6 +272,77 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
 }
 
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
+	t := s.T()
+
+	//
+	// Setup test
+	//
+
+	// Create two teams, team1 and team2.
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          43,
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+	// Create a new admin for team1.
+	password := test.GoodPassword
+	email := "admin-team1@example.com"
+	u := &fleet.User{
+		Name:       "admin team1",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+
+	//
+	// Start testing team specs with admin of team1.
+	//
+
+	s.setTokenForTest(t, "admin-team1@example.com", test.GoodPassword)
+
+	// Should allow editing own team.
+	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar2"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
+	editTeam1Spec := applyTeamSpecsRequest{
+		Specs: []*fleet.TeamSpec{
+			{
+				Name:         team1.Name,
+				AgentOptions: agentOpts,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
+	team1b, err := s.ds.Team(context.Background(), team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
+
+	// Should not allow editing other teams.
+	editTeam2Spec := applyTeamSpecsRequest{
+		Specs: []*fleet.TeamSpec{
+			{
+				Name:         team2.Name,
+				AgentOptions: agentOpts,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam2Spec, http.StatusForbidden)
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	t := s.T()
 
