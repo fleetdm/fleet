@@ -12,7 +12,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to include Failure:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Account Lockout'
   query: |
-    TODO No HKEY or OMA-URI
+    TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+    OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:c7ba8f71918f1ca040747fbec5ab33f3
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditAccountLockout</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "2";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.1
   contributors: rachelelysia
@@ -30,8 +32,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Group Membership'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI></Target></Item></Get></SyncBody>" 
-    AND mdm_command_output = "1";
+    TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+    OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:ee85b155b604aa453fafc9c6d5418e33
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "1";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.2
   contributors: rachelelysia
@@ -51,8 +54,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logoff'
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    TODO No HKEY or OMA-URI
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.3
   contributors: rachelelysia
@@ -74,8 +76,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Success and Failure:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logon'
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    TODO No HKEY or OMA-URI
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.4
   contributors: rachelelysia
@@ -103,8 +104,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Success and Failure:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Other Logon/Logoff Events'
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    TODO No HKEY or OMA-URI
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.5
   contributors: rachelelysia
@@ -123,8 +123,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Special Logon'
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    TODO No HKEY or OMA-URI
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.6
   contributors: rachelelysia
