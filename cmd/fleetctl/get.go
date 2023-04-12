@@ -1294,6 +1294,29 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
+			results, err := client.MDMAppleListCommands()
+			if err != nil {
+				return err
+			}
+			if len(results) == 0 {
+				fmt.Println("You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
+				return nil
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range results {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			printTable(c, columns, data)
+
 			return nil
 		},
 	}
