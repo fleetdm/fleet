@@ -71,6 +71,14 @@ Make sure it is available in your `PATH`. To execute the basic unit and integrat
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
+Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
+
+```
+# start both the default docker-compose.yml and the redis cluster-specific
+# docker-compose-redis-cluster.yml
+$ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
+```
+
 ### Go unit tests
 
 To run all Go unit tests, run the following:
