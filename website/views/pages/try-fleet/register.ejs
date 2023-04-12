@@ -1,23 +1,14 @@
 <div id="register" v-cloak>
   <div style="max-width:  800px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
     <div>
-    <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
+      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
     </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
       <h2>Play in Fleet Sandbox</h2>
       <p class="pt-3">
-        The fastest way to test Fleet. Get up and running in minutes. Ready for production
-        deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
-        <br><br>
-        We are currently experiencing increased demand and are working to resolve the issue. Sandbox
-        signups will be available again soon. In the meantime, <a href="https://fleetdm.com/fleetctl-preview">try Fleet on your laptop</a>.
-        <br><br>
-        <em>8:30 AM PDT - April 12, 2023</em>
+        The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
       </p>
-      <div class="d-flex flex-column" v-if="!cloudError">
-        <a class="mx-auto d-flex py-3" href="/try-fleet/login">I have an account</a>
-      </div>
-      <!-- <div class="pt-3">
+      <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
             <div class="d-flex flex-row">
@@ -61,15 +52,15 @@
       <div class="d-flex flex-column" v-if="!cloudError">
         <a class="mx-auto d-flex py-3" href="/try-fleet/login">I have an account</a>
         <p class="pt-4">By continuing you agree to the<br><a href="https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y" target="_blank">terms of service</a> and <a href="https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE" target="_blank">privacy policy</a>.</p>
-      </div> -->
+      </div>
     </div>
   </div>
   <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
     <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
       <div purpose="embedded-content" class="container-lg">
         <iframe id="ytplayer" type="text/html"
-        src="https://www.youtube.com/embed/iQtdpZYxiqI?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
-        frameborder="0" allowfullscreen autoplay></iframe>
+          src="https://www.youtube.com/embed/iQtdpZYxiqI?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
+          frameborder="0" allowfullscreen autoplay></iframe>
       </div>
     </div>
   </modal>
