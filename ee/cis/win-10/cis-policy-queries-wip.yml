@@ -82,12 +82,13 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    TODO
+    This policy setting allows you to decide whether data should persist across different sessions in Microsoft Defender Application Guard.
   resolution: |
-    TODO
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow data persistence for Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowPersistence' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.3
   contributors: rachelelysia
@@ -100,12 +101,13 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    TODO
+    This policy setting determines whether to save downloaded files to the host operating system from the Microsoft Defender Application Guard container.
   resolution: |
-    TODO
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow files to download and save to the host operating system from Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1803 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\SaveFilesToHost' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.4
   contributors: rachelelysia
@@ -118,12 +120,13 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    TODO
+    This policy setting allows you to decide how the clipboard behaves while in Microsoft Defender Application Guard.
   resolution: |
-    TODO
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Enable clipboard operation from an isolated session to the host':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Configure Microsoft Defender Application Guard clipboard settings: Clipboard behavior setting'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1703 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AppHVSIClipboardSettings' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.5
   contributors: rachelelysia
@@ -136,12 +139,18 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    TODO
+    This policy setting enables application isolation through Microsoft Defender Application Guard (Application Guard).
+    There are 4 options available:
+    - 0. Disable Microsoft Defender Application Guard
+    - 1. Enable Microsoft Defender Application Guard for Microsoft Edge ONLY
+    - 2. Enable Microsoft Defender Application Guard for Microsoft Office ONLY
+    - 3. Enable Microsoft Defender Application Guard for Microsoft Edge AND Microsoft Office
   resolution: |
-    TODO
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 1':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Turn on Microsoft Defender Application Guard in Managed Mode'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1703 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowAppHVSI_ProviderSet' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.6
   contributors: rachelelysia
