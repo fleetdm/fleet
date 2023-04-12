@@ -132,8 +132,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// OK - This can happen if the following sequence of events take place:
-			// 	1. user deletes global/team enroll secret
-			// 	2. user deletes the host in Fleet and then
+			// 	1. User deletes global/team enroll secret.
+			// 	2. User deletes the host in Fleet.
 			// 	3. Orbit tries to re-enroll using old secret.
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}

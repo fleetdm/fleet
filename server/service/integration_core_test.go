@@ -6373,12 +6373,14 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	})
 	require.NoError(t, err)
 
-	var resp EnrollOrbitResponse
+	var resp jsonError
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
 	}, http.StatusUnauthorized, &resp)
+
+	require.Equal(t, resp.Message, "Authentication failed")
 }
 
 func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
