@@ -35,7 +35,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if license == nil {
 		return nil, ctxerr.New(ctx, "license not found")
 	}
-	if err := fleet.ValidateRoleForLicense(p.GlobalRole, p.Teams, *license); err != nil {
+	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
