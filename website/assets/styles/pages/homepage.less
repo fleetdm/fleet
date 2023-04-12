@@ -49,6 +49,13 @@
     filter: drop-shadow(0px -8.73361px 29.9438px rgba(58, 220, 255, 0.1));
     position: relative;
   }
+  [purpose='top-hero-image'], [purpose='bottom-hero-image'] {
+    width: 410px;
+    img {
+      width: 100%;
+      height: auto;
+    }
+  }
   [purpose='homepage-hero-images']::before {
     content: ' ';
     position: absolute;
@@ -97,6 +104,8 @@
     [purpose='hero-quote'] {
       margin-bottom: 40px;
       text-align: left;
+      position: relative;
+      z-index: 10;
       img {
         height: 18px;
         margin-right: 16px;
@@ -493,7 +502,7 @@
       align-items: center;
       justify-content: start;
       width: 100%;
-      img {
+      [purpose='top-hero-image'], [purpose='bottom-hero-image'] {
         width: 100%;
         max-width: 410px;
       }
