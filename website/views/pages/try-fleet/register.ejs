@@ -10,10 +10,13 @@
         deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
         <br><br>
         We are currently experiencing increased demand and are working to resolve the issue. Sandbox
-        signups will be available again soon.
+        signups will be available again soon. In the meantime, <a href="https://fleetdm.com/fleetctl-preview">try Fleet on your laptop</a>.
         <br><br>
-        <em>8:30 AM PST - April 12, 2023</em>
+        <em>8:30 AM PDT - April 12, 2023</em>
       </p>
+      <div class="d-flex flex-column" v-if="!cloudError">
+        <a class="mx-auto d-flex py-3" href="/try-fleet/login">I have an account</a>
+      </div>
       <!-- <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
