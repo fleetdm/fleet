@@ -2,14 +2,12 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
-	"github.com/groob/plist"
 )
 
 func main() {
@@ -27,17 +25,10 @@ func main() {
 	}
 	defer fp.Close()
 
-	m, err := appmanifest.Create(fp, *pkgURL)
+	m, err := appmanifest.NewPlist(fp, *pkgURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var buf bytes.Buffer
-	enc := plist.NewEncoder(&buf)
-	enc.Indent("  ")
-	if err := enc.Encode(m); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(buf.String())
+	fmt.Println(string(m))
 }

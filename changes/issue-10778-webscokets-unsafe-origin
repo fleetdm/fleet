@@ -1,1 +1,0 @@
-* add configuration option `websockets_allow_unsafe_origin` to optionally disable the websocket origin check

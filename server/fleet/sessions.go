@@ -167,7 +167,10 @@ func parseRole(values []SAMLAttributeValue) (string, error) {
 	}
 	// Using last value by default.
 	value := values[len(values)-1].Value
-	if value != RoleAdmin && value != RoleMaintainer && value != RoleObserver {
+	if value != RoleAdmin &&
+		value != RoleMaintainer &&
+		value != RoleObserver &&
+		value != RoleObserverPlus {
 		return "", fmt.Errorf("invalid role: %s", value)
 	}
 	return value, nil

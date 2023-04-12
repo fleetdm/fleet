@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -51,8 +53,9 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool: s.redisPool,
-		Lq:   s.lq,
+		Pool:   s.redisPool,
+		Lq:     s.lq,
+		Logger: log.NewLogfmtLogger(os.Stdout),
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -2488,14 +2491,17 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	barPayload := resp.Software[0]
-	if barPayload.Name != "bar" {
-		barPayload = resp.Software[1]
-	}
+	var fooPayload, barPayload fleet.Software
+	for _, s := range resp.Software {
+		switch s.Name {
+		case "foo":
+			fooPayload = s
+		case "bar":
+			barPayload = s
+		default:
+			require.Failf(t, "unrecognized software %s", s.Name)
 
-	fooPayload := resp.Software[1]
-	if barPayload.Name != "bar" {
-		barPayload = resp.Software[0]
+		}
 	}
 
 	require.Empty(t, fooPayload.Vulnerabilities)

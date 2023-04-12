@@ -7,7 +7,14 @@
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
 * In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
-### Internal meeting scheduling
+### Scheduling a meeting
+We use Zoom for all meetings.  The only exceptions are meetings with customers who are non-negotiably required to use a different tool.
+
+We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
+
+We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
+
+#### Internal meeting scheduling
 Use the Google Calendar "[Find a meeting time](https://support.google.com/calendar/answer/37161?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Cfind-a-meeting-time)" feature to coordinate meetings with Fleet team members. Enter the `@fleetdm.com` emails for each
 participant into the "Meet with..." box in Google Calendar, and the calendar availability for each
 participant will appear in your view. Then, when you select a meeting time, those participants will
@@ -21,18 +28,21 @@ schedule a time when you are not available. Many team members use the free tier 
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
-### Modifying an event organized by someone else
+##### Modifying an event organized by someone else
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 > This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
-### External meeting scheduling
+#### External meeting scheduling
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
 need a Calendly account, reach out to `mikermcneil` via Slack.
 
-### Scheduling a Zoom meeting
-We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
+### All hands
+Every month, Fleet holds a company-wide meeting called the "All hands".
+
+All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
+
+"All hands" meetings are [recorded](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) and have [slides](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) available.
 
 ### Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
@@ -483,7 +493,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      - No need to check with the CEO first.  You can just book the meeting on his calendar.
      - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
+   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
    - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
@@ -525,15 +535,19 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 
 Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
-   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
-   - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-     - **Physical address** _(The full street address of the location where work will typically be performed.)_
-     - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
-     - **"Offer accepted?"** _(Set this to `TRUE`)_
-     - **OTE** _(salary, expressed as anticipated "on-target" earnings)_
-     - **Equity** _(stock options)_
-     - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
-     - Be sure everything is accurate, one last time!
+   - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
+   - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
+     - The new team member's role in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) now includes:
+       - **Start date** _(the new fleetie's first day, YYYY-MM-DD)_
+       - **Location** _(derive this from the physical address)_
+       - **GitHub username**  _(username of 2FA-enabled GitHub account)_
+     - The new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+       - **OTE** _("on-target earnings", i.e. anticipated total annual cash compensation)_
+       - **Equity** _(stock options)_
+       - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
+       - **Physical address** _(The full street address of the location where work will typically be performed.)_
+       - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
+       - **"Offer accepted?"** _(Set this to `TRUE`)_
    - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
    - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
      ```

@@ -89,7 +89,8 @@ const ManagePolicyPage = ({
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
-      observer: false,
+      observer: true,
+      observer_plus: true,
     },
   });
 
@@ -123,7 +124,7 @@ const ManagePolicyPage = ({
       return globalPoliciesAPI.loadAll();
     },
     {
-      enabled: isRouteOk && !teamIdForApi,
+      enabled: isRouteOk,
       select: (data) => data.policies,
       staleTime: 5000,
     }

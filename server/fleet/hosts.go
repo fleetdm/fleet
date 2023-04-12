@@ -69,6 +69,30 @@ func (s MacOSSettingsStatus) IsValid() bool {
 	}
 }
 
+type MacOSDiskEncryptionStatus string
+
+const (
+	MacOSDiskEncryptionStatusApplied             = MacOSDiskEncryptionStatus("applied")
+	MacOSDiskEncryptionStatusActionRequired      = MacOSDiskEncryptionStatus("action_required")
+	MacOSDiskEncryptionStatusEnforcing           = MacOSDiskEncryptionStatus("enforcing")
+	MacOSDiskEncryptionStatusFailed              = MacOSDiskEncryptionStatus("failed")
+	MacOSDiskEncryptionStatusRemovingEnforcement = MacOSDiskEncryptionStatus("removing_enforcement")
+)
+
+func (s MacOSDiskEncryptionStatus) IsValid() bool {
+	switch s {
+	case
+		MacOSDiskEncryptionStatusApplied,
+		MacOSDiskEncryptionStatusActionRequired,
+		MacOSDiskEncryptionStatusEnforcing,
+		MacOSDiskEncryptionStatusFailed,
+		MacOSDiskEncryptionStatusRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
+}
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //
@@ -106,8 +130,12 @@ type HostListOptions struct {
 	DisableFailingPolicies bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
-	// appled to the hosts.
+	// applied to the hosts.
 	MacOSSettingsFilter MacOSSettingsStatus
+
+	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// MDM profile.
+	MacOSSettingsDiskEncryptionFilter MacOSDiskEncryptionStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
@@ -834,6 +862,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName      string `json:"display_name" db:"display_name"`
+	TeamID           uint   `json:"team_id" db:"team_id"`
 }
 
 type HostDiskEncryptionKey struct {

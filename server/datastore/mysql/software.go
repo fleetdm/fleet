@@ -200,23 +200,40 @@ func deleteUninstalledHostSoftwareDB(
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 ) error {
-	var deletesHostSoftware []interface{}
-	deletesHostSoftware = append(deletesHostSoftware, hostID)
-
+	var deletesHostSoftware []uint
 	for currentKey, curSw := range currentMap {
 		if _, ok := incomingMap[currentKey]; !ok {
 			deletesHostSoftware = append(deletesHostSoftware, curSw.ID)
 		}
 	}
-	if len(deletesHostSoftware) <= 1 {
+	if len(deletesHostSoftware) == 0 {
 		return nil
 	}
-	sql := fmt.Sprintf(
-		`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
-		strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
-	)
-	if _, err := tx.ExecContext(ctx, sql, deletesHostSoftware...); err != nil {
+
+	stmt := `DELETE FROM host_software WHERE host_id = ? AND software_id IN (?);`
+	stmt, args, err := sqlx.In(stmt, hostID, deletesHostSoftware)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build delete host software query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host software")
+	}
+
+	// Cleanup the software table when no more hosts have the deleted host_software
+	// table entries.
+	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
+	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
+	// software.
+	stmt = `DELETE FROM software WHERE id IN (?) AND 
+	NOT EXISTS (
+		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
+	)`
+	stmt, args, err = sqlx.In(stmt, deletesHostSoftware)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build delete software query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software")
 	}
 
 	return nil
