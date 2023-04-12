@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -132,8 +130,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// OK: We are either in the middle of a secret rotation or the secret is invalid ...
+		if fleet.IsNotFound(err) {
+			// OK - This can happen if the following sequence of events take place:
+			// 	1. user deletes global/team enroll secret
+			// 	2. user deletes the host in Fleet and then
+			// 	3. Orbit tries to re-enroll using old secret.
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
 		return "", orbitError{message: err.Error()}
