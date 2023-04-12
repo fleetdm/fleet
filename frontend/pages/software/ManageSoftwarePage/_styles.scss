@@ -127,6 +127,10 @@
               .version__header {
                 width: 0;
               }
+              .vulnerabilities__header {
+                display: none;
+                width: 0;
+              }
               .source__header {
                 display: none;
                 width: 0;
@@ -134,6 +138,11 @@
               .hosts_count__header {
                 width: auto;
                 border-right: 0;
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__header {
+                  display: table-cell;
+                }
               }
               @media (min-width: $break-990) {
                 .version__header {
@@ -164,6 +173,8 @@
                 width: 0;
               }
               .vulnerabilities__cell {
+                display: none;
+                width: 0;
                 span {
                   display: inline;
                 }
@@ -186,6 +197,11 @@
               @media (min-width: $break-990) {
                 .version_cell {
                   width: $col-md;
+                }
+              }
+              @media (min-width: $break-990) {
+                .vulnerabilities__cell {
+                  display: table-cell;
                 }
               }
               @media (min-width: $break-1400) {

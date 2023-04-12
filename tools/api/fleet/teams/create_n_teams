@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+
+'''
+Create n new teams, each with a randomly generated 5-letter name, where n is the integer first
+argument passed to the script. Assumes all relevant environment variables are set.
+'''
+
+import subprocess, os, sys, string, random
+
+def main(n: int):
+  token, server_url = os.environ.get("TOKEN"), os.environ.get("SERVER_URL")
+  if not token or not server_url:
+    raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
+  for i in range(n):
+    name = "Team " + ''.join(random.choices(string.ascii_lowercase, k=5)).capitalize()
+    data = f'{{"name": "{name}"}}'
+    print(data)
+    subprocess.run(
+      ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}/api/latest/fleet/teams", "-d", f"{data}", "--insecure"]
+    )
+
+
+
+if __name__ == "__main__":
+    try:
+      n = int(sys.argv[1])
+    except:
+      raise Exception("Enter the number of teams to create as a single integer argument to this script.")
+    main(n)
