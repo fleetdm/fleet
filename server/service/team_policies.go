@@ -282,7 +282,7 @@ func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, 
 }
 
 func checkTeamID(teamID *uint, policy *fleet.Policy) bool {
-	return reflect.DeepEqual(teamID, policy.TeamID)
+	return policy != nil && reflect.DeepEqual(teamID, policy.TeamID)
 }
 
 func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
@@ -302,7 +302,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if ok := checkTeamID(teamID, policy); !ok {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "policy does not belong to team/global",
-			InternalErr: fmt.Errorf("teamID: %+v, policy: %+v", teamID, policy.TeamID),
+			InternalErr: fmt.Errorf("teamID: %+v, policy: %+v", teamID, policy),
 		})
 	}
 
