@@ -181,7 +181,7 @@ const ManageSchedulePage = ({
     Error,
     IScheduledQuery[]
   >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
-    enabled: isRouteOk && !teamIdForApi,
+    enabled: isRouteOk,
     select: (data) => data.global_schedule,
   });
 
