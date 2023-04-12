@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -537,25 +538,8 @@ spec:
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
-func TestApplyPolicies(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
-
-	var appliedPolicySpecs []*fleet.PolicySpec
-	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-		appliedPolicySpecs = specs
-		return nil
-	}
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == "Team1" {
-			return &fleet.Team{ID: 123}, nil
-		}
-		return nil, errors.New("unexpected team name!")
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		return nil
-	}
-
-	name := writeTmpYml(t, `---
+const (
+	policySpec = `---
 apiVersion: v1
 kind: policy
 spec:
@@ -583,7 +567,68 @@ spec:
   description: Checks to make sure that the Filevault feature is enabled on macOS devices.
   resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
   platform: darwin
-`)
+`
+	enrollSecretsSpec = `---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+    - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+    - secret: reallyworks
+    - secret: thissecretwontwork!
+`
+	labelsSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: pending_updates
+  query: select 1;
+  platforms:
+    - darwin
+`
+	packsSpec = `---
+apiVersion: v1
+kind: pack
+spec:
+  name: osquery_monitoring
+  queries:
+    - query: osquery_version
+      name: osquery_version_snapshot
+      interval: 7200
+      snapshot: true
+    - query: osquery_version
+      name: osquery_version_differential
+      interval: 7200
+`
+	queriesSpec = `---
+apiVersion: v1
+kind: query
+spec:
+  description: Retrieves the list of application scheme/protocol-based IPC handlers.
+  name: app_schemes
+  query: select * from app_schemes;
+`
+)
+
+func TestApplyPolicies(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var appliedPolicySpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Team1" {
+			return &fleet.Team{ID: 123}, nil
+		}
+		return nil, errors.New("unexpected team name!")
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	name := writeTmpYml(t, policySpec)
 
 	assert.Equal(t, "[+] applied 3 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPolicySpecsFuncInvoked)
@@ -592,6 +637,201 @@ spec:
 		assert.NotEmpty(t, p.Platform)
 	}
 	assert.True(t, ds.TeamByNameFuncInvoked)
+}
+
+func TestApplyAsGitOps(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+
+	gitOps := &fleet.User{
+		Name:       "GitOps",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "gitops1@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	gitOps, err := ds.NewUser(context.Background(), gitOps)
+	require.NoError(t, err)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			ID:              1,
+			AccessedAt:      time.Now(),
+			UserID:          gitOps.ID,
+			Key:             key,
+		}, nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return gitOps, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	// Apply global config.
+	currentAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return currentAppConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		currentAppConfig = config
+		return nil
+	}
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+`)
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+
+	// Apply team config.
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Team1" {
+			return &fleet.Team{ID: 123}, nil
+		}
+		return nil, errors.New("unexpected team name!")
+	}
+	var savedTeam *fleet.Team
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	var teamEnrollSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		if teamID == nil || *teamID != 123 {
+			return fmt.Errorf("unexpected data: %+v", teamID)
+		}
+		teamEnrollSecrets = secrets
+		return nil
+	}
+	/*
+			# TODO(lucas): MDM still not defined.
+		    # mdm:
+		    #  macos_updates:
+		    #    minimum_version: 10.10.10
+		    #    deadline: 1992-03-01
+	*/
+	name = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    agent_options:
+      config:
+        views:
+          foo: qux
+    name: Team1
+    secrets:
+      - secret: BBB
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
+	/*
+		assert.Equal(t, fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.10.10",
+				Deadline:       "1992-03-01",
+			},
+		}, savedTeam.Config.MDM)
+	*/
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+
+	// Apply policies.
+	var appliedPolicySpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+	name = writeTmpYml(t, policySpec)
+	assert.Equal(t, "[+] applied 3 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	assert.Len(t, appliedPolicySpecs, 3)
+	for _, p := range appliedPolicySpecs {
+		assert.NotEmpty(t, p.Platform)
+	}
+	assert.True(t, ds.TeamByNameFuncInvoked)
+
+	// Apply enroll secrets.
+	var appliedSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		appliedSecrets = secrets
+		return nil
+	}
+	name = writeTmpYml(t, enrollSecretsSpec)
+	assert.Equal(t, "[+] applied enroll secrets\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	assert.Len(t, appliedSecrets, 3)
+	for _, s := range appliedSecrets {
+		assert.NotEmpty(t, s.Secret)
+	}
+
+	// Apply labels.
+	var appliedLabels []*fleet.LabelSpec
+	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		appliedLabels = specs
+		return nil
+	}
+	name = writeTmpYml(t, labelsSpec)
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
+	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+
+	// Apply packs.
+	var appliedPacks []*fleet.PackSpec
+	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
+		appliedPacks = specs
+		return nil
+	}
+	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	name = writeTmpYml(t, packsSpec)
+	assert.Equal(t, "[+] applied 1 packs\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
+	require.Len(t, appliedPacks, 1)
+	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
+	require.Len(t, appliedPacks[0].Queries, 2)
+
+	// Apply queries.
+	var appliedQueries []*fleet.Query
+	ds.QueryByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return nil, sql.ErrNoRows
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+		appliedQueries = queries
+		return nil
+	}
+	name = writeTmpYml(t, queriesSpec)
+	assert.Equal(t, "[+] applied 1 queries\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyQueriesFuncInvoked)
+	require.Len(t, appliedQueries, 1)
+	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
+	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
 
 func TestApplyEnrollSecrets(t *testing.T) {
@@ -603,15 +843,7 @@ func TestApplyEnrollSecrets(t *testing.T) {
 		return nil
 	}
 
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-    - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-    - secret: reallyworks
-    - secret: thissecretwontwork!
-`)
+	name := writeTmpYml(t, enrollSecretsSpec)
 
 	assert.Equal(t, "[+] applied enroll secrets\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
@@ -630,15 +862,7 @@ func TestApplyLabels(t *testing.T) {
 		return nil
 	}
 
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: label
-spec:
-  name: pending_updates
-  query: select 1;
-  platforms:
-    - darwin
-`)
+	name := writeTmpYml(t, labelsSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
@@ -663,20 +887,7 @@ func TestApplyPacks(t *testing.T) {
 		return nil
 	}
 
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  queries:
-    - query: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - query: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-`)
+	name := writeTmpYml(t, packsSpec)
 
 	assert.Equal(t, "[+] applied 1 packs\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
@@ -720,14 +931,7 @@ func TestApplyQueries(t *testing.T) {
 		return nil
 	}
 
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: query
-spec:
-  description: Retrieves the list of application scheme/protocol-based IPC handlers.
-  name: app_schemes
-  query: select * from app_schemes;
-`)
+	name := writeTmpYml(t, queriesSpec)
 
 	assert.Equal(t, "[+] applied 1 queries\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)

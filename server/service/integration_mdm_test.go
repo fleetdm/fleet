@@ -198,9 +198,9 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
+	s.token = s.getTestAdminToken()
 	appCfg := s.getConfig()
 	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
-		s.token = s.getTestAdminToken()
 		// ensure global disk encryption is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
@@ -2739,7 +2739,8 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
 func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string) (*bytes.Buffer, map[string]string) {
+	fileName string, fileContent []byte, token string,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)

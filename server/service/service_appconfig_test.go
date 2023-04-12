@@ -414,7 +414,8 @@ func TestService_EmailConfig(t *testing.T) {
 				Config: fleet.SESConfig{
 					Region:    "us-east-1",
 					SourceARN: "qux",
-				}},
+				},
+			},
 			wantErr: assert.NoError,
 		},
 		{
@@ -429,15 +430,17 @@ func TestService_EmailConfig(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "no configured email backend should return nil",
+			name: "accessing without roles should return forbidden",
 			fields: fields{
-				config: config.TestConfig(),
+				config: testSESPluginConfig(),
 			},
 			args: args{
 				ctx: test.UserContext(context.Background(), test.UserNoRoles),
 			},
-			want:    nil,
-			wantErr: assert.NoError,
+			want: nil,
+			wantErr: func(tt assert.TestingT, err error, i ...interface{}) bool {
+				return assert.EqualError(tt, err, "forbidden")
+			},
 		},
 	}
 	for _, tt := range tests {
