@@ -2784,10 +2784,34 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
 	require.NoError(t, err)
 
-	// command has no results yet, so it is not listed
+	// command has no results yet, so the status is empty
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
 	require.NoError(t, err)
-	require.Empty(t, res)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
 
 	// simulate a result for enrolledHosts[0]
 	err = storage.StoreCommandReport(&mdm.Request{
@@ -2801,19 +2825,33 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// command is now listed
+	// command is now listed with a status for this result
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 1)
+	require.Len(t, res, 2)
+
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
-	require.Equal(t, res[0], &fleet.MDMAppleCommand{
-		DeviceID:    enrolledHosts[0].UUID,
-		CommandUUID: uuid1,
-		Status:      "Acknowledged",
-		RequestType: "ListApps",
-		Hostname:    enrolledHosts[0].Hostname,
-		TeamID:      nil,
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
 	})
 
 	// simulate a result for enrolledHosts[1]

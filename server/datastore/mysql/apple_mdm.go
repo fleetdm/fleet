@@ -324,23 +324,19 @@ func (ds *Datastore) ListMDMAppleCommands(
 ) ([]*fleet.MDMAppleCommand, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-    ncr.id as device_id,
-    ncr.command_uuid,
-    ncr.status,
-    ncr.updated_at,
-    nc.request_type,
+    nvq.id as device_id,
+    nvq.command_uuid,
+    COALESCE(nvq.status, '') as status,
+    COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
+    nvq.request_type,
     h.hostname,
     h.team_id
 FROM
-    nano_command_results ncr
-INNER JOIN
-    nano_commands nc
-ON
-    ncr.command_uuid = nc.command_uuid
+    nano_view_queue nvq
 INNER JOIN
     hosts h
 ON
-    ncr.id = h.uuid
+    nvq.id = h.uuid
 WHERE
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
