@@ -497,7 +497,7 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 #### Private key, certificate, and encrypted token
 
-First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
+Create an account in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
 Once you have access to ABM, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
