@@ -568,6 +568,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// make sure the host gets a request to install fleetd
 	cmd := d.idle()
 	require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+	require.NotNil(t, cmd.Command.InstallEnterpriseApplication)
 	require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
 
 	// only one shows up as pending
@@ -2521,7 +2522,6 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 
 	// the old configuration profile is kept
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
-
 }
 
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
@@ -2625,7 +2625,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackage() {
-	//ctx := context.Background()
+	// ctx := context.Background()
 	t := s.T()
 
 	read := func(name string) []byte {
@@ -2678,7 +2678,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
-
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
@@ -2798,7 +2797,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleHostStatusSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleHostStatusSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// set the default bm assignment to `team`
 	acResp := appConfigResponse{}
@@ -2816,7 +2815,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleHostStatusSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleHostStatusSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
@@ -2847,7 +2846,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 			}
 			cmd = d.device.acknowledge(cmd.CommandUUID)
 		}
-
 	}
 
 	for _, d := range globalDevices {
@@ -2863,20 +2861,20 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 	// check global summary
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleHostStatusSummary{
-		Latest:  uint(3),
-		Pending: uint(2),
-		Failed:  uint(1),
-	}, summaryResp.MDMAppleHostStatusSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
+		Installed: uint(3),
+		Pending:   uint(2),
+		Failed:    uint(1),
+	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// check team summary
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleHostStatusSummary{
-		Latest:  uint(2),
-		Pending: uint(1),
-		Failed:  uint(3),
-	}, summaryResp.MDMAppleHostStatusSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
+		Installed: uint(2),
+		Pending:   uint(1),
+		Failed:    uint(3),
+	}, summaryResp.MDMAppleBootstrapPackageSummary)
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -2937,7 +2935,8 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
 func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string) (*bytes.Buffer, map[string]string) {
+	fileName string, fileContent []byte, token string,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)

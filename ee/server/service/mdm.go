@@ -270,26 +270,26 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID u
 	return nil
 }
 
-func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (fleet.MDMAppleHostStatusSummary, error) {
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionRead); err != nil {
-		return fleet.MDMAppleHostStatusSummary{}, err
+		return &fleet.MDMAppleBootstrapPackageSummary{}, err
 	}
 
 	if teamID != nil {
 		_, err := svc.ds.Team(ctx, tmID)
 		if err != nil {
-			return fleet.MDMAppleHostStatusSummary{}, err
+			return &fleet.MDMAppleBootstrapPackageSummary{}, err
 		}
 	}
 
 	summary, err := svc.ds.GetMDMAppleBootstrapPackageSummary(ctx, tmID)
 	if err != nil {
-		return fleet.MDMAppleHostStatusSummary{}, ctxerr.Wrap(ctx, err, "getting bootstrap package summary")
+		return &fleet.MDMAppleBootstrapPackageSummary{}, ctxerr.Wrap(ctx, err, "getting bootstrap package summary")
 	}
 
 	return summary, nil

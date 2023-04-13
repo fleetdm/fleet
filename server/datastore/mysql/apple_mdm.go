@@ -1392,7 +1392,7 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error) {
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
@@ -1445,7 +1445,7 @@ WHERE
 		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
 	}
 
-	var res fleet.MDMAppleHostStatusSummary
+	var res fleet.MDMAppleConfigProfilesSummary
 	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
 	if err != nil {
 		return nil, err
@@ -1642,12 +1642,12 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
-func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (fleet.MDMAppleHostStatusSummary, error) {
+func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	stmt := `
           SELECT
-              COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS applied,
+              COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF(ncr.status IS NULL, 1, NULL)) AS pending
+              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -1659,11 +1659,11 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           WHERE
               hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ?`
 
-	var bp fleet.MDMAppleHostStatusSummary
+	var bp fleet.MDMAppleBootstrapPackageSummary
 	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
-		return bp, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
 	}
-	return bp, nil
+	return &bp, nil
 }
 
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {

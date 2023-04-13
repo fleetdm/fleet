@@ -580,7 +580,7 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error)
+type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
@@ -594,7 +594,7 @@ type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) 
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
 
-type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (fleet.MDMAppleHostStatusSummary, error)
+type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
@@ -3449,7 +3449,7 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error) {
+func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
@@ -3498,7 +3498,7 @@ func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
 }
 
-func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (fleet.MDMAppleHostStatusSummary, error) {
+func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleBootstrapPackageSummaryFuncInvoked = true
 	s.mu.Unlock()

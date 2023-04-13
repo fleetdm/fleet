@@ -594,7 +594,7 @@ type getMDMAppleProfilesSummaryRequest struct {
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
-	fleet.MDMAppleHostStatusSummary
+	fleet.MDMAppleConfigProfilesSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -616,7 +616,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 	return &res, nil
 }
 
-func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostStatusSummary, error) {
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -970,7 +970,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	var premiumCommands = map[string]bool{
+	premiumCommands := map[string]bool{
 		"EraseDevice": true,
 		"DeviceLock":  true,
 	}
@@ -1857,7 +1857,7 @@ type getMDMAppleBootstrapPackageSummaryRequest struct {
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
-	fleet.MDMAppleHostStatusSummary
+	fleet.MDMAppleBootstrapPackageSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -1869,15 +1869,15 @@ func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request int
 	if err != nil {
 		return getMDMAppleBootstrapPackageSummaryResponse{Err: err}, nil
 	}
-	return getMDMAppleBootstrapPackageSummaryResponse{MDMAppleHostStatusSummary: summary}, nil
+	return getMDMAppleBootstrapPackageSummaryResponse{MDMAppleBootstrapPackageSummary: *summary}, nil
 }
 
-func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (fleet.MDMAppleHostStatusSummary, error) {
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.MDMAppleHostStatusSummary{}, fleet.ErrMissingLicense
+	return &fleet.MDMAppleBootstrapPackageSummary{}, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
