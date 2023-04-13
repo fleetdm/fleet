@@ -114,6 +114,8 @@ const HostDetailsPage = ({
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
+    filteredSoftwarePath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -335,6 +337,13 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString, host?.users]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredSoftwarePath !== path && path.includes("software")) {
+      setFilteredSoftwarePath(location.pathname + location.search);
+    }
+  }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [

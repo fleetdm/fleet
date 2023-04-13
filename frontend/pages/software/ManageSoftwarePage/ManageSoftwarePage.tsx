@@ -103,6 +103,8 @@ const ManageSoftwarePage = ({
     isPremiumTier,
     isSandboxMode,
     noSandboxHosts,
+    filteredSoftwarePath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -146,6 +148,14 @@ const ManageSoftwarePage = ({
     setFilterVuln(location?.query?.vulnerable === "true" || false);
     // TODO: handle invalid values for vulnerable param
   }, [location]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredSoftwarePath !== path) {
+      setFilteredSoftwarePath(location.pathname + location.search);
+    }
+    console.log("manage software page path", path);
+  }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
   // softwareConfig is either the global config or the team config of the currently selected team
   const {
