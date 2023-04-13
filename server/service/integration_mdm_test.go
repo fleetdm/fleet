@@ -567,8 +567,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// make sure the host gets a request to install fleetd
 	cmd := d.idle()
+	require.NotNil(t, cmd)
+	require.NotNil(t, cmd.Command)
 	require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
 	require.NotNil(t, cmd.Command.InstallEnterpriseApplication)
+	require.NotNil(t, cmd.Command.InstallEnterpriseApplication.ManifestURL)
 	require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
 
 	// only one shows up as pending
