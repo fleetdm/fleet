@@ -121,6 +121,7 @@ const CustomSettings = ({
         accept=".mobileconfig,application/x-apple-aspen-config"
         isLoading={showLoading}
         onFileUpload={onFileUpload}
+        className={`${baseClass}__file-uploader`}
       />
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal

@@ -113,3 +113,9 @@ export interface IBootstrapPackage {
   token: string;
   created_at: string; // TODO: add created at field to API.
 }
+
+export interface IBootstrapPackageAggregate {
+  applied: number; // TODO: check this the correct value coming back from API. applied vs installed
+  pending: number;
+  failed: number;
+}

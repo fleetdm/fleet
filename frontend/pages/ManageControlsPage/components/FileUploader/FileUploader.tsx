@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -11,6 +12,7 @@ interface IFileUploaderProps {
   message: string;
   isLoading?: boolean;
   accept?: string;
+  className?: string;
   onFileUpload: (files: FileList | null) => void;
 }
 
@@ -19,10 +21,13 @@ const FileUploader = ({
   message,
   isLoading = false,
   accept,
+  className,
   onFileUpload,
 }: IFileUploaderProps) => {
+  const classes = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
+    <div className={classes}>
       <Icon name={icon} />
       <p>{message}</p>
       <Button variant="brand" isLoading={isLoading}>

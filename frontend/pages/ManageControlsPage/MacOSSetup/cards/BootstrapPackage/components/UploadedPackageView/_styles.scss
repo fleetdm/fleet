@@ -1,0 +1,11 @@
+.uploaded-package-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+
+  > p {
+    font-size: $x-small;
+    margin: 0;
+  }
+}

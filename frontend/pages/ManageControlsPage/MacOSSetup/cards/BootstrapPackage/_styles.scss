@@ -1,6 +1,6 @@
 .bootstrap-package {
   > h2 {
-    margin-top: 0;
+    margin: 0 0 $pad-large;
     padding-bottom: $pad-small;
     font-size: $medium;
     font-weight: $regular;
@@ -15,12 +15,6 @@
     justify-content: space-between;
     gap: $pad-xxlarge;
   }
-
-    &__uploader-table-container {
-      >p {
-        font-size: $x-small;
-      }
-    }
 
   @media (max-width: $break-990) {
     &__content {

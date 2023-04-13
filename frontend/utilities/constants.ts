@@ -18,6 +18,12 @@ export enum DiskEncryptionStatus {
   REMOVING_ENFORCEMENT = "removing_enforcement",
 }
 
+export enum BootstrapPackageStatus {
+  APPLIED = "applied", // TODO: check this is the correct value. applied vs installed
+  PENDING = "pending",
+  FAILED = "failed",
+}
+
 export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
 
