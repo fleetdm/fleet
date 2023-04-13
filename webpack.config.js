@@ -65,21 +65,13 @@ const config = {
     noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
-        test: /\.(png|gif)$/,
-        use: {
-          loader: "url-loader?name=[name]@[contenthash].[ext]&limit=6000",
+        test: /\.(pdf|png|gif|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
+        type: "asset/resource",
+        generator: {
+          filename: "[name]@[hash][ext]",
         },
       },
-      {
-        test: /\.(pdf|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
-        use: {
-          loader: "file-loader",
-          options: {
-            name: "[name]@[contenthash].[ext]",
-            useRelativePath: true,
-          },
-        },
-      },
+
       {
         test: /(\.tsx?|\.jsx?)$/,
         exclude: /node_modules/,
