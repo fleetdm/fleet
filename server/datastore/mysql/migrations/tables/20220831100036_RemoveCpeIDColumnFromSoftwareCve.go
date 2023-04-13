@@ -48,19 +48,19 @@ func Up_20220831100036(tx *sql.Tx) error {
 		}
 	}
 
-	const removeUnqStmt = `
+	if indexExists(tx, "software_cve", "unique_cpe_cve") {
+		const removeUnqStmt = `
 ALTER TABLE software_cve DROP INDEX unique_cpe_cve, ALGORITHM=INPLACE, LOCK=NONE;
 `
-	_, err := tx.Exec(removeUnqStmt)
-	if err != nil {
-		return errors.Wrapf(err, "removing uniq cpe_id constraint from software_cve")
+		if _, err := tx.Exec(removeUnqStmt); err != nil {
+			return errors.Wrapf(err, "removing uniq cpe_id constraint from software_cve")
+		}
 	}
 
 	const removeColStmt = `
 ALTER TABLE software_cve DROP COLUMN cpe_id, ALGORITHM=INPLACE, LOCK=NONE;
 `
-	_, err = tx.Exec(removeColStmt)
-	if err != nil {
+	if _, err := tx.Exec(removeColStmt); err != nil {
 		return errors.Wrapf(err, "removing cpe_id column from software_cve")
 	}
 
