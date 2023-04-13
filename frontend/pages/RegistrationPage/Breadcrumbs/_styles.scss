@@ -51,7 +51,8 @@
     }
 
     &:focus {
-      outline: none;
+      // outline: 1px dashed $core-vibrant-blue;
+      outline: 1px dashed $core-white;
     }
 
     &--active {
