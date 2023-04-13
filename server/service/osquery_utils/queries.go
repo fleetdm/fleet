@@ -179,15 +179,15 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			displayVersion := rows[0]["display_version"]
-			if displayVersion == "" {
+			version := rows[0]["display_version"]
+			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
 					"host", host.Hostname,
 				)
 			}
 
-			s := fmt.Sprintf("%v", displayVersion)
+			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			host.OSVersion = s
