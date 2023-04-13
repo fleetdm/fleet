@@ -27,7 +27,7 @@ NUDGE_MACOS_APP_BUNDLE_VERSION=1.1.10.81462
 SYSTEMS=${SYSTEMS:-macos linux windows}
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.8.1
+    OSQUERY_VERSION=5.8.2
 fi
 
 mkdir -p $TUF_PATH/tmp
