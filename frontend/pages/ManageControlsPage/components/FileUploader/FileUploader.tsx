@@ -10,6 +10,7 @@ interface IFileUploaderProps {
   icon: IconNames;
   message: string;
   isLoading?: boolean;
+  accept?: string;
   onFileUpload: (files: FileList | null) => void;
 }
 
@@ -17,6 +18,7 @@ const FileUploader = ({
   icon,
   message,
   isLoading = false,
+  accept,
   onFileUpload,
 }: IFileUploaderProps) => {
   return (
@@ -27,7 +29,7 @@ const FileUploader = ({
         <label htmlFor="upload-profile">Upload</label>
       </Button>
       <input
-        accept=".mobileconfig,application/x-apple-aspen-config"
+        accept={accept}
         id="upload-profile"
         type="file"
         onChange={(e) => {

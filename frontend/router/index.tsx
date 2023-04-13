@@ -173,6 +173,7 @@ const routes = (
               <Route path="mac-settings" component={MacOSSettings} />
               <Route path="mac-settings/:section" component={MacOSSettings} />
               <Route path="mac-setup" component={MacOSSetup} />
+              <Route path="mac-setup/:section" component={MacOSSetup} />
             </Route>
           </Route>
 

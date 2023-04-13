@@ -105,3 +105,11 @@ export interface IMdmScript {
   created_at: string;
   updated_at: string;
 }
+
+export interface IBootstrapPackage {
+  name: string;
+  team_id: number;
+  sha256: string;
+  token: string;
+  created_at: string; // TODO: add created at field to API.
+}

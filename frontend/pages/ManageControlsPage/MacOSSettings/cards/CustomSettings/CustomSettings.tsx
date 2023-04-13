@@ -118,6 +118,7 @@ const CustomSettings = ({
       <FileUploader
         icon="profile"
         message="Configuration profile (.mobileconfig)"
+        accept=".mobileconfig,application/x-apple-aspen-config"
         isLoading={showLoading}
         onFileUpload={onFileUpload}
       />
