@@ -3329,7 +3329,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
-	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusUnauthorized, &logoutResp)
 
 	s.token = s.getTestAdminToken()
 
