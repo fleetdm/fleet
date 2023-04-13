@@ -3959,7 +3959,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 #### Example
 
 Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
-assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+assigned to a team. Note that in this example the form data specifies `team_id` in addition to
 `package`.
 
 `POST /api/v1/fleet/mdm/apple/profiles`
@@ -3992,7 +3992,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Get information about a bootstrap pacakge that was uploaded to Fleet.
+Get information about a bootstrap package that was uploaded to Fleet.
 
 `GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
 
