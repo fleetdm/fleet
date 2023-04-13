@@ -20,6 +20,7 @@ import (
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
 	socket          string
+	osquerydPath    string
 	tableExtensions []Extension
 
 	// mu protects access to srv and cancel in Execute and Interrupt.
@@ -49,8 +50,8 @@ func WithExtension(t Extension) Opt {
 }
 
 // NewRunner creates an extension runner.
-func NewRunner(socket string, opts ...Opt) *Runner {
-	r := &Runner{socket: socket}
+func NewRunner(socket string, osquerydPath string, opts ...Opt) *Runner {
+	r := &Runner{socket: socket, osquerydPath: osquerydPath}
 	for _, fn := range opts {
 		fn(r)
 	}
@@ -95,7 +96,7 @@ func (r *Runner) Execute() error {
 
 	plugins := OrbitDefaultTables()
 
-	plugins = append(plugins, PlatformTables()...)
+	plugins = append(plugins, PlatformTables(r)...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),
