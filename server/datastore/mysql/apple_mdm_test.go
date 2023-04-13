@@ -1463,6 +1463,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, false, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is false
 	require.Equal(t, uint(0), res.Failed)
@@ -1471,6 +1472,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, true, time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-1), res.Pending)
 	require.Equal(t, uint(0), res.Failed)
@@ -1526,6 +1528,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	}
 	// add filevault profile for team
 	fvTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", mobileconfig.FleetFileVaultPayloadIdentifier, team.ID))
+	require.NoError(t, err)
 
 	upsertHostCPs(hosts[9:10], append(teamCPs, fvTeam), fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
