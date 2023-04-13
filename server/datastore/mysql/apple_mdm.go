@@ -1392,61 +1392,116 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
+func subqueryHostsMacOSSettingsStatusFailing() string {
+	return fmt.Sprintf(`
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = '%s'`,
+		fleet.MDMAppleDeliveryFailed,
+	)
+}
+
+func subqueryHostsMacOSSettingsStatusPending() string {
+	return fmt.Sprintf(`
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND (hmap.status IS NULL
+                    OR hmap.status = '%s'
+                    OR(hmap.profile_identifier = '%s'
+                        AND hmap.status = '%s'
+                        AND hmap.operation_type = '%s'
+                        AND NOT EXISTS (
+                            SELECT
+                                1 FROM host_disk_encryption_keys hdek
+                            WHERE
+                                h.id = hdek.host_id
+                                AND hdek.decryptable = 1)))
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_apple_profiles hmap2
+                    WHERE
+                        h.uuid = hmap2.host_uuid
+                        AND hmap2.status = '%s')`,
+		fleet.MDMAppleDeliveryPending,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryFailed,
+	)
+}
+
+func subqueryHostsMacOSSetttingsStatusLatest() string {
+	return fmt.Sprintf(`
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = '%s'
+                AND(hmap.profile_identifier != '%s'
+                    OR EXISTS (
+                        SELECT
+                            1 FROM host_disk_encryption_keys hdek
+                        WHERE
+                            h.id = hdek.host_id
+                            AND hdek.decryptable = 1))
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_apple_profiles hmap2
+                    WHERE
+                        h.uuid = hmap2.host_uuid
+                        AND (hmap2.status IS NULL
+                            OR hmap2.status != '%s'
+                            OR(hmap2.profile_identifier = '%s'
+                                AND hmap2.status = '%s'
+                                AND hmap2.operation_type = '%s'
+                                AND NOT EXISTS (
+                                    SELECT
+                                        1 FROM host_disk_encryption_keys hdek
+                                    WHERE
+                                        h.id = hdek.host_id
+                                        AND hdek.decryptable = 1))))`,
+		fleet.MDMAppleDeliveryApplied,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		fleet.MDMAppleOperationTypeInstall,
+	)
+}
+
 func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
-	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.status = 'failed') THEN
-			1
-		END) AS failed,
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND (hmap.status = 'pending' OR hmap.status IS NULL))
-			AND NOT EXISTS (
-				SELECT
-					1 FROM host_mdm_apple_profiles hmap
-				WHERE
-					h.uuid = hmap.host_uuid
-					AND hmap.status = 'failed') THEN
-			1
-		END) AS pending,
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.status = 'applied')
-			AND NOT EXISTS (
-				SELECT
-					1 FROM host_mdm_apple_profiles hmap
-				WHERE
-					h.uuid = hmap.host_uuid
-					AND (hmap.status IS NULL OR hmap.status != 'applied')) THEN
-			1
-		END) AS applied
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS failed,
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS pending, 
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS applied
 FROM
-	hosts h
+    hosts h
 WHERE
-	%s`
+    %s`
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
 		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
 	}
 
+	stmt := fmt.Sprintf(sqlFmt, subqueryHostsMacOSSettingsStatusFailing(), subqueryHostsMacOSSettingsStatusPending(), subqueryHostsMacOSSetttingsStatusLatest(), teamFilter)
+
 	var res fleet.MDMAppleHostsProfilesSummary
-	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	err := sqlx.GetContext(ctx, ds.reader, &res, stmt)
 	if err != nil {
 		return nil, err
 	}
@@ -1508,7 +1563,7 @@ const SQLDiskEncryptionRemovingEnforcement = `h.uuid = hmap.host_uuid
 
 func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	sqlFmt := `
-	SELECT
+SELECT
 	COUNT(
 		CASE WHEN EXISTS (
 			SELECT
