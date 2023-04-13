@@ -66,7 +66,7 @@ const config = {
     rules: [
       {
         test: /\.(pdf|png|gif|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
-        type: "asset/resource",
+        type: "asset",
         generator: {
           filename: "[name]@[hash][ext]",
         },
