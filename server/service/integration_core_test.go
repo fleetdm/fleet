@@ -3329,7 +3329,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
-	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusUnauthorized, &logoutResp)
 
 	s.token = s.getTestAdminToken()
 
@@ -6358,6 +6358,29 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+}
+
+func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
+	t := s.T()
+	ctx := context.Background()
+
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   time.Now(),
+		DetailUpdatedAt:  time.Now(),
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	var resp jsonError
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   uuid.New().String(),
+		HardwareUUID:   h.UUID,
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusUnauthorized, &resp)
+
+	require.Equal(t, resp.Message, "Authentication failed")
 }
 
 func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
