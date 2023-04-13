@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { IBootstrapPackage } from "interfaces/mdm";
 
@@ -7,12 +7,15 @@ import UploadList from "pages/ManageControlsPage/components/UploadList";
 
 import BootstrapPackageListItem from "../BootstrapPackageListItem";
 import BootstrapPackageTable from "../BootstrapPackageTable/BootstrapPackageTable";
+import DeletePackageModal from "../DeletePackageModal/DeletePackageModal";
 
 const baseClass = "uploaded-package-view";
 
-interface IUploadedPackageViewProps {}
+interface IUploadedPackageViewProps {
+  onDelete: () => void;
+}
 
-const UploadedPackageView = ({}: IUploadedPackageViewProps) => {
+const UploadedPackageView = ({ onDelete }: IUploadedPackageViewProps) => {
   // TODO: hook up API call to get data
   const bootstrapPackage: IBootstrapPackage = {
     name: "test_package",
@@ -21,8 +24,6 @@ const UploadedPackageView = ({}: IUploadedPackageViewProps) => {
     token: "test-token",
     created_at: "2023-04-12T15:56:23Z", // TODO: add created at field.
   };
-
-  const onClickDelete = () => {};
 
   return (
     <div className={baseClass}>
@@ -42,7 +43,7 @@ const UploadedPackageView = ({}: IUploadedPackageViewProps) => {
         ListItemComponent={({ listItem }) => (
           <BootstrapPackageListItem
             bootstrapPackage={listItem}
-            onDelete={onClickDelete}
+            onDelete={onDelete}
           />
         )}
       />

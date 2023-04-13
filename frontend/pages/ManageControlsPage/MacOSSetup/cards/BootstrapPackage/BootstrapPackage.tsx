@@ -5,6 +5,7 @@ import { IBootstrapPackage } from "interfaces/mdm";
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/PackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
+import DeletePackageModal from "./components/DeletePackageModal/DeletePackageModal";
 
 const baseClass = "bootstrap-package";
 
@@ -14,6 +15,9 @@ interface IBootstrapPackageProps {
 
 const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   // TODO: get bootstrap package API call
+  const [showDeletePackageModal, setShowDeletePackageModal] = useState(false);
+
+  const onDelete = () => {};
 
   return (
     <div className={baseClass}>
@@ -21,7 +25,9 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
       <div className={`${baseClass}__content`}>
         {/* {bootstrapPackage ? <UploadedPackageView /> : <PackageUploader />} */}
         {true ? (
-          <UploadedPackageView />
+          <UploadedPackageView
+            onDelete={() => setShowDeletePackageModal(true)}
+          />
         ) : (
           <PackageUploader onUpload={() => {}} />
         )}
@@ -29,6 +35,12 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
           <BootstrapPackagePreview />
         </div>
       </div>
+      {showDeletePackageModal && (
+        <DeletePackageModal
+          onDelete={onDelete}
+          onCancel={() => setShowDeletePackageModal(false)}
+        />
+      )}
     </div>
   );
 };
