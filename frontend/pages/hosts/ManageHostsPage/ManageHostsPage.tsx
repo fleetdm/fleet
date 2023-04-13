@@ -77,6 +77,7 @@ import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
+  DEFAULT_PAGE_INDEX,
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
@@ -184,6 +185,16 @@ const ManageHostsPage = ({
     return query;
   })();
 
+  const initialPage = (() => {
+    let page = 0;
+
+    if (queryParams && queryParams.page) {
+      page = queryParams.page;
+    }
+
+    return page;
+  })();
+
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
@@ -206,6 +217,7 @@ const ManageHostsPage = ({
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
@@ -367,7 +379,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        page,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
         diskEncryptionStatus,
@@ -405,7 +417,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        page,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         diskEncryptionStatus,
         macSettingsStatus,
@@ -497,6 +509,7 @@ const ManageHostsPage = ({
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
 
+  console.log("filteredHostsPath", filteredHostsPath);
   const isLastPage =
     tableQueryData &&
     !!hostsCount &&
@@ -660,10 +673,13 @@ const ManageHostsPage = ({
 
       setTableQueryData({ ...newTableQuery });
 
+      console.log("onTableQueryChange");
+      console.log("newTableQuery", newTableQuery);
       const {
         searchQuery: searchText,
         sortHeader,
         sortDirection,
+        pageIndex,
       } = newTableQuery;
 
       let sort = sortBy;
@@ -688,12 +704,16 @@ const ManageHostsPage = ({
         setSearchQuery(searchText);
       }
 
+      if (!isEqual(page, pageIndex)) {
+        setPage(pageIndex);
+      }
+
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
       if (!isEmpty(searchText)) {
         newQueryParams.query = searchText;
       }
-
+      newQueryParams.page = pageIndex;
       newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
@@ -730,6 +750,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
       }
+      console.log("NEWQUERYPARAMS.PAGE", newQueryParams.page);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -759,6 +780,7 @@ const ManageHostsPage = ({
       osId,
       osName,
       osVersion,
+      page,
       router,
       routeTemplate,
       routeParams,
@@ -1380,6 +1402,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
         pageSize={50}
         actionButtonText={"Edit columns"}
