@@ -208,7 +208,6 @@
     "ts-loader": "6.2.2",
     "ts-node": "10.7.0",
     "tslint": "5.10.0",
-    "tslint-eslint-rules": "5.4.0",
     "tslint-react": "3.6.0",
     "typescript": "4.6.2",
     "webpack": "5.78.0",
