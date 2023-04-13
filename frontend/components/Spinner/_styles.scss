@@ -6,7 +6,9 @@
   animation-delay: 250ms;
   opacity: 0;
   &.centered {
-    margin: 120px auto;
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
   }
 
   &.include-container {
