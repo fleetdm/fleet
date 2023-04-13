@@ -133,10 +133,6 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 }
 
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
 	conf := svc.config
 	logging := &fleet.Logging{
 		Debug: conf.Logging.Debug,

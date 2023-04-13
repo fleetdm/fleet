@@ -1,3 +1,10 @@
+## Fleet 4.30.1 (Apr 12, 2023)
+
+* Fixed a UI bug introduced in version 4.30 where the "Show inherited policies" button was not being
+  displayed.
+
+* Fixed inherited schedules not appearing on page reload. 
+
 ## Fleet 4.30.0 (Apr 10, 2023)
 
 * Removed both `FLEET_MDM_APPLE_ENABLE` and `FLEET_DEV_MDM_ENABLED` feature flags.

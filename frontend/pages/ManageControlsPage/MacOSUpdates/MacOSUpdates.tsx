@@ -61,7 +61,9 @@ const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
       </>
     </div>
   ) : (
-    <PremiumFeatureMessage />
+    <PremiumFeatureMessage
+      className={`${baseClass}__premium-feature-message`}
+    />
   );
 };
 

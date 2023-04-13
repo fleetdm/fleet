@@ -277,6 +277,19 @@ type AppConfig struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+// Obfuscate overrides credentials with obfuscated characters.
+func (c *AppConfig) Obfuscate() {
+	if c.SMTPSettings.SMTPPassword != "" {
+		c.SMTPSettings.SMTPPassword = MaskedPassword
+	}
+	for _, jiraIntegration := range c.Integrations.Jira {
+		jiraIntegration.APIToken = MaskedPassword
+	}
+	for _, zdIntegration := range c.Integrations.Zendesk {
+		zdIntegration.APIToken = MaskedPassword
+	}
+}
+
 // legacyConfig holds settings that have been replaced, superceded or
 // deprecated by other AppConfig settings.
 type legacyConfig struct {
@@ -678,6 +691,19 @@ func (e *EnrollSecret) AuthzType() string {
 	return "enroll_secret"
 }
 
+// ExtraAuthz implements authz.ExtraAuthzer.
+func (e *EnrollSecret) ExtraAuthz() (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"is_global_secret": e.TeamID == nil,
+	}, nil
+}
+
+// IsGlobalSecret returns whether the secret is global.
+// This method is defined for the Policy Rego code (is_global_secret).
+func (e *EnrollSecret) IsGlobalSecret() bool {
+	return e.TeamID == nil
+}
+
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
@@ -834,4 +860,12 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// Version is the authz type used to check access control to the version endpoint.
+type Version struct{}
+
+// AuthzType implements authz.AuthzTyper.
+func (v *Version) AuthzType() string {
+	return "version"
 }

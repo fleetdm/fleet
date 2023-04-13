@@ -321,6 +321,8 @@ const (
 	ErrNoOneAdminNeeded = 2
 	// ErrNoUnknownTranslate is returned when an item type in the translate payload is unknown
 	ErrNoUnknownTranslate = 3
+	// ErrAPIOnlyRole is returned when a selected role for a user is for API only users.
+	ErrAPIOnlyRole = 4
 )
 
 // NewError returns a fleet error with the code and message specified

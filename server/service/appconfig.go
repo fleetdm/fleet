@@ -17,15 +17,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 	"github.com/kolide/kit/version"
 )
 
-// //////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
-// //////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 type appConfigResponse struct {
 	fleet.AppConfig
@@ -163,17 +164,7 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
-	}
-
-	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = fleet.MaskedPassword
-	}
-
-	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = fleet.MaskedPassword
-	}
+	ac.Obfuscate()
 
 	return ac, nil
 }
@@ -198,10 +189,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
+
 	loggingConfig, err := svc.LoggingConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -238,10 +228,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
 
 	oldSmtpSettings := appConfig.SMTPSettings
 	oldAgentOptions := ""
@@ -405,15 +393,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfigObfuscated(ctx)
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	obfuscatedAppConfig.Obfuscate()
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
-	if obfuscatedConfig.AgentOptions != nil {
-		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	if obfuscatedAppConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.ds.NewActivity(
@@ -460,7 +449,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	return obfuscatedConfig, nil
+	return obfuscatedAppConfig, nil
 }
 
 func (svc *Service) validateMDM(
@@ -645,7 +634,7 @@ func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Version{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

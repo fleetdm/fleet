@@ -198,9 +198,9 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
+	s.token = s.getTestAdminToken()
 	appCfg := s.getConfig()
 	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
-		s.token = s.getTestAdminToken()
 		// ensure global disk encryption is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }

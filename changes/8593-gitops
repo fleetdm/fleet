@@ -1,0 +1,1 @@
+* Add `gitops` user role to Fleet. GitOps users are users that can manage configuration.
