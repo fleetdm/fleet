@@ -1109,7 +1109,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
-	installedPaths := make(map[string]string)
+	sPaths := make(map[string]string)
 
 	for _, row := range rows {
 		name := row["name"]
@@ -1173,7 +1173,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		software = append(software, s)
 
 		if row["installed_path"] != "" {
-			installedPaths[s.ToUniqueStr()] = row["installed_path"]
+			sPaths[s.ToUniqueStr()] = row["installed_path"]
 		}
 	}
 
@@ -1181,8 +1181,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
 
-	if err := ds.UpdateSoftwareInstalledPaths(ctx, host.ID, installedPaths); err != nil {
-		return ctxerr.Wrap(ctx, err, "update software installed path")
+	if len(sPaths) != 0 {
+		if err := ds.UpdateSoftwareInstalledPaths(ctx, host.ID, sPaths); err != nil {
+			return ctxerr.Wrap(ctx, err, "update software installed path")
+		}
 	}
 
 	return nil
