@@ -79,7 +79,7 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	err := sqlx.GetContext(ctx, ds.reader, &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.New(ctx, "no matching secret found")
+			return nil, ctxerr.Wrap(ctx, notFound("EnrollSecret"), "no matching secret found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "verify enroll secret")
 	}

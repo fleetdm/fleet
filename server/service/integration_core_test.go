@@ -6360,6 +6360,29 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 }
 
+func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
+	t := s.T()
+	ctx := context.Background()
+
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   time.Now(),
+		DetailUpdatedAt:  time.Now(),
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	var resp jsonError
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   uuid.New().String(),
+		HardwareUUID:   h.UUID,
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusUnauthorized, &resp)
+
+	require.Equal(t, resp.Message, "Authentication failed")
+}
+
 func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	t := s.T()
 	ctx := context.Background()
