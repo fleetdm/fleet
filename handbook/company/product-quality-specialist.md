@@ -1,4 +1,4 @@
-# 🛠️ Product Quality Specialist
+# 🚀 Product Quality Specialist
 
 ## Let's start with why we exist. 📡
 
@@ -8,11 +8,13 @@ Organizations make huge investments every year to keep their laptops and servers
 
 At Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).
 
+
 ## About the company 🌈
 
 You can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.
 
 tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+
 
 ### Your primary responsibilities 🔍
 
@@ -52,3 +54,15 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 💖 Proficient in creating comprehensive testing plans
 - ✍️ Experience working with engineering and product teams in an agile environment
 - ➕ Bonus: B2B SaaS background
+
+## Why should you join us? 🛸
+
+Learn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).
+
+
+## Want to join the team?
+
+You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
+
+<meta name="maintainedBy" value="mikermcneil">
+<meta name="title" value="🚀 Product Designer">
