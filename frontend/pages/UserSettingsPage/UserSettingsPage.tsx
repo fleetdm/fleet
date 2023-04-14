@@ -22,7 +22,7 @@ import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import SecretField from "components/EnrollSecrets/SecretField";
 import SandboxGate from "components/Sandbox/SandboxGate";
-import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
+import SandboxMessage from "components/Sandbox/SandboxMessage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
@@ -227,7 +227,7 @@ const UserSettingsPage = ({
       <MainContent className={baseClass}>
         <SandboxGate
           fallbackComponent={() => (
-            <SandboxDemoMessage
+            <SandboxMessage
               className={`${baseClass}__sandboxMode`}
               message="Account management is only available in self-managed Fleet"
               utmSource="fleet-ui-my-account-page"
