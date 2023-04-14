@@ -175,7 +175,7 @@ const ManageSoftwarePage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page;
+      page = queryParams.page as number;
     }
 
     return page;
@@ -199,7 +199,7 @@ const ManageSoftwarePage = ({
     "asc" | "desc" | undefined
   >(initialSortDirection);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  const [pageIndex, setPageIndex] = useState<number>(initialPage);
+  const [page, setPage] = useState(initialPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
@@ -210,7 +210,7 @@ const ManageSoftwarePage = ({
 
   useEffect(() => {
     setFilterVuln(location?.query?.vulnerable === "true" || false);
-    setPageIndex(location?.query?.page || 0);
+    setPage(location?.query?.page || 0);
     setSearchQuery(location?.query?.query || "");
     // TODO: handle invalid values for params
   }, [location]);
@@ -295,7 +295,7 @@ const ManageSoftwarePage = ({
     [
       {
         scope: "software",
-        page: pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -350,17 +350,17 @@ const ManageSoftwarePage = ({
       setTableQueryData({ ...newTableQuery });
 
       const {
-        pageIndex: page,
+        pageIndex,
         searchQuery: newSearchQuery,
         sortDirection: newSortDirection,
       } = newTableQuery;
       let { sortHeader: newSortHeader } = newTableQuery;
-      console.log("pageIndex", pageIndex);
-      console.log("typeof pageIndex", typeof pageIndex);
-      console.log("newPageIndex", page);
-      console.log("typeof newPageIndex", page);
+      console.log("pageIndex", page);
+      console.log("typeof pageIndex", typeof page);
+      console.log("newTableQuery.pageIndex", pageIndex);
+      console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
       console.log("newTableQuery", newTableQuery);
-      pageIndex !== page && setPageIndex(page);
+      pageIndex !== page && setPage(pageIndex as number);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -379,7 +379,7 @@ const ManageSoftwarePage = ({
       if (!isEmpty(newSearchQuery)) {
         newQueryParams.query = newSearchQuery;
       }
-      newQueryParams.page = pageIndex;
+      newQueryParams.page = pageIndex as number;
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
@@ -387,13 +387,13 @@ const ManageSoftwarePage = ({
       newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
       console.log("newQueryParams.page", newQueryParams.page);
-      router.replace(
-        getNextLocationPath({
-          pathPrefix: PATHS.MANAGE_SOFTWARE,
-          routeTemplate,
-          queryParams: newQueryParams,
-        })
-      );
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: newQueryParams,
+      });
+      console.log("locationPath", locationPath);
+      router.replace(locationPath);
     },
     [
       isRouteOk,
@@ -401,7 +401,7 @@ const ManageSoftwarePage = ({
       sortHeader,
       sortDirection,
       searchQuery,
-      pageIndex,
+      page,
       filterVuln,
       router,
       routeTemplate,
@@ -446,7 +446,7 @@ const ManageSoftwarePage = ({
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      setPageIndex(0);
+      setPage(0);
       console.log("onteamchange called");
     },
     [handleTeamChange]
@@ -573,14 +573,14 @@ const ManageSoftwarePage = ({
     !searchQuery &&
     !filterVuln &&
     !isAnyTeamSelected &&
-    !pageIndex &&
+    !page &&
     !software?.software &&
     software?.counts_updated_at === null;
 
   const isLastPage =
     tableQueryData &&
     !!softwareCount &&
-    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+    DEFAULT_PAGE_SIZE * page + (software?.software?.length || 0) >=
       softwareCount;
 
   const softwareTableHeaders = useMemo(
@@ -668,7 +668,7 @@ const ManageSoftwarePage = ({
               )}
               defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
               defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-              defaultPageIndex={pageIndex || 0}
+              defaultPageIndex={page || 0}
               defaultSearchQuery={searchQuery}
               manualSortBy
               pageSize={DEFAULT_PAGE_SIZE}
