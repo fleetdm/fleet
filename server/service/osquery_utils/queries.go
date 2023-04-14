@@ -1172,8 +1172,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		}
 		software = append(software, s)
 
-		if row["installed_path"] != "" {
-			sPaths[s.ToUniqueStr()] = row["installed_path"]
+		installedPath := strings.TrimSpace(row["installed_path"])
+		if installedPath != "" {
+			sPaths[s.ToUniqueStr()] = installedPath
 		}
 	}
 

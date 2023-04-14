@@ -50,6 +50,7 @@ func TestSoftware(t *testing.T) {
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
+		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2162,4 +2163,46 @@ func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, storedSoftware.GenerateCPE)
 	})
+}
+
+func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// No software entries
+	actual, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	require.Empty(t, actual)
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	// No installed_path entries
+	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	require.Empty(t, actual)
+	require.NoError(t, err)
+
+	// Insert an installed_path for a single software entry
+	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
+	args := []interface{}{host.ID, host.Software[0].ID, "/some/path"}
+	_, err = ds.writer.ExecContext(ctx, query, args...)
+	require.NoError(t, err)
+
+	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	require.Len(t, actual, 1)
+	require.NoError(t, err)
+
+	expected := make(map[string]fleet.HostSoftwareInstalledPath)
+	expected[host.Software[0].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+		HostID:        host.ID,
+		SoftwareID:    host.Software[0].ID,
+		InstalledPath: "/some/path",
+	}
+
+	require.Equal(t, actual, expected)
 }

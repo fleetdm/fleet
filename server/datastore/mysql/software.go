@@ -88,7 +88,6 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error {
 	if len(paths) == 0 {
-		// NOOP
 		return nil
 	}
 
@@ -115,6 +114,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
 ) (map[string]fleet.HostSoftwareInstalledPath, error) {
+	// This query needs to include all columns used in 'ToUniqueStr'
 	stmt := `
 		SELECT
 			s.id,
@@ -128,29 +128,27 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 			hsip.installed_path
 		FROM software s
 			INNER JOIN host_software hs ON hs.host_id = ? AND hs.software_id = s.id
-			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
+			INNER JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
 		`
 	args := []interface{}{hostID, hostID}
 
 	var qResult []struct {
 		fleet.Software
-		Path *string `db:"installed_path"`
+		InstalledPath string `db:"installed_path"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader, &qResult, stmt, args...); err != nil {
 		return nil, err
 	}
 
-	stored := make(map[string]fleet.HostSoftwareInstalledPath)
+	result := make(map[string]fleet.HostSoftwareInstalledPath)
 	for _, s := range qResult {
-		if s.Path != nil {
-			stored[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
-				HostID:        hostID,
-				SoftwareID:    s.ID,
-				InstalledPath: *s.Path,
-			}
+		result[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			HostID:        hostID,
+			SoftwareID:    s.ID,
+			InstalledPath: s.InstalledPath,
 		}
 	}
-	return stored, nil
+	return result, nil
 }
 
 func insertHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
