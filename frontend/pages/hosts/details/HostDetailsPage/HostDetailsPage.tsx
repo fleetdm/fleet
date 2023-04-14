@@ -64,6 +64,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
+import { ITableQueryData } from "components/TableContainer";
 
 const baseClass = "host-details";
 
@@ -73,14 +74,6 @@ interface IHostDetailsProps {
     pathname: string;
   };
   params: Params;
-}
-
-interface ISearchQueryData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize: number;
-  pageIndex: number;
 }
 
 interface IHostDiskEncryptionProps {
@@ -515,13 +508,10 @@ const HostDetailsPage = ({
     }
   };
 
-  const onUsersTableSearchChange = useCallback(
-    (queryData: ISearchQueryData) => {
-      const { searchQuery } = queryData;
-      setUsersSearchString(searchQuery);
-    },
-    []
-  );
+  const onUsersTableSearchChange = useCallback((queryData: ITableQueryData) => {
+    const { searchQuery } = queryData;
+    setUsersSearchString(searchQuery);
+  }, []);
 
   const onSelectHostAction = (action: string) => {
     switch (action) {

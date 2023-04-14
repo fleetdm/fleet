@@ -9,6 +9,8 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
+import { RouteProps } from "react-router/lib/Route";
+import { isEmpty } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
@@ -49,6 +51,7 @@ import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
+import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
@@ -56,10 +59,16 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 
 interface IManageSoftwarePageProps {
+  route: RouteProps;
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { team_id?: string; vulnerable?: string };
+    query: {
+      team_id?: string;
+      vulnerable?: string;
+      page?: number;
+      query?: string;
+    };
     search: string;
   };
 }
@@ -91,9 +100,12 @@ const DEFAULT_PAGE_SIZE = 20;
 const baseClass = "manage-software-page";
 
 const ManageSoftwarePage = ({
+  route,
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
   const {
     config: globalConfig,
     isFreeTier,
@@ -127,17 +139,47 @@ const ManageSoftwarePage = ({
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
+  const initialQuery = (() => {
+    let query = "";
+
+    if (queryParams && queryParams.query) {
+      query = queryParams.query;
+    }
+
+    return query;
+  })();
+
+  const initialPage = (() => {
+    let page = 0;
+
+    if (queryParams && queryParams.page) {
+      page = queryParams.page;
+    }
+
+    return page;
+  })();
+
+  const initialVulnFilter = (() => {
+    let isFilteredByVulnerabilities = false;
+
+    if (queryParams && queryParams.vulnerable === "true") {
+      isFilteredByVulnerabilities = true;
+    }
+
+    return isFilteredByVulnerabilities;
+  })();
+
   // TODO: refactor usage of vulnerable query param in accordance with new patterns for query params
   // and management of URL state
-  const [filterVuln, setFilterVuln] = useState(
-    location?.query?.vulnerable === "true" || false
-  );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(DEFAULT_SORT_DIRECTION);
   const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
-  const [pageIndex, setPageIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(initialPage);
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -146,7 +188,9 @@ const ManageSoftwarePage = ({
 
   useEffect(() => {
     setFilterVuln(location?.query?.vulnerable === "true" || false);
-    // TODO: handle invalid values for vulnerable param
+    setPageIndex(location?.query?.page || 0);
+    setSearchQuery(location?.query?.query || "");
+    // TODO: handle invalid values for params
   }, [location]);
 
   useEffect(() => {
@@ -274,13 +318,18 @@ const ManageSoftwarePage = ({
     }
   );
 
+  // NOTE: this is called once on initial render and every time the query changes
   const onQueryChange = useDebouncedCallback(
-    async ({
-      pageIndex: newPageIndex,
-      searchQuery: newSearchQuery,
-      sortDirection: newSortDirection,
-      sortHeader: newSortHeader,
-    }: ITableQueryData) => {
+    async (newTableQuery: ITableQueryData) => {
+      setTableQueryData({ ...newTableQuery });
+
+      const {
+        pageIndex: newPageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+      } = newTableQuery;
+      let { sortHeader: newSortHeader } = newTableQuery;
+
       pageIndex !== newPageIndex && setPageIndex(newPageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
@@ -294,6 +343,26 @@ const ManageSoftwarePage = ({
         newSortHeader = "epss_probability";
       }
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+      newQueryParams.page = pageIndex;
+      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        newSortDirection || DEFAULT_SORT_DIRECTION;
+
+      newQueryParams.team_id = teamIdForApi;
+
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_SOFTWARE,
+          routeTemplate,
+          queryParams: newQueryParams,
+        })
+      );
     },
     300
   );
@@ -339,6 +408,24 @@ const ManageSoftwarePage = ({
     },
     [handleTeamChange]
   );
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    // TODO: cleanup this effect
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   const renderHeaderDescription = () => {
     return (
@@ -399,45 +486,57 @@ const ManageSoftwarePage = ({
     isSoftwareEnabled,
   ]);
 
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
-    queryString = queryString.startsWith("?")
-      ? queryString.slice(1)
-      : queryString;
-    const queryParams = queryString.split("&").filter((el) => el.includes("="));
-    const index = queryParams.findIndex((el) => el.includes("vulnerable"));
+  // // TODO: refactor in accordance with new patterns for query params and management of URL state
+  // const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
+  //   queryString = queryString.startsWith("?")
+  //     ? queryString.slice(1)
+  //     : queryString;
+  //   const queryParams = queryString.split("&").filter((el) => el.includes("="));
+  //   const index = queryParams.findIndex((el) => el.includes("vulnerable"));
 
-    if (vulnerable) {
-      const vulnParam = `vulnerable=${vulnerable}`;
-      if (index >= 0) {
-        // replace old vuln param
-        queryParams.splice(index, 1, vulnParam);
-      } else {
-        // add new vuln param
-        queryParams.push(vulnParam);
-      }
-    } else {
-      // remove old vuln param
-      index >= 0 && queryParams.splice(index, 1);
-    }
-    queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
+  //   if (vulnerable) {
+  //     const vulnParam = `vulnerable=${vulnerable}`;
+  //     if (index >= 0) {
+  //       // replace old vuln param
+  //       queryParams.splice(index, 1, vulnParam);
+  //     } else {
+  //       // add new vuln param
+  //       queryParams.push(vulnParam);
+  //     }
+  //   } else {
+  //     // remove old vuln param
+  //     index >= 0 && queryParams.splice(index, 1);
+  //   }
+  //   queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
 
-    return queryString;
+  //   return queryString;
+  // };
+
+  // // TODO: refactor in accordance with new patterns for query params and management of URL state
+  // const onVulnFilterChange = useCallback(
+  //   (vulnerable: boolean) => {
+  //     setFilterVuln(vulnerable);
+  //     setPageIndex(0);
+  //     const queryString = buildUrlQueryString(location?.search, vulnerable);
+  //     if (location?.search !== queryString) {
+  //       const path = location?.pathname?.concat(queryString);
+  //       !!path && router.replace(path);
+  //     }
+  //   },
+  //   [location, router]
+  // );
+
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        routeTemplate,
+        queryParams: { ...queryParams, vulnerable: isFilterVulnerable },
+      })
+    );
   };
-
-  // TODO: refactor in accordance with new patterns for query params and management of URL state
-  const onVulnFilterChange = useCallback(
-    (vulnerable: boolean) => {
-      setFilterVuln(vulnerable);
-      setPageIndex(0);
-      const queryString = buildUrlQueryString(location?.search, vulnerable);
-      if (location?.search !== queryString) {
-        const path = location?.pathname?.concat(queryString);
-        !!path && router.replace(path);
-      }
-    },
-    [location, router]
-  );
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -446,7 +545,7 @@ const ManageSoftwarePage = ({
         className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={onVulnFilterChange}
+        onChange={handleVulnFilterDropdownChange}
       />
     );
   };
@@ -475,6 +574,7 @@ const ManageSoftwarePage = ({
     software?.counts_updated_at === null;
 
   const isLastPage =
+    tableQueryData &&
     !!softwareCount &&
     DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
       softwareCount;
@@ -484,13 +584,15 @@ const ManageSoftwarePage = ({
     [isPremiumTier, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = {
+    const hostsBySoftwareParams = {
       software_id: row.original.id,
       team_id: currentTeamId,
     };
 
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+    const path = hostsBySoftwareParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+          hostsBySoftwareParams
+        )}`
       : PATHS.MANAGE_HOSTS;
 
     router.push(path);

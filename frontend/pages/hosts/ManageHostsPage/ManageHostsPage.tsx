@@ -60,7 +60,7 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -102,14 +102,6 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
-}
-
-interface ITableQueryProps {
-  pageIndex: number;
-  pageSize: number;
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -219,7 +211,7 @@ const ManageHostsPage = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
@@ -509,7 +501,6 @@ const ManageHostsPage = ({
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
 
-  console.log("filteredHostsPath", filteredHostsPath);
   const isLastPage =
     tableQueryData &&
     !!hostsCount &&
@@ -548,7 +539,7 @@ const ManageHostsPage = ({
         ({
           ...prevState,
           pageIndex: 0,
-        } as ITableQueryProps)
+        } as ITableQueryData)
     );
     setResetPageIndex(true);
   };
@@ -666,15 +657,13 @@ const ManageHostsPage = ({
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
-    async (newTableQuery: ITableQueryProps) => {
+    async (newTableQuery: ITableQueryData) => {
       if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
         return;
       }
 
       setTableQueryData({ ...newTableQuery });
 
-      console.log("onTableQueryChange");
-      console.log("newTableQuery", newTableQuery);
       const {
         searchQuery: searchText,
         sortHeader,
@@ -750,7 +739,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
       }
-      console.log("NEWQUERYPARAMS.PAGE", newQueryParams.page);
+
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
