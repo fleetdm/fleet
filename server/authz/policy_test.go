@@ -1275,9 +1275,9 @@ func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Profile, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Profile, action: read, allow: false},
 
-		{user: test.UserGitOps, object: globalProfile, action: write, allow: false},
+		{user: test.UserGitOps, object: globalProfile, action: write, allow: true},
 		{user: test.UserGitOps, object: globalProfile, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Profile, action: write, allow: false},
+		{user: test.UserGitOps, object: team1Profile, action: write, allow: true},
 		{user: test.UserGitOps, object: team1Profile, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalProfile, action: write, allow: false},
@@ -1322,7 +1322,7 @@ func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: write, allow: false},
@@ -1365,9 +1365,9 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Settings, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Settings, action: read, allow: false},
 
-		{user: test.UserGitOps, object: globalSettings, action: write, allow: false},
+		{user: test.UserGitOps, object: globalSettings, action: write, allow: true},
 		{user: test.UserGitOps, object: globalSettings, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Settings, action: write, allow: false},
+		{user: test.UserGitOps, object: team1Settings, action: write, allow: true},
 		{user: test.UserGitOps, object: team1Settings, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalSettings, action: write, allow: false},
@@ -1412,7 +1412,7 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: write, allow: false},
