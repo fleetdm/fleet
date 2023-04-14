@@ -155,7 +155,7 @@ generate-ci:
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=production yarn run webpack --progress --colors
+	NODE_ENV=production yarn run webpack --progress
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
@@ -166,11 +166,11 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors
+	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
-	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors --watch
+	NODE_ENV=development yarn run webpack --progress --watch
 
 generate-mock: .prefix
 	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
