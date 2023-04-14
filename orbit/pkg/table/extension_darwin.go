@@ -26,7 +26,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(r *Runner) []osquery.OsqueryPlugin {
+func PlatformTables(osquerydPath string) []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -46,7 +46,7 @@ func PlatformTables(r *Runner) []osquery.OsqueryPlugin {
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 
 		// Copied Kolide tables
-		user_exec.TablePlugin("user_screenlock", r.osquerydPath, "SELECT enabled, grace_period FROM screenlock",
+		user_exec.TablePlugin("user_screenlock", osquerydPath, "SELECT enabled, grace_period FROM screenlock",
 			[]table.ColumnDefinition{
 				table.IntegerColumn("enabled"),
 				table.IntegerColumn("grace_period"),
