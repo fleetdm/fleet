@@ -448,7 +448,7 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
-type UpdateSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, paths map[string]string) error
+type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, paths map[string]string) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1245,8 +1245,8 @@ type DataStore struct {
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
 
-	UpdateSoftwareInstalledPathsFunc        UpdateSoftwareInstalledPathsFunc
-	UpdateSoftwareInstalledPathsFuncInvoked bool
+	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
+	UpdateHostSoftwareInstalledPathsFuncInvoked bool
 
 	UpdateHostFunc        UpdateHostFunc
 	UpdateHostFuncInvoked bool
@@ -2982,11 +2982,11 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
-func (s *DataStore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error {
+func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error {
 	s.mu.Lock()
-	s.UpdateSoftwareInstalledPathsFuncInvoked = true
+	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateSoftwareInstalledPathsFunc(ctx, hostID, paths)
+	return s.UpdateHostSoftwareInstalledPathsFunc(ctx, hostID, paths)
 }
 
 func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {

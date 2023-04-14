@@ -86,12 +86,35 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 	})
 }
 
-func (ds *Datastore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID uint, installedPaths map[string]string) error {
-	var qResult []struct {
-		fleet.Software
-		Path *string `db:"installed_path"`
+func (ds *Datastore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error {
+	if len(paths) == 0 {
+		// NOOP
+		return nil
 	}
 
+	stored, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	toI, toD := hostSoftwareInstalledPathDelta(paths, stored)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertHostSoftwareInstalledPaths(toI); err != nil {
+			return err
+		}
+
+		if err := deleteHostSoftwareInstalledPaths(toD); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) getHostSoftwareInstalledPaths(
+	ctx context.Context,
+	hostID uint,
+) (map[string]fleet.HostSoftwareInstalledPath, error) {
 	stmt := `
 		SELECT
 			s.id,
@@ -109,27 +132,25 @@ func (ds *Datastore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID ui
 		`
 	args := []interface{}{hostID, hostID}
 
+	var qResult []struct {
+		fleet.Software
+		Path *string `db:"installed_path"`
+	}
 	if err := sqlx.SelectContext(ctx, ds.reader, &qResult, stmt, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	existing := make(map[string]fleet.HostSoftwareInstalledPath)
+	stored := make(map[string]fleet.HostSoftwareInstalledPath)
 	for _, s := range qResult {
 		if s.Path != nil {
-			existing[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			stored[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
 				HostID:        hostID,
 				SoftwareID:    s.ID,
 				InstalledPath: *s.Path,
 			}
 		}
 	}
-
-	toI, toD := hostSoftwareInstalledPathDelta(installedPaths, existing)
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		insertHostSoftwareInstalledPaths(toI)
-		deleteHostSoftwareInstalledPaths(toD)
-		return nil
-	})
+	return stored, nil
 }
 
 func insertHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
