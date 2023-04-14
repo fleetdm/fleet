@@ -1,0 +1,19 @@
+name: user_screenlock
+platforms:
+  - darwin
+description: Information about macOS screenlock settings when osquery is running as root
+columns:
+  - name: user
+    type: text
+    required: true
+    description: The username to check
+  - name: enabled
+    type: integer
+    required: false
+    description: 1 If a password is required after sleep or the screensaver begins; else 0
+  - name: grace_period
+    type: integer
+    required: false
+    description: The amount of time in seconds the screen must be asleep or the screensaver on before a password is required on-wake. 0 = immediately; -1 = no password is required on-wake
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false
