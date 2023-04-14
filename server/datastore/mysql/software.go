@@ -87,7 +87,7 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 }
 
 func (ds *Datastore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID uint, installedPaths map[string]string) error {
-	var hostSoftware []struct {
+	var qResult []struct {
 		fleet.Software
 		Path *string `db:"installed_path"`
 	}
@@ -102,53 +102,68 @@ func (ds *Datastore) UpdateSoftwareInstalledPaths(ctx context.Context, hostID ui
 			s.release,
 			s.vendor,
 			s.arch,
-			sip.installed_path
+			hsip.installed_path
 		FROM software s
-			INNER JOIN host_software hs ON hs.software_id = s.id
-			LEFT JOIN software_installed_path sip ON s.id = sip.software_id AND sip.host_id = ?
-		WHERE
-			hs.host_id = ?
+			INNER JOIN host_software hs ON hs.host_id = ? AND hs.software_id = s.id
+			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
 		`
 	args := []interface{}{hostID, hostID}
-	if err := sqlx.SelectContext(ctx, ds.reader, &hostSoftware, stmt, args...); err != nil {
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &qResult, stmt, args...); err != nil {
 		return err
 	}
 
-	existing := make(map[string]fleet.SoftwareInstalledPath)
-	for _, s := range hostSoftware {
+	existing := make(map[string]fleet.HostSoftwareInstalledPath)
+	for _, s := range qResult {
 		if s.Path != nil {
-			existing[s.ToUniqueStr()] = fleet.SoftwareInstalledPath{
-				HostID:     hostID,
-				SoftwareID: s.ID,
-				Path:       *s.Path,
+			existing[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+				HostID:        hostID,
+				SoftwareID:    s.ID,
+				InstalledPath: *s.Path,
 			}
 		}
 	}
 
-	var toDelete []fleet.SoftwareInstalledPath
-	var toInsert []fleet.SoftwareInstalledPath
+	toI, toD := hostSoftwareInstalledPathDelta(installedPaths, existing)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		insertHostSoftwareInstalledPaths(toI)
+		deleteHostSoftwareInstalledPaths(toD)
+		return nil
+	})
+}
+
+func insertHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
+	return nil
+}
+
+func deleteHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
+	return nil
+}
+
+func hostSoftwareInstalledPathDelta(
+	installedPaths map[string]string,
+	existing map[string]fleet.HostSoftwareInstalledPath,
+) ([]fleet.HostSoftwareInstalledPath, []fleet.HostSoftwareInstalledPath) {
+	var toDelete []fleet.HostSoftwareInstalledPath
+	var toInsert []fleet.HostSoftwareInstalledPath
 
 	for unqStr, rPath := range installedPaths {
 		sE, ok := existing[unqStr]
-		if ok && sE.Path == rPath {
+		if ok && sE.InstalledPath == rPath {
 			continue
 		}
 
-		if sE.Path != rPath {
+		if sE.InstalledPath != rPath {
 			toDelete = append(toDelete, sE)
 		}
 
-		toInsert = append(toInsert, fleet.SoftwareInstalledPath{
-			HostID:     sE.HostID,
-			SoftwareID: sE.SoftwareID,
-			Path:       rPath,
+		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
+			HostID:        sE.HostID,
+			SoftwareID:    sE.SoftwareID,
+			InstalledPath: rPath,
 		})
 	}
-
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Insert and delete
-		return nil
-	})
+	return toInsert, toDelete
 }
 
 func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {

@@ -872,3 +872,9 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
 }
+
+type HostSoftwareInstalledPath struct {
+	HostID        uint   `db:"host_id"`
+	SoftwareID    uint   `db:"software_id"`
+	InstalledPath string `db:"installed_path"`
+}

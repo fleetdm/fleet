@@ -122,9 +122,3 @@ type SoftwareIterQueryOptions struct {
 func (siqo SoftwareIterQueryOptions) IsValid() bool {
 	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
 }
-
-type SoftwareInstalledPath struct {
-	HostID     uint
-	SoftwareID uint
-	Path       string
-}
