@@ -10,7 +10,7 @@ import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
-import { isEmpty } from "lodash";
+import { isEmpty, isEqual } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
@@ -68,6 +68,8 @@ interface IManageSoftwarePageProps {
       vulnerable?: string;
       page?: number;
       query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
     };
     search: string;
   };
@@ -149,6 +151,26 @@ const ManageSoftwarePage = ({
     return query;
   })();
 
+  const initialSortHeader = (() => {
+    let sortHeader = isPremiumTier ? "vulnerabilities" : "hosts_count";
+
+    if (queryParams && queryParams.order_key) {
+      sortHeader = queryParams.order_key;
+    }
+
+    return sortHeader;
+  })();
+
+  const initialSortDirection = ((): "asc" | "desc" | undefined => {
+    let sortDirection = "desc";
+
+    if (queryParams && queryParams.order_direction) {
+      sortDirection = queryParams.order_direction;
+    }
+
+    return sortDirection as "asc" | "desc" | undefined;
+  })();
+
   const initialPage = (() => {
     let page = 0;
 
@@ -175,9 +197,9 @@ const ManageSoftwarePage = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
-  >(DEFAULT_SORT_DIRECTION);
-  const [sortHeader, setSortHeader] = useState(DEFAULT_SORT_HEADER);
-  const [pageIndex, setPageIndex] = useState(initialPage);
+  >(initialSortDirection);
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  const [pageIndex, setPageIndex] = useState<number>(initialPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
@@ -276,7 +298,7 @@ const ManageSoftwarePage = ({
         page: pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderDirection: sortDirection || DEFAULT_SORT_DIRECTION,
+        orderDirection: sortDirection,
         // API expects "epss_probability" rather than "vulnerabilities"
         orderKey:
           isPremiumTier && sortHeader === "vulnerabilities"
@@ -319,18 +341,26 @@ const ManageSoftwarePage = ({
   );
 
   // NOTE: this is called once on initial render and every time the query changes
-  const onQueryChange = useDebouncedCallback(
+  const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+        return;
+      }
+
       setTableQueryData({ ...newTableQuery });
 
       const {
-        pageIndex: newPageIndex,
+        pageIndex: page,
         searchQuery: newSearchQuery,
         sortDirection: newSortDirection,
       } = newTableQuery;
       let { sortHeader: newSortHeader } = newTableQuery;
-
-      pageIndex !== newPageIndex && setPageIndex(newPageIndex);
+      console.log("pageIndex", pageIndex);
+      console.log("typeof pageIndex", typeof pageIndex);
+      console.log("newPageIndex", page);
+      console.log("typeof newPageIndex", page);
+      console.log("newTableQuery", newTableQuery);
+      pageIndex !== page && setPageIndex(page);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -354,8 +384,9 @@ const ManageSoftwarePage = ({
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
 
-      newQueryParams.team_id = teamIdForApi;
+      newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
+      console.log("newQueryParams.page", newQueryParams.page);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_SOFTWARE,
@@ -364,7 +395,18 @@ const ManageSoftwarePage = ({
         })
       );
     },
-    300
+    [
+      isRouteOk,
+      tableQueryData,
+      sortHeader,
+      sortDirection,
+      searchQuery,
+      pageIndex,
+      filterVuln,
+      router,
+      routeTemplate,
+      isPremiumTier,
+    ]
   );
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -405,6 +447,7 @@ const ManageSoftwarePage = ({
     (teamId: number) => {
       handleTeamChange(teamId);
       setPageIndex(0);
+      console.log("onteamchange called");
     },
     [handleTeamChange]
   );
@@ -419,6 +462,7 @@ const ManageSoftwarePage = ({
         } as ITableQueryData)
     );
     setResetPageIndex(true);
+    console.log("resetpageindex");
   };
 
   // NOTE: used to reset page number to 0 when modifying filters
@@ -485,46 +529,6 @@ const ManageSoftwarePage = ({
     softwareCount,
     isSoftwareEnabled,
   ]);
-
-  // // TODO: refactor in accordance with new patterns for query params and management of URL state
-  // const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
-  //   queryString = queryString.startsWith("?")
-  //     ? queryString.slice(1)
-  //     : queryString;
-  //   const queryParams = queryString.split("&").filter((el) => el.includes("="));
-  //   const index = queryParams.findIndex((el) => el.includes("vulnerable"));
-
-  //   if (vulnerable) {
-  //     const vulnParam = `vulnerable=${vulnerable}`;
-  //     if (index >= 0) {
-  //       // replace old vuln param
-  //       queryParams.splice(index, 1, vulnParam);
-  //     } else {
-  //       // add new vuln param
-  //       queryParams.push(vulnParam);
-  //     }
-  //   } else {
-  //     // remove old vuln param
-  //     index >= 0 && queryParams.splice(index, 1);
-  //   }
-  //   queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
-
-  //   return queryString;
-  // };
-
-  // // TODO: refactor in accordance with new patterns for query params and management of URL state
-  // const onVulnFilterChange = useCallback(
-  //   (vulnerable: boolean) => {
-  //     setFilterVuln(vulnerable);
-  //     setPageIndex(0);
-  //     const queryString = buildUrlQueryString(location?.search, vulnerable);
-  //     if (location?.search !== queryString) {
-  //       const path = location?.pathname?.concat(queryString);
-  //       !!path && router.replace(path);
-  //     }
-  //   },
-  //   [location, router]
-  // );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
     handleResetPageIndex();
@@ -662,12 +666,15 @@ const ManageSoftwarePage = ({
                   noSandboxHosts={noSandboxHosts}
                 />
               )}
-              defaultSortHeader={DEFAULT_SORT_HEADER}
-              defaultSortDirection={DEFAULT_SORT_DIRECTION}
+              defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+              defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+              defaultPageIndex={pageIndex || 0}
+              defaultSearchQuery={searchQuery}
               manualSortBy
               pageSize={DEFAULT_PAGE_SIZE}
               showMarkAllPages={false}
               isAllPagesSelected={false}
+              resetPageIndex={resetPageIndex}
               disableNextPage={isLastPage}
               searchable={searchable}
               inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
