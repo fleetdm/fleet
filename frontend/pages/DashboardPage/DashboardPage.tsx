@@ -649,6 +649,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
+  const renderDashboardHeader = () => {
+    if (isFreeTier) {
+      return <h1>{config?.org_info.org_name}</h1>;
+    }
+    if (isPremiumTier) {
+      if (userTeams) {
+        if (userTeams.length > 1 || isOnGlobalTeam) {
+          return (
+            <TeamsDropdown
+              selectedTeamId={currentTeamId}
+              currentUserTeams={userTeams}
+              onChange={handleTeamChange}
+              isDisabled={isSandboxMode}
+            />
+          );
+        }
+        if (userTeams.length === 1) {
+          return <h1>{userTeams[0].name}</h1>;
+        }
+      }
+      throw new Error("userTeams should have length at least 1");
+    }
+    throw new Error("Neither Free nor Premium tier");
+  };
   return !isRouteOk ? (
     <Spinner />
   ) : (
@@ -657,20 +681,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
-              {isPremiumTier &&
-                userTeams &&
-                (userTeams.length > 1 || isOnGlobalTeam) && (
-                  <TeamsDropdown
-                    selectedTeamId={currentTeamId}
-                    currentUserTeams={userTeams}
-                    onChange={handleTeamChange}
-                  />
-                )}
-              {isPremiumTier &&
-                !isOnGlobalTeam &&
-                userTeams &&
-                userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+              {renderDashboardHeader()}
             </div>
           </div>
         </div>
