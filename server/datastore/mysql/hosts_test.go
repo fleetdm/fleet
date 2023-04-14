@@ -663,6 +663,27 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 	return hosts
 }
 
+// func TestFilterHostsByBootstrapPackageStatus(t *testing.T) {
+// 	ds := CreateMySQLDS(t)
+// 	ctx := context.Background()
+
+// 	for i := 0; i < 10; i++ {
+// 		_, err := ds.NewHost(ctx, &fleet.Host{
+// 			DetailUpdatedAt: time.Now(),
+// 			LabelUpdatedAt:  time.Now(),
+// 			PolicyUpdatedAt: time.Now(),
+// 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 5),
+// 			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+// 			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+// 			UUID:            fmt.Sprintf("%d", i),
+// 			Hostname:        fmt.Sprintf("foo.local%d", i),
+// 		})
+// 		require.NoError(t, err)
+// 	}
+// 	userTeamFilter := fleet.TeamFilter{User: test.UserAdmin}
+// 	hosts := listHostsCheckCount(t, ds, userTeamFilter, fleet.HostListOptions{}, 10)
+// }
+
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team

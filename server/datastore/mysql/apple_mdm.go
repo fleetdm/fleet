@@ -1642,6 +1642,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status.
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	stmt := `
           SELECT
@@ -1670,6 +1671,38 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 	stmt := "INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)"
 	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status.
+func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	// TODO(Sarah): Is ncr.result the correct column to use here? I don't see where error details are stored.
+	stmt := `
+SELECT
+    CASE 
+	    WHEN ncr.status = 'Acknowledged' THEN 'installed' 
+        WHEN ncr.status = 'Error' THEN 'failed'
+        ELSE 'pending' 
+    END AS bootstrap_package_status,
+    COALESCE(ncr.result, '') AS detail
+FROM
+    hosts h
+JOIN host_mdm_apple_bootstrap_packages hmabp ON
+    hmabp.host_uuid = h.uuid
+LEFT JOIN nano_command_results ncr ON
+    ncr.command_uuid = hmabp.command_uuid
+JOIN host_mdm hm ON
+    hm.host_id = h.id
+WHERE
+    h.id = ? AND hm.installed_from_dep = 1`
+
+	var dest fleet.HostMDMMacOSSetup
+	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMMacOSSetup").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+	}
+	return &dest, nil
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {

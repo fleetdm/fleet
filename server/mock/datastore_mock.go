@@ -598,6 +598,8 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uin
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
+type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1471,6 +1473,9 @@ type DataStore struct {
 
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
+
+	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
+	GetHostMDMMacOSSetupFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3510,4 +3515,11 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	s.mu.Lock()
+	s.GetHostMDMMacOSSetupFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
 }

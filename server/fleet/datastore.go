@@ -878,6 +878,9 @@ type Datastore interface {
 	// RecordHostBootstrapPackage records a command used to install a
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+
+	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
+	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 }
 
 const (
