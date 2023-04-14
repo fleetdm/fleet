@@ -1006,6 +1006,7 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
+      isSandboxMode={isSandboxMode}
     />
   );
 

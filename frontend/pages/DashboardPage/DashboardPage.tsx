@@ -661,7 +661,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               selectedTeamId={currentTeamId}
               currentUserTeams={userTeams}
               onChange={handleTeamChange}
-              isDisabled={isSandboxMode}
+              isSandboxMode={isSandboxMode}
             />
           );
         }
