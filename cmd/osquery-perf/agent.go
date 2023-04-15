@@ -723,9 +723,10 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	var r []map[string]string
 	for _, fi := range software {
 		r = append(r, map[string]string{
-			"name":    fi.Name,
-			"version": fi.Version,
-			"source":  "osquery-perf",
+			"name":           fi.Name,
+			"version":        fi.Version,
+			"source":         "osquery-perf",
+			"installed_path": fmt.Sprintf("/some/path/%s", fi.Name),
 		})
 	}
 	return r
@@ -753,6 +754,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", fmt.Sprintf("Common_%d", i)),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -773,6 +775,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
@@ -794,6 +797,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
