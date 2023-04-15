@@ -86,23 +86,31 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 	})
 }
 
-func (ds *Datastore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, paths map[string]string) error {
-	if len(paths) == 0 {
-		return nil
-	}
-
+func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
+	ctx context.Context,
+	hostID uint,
+	reported map[string]string,
+) error {
 	stored, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
 	if err != nil {
 		return err
 	}
 
-	toI, toD := hostSoftwareInstalledPathDelta(paths, stored)
+	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, stored)
+	if err != nil {
+		return err
+	}
+	if len(toI) == 0 && len(toD) == 0 {
+		// Nothing to do ...
+		return nil
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := insertHostSoftwareInstalledPaths(toI); err != nil {
+		if err := deleteHostSoftwareInstalledPaths(toD); err != nil {
 			return err
 		}
 
-		if err := deleteHostSoftwareInstalledPaths(toD); err != nil {
+		if err := insertHostSoftwareInstalledPaths(toI); err != nil {
 			return err
 		}
 
@@ -113,8 +121,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostI
 func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
-) (map[string]fleet.HostSoftwareInstalledPath, error) {
-	// This query needs to include all columns used in 'ToUniqueStr'
+) (
+	map[string]fleet.HostSoftwareInstalledPath,
+	error,
+) {
+	// This query needs to include all columns used in 'ToUniqueStr' method
 	stmt := `
 		SELECT
 			s.id,
@@ -125,11 +136,11 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 			s.release,
 			s.vendor,
 			s.arch,
-			hsip.installed_path
+			COALESCE(hsip.installed_path, '') AS installed_path
 		FROM software s
 			INNER JOIN host_software hs ON hs.host_id = ? AND hs.software_id = s.id
-			INNER JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
-		`
+			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
+	`
 	args := []interface{}{hostID, hostID}
 
 	var qResult []struct {
@@ -140,7 +151,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 		return nil, err
 	}
 
-	result := make(map[string]fleet.HostSoftwareInstalledPath)
+	result := make(map[string]fleet.HostSoftwareInstalledPath, len(qResult))
 	for _, s := range qResult {
 		result[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
 			HostID:        hostID,
@@ -151,38 +162,66 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	return result, nil
 }
 
+func hostSoftwareInstalledPathsDelta(
+	hostID uint,
+	reported map[string]string,
+	stored map[string]fleet.HostSoftwareInstalledPath,
+) (
+	[]fleet.HostSoftwareInstalledPath,
+	[]fleet.HostSoftwareInstalledPath,
+	error,
+) {
+	var toInsert []fleet.HostSoftwareInstalledPath
+	var toDelete []fleet.HostSoftwareInstalledPath
+
+	// If nothing is reported by osquery we want the state of the DB to reflect that ... so we
+	// should remove all host_software_installed_paths rows.
+	if len(reported) == 0 {
+		for _, v := range stored {
+			toDelete = append(toDelete, v)
+		}
+	}
+
+	for unqStr, sPath := range reported {
+		entry, ok := stored[unqStr]
+
+		// Shouldn't be possible, because everything 'reported' should be in the the software table.
+		if !ok {
+			return nil, nil, fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
+		}
+
+		if entry.InstalledPath == sPath {
+			// Nothing to do
+			continue
+		}
+
+		if entry.InstalledPath == "" {
+			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
+				HostID:        hostID,
+				SoftwareID:    entry.SoftwareID,
+				InstalledPath: sPath,
+			})
+		}
+
+		if entry.InstalledPath != "" && entry.InstalledPath != sPath {
+			toDelete = append(toDelete, entry)
+			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
+				HostID:        hostID,
+				SoftwareID:    entry.SoftwareID,
+				InstalledPath: sPath,
+			})
+		}
+	}
+
+	return toInsert, toDelete, nil
+}
+
 func insertHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
 	return nil
 }
 
 func deleteHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
 	return nil
-}
-
-func hostSoftwareInstalledPathDelta(
-	installedPaths map[string]string,
-	existing map[string]fleet.HostSoftwareInstalledPath,
-) ([]fleet.HostSoftwareInstalledPath, []fleet.HostSoftwareInstalledPath) {
-	var toDelete []fleet.HostSoftwareInstalledPath
-	var toInsert []fleet.HostSoftwareInstalledPath
-
-	for unqStr, rPath := range installedPaths {
-		sE, ok := existing[unqStr]
-		if ok && sE.InstalledPath == rPath {
-			continue
-		}
-
-		if sE.InstalledPath != rPath {
-			toDelete = append(toDelete, sE)
-		}
-
-		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-			HostID:        sE.HostID,
-			SoftwareID:    sE.SoftwareID,
-			InstalledPath: rPath,
-		})
-	}
-	return toInsert, toDelete
 }
 
 func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {

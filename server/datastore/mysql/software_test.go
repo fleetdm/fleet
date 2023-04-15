@@ -51,6 +51,7 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
 		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
+		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2184,8 +2185,13 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 
 	// No installed_path entries
 	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
-	require.Empty(t, actual)
 	require.NoError(t, err)
+	require.Len(t, actual, len(host.Software))
+	for _, s := range host.Software {
+		require.Equal(t, actual[s.ToUniqueStr()].HostID, host.ID)
+		require.Equal(t, actual[s.ToUniqueStr()].SoftwareID, s.ID)
+		require.Equal(t, actual[s.ToUniqueStr()].InstalledPath, "")
+	}
 
 	// Insert an installed_path for a single software entry
 	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
@@ -2194,7 +2200,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
-	require.Len(t, actual, 1)
+	require.Len(t, actual, len(host.Software))
 	require.NoError(t, err)
 
 	expected := make(map[string]fleet.HostSoftwareInstalledPath)
@@ -2203,6 +2209,138 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 		SoftwareID:    host.Software[0].ID,
 		InstalledPath: "/some/path",
 	}
+	expected[host.Software[1].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+		HostID:        host.ID,
+		SoftwareID:    host.Software[1].ID,
+		InstalledPath: "",
+	}
 
 	require.Equal(t, actual, expected)
+}
+
+func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
+	host := fleet.Host{ID: 1}
+
+	software := []fleet.Software{
+		{
+			ID:      2,
+			Name:    "foo",
+			Version: "0.0.1",
+			Source:  "chrome_extensions",
+		},
+		{
+			ID:      3,
+			Name:    "bar",
+			Version: "0.0.2",
+			Source:  "chrome_extensions",
+		},
+		{
+			ID:      4,
+			Name:    "zub",
+			Version: "0.0.3",
+			Source:  "chrome_extensions",
+		},
+	}
+
+	t.Run("empty args", func(t *testing.T) {
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, nil)
+		require.Empty(t, toI)
+		require.Empty(t, toD)
+		require.NoError(t, err)
+	})
+
+	t.Run("nothing reported from osquery", func(t *testing.T) {
+		stored := make(map[string]fleet.HostSoftwareInstalledPath)
+		for _, s := range software {
+			stored[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+				HostID:        host.ID,
+				SoftwareID:    s.ID,
+				InstalledPath: fmt.Sprintf("/some/path/%d", s.ID),
+			}
+		}
+
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, stored)
+		require.NoError(t, err)
+
+		require.Empty(t, toI)
+
+		// Kind of an edge case ... but if nothing is reported by osquery we want the state of the
+		// DB to reflect that.
+		require.Len(t, toD, len(stored))
+		for i, s := range software {
+			require.Equal(t, toD[i].HostID, host.ID)
+			require.Equal(t, toD[i].SoftwareID, s.ID)
+			require.Equal(t, toD[i].InstalledPath, fmt.Sprintf("/some/path/%d", s.ID))
+		}
+	})
+
+	t.Run("nothing stored in the DB", func(t *testing.T) {
+		reported := make(map[string]string)
+		for _, s := range software {
+			reported[s.ToUniqueStr()] = fmt.Sprintf("/some/path/%d", s.ID)
+		}
+
+		// If there are no host_software_installed_paths entries then the
+		// 'InstalledPath' prop will be ""
+		stored := make(map[string]fleet.HostSoftwareInstalledPath)
+		for _, s := range software {
+			stored[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+				HostID:        host.ID,
+				SoftwareID:    s.ID,
+				InstalledPath: "",
+			}
+		}
+
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
+		require.NoError(t, err)
+
+		require.Empty(t, toD)
+
+		require.Len(t, toI, len(reported))
+		for i, s := range software {
+			require.Equal(t, toI[i].HostID, host.ID)
+			require.Equal(t, toI[i].SoftwareID, s.ID)
+			require.Equal(t, toI[i].InstalledPath, fmt.Sprintf("/some/path/%d", s.ID))
+		}
+	})
+
+	t.Run("we have some deltas", func(t *testing.T) {
+		reported := make(map[string]string)
+		reported[software[0].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[0].ID)
+		reported[software[1].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[1].ID+1)
+		reported[software[2].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[2].ID)
+
+		stored := make(map[string]fleet.HostSoftwareInstalledPath)
+		stored[software[0].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			HostID:        host.ID,
+			SoftwareID:    software[0].ID,
+			InstalledPath: fmt.Sprintf("/some/path/%d", software[0].ID),
+		}
+		stored[software[1].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			HostID:        host.ID,
+			SoftwareID:    software[1].ID,
+			InstalledPath: fmt.Sprintf("/some/path/%d", software[1].ID),
+		}
+		stored[software[2].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			HostID:        host.ID,
+			SoftwareID:    software[2].ID,
+			InstalledPath: "",
+		}
+
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
+		require.NoError(t, err)
+
+		require.Len(t, toD, 1)
+		require.Equal(t, toD[0].HostID, host.ID)
+		require.Equal(t, toD[0].SoftwareID, software[1].ID)
+
+		require.Len(t, toI, 2)
+		require.Equal(t, toI[0].HostID, host.ID)
+		require.Equal(t, toI[0].SoftwareID, software[1].ID)
+		require.Equal(t, toI[0].InstalledPath, fmt.Sprintf("/some/path/%d", software[1].ID+1))
+
+		require.Equal(t, toI[1].HostID, host.ID)
+		require.Equal(t, toI[1].SoftwareID, software[2].ID)
+		require.Equal(t, toI[1].InstalledPath, fmt.Sprintf("/some/path/%d", software[2].ID))
+	})
 }

@@ -1182,10 +1182,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
 
-	if len(sPaths) != 0 {
-		if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software installed path")
-		}
+	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 
 	return nil
