@@ -106,11 +106,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := deleteHostSoftwareInstalledPaths(toD); err != nil {
+		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
 
-		if err := insertHostSoftwareInstalledPaths(toI); err != nil {
+		if err := insertHostSoftwareInstalledPaths(ctx, tx, toI); err != nil {
 			return err
 		}
 
@@ -195,7 +195,7 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		if entry.InstalledPath == "" {
+		if entry.InstalledPath == "" || entry.InstalledPath != sPath {
 			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
 				HostID:        hostID,
 				SoftwareID:    entry.SoftwareID,
@@ -203,24 +203,70 @@ func hostSoftwareInstalledPathsDelta(
 			})
 		}
 
-		if entry.InstalledPath != "" && entry.InstalledPath != sPath {
+		if entry.InstalledPath != "" {
+			// Remove 'old' entry
 			toDelete = append(toDelete, entry)
-			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-				HostID:        hostID,
-				SoftwareID:    entry.SoftwareID,
-				InstalledPath: sPath,
-			})
 		}
 	}
 
 	return toInsert, toDelete, nil
 }
 
-func insertHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
+func deleteHostSoftwareInstalledPaths(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toDelete []fleet.HostSoftwareInstalledPath,
+) error {
+	ids := make(map[uint][]uint)
+	for _, v := range toDelete {
+		ids[v.HostID] = append(ids[v.HostID], v.SoftwareID)
+	}
+
+	for hostID, softwareIDs := range ids {
+
+		stmt := `DELETE FROM host_software_installed_paths WHERE host_id = ? AND software_id IN (?);`
+		stmt, args, err := sqlx.In(stmt, hostID, softwareIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete host software installed path query")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "executing delete on host software installed path table")
+		}
+	}
+
 	return nil
 }
 
-func deleteHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath) error {
+func insertHostSoftwareInstalledPaths(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toInsert []fleet.HostSoftwareInstalledPath,
+) error {
+	stmt := "INSERT IGNORE INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
+	batchSize := 500
+
+	for i := 0; i < len(toInsert); i += batchSize {
+		end := i + batchSize
+		if end > len(toInsert) {
+			end = len(toInsert)
+		}
+
+		batch := toInsert[i:end]
+
+		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(batch)), ", ")
+		var args []interface{}
+		for _, v := range batch {
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath)
+		}
+
+		stmt := fmt.Sprintf(stmt, valuesFrag)
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert cve scores")
+		}
+	}
+
 	return nil
 }
 
