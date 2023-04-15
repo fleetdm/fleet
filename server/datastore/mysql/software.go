@@ -34,17 +34,6 @@ func truncateString(str string, length int) string {
 	return str
 }
 
-// TODO JUAN: Refactor this
-func softwareToUniqueString(s fleet.Software) string {
-	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
-	// Release, Vendor and Arch fields were added on a migration,
-	// thus we only include them in the string if at least one of them is defined.
-	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
-		ss = append(ss, s.Release, s.Vendor, s.Arch)
-	}
-	return strings.Join(ss, "\u0000")
-}
-
 func uniqueStringToSoftware(s string) fleet.Software {
 	parts := strings.Split(s, "\u0000")
 
@@ -72,7 +61,7 @@ func uniqueStringToSoftware(s string) fleet.Software {
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
-		result[softwareToUniqueString(s)] = s
+		result[s.ToUniqueStr()] = s
 	}
 	return result
 }
@@ -277,10 +266,10 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 
 	currentMap := make(map[string]fleet.Software)
 	for _, s := range current {
-		currentMap[softwareToUniqueString(s)] = s
+		currentMap[s.ToUniqueStr()] = s
 	}
 	for _, s := range incoming {
-		cur, ok := currentMap[softwareToUniqueString(s)]
+		cur, ok := currentMap[s.ToUniqueStr()]
 		if !ok {
 			return false
 		}

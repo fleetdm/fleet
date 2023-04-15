@@ -192,7 +192,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 		Version: "0.0.1",
 		Source:  "chrome_extension",
 	}
-	soft2Key := softwareToUniqueString(sw)
+	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = sw
 
 	tx, err := ds.writer.Beginx()
@@ -206,7 +206,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 		Version: "0.0.1",
 		Source:  "chrome_extension",
 	}
-	soft3Key := softwareToUniqueString(sw)
+	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = sw
 
 	tx, err = ds.writer.Beginx()
