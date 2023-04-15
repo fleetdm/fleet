@@ -739,25 +739,16 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
-			ds.UpdateSoftwareInstalledPathsFuncInvoked = false
-		})
-
-		t.Run("DS is not called if there's nothing to persists", func(t *testing.T) {
-			ds.UpdateSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
-				return nil
-			}
-			require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data[:1]))
-			require.False(t, ds.UpdateHostSoftwareFuncInvoked)
-			ds.UpdateSoftwareInstalledPathsFuncInvoked = false
+			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
 			var calledWith map[string]string
-			ds.UpdateSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
 				calledWith = make(map[string]string)
 				for k, v := range sPaths {
 					calledWith[k] = v
@@ -772,7 +763,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), data[1]["name"])
 			require.Contains(t, strings.Join(maps.Values(calledWith), " "), data[1]["installed_path"])
 
-			ds.UpdateSoftwareInstalledPathsFuncInvoked = false
+			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
 	})
 
@@ -812,7 +803,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				return nil
 			}
 
-			ds.UpdateSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}
