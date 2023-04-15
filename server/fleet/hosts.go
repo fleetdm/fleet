@@ -97,8 +97,9 @@ func (s MacOSDiskEncryptionStatus) IsValid() bool {
 // which is derived from the status of the MDM command to install the bootstrap package.
 type MDMBootstrapPackageStatus string
 
-// TODO(Sarah): should we add a map of MDMBootstrapPackageStatus to the possible responses from the
-// MDM command? See https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+// TODO(Sarah): Should add a map of MDMBootstrapPackageStatus to the possible device responses i.e.
+// what gets recorded by nano) for the MDM command?
+// See https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 
 const (
 	MDMBootstrapPackageInstalled = MDMBootstrapPackageStatus("installed")

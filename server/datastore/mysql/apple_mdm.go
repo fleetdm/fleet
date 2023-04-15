@@ -1681,7 +1681,7 @@ func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fl
 	stmt := `
 SELECT
     CASE 
-	    WHEN ncr.status = 'Acknowledged' THEN 'installed' 
+        WHEN ncr.status = 'Acknowledged' THEN 'installed'
         WHEN ncr.status = 'Error' THEN 'failed'
         ELSE 'pending' 
     END AS bootstrap_package_status,

@@ -968,10 +968,9 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 
 	newSQL := ""
 	if opt.TeamFilter == nil {
-		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// macOS setup filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		newSQL += ` AND h.team_id IS NULL`
-		// AND COALESCE(h.team_id, 0) = ?
 	}
 	newSQL += fmt.Sprintf(` AND EXISTS (
         %s
