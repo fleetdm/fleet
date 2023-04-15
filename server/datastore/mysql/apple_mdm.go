@@ -1642,7 +1642,8 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
-// TODO(Sarah): Use constants to map ncr.status to bootstrap package status.
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
+// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	stmt := `
           SELECT
@@ -1673,7 +1674,8 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
 }
 
-// TODO(Sarah): Use constants to map ncr.status to bootstrap package status.
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
+// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 	// TODO(Sarah): Is ncr.result the correct column to use here? I don't see where error details are stored.
 	stmt := `

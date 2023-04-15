@@ -2878,17 +2878,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
 	}
 
-	// var macOSLabelID uint
-	// labels, err := s.ds.LabelsSummary(context.Background())
-	// require.NoError(t, err)
-	// for _, l := range labels {
-	// 	if l.Name == "macOS" && l.LabelType == fleet.LabelTypeBuiltIn {
-	// 		macOSLabelID = l.ID
-	// 		break
-	// 	}
-	// }
-	// require.NotZero(t, macOSLabelID)
-
 	checkHostDetails := func(t *testing.T, hostID uint, hostUUID string, expectedStatus fleet.MDMBootstrapPackageStatus) {
 		var hostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
@@ -2939,10 +2928,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		var countResp countHostsResponse
 		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
 		require.Equal(t, countResp.Count, len(expectedUUIDs))
-
-		// var ListHostsInLabelResp listHostsResponse
-		// s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts?bootstrap_package_status=%s", macOSLabelID, filter), nil, http.StatusOK, &ListHostsInLabelResp)
-		// require.Equal(t, ListHostsInLabelResp.Hosts, len(expectedByHostUUID))
 	}
 
 	// check summary no team hosts
