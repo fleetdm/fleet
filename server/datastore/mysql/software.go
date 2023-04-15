@@ -129,6 +129,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 		FROM software s
 			INNER JOIN host_software hs ON hs.host_id = ? AND hs.software_id = s.id
 			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
+		ORDER BY s.id
 	`
 	args := []interface{}{hostID, hostID}
 
@@ -174,7 +175,7 @@ func hostSoftwareInstalledPathsDelta(
 	for unqStr, sPath := range reported {
 		entry, ok := stored[unqStr]
 
-		// Shouldn't be possible, because everything 'reported' should be in the the software table.
+		// Shouldn't be possible ... everything 'reported' should be in the the software table.
 		if !ok {
 			return nil, nil, fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
 		}
@@ -212,14 +213,13 @@ func deleteHostSoftwareInstalledPaths(
 	}
 
 	for hostID, softwareIDs := range ids {
-
 		stmt := `DELETE FROM host_software_installed_paths WHERE host_id = ? AND software_id IN (?);`
 		stmt, args, err := sqlx.In(stmt, hostID, softwareIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete host software installed path query")
+			return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "executing delete on host software installed path table")
+			return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
 		}
 	}
 
@@ -239,20 +239,19 @@ func insertHostSoftwareInstalledPaths(
 		if end > len(toInsert) {
 			end = len(toInsert)
 		}
-
 		batch := toInsert[i:end]
 
-		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(batch)), ", ")
 		var args []interface{}
 		for _, v := range batch {
 			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath)
 		}
 
-		stmt := fmt.Sprintf(stmt, valuesFrag)
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?), ", len(batch)), ", ")
+		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert cve scores")
+			return ctxerr.Wrap(ctx, err, "inserting rows into host_software_installed_paths")
 		}
 	}
 

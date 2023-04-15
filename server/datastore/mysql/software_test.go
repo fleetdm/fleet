@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
@@ -52,6 +53,8 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
 		{"getHostSoftwareInstalledPaths", testGetHostSoftwareInstalledPaths},
 		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
+		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
+		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2267,11 +2270,29 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		// Kind of an edge case ... but if nothing is reported by osquery we want the state of the
 		// DB to reflect that.
 		require.Len(t, toD, len(stored))
-		for i, s := range software {
+		for i := range software {
 			require.Equal(t, toD[i].HostID, host.ID)
-			require.Equal(t, toD[i].SoftwareID, s.ID)
-			require.Equal(t, toD[i].InstalledPath, fmt.Sprintf("/some/path/%d", s.ID))
 		}
+
+		var actualSoftwareIDs []uint
+		for _, v := range toD {
+			actualSoftwareIDs = append(actualSoftwareIDs, v.SoftwareID)
+		}
+		var expectedSoftwareIds []uint
+		for _, v := range software {
+			expectedSoftwareIds = append(expectedSoftwareIds, v.ID)
+		}
+		require.ElementsMatch(t, actualSoftwareIDs, expectedSoftwareIds)
+
+		var actualInstalledPaths []string
+		for _, v := range toD {
+			actualInstalledPaths = append(actualInstalledPaths, v.InstalledPath)
+		}
+		var expectedInstalledPaths []string
+		for _, v := range software {
+			expectedInstalledPaths = append(expectedInstalledPaths, fmt.Sprintf("/some/path/%d", v.ID))
+		}
+		require.ElementsMatch(t, actualInstalledPaths, expectedInstalledPaths)
 	})
 
 	t.Run("nothing stored in the DB", func(t *testing.T) {
@@ -2297,11 +2318,28 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		require.Empty(t, toD)
 
 		require.Len(t, toI, len(reported))
-		for i, s := range software {
+		for i := range software {
 			require.Equal(t, toI[i].HostID, host.ID)
-			require.Equal(t, toI[i].SoftwareID, s.ID)
-			require.Equal(t, toI[i].InstalledPath, fmt.Sprintf("/some/path/%d", s.ID))
 		}
+		var actualSoftwareIDs []uint
+		for _, v := range toI {
+			actualSoftwareIDs = append(actualSoftwareIDs, v.SoftwareID)
+		}
+		var expectedSoftwareIds []uint
+		for _, v := range software {
+			expectedSoftwareIds = append(expectedSoftwareIds, v.ID)
+		}
+		require.ElementsMatch(t, actualSoftwareIDs, expectedSoftwareIds)
+
+		var actualInstalledPaths []string
+		for _, v := range toI {
+			actualInstalledPaths = append(actualInstalledPaths, v.InstalledPath)
+		}
+		var expectedInstalledPaths []string
+		for _, v := range software {
+			expectedInstalledPaths = append(expectedInstalledPaths, fmt.Sprintf("/some/path/%d", v.ID))
+		}
+		require.ElementsMatch(t, actualInstalledPaths, expectedInstalledPaths)
 	})
 
 	t.Run("we have some deltas", func(t *testing.T) {
@@ -2335,12 +2373,103 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		require.Equal(t, toD[0].SoftwareID, software[1].ID)
 
 		require.Len(t, toI, 2)
-		require.Equal(t, toI[0].HostID, host.ID)
-		require.Equal(t, toI[0].SoftwareID, software[1].ID)
-		require.Equal(t, toI[0].InstalledPath, fmt.Sprintf("/some/path/%d", software[1].ID+1))
+		for i := range toI {
+			require.Equal(t, toI[i].HostID, host.ID)
+		}
 
-		require.Equal(t, toI[1].HostID, host.ID)
-		require.Equal(t, toI[1].SoftwareID, software[2].ID)
-		require.Equal(t, toI[1].InstalledPath, fmt.Sprintf("/some/path/%d", software[2].ID))
+		require.ElementsMatch(t,
+			[]uint{toI[0].SoftwareID, toI[1].SoftwareID},
+			[]uint{software[1].ID, software[2].ID},
+		)
+		require.ElementsMatch(t,
+			[]string{toI[0].InstalledPath, toI[1].InstalledPath},
+			[]string{fmt.Sprintf("/some/path/%d", software[1].ID+1), fmt.Sprintf("/some/path/%d", software[2].ID)},
+		)
 	})
+}
+
+func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := fleet.Host{ID: 1}
+	host2 := fleet.Host{ID: 2}
+
+	software1 := []fleet.Software{
+		{ID: 1, Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{ID: 2, Name: "bar", Version: "0.0.1", Source: "chrome_extensions"},
+		{ID: 3, Name: "zoo", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	software2 := []fleet.Software{
+		{ID: 4, Name: "zip", Version: "0.0.1", Source: "apps"},
+		{ID: 5, Name: "bur", Version: "0.0.1", Source: "apps"},
+	}
+
+	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
+	for _, s := range software1 {
+		args := []interface{}{host1.ID, s.ID, fmt.Sprintf("/some/path/%d", s.ID)}
+		_, err := ds.writer.ExecContext(ctx, query, args...)
+		require.NoError(t, err)
+	}
+
+	args := []interface{}{host2.ID, software2[0].ID, fmt.Sprintf("/some/path/%d", software2[0].ID)}
+	_, err := ds.writer.ExecContext(ctx, query, args...)
+	require.NoError(t, err)
+
+	toDelete := []fleet.HostSoftwareInstalledPath{
+		{
+			HostID:     host1.ID,
+			SoftwareID: software1[0].ID,
+		},
+		{
+			HostID:     host1.ID,
+			SoftwareID: software1[1].ID,
+		},
+		{
+			HostID:     host2.ID,
+			SoftwareID: software2[0].ID,
+		},
+	}
+
+	require.NoError(t, deleteHostSoftwareInstalledPaths(ctx, ds.writer, toDelete))
+
+	var actual []fleet.HostSoftwareInstalledPath
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader, &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
+
+	expected := []fleet.HostSoftwareInstalledPath{
+		{
+			HostID:        host1.ID,
+			SoftwareID:    software1[2].ID,
+			InstalledPath: fmt.Sprintf("/some/path/%d", software1[2].ID),
+		},
+	}
+
+	require.ElementsMatch(t, actual, expected)
+}
+
+func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	toInsert := []fleet.HostSoftwareInstalledPath{
+		{
+			HostID:        1,
+			SoftwareID:    1,
+			InstalledPath: "1",
+		},
+		{
+			HostID:        1,
+			SoftwareID:    2,
+			InstalledPath: "2",
+		},
+		{
+			HostID:        1,
+			SoftwareID:    3,
+			InstalledPath: "3",
+		},
+	}
+	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer, toInsert))
+
+	var actual []fleet.HostSoftwareInstalledPath
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader, &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
+
+	require.ElementsMatch(t, actual, toInsert)
 }
