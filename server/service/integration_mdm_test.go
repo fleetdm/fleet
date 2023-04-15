@@ -2683,7 +2683,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
 }
 
-func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
+func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	t := s.T()
 	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
@@ -2721,8 +2721,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		device            *device
 	}
 
-	// TODO: Are these the correct responses? See https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
-	globalDevices := []deviceWithResponse{
+	// Note: The responses specified here are not a 1:1 mapping of the possible responses specified
+	// by Apple. Instead `enrollAndCheckBootstrapPackage` below uses them to simulate scenarios in
+	// which a device may or may not send a response. For example, "Offline" means that no response
+	// will be sent by the device, which should in turn be interpreted by Fleet as "Pending"). See
+	// https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+	noTeamDevices := []deviceWithResponse{
 		{"Acknowledge", newDevice(s)},
 		{"Acknowledge", newDevice(s)},
 		{"Acknowledge", newDevice(s)},
@@ -2740,41 +2744,16 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		{"Offline", newDevice(s)},
 	}
 
-	// noTeamDevicesByUUID := make(map[string]deviceWithResponse)
-	// for _, d := range globalDevices {
-	// 	noTeamDevicesByUUID[d.device.uuid] = d
-	// }
-	// teamDevicesByUUID := make(map[string]deviceWithResponse)
-	// for _, d := range teamDevices {
-	// 	teamDevicesByUUID[d.device.uuid] = d
-	// }
-
-	checkFilteredHosts := func(t *testing.T, filter fleet.MDMBootstrapPackageStatus, gotHosts []fleet.HostResponse, deviceResponses []deviceWithResponse) {
-		var expectedBootstrapResponse string
-		switch filter {
-		case fleet.MDMBootstrapPackageInstalled:
-			expectedBootstrapResponse = "Acknowledge"
-		case fleet.MDMBootstrapPackagePending:
-			expectedBootstrapResponse = "Offline"
-		case fleet.MDMBootstrapPackageFailed:
-			expectedBootstrapResponse = "Error"
-		}
-
-		expectedByHostUUID := make(map[string]deviceWithResponse)
-		for _, dr := range deviceResponses {
-			if dr.bootstrapResponse == expectedBootstrapResponse {
-				expectedByHostUUID[dr.device.uuid] = dr
-			}
-		}
-		require.Len(t, gotHosts, len(expectedByHostUUID))
-		for _, h := range gotHosts {
-			require.Contains(t, expectedByHostUUID, h.UUID)
-			var hostResp getHostResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
-			require.NotNil(t, hostResp.Host)
-			require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
-			require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, filter)
-		}
+	expectedUUIDsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
+	expectedUUIDsByTeamAndStatus[0] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {noTeamDevices[0].device.uuid, noTeamDevices[1].device.uuid, noTeamDevices[2].device.uuid},
+		fleet.MDMBootstrapPackageFailed:    {noTeamDevices[3].device.uuid},
+		fleet.MDMBootstrapPackagePending:   {noTeamDevices[4].device.uuid, noTeamDevices[5].device.uuid},
+	}
+	expectedUUIDsByTeamAndStatus[team.ID] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {teamDevices[0].device.uuid, teamDevices[1].device.uuid},
+		fleet.MDMBootstrapPackageFailed:    {teamDevices[2].device.uuid, teamDevices[3].device.uuid, teamDevices[4].device.uuid},
+		fleet.MDMBootstrapPackagePending:   {teamDevices[5].device.uuid},
 	}
 
 	// for good measure, add a couple of manually enrolled hosts
@@ -2802,7 +2781,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 	require.NoError(t, err)
 
 	ch := make(chan bool)
-	mockRespDevices := globalDevices
+	mockRespDevices := noTeamDevices
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -2838,7 +2817,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// set the default bm assignment to `team`
 	acResp := appConfigResponse{}
@@ -2856,7 +2835,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(globalDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
@@ -2889,7 +2868,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		}
 	}
 
-	for _, d := range globalDevices {
+	for _, d := range noTeamDevices {
 		dd := d
 		enrollAndCheckBootstrapPackage(&dd, globalBootstrapPackage)
 	}
@@ -2899,7 +2878,74 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
 	}
 
-	// check global summary
+	// var macOSLabelID uint
+	// labels, err := s.ds.LabelsSummary(context.Background())
+	// require.NoError(t, err)
+	// for _, l := range labels {
+	// 	if l.Name == "macOS" && l.LabelType == fleet.LabelTypeBuiltIn {
+	// 		macOSLabelID = l.ID
+	// 		break
+	// 	}
+	// }
+	// require.NotZero(t, macOSLabelID)
+
+	checkHostDetails := func(t *testing.T, hostID uint, hostUUID string, expectedStatus fleet.MDMBootstrapPackageStatus) {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host)
+		require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
+		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+
+		var hostByIdentifierResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
+		require.NotNil(t, hostByIdentifierResp.Host)
+		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
+		require.Equal(t, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+	}
+
+	checkHostAPIs := func(t *testing.T, status fleet.MDMBootstrapPackageStatus, teamID *uint) {
+		var expectedUUIDs []string
+		if teamID == nil {
+			expectedUUIDs = expectedUUIDsByTeamAndStatus[0][status]
+		} else {
+			expectedUUIDs = expectedUUIDsByTeamAndStatus[*teamID][status]
+		}
+
+		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?bootstrap_package=%s", status)
+		if teamID != nil {
+			listHostsPath += fmt.Sprintf("&team_id=%d", *teamID)
+		}
+		var listHostsResp listHostsResponse
+		s.DoJSON("GET", listHostsPath, nil, http.StatusOK, &listHostsResp)
+		require.NotNil(t, listHostsResp.Hosts)
+		require.Len(t, listHostsResp.Hosts, len(expectedUUIDs))
+
+		gotHostsByUUID := make(map[string]fleet.HostResponse)
+		for _, h := range listHostsResp.Hosts {
+			gotHostsByUUID[h.UUID] = h
+		}
+		require.Len(t, gotHostsByUUID, len(expectedUUIDs))
+
+		for _, uuid := range expectedUUIDs {
+			require.Contains(t, gotHostsByUUID, uuid)
+			h := gotHostsByUUID[uuid]
+			checkHostDetails(t, h.ID, h.UUID, status)
+		}
+
+		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?bootstrap_package=%s", status)
+		if teamID != nil {
+			countPath += fmt.Sprintf("&team_id=%d", *teamID)
+		}
+		var countResp countHostsResponse
+		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
+		require.Equal(t, countResp.Count, len(expectedUUIDs))
+
+		// var ListHostsInLabelResp listHostsResponse
+		// s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts?bootstrap_package_status=%s", macOSLabelID, filter), nil, http.StatusOK, &ListHostsInLabelResp)
+		// require.Equal(t, ListHostsInLabelResp.Hosts, len(expectedByHostUUID))
+	}
+
+	// check summary no team hosts
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
@@ -2908,21 +2954,9 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		Failed:    uint(1),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
-	// check list hosts by bootstrap package filter
-	listHostsResp := listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?bootstrap_package=%s", fleet.MDMBootstrapPackageInstalled), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 3)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackageInstalled, listHostsResp.Hosts, globalDevices)
-
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?bootstrap_package=%s", fleet.MDMBootstrapPackagePending), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 2)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackagePending, listHostsResp.Hosts, globalDevices)
-
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?bootstrap_package=%s", fleet.MDMBootstrapPackageFailed), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 1)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackageFailed, listHostsResp.Hosts, globalDevices)
+	checkHostAPIs(t, fleet.MDMBootstrapPackageInstalled, nil)
+	checkHostAPIs(t, fleet.MDMBootstrapPackagePending, nil)
+	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, nil)
 
 	// check team summary
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
@@ -2933,21 +2967,9 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageSummary() {
 		Failed:    uint(3),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
-	// check list hosts by team id and bootstrap package filter
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?team_id=%d&bootstrap_package=%s", team.ID, fleet.MDMBootstrapPackageInstalled), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 2)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackageInstalled, listHostsResp.Hosts, teamDevices)
-
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?team_id=%d&bootstrap_package=%s", team.ID, fleet.MDMBootstrapPackagePending), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 1)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackagePending, listHostsResp.Hosts, teamDevices)
-
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?team_id=%d&bootstrap_package=%s", team.ID, fleet.MDMBootstrapPackageFailed), nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 3)
-	checkFilteredHosts(t, fleet.MDMBootstrapPackageFailed, listHostsResp.Hosts, teamDevices)
+	checkHostAPIs(t, fleet.MDMBootstrapPackageInstalled, &team.ID)
+	checkHostAPIs(t, fleet.MDMBootstrapPackagePending, &team.ID)
+	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, &team.ID)
 }
 
 // only asserts the profile identifier, status and operation (per host)
