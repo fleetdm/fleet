@@ -38,7 +38,9 @@ Make sure the package you generate is a `.pkg` file.
 
 ### Step 2: Sign the package
 
-TODO
+To sign the package, you need an Apple developer account. [Create one here](developer.apple.com/account).
+
+Sign the package with a valid Developer ID Installer certificate. Learn how to create a certificate [here in the Xcode documentation](https://help.apple.com/xcode/mac/current/#/dev154b28f09). 
 
 ### Step 3: Upload the package to Fleet
 
