@@ -2623,7 +2623,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackage() {
-	// ctx := context.Background()
 	t := s.T()
 
 	read := func(name string) []byte {

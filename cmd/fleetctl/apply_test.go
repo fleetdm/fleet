@@ -772,7 +772,7 @@ spec:
 
 	mobileConfig := mobileconfigForTest("foo", "bar")
 	mobileConfigPath := filepath.Join(t.TempDir(), "foo.mobileconfig")
-	err = os.WriteFile(mobileConfigPath, mobileConfig, 0o777)
+	err = os.WriteFile(mobileConfigPath, mobileConfig, 0o644)
 	require.NoError(t, err)
 
 	name = writeTmpYml(t, fmt.Sprintf(`
