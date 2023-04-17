@@ -15,6 +15,7 @@ spec:
         enable_disk_encryption: false
       macos_setup:
         bootstrap_package: ""
+        macos_setup_assistant: ""
     name: team1
 ---
 apiVersion: v1
@@ -42,4 +43,5 @@ spec:
         enable_disk_encryption: false
       macos_setup:
         bootstrap_package: ""
+        macos_setup_assistant: ""
     name: team2
