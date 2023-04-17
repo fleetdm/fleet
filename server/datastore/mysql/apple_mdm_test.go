@@ -2798,7 +2798,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		{
 			DeviceID:    enrolledHosts[0].UUID,
 			CommandUUID: uuid1,
-			Status:      "",
+			Status:      "Pending",
 			RequestType: "ListApps",
 			Hostname:    enrolledHosts[0].Hostname,
 			TeamID:      nil,
@@ -2806,7 +2806,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		{
 			DeviceID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid1,
-			Status:      "",
+			Status:      "Pending",
 			RequestType: "ListApps",
 			Hostname:    enrolledHosts[1].Hostname,
 			TeamID:      nil,
@@ -2847,7 +2847,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		{
 			DeviceID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid1,
-			Status:      "",
+			Status:      "Pending",
 			RequestType: "ListApps",
 			Hostname:    enrolledHosts[1].Hostname,
 			TeamID:      nil,

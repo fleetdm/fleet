@@ -326,7 +326,7 @@ func (ds *Datastore) ListMDMAppleCommands(
 SELECT
     nvq.id as device_id,
     nvq.command_uuid,
-    COALESCE(nvq.status, '') as status,
+    COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
     nvq.request_type,
     h.hostname,
