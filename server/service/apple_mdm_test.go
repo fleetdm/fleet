@@ -387,25 +387,29 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		}
 
 		listCmdsCases := []struct {
-			desc string
-			user *fleet.User
-			want []string // the expected device ids in the results
+			desc       string
+			user       *fleet.User
+			want       []string // the expected device ids in the results
+			shouldFail bool     // with forbidden error
 		}{
-			{"no role", test.UserNoRoles, []string{}},
-			{"maintainer can view", test.UserMaintainer, []string{"no team", "tm1", "tm2"}},
-			{"observer can view", test.UserObserver, []string{"no team", "tm1", "tm2"}},
-			{"observer+ can view", test.UserObserverPlus, []string{"no team", "tm1", "tm2"}},
-			{"admin can view", test.UserAdmin, []string{"no team", "tm1", "tm2"}},
-			{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, []string{"tm1"}},
-			{"tm1 observer can view tm1", test.UserTeamObserverTeam1, []string{"tm1"}},
-			{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, []string{"tm1"}},
-			{"tm1 admin can view tm1", test.UserTeamAdminTeam1, []string{"tm1"}},
+			{"no role", test.UserNoRoles, []string{}, true},
+			{"maintainer can view", test.UserMaintainer, []string{"no team", "tm1", "tm2"}, false},
+			{"observer can view", test.UserObserver, []string{"no team", "tm1", "tm2"}, false},
+			{"observer+ can view", test.UserObserverPlus, []string{"no team", "tm1", "tm2"}, false},
+			{"admin can view", test.UserAdmin, []string{"no team", "tm1", "tm2"}, false},
+			{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, []string{"tm1"}, false},
+			{"tm1 observer can view tm1", test.UserTeamObserverTeam1, []string{"tm1"}, false},
+			{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, []string{"tm1"}, false},
+			{"tm1 admin can view tm1", test.UserTeamAdminTeam1, []string{"tm1"}, false},
 		}
 		for _, c := range listCmdsCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{})
-				require.NoError(t, err) // never fails with authz error, it just filters out unauthorized results
+				checkAuthErr(t, err, c.shouldFail)
+				if c.shouldFail {
+					return
+				}
 
 				got := make([]string, len(res))
 				for i, r := range res {
