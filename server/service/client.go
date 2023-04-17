@@ -297,7 +297,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.AppConfig != nil {
 		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
-			files := resolveMacOSCustomSettingsPaths(baseDir, macosCustomSettings)
+			files := resolveApplyRelativePaths(baseDir, macosCustomSettings)
 
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
@@ -325,12 +325,12 @@ func (c *Client) ApplyGroup(
 				}
 			}
 			if macosSetup.MacOSSetupAssistant != "" {
-				content, err := c.ValidateMacOSSetupAssistant(macosSetup.MacOSSetupAssistant)
+				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant))
 				if err != nil {
-					return err
+					return fmt.Errorf("applying fleet config: %w", err)
 				}
 				if !opts.DryRun {
-					if err := c.UploadMacOSSetupAssistant(content, nil); err != nil {
+					if err := c.uploadMacOSSetupAssistant(content, nil); err != nil {
 						return err
 					}
 				}
@@ -364,7 +364,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][][]byte, len(tmMacSettings))
 		for k, paths := range tmMacSettings {
-			files := resolveMacOSCustomSettingsPaths(baseDir, paths)
+			files := resolveApplyRelativePaths(baseDir, paths)
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
 				b, err := os.ReadFile(f)
@@ -461,7 +461,14 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	}
 }
 
-func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
+func resolveApplyRelativePath(baseDir, path string) string {
+	return resolveApplyRelativePaths(baseDir, []string{path})[0]
+}
+
+// resolves the paths to an absolute path relative to the baseDir, which should
+// be the path of the YAML file where the relative paths were specified. If the
+// path is already absolute, it is left untouched.
+func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	if baseDir == "" {
 		return paths
 	}

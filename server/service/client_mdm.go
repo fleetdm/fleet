@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -190,4 +194,30 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 		Bytes:  pkgBuf.Bytes(),
 		Sha256: hash.Sum(nil),
 	}, nil
+}
+
+func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
+	if err := c.CheckMDMEnabled(); err != nil {
+		return nil, err
+	}
+
+	if strings.ToLower(filepath.Ext(fileName)) != ".json" {
+		return nil, errors.New("Couldn’t edit macos_setup_assistant. The file should be a .json file.")
+	}
+
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	var raw json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, fmt.Errorf("Couldn’t edit macos_setup_assistant. The file should include valid JSON: %w", err)
+	}
+
+	return b, nil
+}
+
+func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint) error {
+	// TODO(mna): implement
+	panic("unimplemented")
 }
