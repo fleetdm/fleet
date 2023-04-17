@@ -306,13 +306,45 @@ WHERE
 	var results []*fleet.MDMAppleCommandResult
 	err := sqlx.SelectContext(
 		ctx,
-		ds.writer,
+		ds.reader,
 		&results,
 		query,
 		commandUUID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+	return results, nil
+}
+
+func (ds *Datastore) ListMDMAppleCommands(
+	ctx context.Context,
+	tmFilter fleet.TeamFilter,
+	listOpts *fleet.MDMAppleCommandListOptions,
+) ([]*fleet.MDMAppleCommand, error) {
+	stmt := fmt.Sprintf(`
+SELECT
+    nvq.id as device_id,
+    nvq.command_uuid,
+    COALESCE(nvq.status, '') as status,
+    COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
+    nvq.request_type,
+    h.hostname,
+    h.team_id
+FROM
+    nano_view_queue nvq
+INNER JOIN
+    hosts h
+ON
+    nvq.id = h.uuid
+WHERE
+    %s
+`, ds.whereFilterHostsByTeams(tmFilter, "h"))
+	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
+
+	var results []*fleet.MDMAppleCommand
+	if err := sqlx.SelectContext(ctx, ds.reader, &results, stmt, params...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
 }
@@ -1681,17 +1713,17 @@ func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.
 	}
 
 	stmt := `
-SELECT 
-	profile_id, 
-	team_id, 
-	name, 
-	identifier, 
-	mobileconfig, 
-	created_at, 
-	updated_at 
-FROM 
-	mdm_apple_configuration_profiles 
-WHERE 
+SELECT
+	profile_id,
+	team_id,
+	name,
+	identifier,
+	mobileconfig,
+	created_at,
+	updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
 	team_id=? AND identifier=?`
 
 	var profile fleet.MDMAppleConfigProfile
