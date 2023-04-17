@@ -1,12 +1,12 @@
 # macOS setup
 
-In Fleet you can customize the first time macOS setup experience for your end users.
+In Fleet you can customize the first time macOS setup experience for your end users:
 
-You can require end users to authenticate with your identity provider (IdP) and agree to and end user license agreement (EULA) before they can use their new Mac.
+* Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
 
-You can customize the macOS Setup Assistant and choose to show or hide specific panes.
+* Customize the macOS Setup Assistant by choosing to show or hide specific panes
 
-Also, you can bootstrap new Macs with your configuration management tool of choice (ex. Munki, Chef, or Puppet).
+* Bootstrap new Macs with your configuration management tool of choice (ex. Munki, Chef, or Puppet)
 
 ## End user authentication
 
