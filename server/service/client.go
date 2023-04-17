@@ -324,6 +324,17 @@ func (c *Client) ApplyGroup(
 					}
 				}
 			}
+			if macosSetup.MacOSSetupAssistant != "" {
+				content, err := c.ValidateMacOSSetupAssistant(macosSetup.MacOSSetupAssistant)
+				if err != nil {
+					return err
+				}
+				if !opts.DryRun {
+					if err := c.UploadMacOSSetupAssistant(content, nil); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
