@@ -378,13 +378,21 @@ func (c *Client) ApplyGroup(
 
 		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
+		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage)
 				if err != nil {
-					return err
+					return fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
+			}
+			if setup.MacOSSetupAssistant != "" {
+				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant))
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				tmMacSetupAssistants[k] = b
 			}
 		}
 
@@ -401,10 +409,10 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if len(tmBootstrapPackages) > 0 && !opts.DryRun {
-			// TODO: we need to chat an define on a better way to do
-			// this, maybe make the endpoints support both id/name? have
-			// separate endpoints?
+		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
+			// TODO: we need to chat an define on a better way to do this, maybe make
+			// the endpoints support both id/name? have separate endpoints? Or make
+			// the apply team spec endpoint return team ids?
 			tms, err := c.ListTeams("")
 			if err != nil {
 				return err
@@ -414,6 +422,11 @@ func (c *Client) ApplyGroup(
 				if bp, ok := tmBootstrapPackages[tm.Name]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tm.ID); err != nil {
 						return fmt.Errorf("uploading bootstrap package for team %q: %w", tm.Name, err)
+					}
+				}
+				if b, ok := tmMacSetupAssistants[tm.Name]; ok {
+					if err := c.uploadMacOSSetupAssistant(b, &tm.ID); err != nil {
+						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tm.Name, err)
 					}
 				}
 			}
