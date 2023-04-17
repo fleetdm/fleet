@@ -462,7 +462,6 @@ const ManageSoftwarePage = ({
         } as ITableQueryData)
     );
     setResetPageIndex(true);
-    console.log("resetpageindex");
   };
 
   // NOTE: used to reset page number to 0 when modifying filters

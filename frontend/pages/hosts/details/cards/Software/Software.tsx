@@ -134,61 +134,90 @@ const SoftwareTable = ({
   >(initialSortDirection);
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [filters, setFilters] = useState({
-    global: searchString,
-    vulnerabilities: filterVuln,
-    page,
-  });
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   useEffect(() => {
-    setFilters({ global: searchString, vulnerabilities: filterVuln, page });
-  }, [searchString, filterVuln, page]);
+    setFilterVuln(queryParams?.vulnerable === "true" || false);
+    setPage(queryParams?.page || 0);
+    setSearchString(queryParams?.query || "");
+  }, [queryParams]);
 
-  const onQueryChange = useCallback(async (newTableQuery: ITableQueryData) => {
-    setTableQueryData({ ...newTableQuery });
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      setTableQueryData({ ...newTableQuery });
 
-    const {
-      pageIndex,
-      searchQuery: newSearchQuery,
-      sortDirection: newSortDirection,
-      sortHeader: newSortHeader,
-    } = newTableQuery;
-    console.log("pageIndex", pageIndex);
-    console.log("typeof pageIndex", typeof pageIndex);
-    console.log("newTableQuery.pageIndex", pageIndex);
-    console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
-    console.log("newTableQuery", newTableQuery);
-    pageIndex !== page && setPage(pageIndex as number);
-    searchString !== newSearchQuery && setSearchString(newSearchQuery);
-    sortDirection !== newSortDirection &&
-      setSortDirection(
-        newSortDirection === "asc" || newSortDirection === "desc"
-          ? newSortDirection
-          : DEFAULT_SORT_DIRECTION
-      );
+      const {
+        pageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+        sortHeader: newSortHeader,
+      } = newTableQuery;
+      console.log("pageIndex", pageIndex);
+      console.log("typeof pageIndex", typeof pageIndex);
+      console.log("newTableQuery.pageIndex", pageIndex);
+      console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
+      console.log("newTableQuery", newTableQuery);
+      pageIndex !== page && setPage(pageIndex as number);
+      searchString !== newSearchQuery && setSearchString(newSearchQuery);
+      sortDirection !== newSortDirection &&
+        setSortDirection(
+          newSortDirection === "asc" || newSortDirection === "desc"
+            ? newSortDirection
+            : DEFAULT_SORT_DIRECTION
+        );
 
-    sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+      sortHeader !== newSortHeader && setSortHeader(newSortHeader);
 
-    // Rebuild queryParams to dispatch new browser location to react-router
-    const newQueryParams: { [key: string]: string | number | undefined } = {};
-    if (!isEmpty(newSearchQuery)) {
-      newQueryParams.query = newSearchQuery;
-    }
-    newQueryParams.page = pageIndex as number;
-    newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-    newQueryParams.order_direction = newSortDirection || DEFAULT_SORT_DIRECTION;
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+      newQueryParams.page = pageIndex as number;
+      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      newQueryParams.order_direction =
+        newSortDirection || DEFAULT_SORT_DIRECTION;
 
-    newQueryParams.vulnerable = filterVuln ? "true" : undefined;
-
-    console.log("newQueryParams.page", newQueryParams.page);
-    const locationPath = getNextLocationPath({
-      pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+      newQueryParams.vulnerable = filterVuln ? "true" : undefined;
+      console.log("newQueryParams.page", newQueryParams.page);
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        routeTemplate,
+        queryParams: newQueryParams,
+      });
+      console.log("locationPath", locationPath);
+      router?.replace(locationPath);
+    },
+    [
+      tableQueryData,
+      sortHeader,
+      sortDirection,
+      searchString,
+      page,
+      filterVuln,
+      router,
       routeTemplate,
-      queryParams: newQueryParams,
-    });
-    console.log("locationPath", locationPath);
-    router?.replace(locationPath);
-  }, []);
+    ]
+  );
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+    console.log("resetpageindex");
+  };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    // TODO: cleanup this effect
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
@@ -198,8 +227,16 @@ const SoftwareTable = ({
     [deviceUser, router]
   );
 
-  const onVulnFilterChange = (value: boolean) => {
-    setFilterVuln(value);
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    handleResetPageIndex();
+
+    router?.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        routeTemplate,
+        queryParams: { ...queryParams, vulnerable: isFilterVulnerable },
+      })
+    );
   };
 
   const handleRowSelect = (row: IRowProps) => {
@@ -221,11 +258,11 @@ const SoftwareTable = ({
   const renderVulnFilterDropdown = () => {
     return (
       <Dropdown
-        value={filters.vulnerabilities}
+        value={filterVuln}
         className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
-        onChange={onVulnFilterChange}
+        onChange={handleVulnFilterDropdownChange}
       />
     );
   };
@@ -267,6 +304,7 @@ const SoftwareTable = ({
                 )}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
+                resetPageIndex={resetPageIndex}
                 searchable
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
