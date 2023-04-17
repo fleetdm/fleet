@@ -6294,6 +6294,163 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure detection for potentially unwanted applications' is set to 'Enabled: Block'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls detection and action for Potentially Unwanted Applications (PUA), which are sneaky unwanted application bundlers or their bundled applications, that can deliver adware or malware.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Block':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Configure detection for potentially unwanted applications'
+    Note: This Group Policy path is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1809 & Server 2019 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\PUAProtection' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.15
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off Microsoft Defender Antivirus. If the setting is configured to Disabled, Microsoft Defender Antivirus runs and computers are scanned for malware and other potentially unwanted software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Turn off Microsoft Defender AntiVirus'
+    Note: This Group Policy path is provided by the Group Policy template WindowsDefender.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\DisableAntiSpyware' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.16
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow auditing events in Microsoft Defender Application Guard' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to decide whether auditing events can be collected from Microsoft Defender Application Guard.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow auditing events in Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AuditApplicationGuard' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow camera and microphone access in Microsoft Defender Application Guard' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The policy allows you to determine whether applications inside Microsoft Defender Application Guard can access the device’s camera and microphone.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow camera and microphone access in Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1809 & Server 2019 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowCameraMicrophoneRedirection' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow data persistence for Microsoft Defender Application Guard' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to decide whether data should persist across different sessions in Microsoft Defender Application Guard.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow data persistence for Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowPersistence' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow files to download and save to the host operating system from Microsoft Defender Application Guard' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether to save downloaded files to the host operating system from the Microsoft Defender Application Guard container.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Allow files to download and save to the host operating system from Microsoft Defender Application Guard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1803 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\SaveFilesToHost' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Microsoft Defender Application Guard clipboard settings: Clipboard behavior setting' is set to 'Enabled: Enable clipboard operation from an isolated session to the host'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to decide how the clipboard behaves while in Microsoft Defender Application Guard.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Enable clipboard operation from an isolated session to the host':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Configure Microsoft Defender Application Guard clipboard settings: Clipboard behavior setting'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1703 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AppHVSIClipboardSettings' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on Microsoft Defender Application Guard in Managed Mode' is set to 'Enabled: 1'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting enables application isolation through Microsoft Defender Application Guard (Application Guard).
+    There are 4 options available:
+    - 0. Disable Microsoft Defender Application Guard
+    - 1. Enable Microsoft Defender Application Guard for Microsoft Edge ONLY
+    - 2. Enable Microsoft Defender Application Guard for Microsoft Office ONLY
+    - 3. Enable Microsoft Defender Application Guard for Microsoft Edge AND Microsoft Office
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 1':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Application Guard\Turn on Microsoft Defender Application Guard in Managed Mode'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AppHVSI.admx/adml that is included with the Microsoft Windows 10 Release 1703 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowAppHVSI_ProviderSet' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_NG, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.48.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Enable news and interests on the taskbar' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -7110,6 +7267,109 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.108.4.3
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable screen saver' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting enables/disables the use of desktop screen savers.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Enable screen saver'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaveActive' and data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.1.3.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Password protect the screen saver' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines whether screen savers used on the computer are password protected.
+    The recommended state for this setting is: Enabled. 
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Password protect the screen saver'
+    Note: This Group Policy path is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaverIsSecure' and data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.1.3.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Screen saver timeout' is set to 'Enabled: 900 seconds or fewer, but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting specifies how much user idle time must elapse before the screen saver is launched.
+    The recommended state for this setting is: Enabled: 900 seconds or fewer, but not 0. Note: This setting has no effect under the following circumstances:
+    -  The wait time is set to zero.
+    -  The "Enable Screen Saver" setting is disabled.
+    -  A valid screen existing saver is not selected manually or via the "Screen saver executable name" setting
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 900 or fewer, but not 0:
+    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Screen saver timeout'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaveTimeOut' AND data <=900 AND data > 0 ;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.1.3.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off toast notifications on the lock screen' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off toast notifications on the lock screen.
+    The recommended state for this setting is Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Start Menu and Taskbar\Notifications\Turn off toast notifications on the lock screen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WPN.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications\NoToastApplicationNotificationOnLockScreen' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.5.1.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Help Experience Improvement Program' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether users can participate in the Help Experience Improvement program. The Help Experience Improvement program collects information about how customers use Windows Help so that Microsoft can improve it.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication Settings\Turn off Help Experience Improvement Program'
+    Note: This Group Policy path is provided by the Group Policy template HelpAndSupport.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0\NoImplicitFeedback' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_19.6.6.1.1
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy

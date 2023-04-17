@@ -1529,7 +1529,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 
 	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
 	require.NoError(t, err)
-	fmt.Println(buf.String())
 	require.Contains(t, buf.String(), strings.TrimSpace(`
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
 |    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
@@ -1558,5 +1557,62 @@ func TestGetMDMCommandResults(t *testing.T) {
 |           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
 |           |                      |      |              |          | </plist>                                          |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+`))
+}
+
+func TestGetMDMCommands(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	var empty bool
+	var listErr error
+	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+		if empty || listErr != nil {
+			return nil, listErr
+		}
+		return []*fleet.MDMAppleCommand{
+			{
+				DeviceID:    "h1",
+				CommandUUID: "u1",
+				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
+				RequestType: "ProfileList",
+				Status:      "Acknowledged",
+				Hostname:    "host1",
+			},
+			{
+				DeviceID:    "h2",
+				CommandUUID: "u2",
+				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
+				RequestType: "ListApps",
+				Status:      "Acknowledged",
+				Hostname:    "host2",
+			},
+		}, nil
+	}
+
+	listErr = io.ErrUnexpectedEOF
+	_, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, io.ErrUnexpectedEOF.Error())
+
+	listErr = nil
+	empty = true
+	buf, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
+
+	empty = false
+	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+----------------------+-------------+--------------+----------+
+| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
++----+----------------------+-------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
++----+----------------------+-------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
++----+----------------------+-------------+--------------+----------+
 `))
 }

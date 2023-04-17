@@ -51,6 +51,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
+		{"TestListMDMAppleCommands", testListMDMAppleCommands},
 	}
 
 	for _, c := range cases {
@@ -2725,4 +2726,260 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
+}
+
+func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	createRawCmd := func(reqType, cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, reqType, cmdUUID)
+	}
+
+	// create some enrolled hosts
+	enrolledHosts := make([]*fleet.Host, 3)
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		enrolledHosts[i] = h
+		t.Logf("enrolled host [%d]: %s", i, h.UUID)
+	}
+	// create a team
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	// assign enrolledHosts[2] to tm1
+	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{enrolledHosts[2].ID})
+	require.NoError(t, err)
+
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	// no commands yet
+	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// enqueue a command for enrolled hosts [0] and [1]
+	uuid1 := uuid.New().String()
+	rawCmd1 := createRawCmd("ListApps", uuid1)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
+	require.NoError(t, err)
+
+	// command has no results yet, so the status is empty
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// simulate a result for enrolledHosts[0]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[0].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Acknowledged",
+		RequestType: "ListApps",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// command is now listed with a status for this result
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// simulate a result for enrolledHosts[1]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Error",
+		RequestType: "ListApps",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// both results are now listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Error",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// enqueue another command for enrolled hosts [1] and [2]
+	uuid2 := uuid.New().String()
+	rawCmd2 := createRawCmd("InstallApp", uuid2)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[1].UUID, enrolledHosts[2].UUID}, rawCmd2)
+	require.NoError(t, err)
+
+	// simulate a result for enrolledHosts[1] and [2]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "InstallApp",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[2].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "InstallApp",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+
+	// results are listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 4)
+
+	// page-by-page: first page
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 3)
+
+	// page-by-page: second page
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+
+	// filter by a user from team tm1, can only see that team's host
+	u1, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{Team: *tm1, Role: fleet.RoleObserver},
+		},
+	})
+	require.NoError(t, err)
+	u1, err = ds.UserByID(ctx, u1.ID)
+	require.NoError(t, err)
+
+	// u1 is an observer, so if IncludeObserver is not set, returns nothing
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 3},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 0)
+
+	// now with IncludeObserver set to true
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1, IncludeObserver: true}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 3, OrderKey: "updated_at", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[2].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "InstallApp",
+			Hostname:    enrolledHosts[2].Hostname,
+			TeamID:      &tm1.ID,
+		},
+	})
 }

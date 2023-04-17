@@ -6,7 +6,7 @@ To learn more about Fleet's MDM features, see:
 * [Migration guide](https://fleetdm.com/docs/using-fleet/mdm-migration-guide)
 * [macOS updates](https://fleetdm.com/docs/using-fleet/mdm-macos-updates)
 * [macOS settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)
-
+* [Commands](https://fleetdm.com/docs/using-fleet/mdm-commands)
 
 <meta name="pageOrderInSection" value="1499">
 <meta name="title" value="Mobile device management in Fleet">
