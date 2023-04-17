@@ -21,6 +21,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -970,7 +971,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	var premiumCommands = map[string]bool{
+	premiumCommands := map[string]bool{
 		"EraseDevice": true,
 		"DeviceLock":  true,
 	}
@@ -1464,11 +1465,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
 	}
 	if tmID != nil || tmName != nil {
-		license, err := svc.License(ctx)
-		if err != nil {
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return err
-		}
+		license, _ := license.FromContext(ctx)
 		if !license.IsPremium() {
 			field := "team_id"
 			if tmName != nil {
@@ -1498,7 +1495,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	appCfg, err := svc.AppConfigObfuscated(ctx)
+	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
