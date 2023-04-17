@@ -27,10 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
-
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -51,6 +47,9 @@ import (
 	"github.com/micromdm/nanodep/godep"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
 	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	scepclient "github.com/micromdm/scep/v2/client"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/micromdm/scep/v2/scep"
@@ -2521,7 +2520,6 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 
 	// the old configuration profile is kept
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
-
 }
 
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
@@ -2625,7 +2623,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackage() {
-	//ctx := context.Background()
+	// ctx := context.Background()
 	t := s.T()
 
 	read := func(name string) []byte {
@@ -2678,7 +2676,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
-
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -3028,4 +3025,141 @@ var testBMToken = &nanodep_client.OAuth1Tokens{
 	AccessToken:       "test_access_token",
 	AccessSecret:      "test_access_secret",
 	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+}
+
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using-Fleet/Permissions.md.
+func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
+	t := s.T()
+	ctx := context.Background()
+
+	//
+	// Setup test data.
+	// All setup actions are authored by a global admin.
+	//
+
+	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Foo",
+	})
+	require.NoError(t, err)
+	t2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Bar",
+	})
+	require.NoError(t, err)
+	t3, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Zoo",
+	})
+	require.NoError(t, err)
+	// Create the global GitOps user we'll use in tests.
+	u := &fleet.User{
+		Name:       "GitOps",
+		Email:      "gitops1-mdm@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+	// Create a GitOps user for team t1 we'll use in tests.
+	u2 := &fleet.User{
+		Name:       "GitOps 2",
+		Email:      "gitops2-mdm@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *t1,
+				Role: fleet.RoleGitOps,
+			},
+			{
+				Team: *t3,
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	require.NoError(t, u2.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u2)
+	require.NoError(t, err)
+
+	//
+	// Start running permission tests with user gitops1-mdm.
+	//
+	s.setTokenForTest(t, "gitops1-mdm@example.com", test.GoodPassword)
+
+	// Attempt to edit global MDM settings, should allow.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// Attempt to set profile batch globally, should allow.
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// Attempt to edit team MDM settings, should allow.
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t1.Name,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{
+				"enable_disk_encryption": true,
+				"custom_settings":        []interface{}{"foo", "bar"},
+			},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// Attempt to set profile batch for team t1, should allow.
+	teamProfiles := [][]byte{
+		mobileconfigForTest("N3", "I3"),
+		mobileconfigForTest("N4", "I4"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
+		Profiles: teamProfiles,
+	}, http.StatusNoContent, "team_id", strconv.Itoa(int(t1.ID)))
+
+	//
+	// Start running permission tests with user gitops2-mdm,
+	// which is GitOps for teams t1 and t3.
+	//
+	s.setTokenForTest(t, "gitops2-mdm@example.com", test.GoodPassword)
+
+	// Attempt to edit team t1 MDM settings, should allow.
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t1.Name,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{
+				"enable_disk_encryption": true,
+				"custom_settings":        []interface{}{"foo", "bar"},
+			},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// Attempt to set profile batch for team t1, should allow.
+	teamProfiles = [][]byte{
+		mobileconfigForTest("N5", "I5"),
+		mobileconfigForTest("N6", "I6"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
+		Profiles: teamProfiles,
+	}, http.StatusNoContent, "team_id", strconv.Itoa(int(t1.ID)))
+
+	// Attempt to set profile batch for team t2, should not allow.
+	teamProfiles = [][]byte{
+		mobileconfigForTest("N7", "I7"),
+		mobileconfigForTest("N8", "I8"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
+		Profiles: teamProfiles,
+	}, http.StatusForbidden, "team_id", strconv.Itoa(int(t2.ID)))
+}
+
+func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password string) {
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	s.token = s.getCachedUserToken(email, password)
 }

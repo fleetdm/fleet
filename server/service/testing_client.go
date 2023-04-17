@@ -80,7 +80,6 @@ func (ts *withServer) SetupSuite(dbName string) {
 	})
 	ts.server = server
 	ts.users = users
-	ts.cachedTokens = make(map[string]string)
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
 }
@@ -226,6 +225,10 @@ func (ts *withServer) getTestAdminToken() string {
 func (ts *withServer) getCachedUserToken(email, password string) string {
 	ts.cachedTokensMu.Lock()
 	defer ts.cachedTokensMu.Unlock()
+
+	if ts.cachedTokens == nil {
+		ts.cachedTokens = make(map[string]string)
+	}
 
 	token, ok := ts.cachedTokens[email]
 	if !ok {
