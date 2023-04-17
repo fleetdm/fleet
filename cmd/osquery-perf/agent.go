@@ -754,7 +754,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/%s", fmt.Sprintf("Common_%d", i)),
+			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -775,7 +775,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/%s", fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)),
+			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d", a.CachedString("hostname"), i),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
