@@ -1,8 +1,8 @@
 # macOS setup
 
-In Fleet you can customize the first time macOS setup experience for your end users.
+In Fleet, you can customize the first-time macOS setup experience for your end users.
 
-You can require end users to authenticate with your identity provider (IdP) and agree to and end user license agreement (EULA) before they can use their new Mac.
+You can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
 You can customize the macOS Setup Assistant and choose to show or hide specific panes.
 
@@ -26,9 +26,9 @@ To add a bootstrap package to Fleet, we will do the following steps:
 2. Sign the package
 3. Upload the package to Fleet
 
-### Step 1: download or generate a package
+### Step 1: Download or generate a package
 
-If you use Munki, Chef, Puppet, or another configuration management tool, download the client (agent) for your tool. You can find the client on each tool's GitHub or website. For example, you can download Munki, the Munki client on their [releases page in GitHub](https://github.com/munki/munki/releases). 
+If you use Munki, Chef, Puppet, or another configuration management tool, download the client (agent) for your tool. You can find the client on each tool's GitHub or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases). 
 
 Make sure the file you download is a `.pkg` file.
 
@@ -38,13 +38,57 @@ Make sure the package you generate is a `.pkg` file.
 
 ### Step 2: Sign the package
 
-To sign the package, you need an Apple developer account. [Create one here](developer.apple.com/account).
+1. Obtain an appropriate TLS/SSL certificate with signing capability. You can do this by:
+   - Using an [Apple developer account](https://developer.apple.com/account).
+     - [Link your developer account to
+       Xcode](https://help.apple.com/xcode/mac/current/#/dev154b28f09) or [using your developer account](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
+     - Ensure you choose "Developer ID Installer" as the certificate type.
+     - Verify the certificate is saved to your macOS Keychain.
 
-Sign the package with a valid Developer ID Installer certificate. Learn how to create a certificate [here in the Xcode documentation](https://help.apple.com/xcode/mac/current/#/dev154b28f09). 
+   - Acquiring a certificate from third parties that meet the requirements.
+     - Follow their instructions for creating a TLS/SSL certificate with signing usage.
+     - Add the resulting `.p12` to your keychain.
+2. Sign your `pkg` with a valid Developer ID certificate:\
+\
+```productsign --sign "Developer ID Installer: Your Developer Name (SerialNumber)" /path/to/your.pkg /path/to/your-signed.pkg``` \
+
+3. Upload the package to Apple's notary service for validation: \
+\
+     ```xcrun notarytool submit --keychain-profile "Your Keychain Name" --wait your-signed.pkg```\
+\
+This command will upload your package to the notary service, which will validate it and return a UUID that can be used to check its status later on.
+
+4. Wait for the notary service to validate your package. You can use the UUID from the previous step
+   to check the status of your package: \
+\
+```xcrun notarytool info --keychain-profile "Your Keychain Name" --wait <uuid>```\
+\
+The `--wait` flag will cause the command to poll the notary service until the validation is complete. If the validation is successful, the command will return a JSON object with information about the notarization.
+5. Optional: Once your package has been notarized, staple the notarization ticket to it: \
+\
+```xcrun stapler staple your-signed.pkg```\
+\
+This command will attach the notarization ticket to your package, which will allow Gatekeeper to verify its authenticity even if it's not connected to the internet.
+
+6. Verify that your package has been notarized and stapled correctly: \
+\
+```pkgutil –check-signature /path/to/installer.pkg```\
+\
+This command will return *Notarization: trusted by the Apple notary service* along with the
+Certificate Chain.\
+\
+or\
+\
+```spctl -a -v your-signed.pkg```\
+\
+This command will use the `spctl` tool to verify that your package has been signed, notarized, and
+stapled correctly. If everything is in order, the command will return "accepted."\
+\
+Your package can be safely distributed and installed on macOS devices managed by your MDM.
 
 ### Step 3: Upload the package to Fleet
 
-Fleet supports installing a unique bootstrap packages for each team. In Fleet, a team is a group of hosts.
+Fleet supports installing a unique bootstrap package for each team. In Fleet, a team is a group of hosts.
 
 1. Upload the package to a publicly accessible location on the internet. We'll point Fleet to this location so that Fleet can download the package.
 
