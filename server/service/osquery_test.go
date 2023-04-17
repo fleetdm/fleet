@@ -1299,6 +1299,10 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]string) error {
+		return nil
+	}
+
 	// Verify that results are ingested properly
 	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
 	require.NotNil(t, gotHost)
