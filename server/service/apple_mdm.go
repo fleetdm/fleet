@@ -1079,7 +1079,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		"DeviceLock":  true,
 	}
 
-	// load hosts (lite) by uuids, check that the user has the rigts to run
+	// load hosts (lite) by uuids, check that the user has the rights to run
 	// commands for every affected team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
@@ -1277,8 +1277,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
 	}
 
-	// check authorization again based on host info for team-based permissions
-	if err := svc.authz.Authorize(ctx, h, fleet.ActionMDMCommand); err != nil {
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleCommandAuthz{
+		TeamID: h.TeamID,
+	}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
