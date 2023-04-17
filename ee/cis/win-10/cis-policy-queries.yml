@@ -6297,7 +6297,7 @@ spec:
     CIS - Ensure 'Configure detection for potentially unwanted applications' is set to 'Enabled: Block'
   platforms: win10
   platform: windows
-    description: |
+  description: |
     This policy setting controls detection and action for Potentially Unwanted Applications (PUA), which are sneaky unwanted application bundlers or their bundled applications, that can deliver adware or malware.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Block':
