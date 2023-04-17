@@ -3,6 +3,7 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { RouteProps } from "react-router";
 
 import classnames from "classnames";
 import { pick } from "lodash";
@@ -34,6 +35,7 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
+import { ITableQueryData } from "components/TableContainer";
 
 import {
   normalizeEmptyValues,
@@ -64,14 +66,22 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
-import { ITableQueryData } from "components/TableContainer";
 
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
+  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
+    query: {
+      vulnerable?: string;
+      page?: number;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+    search?: string;
   };
   params: Params;
 }
@@ -94,11 +104,16 @@ const TAGGED_TEMPLATES = {
 };
 
 const HostDetailsPage = ({
+  route,
   router,
-  location: { pathname },
+  location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
+  const routeTemplate = route?.path ?? "";
+  console.log("routeTemplate", routeTemplate);
+  const queryParams = location.query;
+
   const {
     config,
     currentUser,
@@ -665,7 +680,7 @@ const HostDetailsPage = ({
         />
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(pathname)}
+            selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
@@ -708,6 +723,9 @@ const HostDetailsPage = ({
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
+                queryParams={queryParams}
+                routeTemplate={routeTemplate}
+                hostId={host?.id || 0}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
