@@ -1,12 +1,13 @@
 # macOS setup
 
-In Fleet, you can customize the first-time macOS setup experience for your end users.
-
-You can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
+In Fleet, you can customize the first-time macOS setup experience for your end users:
 
 You can customize the macOS Setup Assistant and choose to show or hide specific panes.
+* Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
 
-Also, you can bootstrap new Macs with your configuration management tool of choice (ex. Munki, Chef, or Puppet).
+* Customize the macOS Setup Assistant by choosing to show or hide specific panes
+
+* Bootstrap new Macs with your configuration management tool of choice (ex. Munki, Chef, or Puppet)
 
 ## End user authentication
 
@@ -116,4 +117,4 @@ Run the fleetctl `apply -f <your-team-here>.yml` command to upload your bootstra
 > This feature is currently in development.
 
 <meta name="pageOrderInSection" value="1504">
-<meta name="title" value="MDM commands">
+<meta name="title" value="MDM macOS setup">
