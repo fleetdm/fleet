@@ -172,7 +172,10 @@ func (m MacOSUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	// CustomSettings is a slice of configuration profiles to apply to enrolled devices.
+	// CustomSettings is a slice of configuration profile file paths.
+	//
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
 	CustomSettings []string `json:"custom_settings"`
 	// EnableDiskEncryption enables disk encryption on hosts such that the hosts'
 	// disk encryption keys will be stored in Fleet.
