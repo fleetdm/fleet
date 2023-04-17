@@ -16,7 +16,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
-	"go.elastic.co/apm/v2"
 )
 
 // errorer interface is implemented by response structs to encode business logic errors
@@ -85,7 +84,6 @@ func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err e
 
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	apm.CaptureError(ctx, err).Send()
 	ctxerr.Handle(ctx, err)
 	origErr := err
 
