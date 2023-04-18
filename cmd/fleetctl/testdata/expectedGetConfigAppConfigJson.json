@@ -92,7 +92,7 @@
 			},
 			"macos_setup": {
 				"bootstrap_package": "",
-				"macos_setup_assistant": ""
+				"macos_setup_assistant": null
 			}
 		}
 	}

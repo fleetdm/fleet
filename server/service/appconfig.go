@@ -383,8 +383,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant != appConfig.MDM.MacOSSetup.MacOSSetupAssistant &&
-		appConfig.MDM.MacOSSetup.MacOSSetupAssistant == "" {
+	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
 		// TODO(mna): clear macos setup assistant for no team
 	}
 
@@ -467,7 +467,7 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
-	if oldMdm.MacOSSetup.MacOSSetupAssistant != mdm.MacOSSetup.MacOSSetupAssistant && !license.IsPremium() {
+	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
 	}
 
@@ -484,7 +484,7 @@ func (svc *Service) validateMDM(
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if oldMdm.MacOSSetup.MacOSSetupAssistant != mdm.MacOSSetup.MacOSSetupAssistant {
+		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
 			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}

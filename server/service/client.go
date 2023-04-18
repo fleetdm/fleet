@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -324,8 +325,8 @@ func (c *Client) ApplyGroup(
 					}
 				}
 			}
-			if macosSetup.MacOSSetupAssistant != "" {
-				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant))
+			if macosSetup.MacOSSetupAssistant.Value != "" {
+				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return fmt.Errorf("applying fleet config: %w", err)
 				}
@@ -387,8 +388,8 @@ func (c *Client) ApplyGroup(
 				}
 				tmBootstrapPackages[k] = bp
 			}
-			if setup.MacOSSetupAssistant != "" {
-				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant))
+			if setup.MacOSSetupAssistant.Value != "" {
+				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return fmt.Errorf("applying teams: %w", err)
 				}
@@ -464,13 +465,11 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	if !ok || mos == nil {
 		return nil
 	}
-	bp := ""
-	rbp, ok := mos["bootstrap_package"]
-	if ok {
-		bp = rbp.(string)
-	}
+	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
+	msa, _ := mos["macos_setup_assistant"].(string)
 	return &fleet.MacOSSetup{
-		BootstrapPackage: bp,
+		BootstrapPackage:    bp,
+		MacOSSetupAssistant: optjson.SetString(msa),
 	}
 }
 

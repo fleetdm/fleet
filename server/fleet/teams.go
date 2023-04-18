@@ -364,6 +364,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
+	// TODO(mna): MacOSSetup
 	return &TeamSpec{
 		Name:         t.Name,
 		AgentOptions: agentOptions,

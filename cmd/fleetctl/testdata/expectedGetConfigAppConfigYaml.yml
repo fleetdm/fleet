@@ -26,7 +26,7 @@ spec:
       enable_disk_encryption: false
     macos_setup:
       bootstrap_package: ""
-      macos_setup_assistant: ""
+      macos_setup_assistant:
   org_info:
     org_logo_url: ""
     org_name: ""

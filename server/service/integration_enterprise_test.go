@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -121,6 +122,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: "10.15.0",
 			Deadline:       "2021-01-01",
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
+			// it did get marshalled, and then when unmarshalled it was set (but
+			// null).
+			MacOSSetupAssistant: optjson.String{Set: true},
 		},
 	}, team.Config.MDM)
 
