@@ -107,6 +107,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
 | View and run queries marked as **observer can run**                                                                              | ✅             | ✅              | ✅               | ✅          |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
+| View all queries                                                                                                                 |               |                | ✅          | ✅     |        |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
 | Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅               | ✅          | ✅           |
 | View policies                                                                                                                    | ✅             | ✅              | ✅               | ✅          |             |
