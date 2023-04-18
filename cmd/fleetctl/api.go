@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
@@ -81,13 +82,17 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	}
 
 	// check that AppConfig's Apple BM terms are not expired.
-	appCfg, err := fleetClient.GetAppConfig()
-	if err != nil {
+	var sce kithttp.StatusCoder
+	switch appCfg, err := fleetClient.GetAppConfig(); {
+	case err == nil:
+		if appCfg.MDM.AppleBMTermsExpired {
+			fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
+			// This is just a warning, continue ...
+		}
+	case errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden:
+		// OK, could be a user without permissions to read app config (e.g. gitops).
+	default:
 		return nil, err
-	}
-	if appCfg.MDM.AppleBMTermsExpired {
-		fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
-		// This is just a warning, continue ...
 	}
 
 	return fleetClient, nil

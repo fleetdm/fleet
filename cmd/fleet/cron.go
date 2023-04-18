@@ -11,9 +11,6 @@ import (
 	"strings"
 	"time"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/service"
-
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -21,8 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
@@ -910,7 +909,7 @@ func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	commander *service.MDMAppleCommander,
+	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {

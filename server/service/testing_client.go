@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,7 +60,11 @@ type withServer struct {
 	users            map[string]fleet.User
 	token            string
 	cachedAdminToken string
-	lq               *live_query_mock.MockLiveQuery
+
+	cachedTokensMu sync.Mutex
+	cachedTokens   map[string]string // email -> auth token
+
+	lq *live_query_mock.MockLiveQuery
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -213,6 +218,24 @@ func (ts *withServer) getTestAdminToken() string {
 		ts.cachedAdminToken = ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
 	}
 	return ts.cachedAdminToken
+}
+
+// getCachedUserToken returns the cached auth token for the given test user email.
+// If it's not found, then a login request is performed and the token cached.
+func (ts *withServer) getCachedUserToken(email, password string) string {
+	ts.cachedTokensMu.Lock()
+	defer ts.cachedTokensMu.Unlock()
+
+	if ts.cachedTokens == nil {
+		ts.cachedTokens = make(map[string]string)
+	}
+
+	token, ok := ts.cachedTokens[email]
+	if !ok {
+		token = ts.getTestToken(email, password)
+		ts.cachedTokens[email] = token
+	}
+	return token
 }
 
 func (ts *withServer) getTestToken(email string, password string) string {

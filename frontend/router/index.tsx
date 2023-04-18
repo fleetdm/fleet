@@ -62,6 +62,7 @@ import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
 import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
+import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 
 interface IAppWrapperProps {
@@ -200,7 +201,7 @@ const routes = (
           <Route path="queries">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageQueriesPage} />
-            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
               <Route path="new" component={QueryPage} />
             </Route>
             <Route path=":id" component={QueryPage} />

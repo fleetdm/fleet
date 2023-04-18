@@ -77,6 +77,19 @@
           }
         }
 
+        .smtp-status {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .empty-table__container {
+          margin: 96px 0 1.5rem;
+
+          @media (min-width: $break-990) {
+            max-width: 65%;
+          }
+        }
+
         .smtp-options {
           font-size: 15px;
           font-weight: $bold;
@@ -189,13 +202,15 @@
         text-align: center;
 
         img {
-          border-radius: 20%;
-          height: 120px;
-          width: 120px;
+          border-radius: $border-radius;
+          max-height: 80px;
+          max-width: 150px;
           border: 1px solid $ui-fleet-black-10;
           background-color: $ui-light-grey;
           position: relative;
-          bottom: -20px;
+          bottom: -29px;
+          padding: $small;
+          transform: initial;
         }
 
         p {

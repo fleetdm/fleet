@@ -72,7 +72,10 @@ class OrgLogoIcon extends Component {
     const { imageSrc } = this.state;
     const { onError } = this;
 
-    const classNames = classnames(baseClass, className);
+    const classNames =
+      imageSrc === fleetAvatar
+        ? classnames(baseClass, className, "default-fleet-logo")
+        : classnames(baseClass, className);
 
     return (
       <img

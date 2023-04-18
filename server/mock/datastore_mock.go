@@ -260,6 +260,8 @@ type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Enro
 
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
+type AggregateEnrollSecretPerTeamFunc func(ctx context.Context) ([]*fleet.EnrollSecret, error)
+
 type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
 type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
@@ -516,6 +518,8 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
 
+type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
+
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
@@ -526,13 +530,17 @@ type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context
 
 type GetHostMDMProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
+type CleanupDiskEncryptionKeysOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error)
+
+type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
 type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
 
@@ -572,8 +580,6 @@ type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
-type DeleteMDMAppleProfilesForHostFunc func(ctx context.Context, hostUUID string) error
-
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
@@ -581,6 +587,14 @@ type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint)
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
+
+type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error
+
+type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) error
+
+type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
+
+type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -948,6 +962,9 @@ type DataStore struct {
 
 	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
 	ApplyEnrollSecretsFuncInvoked bool
+
+	AggregateEnrollSecretPerTeamFunc        AggregateEnrollSecretPerTeamFunc
+	AggregateEnrollSecretPerTeamFuncInvoked bool
 
 	NewInviteFunc        NewInviteFunc
 	NewInviteFuncInvoked bool
@@ -1333,6 +1350,9 @@ type DataStore struct {
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
 
+	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
+	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
+
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
 
@@ -1348,6 +1368,9 @@ type DataStore struct {
 	GetHostMDMProfilesFunc        GetHostMDMProfilesFunc
 	GetHostMDMProfilesFuncInvoked bool
 
+	CleanupDiskEncryptionKeysOnTeamChangeFunc        CleanupDiskEncryptionKeysOnTeamChangeFunc
+	CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked bool
+
 	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
 	NewMDMAppleEnrollmentProfileFuncInvoked bool
 
@@ -1359,6 +1382,9 @@ type DataStore struct {
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
+
+	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
+	ListMDMAppleCommandsFuncInvoked bool
 
 	NewMDMAppleInstallerFunc        NewMDMAppleInstallerFunc
 	NewMDMAppleInstallerFuncInvoked bool
@@ -1417,9 +1443,6 @@ type DataStore struct {
 	UpdateOrDeleteHostMDMAppleProfileFunc        UpdateOrDeleteHostMDMAppleProfileFunc
 	UpdateOrDeleteHostMDMAppleProfileFuncInvoked bool
 
-	DeleteMDMAppleProfilesForHostFunc        DeleteMDMAppleProfilesForHostFunc
-	DeleteMDMAppleProfilesForHostFuncInvoked bool
-
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
 
@@ -1431,6 +1454,18 @@ type DataStore struct {
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
+
+	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
+	InsertMDMAppleBootstrapPackageFuncInvoked bool
+
+	DeleteMDMAppleBootstrapPackageFunc        DeleteMDMAppleBootstrapPackageFunc
+	DeleteMDMAppleBootstrapPackageFuncInvoked bool
+
+	GetMDMAppleBootstrapPackageMetaFunc        GetMDMAppleBootstrapPackageMetaFunc
+	GetMDMAppleBootstrapPackageMetaFuncInvoked bool
+
+	GetMDMAppleBootstrapPackageBytesFunc        GetMDMAppleBootstrapPackageBytesFunc
+	GetMDMAppleBootstrapPackageBytesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -2287,6 +2322,13 @@ func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secret
 	s.ApplyEnrollSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyEnrollSecretsFunc(ctx, teamID, secrets)
+}
+
+func (s *DataStore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+	s.mu.Lock()
+	s.AggregateEnrollSecretPerTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.AggregateEnrollSecretPerTeamFunc(ctx)
 }
 
 func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
@@ -3185,6 +3227,13 @@ func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMApp
 	return s.NewMDMAppleConfigProfileFunc(ctx, p)
 }
 
+func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAppleConfigProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAppleConfigProfilesFunc(ctx, payload)
+}
+
 func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMAppleConfigProfileFuncInvoked = true
@@ -3220,6 +3269,13 @@ func (s *DataStore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]
 	return s.GetHostMDMProfilesFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	s.mu.Lock()
+	s.CleanupDiskEncryptionKeysOnTeamChangeFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupDiskEncryptionKeysOnTeamChangeFunc(ctx, hostIDs, newTeamID)
+}
+
 func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleEnrollmentProfileFuncInvoked = true
@@ -3241,11 +3297,18 @@ func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
-func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) ListMDMAppleCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	s.mu.Lock()
+	s.ListMDMAppleCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAppleCommandsFunc(ctx, tmFilter, listOpts)
 }
 
 func (s *DataStore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
@@ -3381,13 +3444,6 @@ func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profi
 	return s.UpdateOrDeleteHostMDMAppleProfileFunc(ctx, profile)
 }
 
-func (s *DataStore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleProfilesForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleProfilesForHostFunc(ctx, hostUUID)
-}
-
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
@@ -3414,4 +3470,32 @@ func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 	s.GetMDMAppleFileVaultSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+	s.mu.Lock()
+	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAppleBootstrapPackageFunc(ctx, bp)
+}
+
+func (s *DataStore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleBootstrapPackageFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	s.mu.Lock()
+	s.GetMDMAppleBootstrapPackageMetaFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleBootstrapPackageMetaFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	s.mu.Lock()
+	s.GetMDMAppleBootstrapPackageBytesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
 }

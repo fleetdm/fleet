@@ -201,7 +201,7 @@ func errorMessage(msg string) error {
 // successMessage displays success string to the user
 func showSuccessMsg() error {
 	_, err := displayDialog(dialogOptions{
-		Text: "Success! Your disk encryption key was reset",
+		Text: "Success! Your disk encryption key was reset.",
 		Options: appleScriptDialogOptions{
 			Title:   ptr.String("Reset disk encryption key"),
 			Buttons: []string{"Ok"},

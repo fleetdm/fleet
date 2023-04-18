@@ -87,9 +87,9 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies)
+    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn])
-    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, local.extra_environment_variables)
+    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
   }
   alb_config = {
@@ -288,4 +288,10 @@ module "notify_slack" {
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#help-p1"
   slack_username    = "monitoring"
+}
+
+module "ses" {
+  source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=main"
+  zone_id = aws_route53_zone.main.zone_id
+  domain  = "dogfood.fleetdm.com"
 }

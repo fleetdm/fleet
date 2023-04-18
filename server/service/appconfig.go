@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -41,6 +42,8 @@ type appConfigResponseFields struct {
 	License *fleet.LicenseInfo `json:"license,omitempty"`
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
+	// Email is returned when the email backend is something other than SMTP, for example SES
+	Email *fleet.EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
@@ -79,6 +82,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 	loggingConfig, err := svc.LoggingConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	emailConfig, err := svc.EmailConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +141,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Vulnerabilities: vulnConfig,
 			License:         license,
 			Logging:         loggingConfig,
+			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
 		},
 	}
@@ -156,24 +164,14 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
-	}
-
-	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = fleet.MaskedPassword
-	}
-
-	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = fleet.MaskedPassword
-	}
+	ac.Obfuscate()
 
 	return ac, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Modify AppConfig
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
 	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
@@ -191,10 +189,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
+
 	loggingConfig, err := svc.LoggingConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -231,10 +228,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
 
 	oldSmtpSettings := appConfig.SMTPSettings
 	oldAgentOptions := ""
@@ -398,15 +393,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfigObfuscated(ctx)
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	obfuscatedAppConfig.Obfuscate()
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
-	if obfuscatedConfig.AgentOptions != nil {
-		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	if obfuscatedAppConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.ds.NewActivity(
@@ -453,7 +449,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	return obfuscatedConfig, nil
+	return obfuscatedAppConfig, nil
 }
 
 func (svc *Service) validateMDM(
@@ -543,9 +539,9 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Apply enroll secret spec
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
 	Spec *fleet.EnrollSecretSpec `json:"spec"`
@@ -587,9 +583,9 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Get enroll secret spec
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {
 	Spec *fleet.EnrollSecretSpec `json:"spec"`
@@ -618,9 +614,9 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecre
 	return &fleet.EnrollSecretSpec{Secrets: secrets}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Version
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type versionResponse struct {
 	*version.Info
@@ -638,7 +634,7 @@ func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Version{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -646,9 +642,9 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 	return &info, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Get Certificate Chain
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type getCertificateResponse struct {
 	CertificateChain []byte `json:"certificate_chain"`

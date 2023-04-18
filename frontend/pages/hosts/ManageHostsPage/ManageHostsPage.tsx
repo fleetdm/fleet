@@ -51,6 +51,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 
 import sortUtils from "utilities/sort";
 import {
+  DiskEncryptionStatus,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
@@ -122,14 +123,11 @@ const ManageHostsPage = ({
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
   const {
-    availableTeams,
     config,
     currentUser,
     filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamMaintainer,
-    isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -146,7 +144,11 @@ const ManageHostsPage = ({
     currentTeamName,
     isAnyTeamSelected,
     isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     teamIdForApi,
+    userTeams,
     handleTeamChange,
   } = useTeamIdParam({
     location,
@@ -238,6 +240,8 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
+  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+    queryParams?.macos_settings_disk_encryption;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -367,6 +371,8 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
+        diskEncryptionStatus,
+        macSettingsStatus,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -402,6 +408,8 @@ const ManageHostsPage = ({
         osVersion,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        diskEncryptionStatus,
+        macSettingsStatus,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -544,6 +552,23 @@ const ManageHostsPage = ({
         queryParams: Object.assign({}, queryParams, {
           policy_id: policyId,
           policy_response: response,
+        }),
+      })
+    );
+  };
+
+  const handleChangeDiskEncryptionStatusFilter = (
+    newStatus: DiskEncryptionStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: Object.assign({}, queryParams, {
+          macos_settings_disk_encryption: newStatus,
         }),
       })
     );
@@ -702,6 +727,9 @@ const ManageHostsPage = ({
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (diskEncryptionStatus && isPremiumTier) {
+        // Premium feature only
+        newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
       }
       router.replace(
         getNextLocationPath({
@@ -735,6 +763,7 @@ const ManageHostsPage = ({
       router,
       routeTemplate,
       routeParams,
+      diskEncryptionStatus,
     ]
   );
 
@@ -973,7 +1002,7 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      currentUserTeams={availableTeams || []}
+      currentUserTeams={userTeams || []}
       selectedTeamId={currentTeamId}
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
@@ -1092,13 +1121,13 @@ const ManageHostsPage = ({
         <div className={`${baseClass}__title`}>
           {isFreeTier && <h1>Hosts</h1>}
           {isPremiumTier &&
-            availableTeams &&
-            (availableTeams.length > 1 || isOnGlobalTeam) &&
+            userTeams &&
+            (userTeams.length > 1 || isOnGlobalTeam) &&
             renderTeamsFilterDropdown()}
           {isPremiumTier &&
             !isOnGlobalTeam &&
-            availableTeams &&
-            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
+            userTeams &&
+            userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
         </div>
       </div>
     </div>
@@ -1312,8 +1341,21 @@ const ManageHostsPage = ({
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
-      isOnlyObserver,
+      isOnlyObserver:
+        isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
+
+    // Update last column
+    tableColumns.forEach((dataColumn) => {
+      dataColumn.isLastColumn = false;
+    });
+    tableColumns[tableColumns.length - 1].isLastColumn = true;
+
+    // Update last column
+    tableColumns.forEach((dataColumn) => {
+      dataColumn.isLastColumn = false;
+    });
+    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
@@ -1464,12 +1506,16 @@ const ManageHostsPage = ({
               softwareDetails: hostsData?.software || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
+              diskEncryptionStatus,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
             handleClearRouteParam={handleClearRouteParam}
             handleClearFilter={handleClearFilter}
             onChangePoliciesFilter={handleChangePoliciesFilter}
+            onChangeDiskEncryptionStatusFilter={
+              handleChangeDiskEncryptionStatusFilter
+            }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}

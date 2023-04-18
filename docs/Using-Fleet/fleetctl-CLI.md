@@ -242,14 +242,26 @@ To create your new API-only user, run `fleetctl user create` and pass values for
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
 ```
 
-### Permissions for an API-only user
+### Creating an API-only user
 An API-only user can be given the same permissions as a regular user. The default access level is `Observer`. For more information on permissions, see the [user permissions documentation](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
 
 If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
 
 ```
-fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
+fleetctl user create --name "API User" --email api@example.com --password temp#pass --api-only --global-role admin
 ```
+
+On Fleet Premium, use the `--team` flag setting `team_id:role` to create an API-only user on a team:
+
+```
+fleetctl user create --name "API Team Maintainer User" --email apimaintainer@example.com --password temp#pass --team 4:maintainer
+```
+
+### Changing permissions of an API-only user
+
+To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
+
+> Suggestion: To disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa), create a new user.
 
 ### Use fleetctl as an API-only user
 

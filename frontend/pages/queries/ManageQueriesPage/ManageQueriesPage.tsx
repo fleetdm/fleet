@@ -84,7 +84,9 @@ const enhanceQuery = (q: IQuery) => {
 const ManageQueriesPage = ({
   router,
 }: IManageQueriesPageProps): JSX.Element => {
-  const { isOnlyObserver } = useContext(AppContext);
+  const { isOnlyObserver, isObserverPlus, isAnyTeamObserverPlus } = useContext(
+    AppContext
+  );
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -188,17 +190,18 @@ const ManageQueriesPage = ({
               </h1>
             </div>
           </div>
-          {!isOnlyObserver && !!fleetQueries?.length && (
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="brand"
-                className={`${baseClass}__create-button`}
-                onClick={onCreateQueryClick}
-              >
-                Create new query
-              </Button>
-            </div>
-          )}
+          {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
+            !!fleetQueries?.length && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__create-button`}
+                  onClick={onCreateQueryClick}
+                >
+                  Create new query
+                </Button>
+              </div>
+            )}
         </div>
         <div className={`${baseClass}__description`}>
           <p>Manage queries to ask specific questions about your devices.</p>
@@ -216,6 +219,8 @@ const ManageQueriesPage = ({
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
+              isObserverPlus={isObserverPlus}
+              isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
             />
           )}
         </div>

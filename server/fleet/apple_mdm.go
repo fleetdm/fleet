@@ -10,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanomdm/mdm"
 )
 
 type MDMAppleCommandIssuer interface {
@@ -18,6 +17,7 @@ type MDMAppleCommandIssuer interface {
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -151,22 +151,26 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleCommandResult holds the result of a command execution provided by the target device.
+// MDMAppleCommandResult holds the result of a command execution provided by
+// the target device.
 type MDMAppleCommandResult struct {
-	// ID is the enrollment ID. This should be the same as the device ID.
-	ID string `json:"id" db:"id"`
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	DeviceID string `json:"device_id" db:"device_id"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
 	// Status is the command status. One of Acknowledged, Error, or NotNow.
 	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
 	// Result is the original command result XML plist. If the status is Error, it will include the
 	// ErrorChain key with more information.
 	Result []byte `json:"result" db:"result"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandResult) AuthzType() string {
-	return "mdm_apple_command_result"
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
 }
 
 // MDMAppleInstaller holds installer packages for Apple devices.
@@ -243,14 +247,14 @@ type CommandEnqueueResult struct {
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
 
-// MDMAppleCommand represents an Apple MDM command.
-type MDMAppleCommand struct {
-	*mdm.Command
+// MDMAppleCommandAuthz is used to check user authorization to read/write an
+// Apple MDM command.
+type MDMAppleCommandAuthz struct {
 	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommand) AuthzType() string {
+func (m MDMAppleCommandAuthz) AuthzType() string {
 	return "mdm_apple_command"
 }
 
@@ -291,8 +295,10 @@ type MDMAppleConfigProfile struct {
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
-	CreatedAt    time.Time                 `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time                 `db:"updated_at" json:"updated_at"`
+	// Checksum is an MD5 hash of the Mobileconfig bytes
+	Checksum  []byte    `db:"checksum" json:"-"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
@@ -350,6 +356,7 @@ type MDMAppleProfilePayload struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	ProfileName       string `db:"profile_name"`
 	HostUUID          string `db:"host_uuid"`
+	Checksum          []byte `db:"checksum"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -360,6 +367,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+	Checksum          []byte
 }
 
 // MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
@@ -418,4 +426,43 @@ type NanoEnrollment struct {
 	Type             string `json:"-" db:"type"`
 	Enabled          bool   `json:"-" db:"enabled"`
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
+}
+
+// MDMAppleCommandListOptions defines the options to control the list of MDM
+// Apple Commands to return. Although it only supports the standard list
+// options for now, in the future we expect to add filtering options.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMAppleCommandListOptions struct {
+	ListOptions
+}
+
+// MDMAppleCommand represents an MDM Apple command that has been enqueued for
+// execution. It is similar to MDMAppleCommandResult, but a separate struct is
+// used as there are plans to evolve the `fleetctl get mdm-commands` command
+// output in the future to list one row per command instead of one per
+// command-host combination, and this fleetctl command is the only use of this
+// struct at the moment. Also, it is filled a bit differently than what we do
+// in MDMAppleCommandResult, since it needs to join with the hosts in the
+// query to make authorization (retrieving the team id) manageable.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMAppleCommand struct {
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	DeviceID string `json:"device_id" db:"device_id"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// Hostname is the hostname of the host that executed the command.
+	Hostname string `json:"hostname" db:"hostname"`
+	// TeamID is the host's team, null if the host is in no team. This is used
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
 }

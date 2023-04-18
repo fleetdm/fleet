@@ -225,9 +225,13 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable     int
-	withLastOpened int
-	lastOpenedProb float64
+	vulnerable                   int
+	withLastOpened               int
+	lastOpenedProb               float64
+	commonSoftwareUninstallCount int
+	commonSoftwareUninstallProb  float64
+	uniqueSoftwareUninstallCount int
+	uniqueSoftwareUninstallProb  float64
 }
 
 func newAgent(
@@ -751,6 +755,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"last_opened_at":    lastOpenedAt,
 		}
 	}
+	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonSoftware), func(i, j int) {
+			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
+		})
+		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+	}
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -764,6 +774,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
 		}
+	}
+	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueSoftware), func(i, j int) {
+			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
+		})
+		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
@@ -1192,17 +1208,24 @@ func main() {
 	}
 
 	var (
-		serverURL                   = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret                = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount                   = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed                    = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod                 = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval              = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-		queryInterval               = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-		onlyAlreadyEnrolled         = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
-		nodeKeyFile                 = flag.String("node_key_file", "", "File with node keys to use")
-		commonSoftwareCount         = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
-		uniqueSoftwareCount         = flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
+		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
+
+		commonSoftwareCount          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
+		commonSoftwareUninstallCount = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
+		commonSoftwareUninstallProb  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
+
+		uniqueSoftwareCount          = flag.Int("unique_software_count", 10, "Number of uninstalls ")
+		uniqueSoftwareUninstallCount = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
+		uniqueSoftwareUninstallProb  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
+
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
 		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
@@ -1223,6 +1246,13 @@ func main() {
 		// Orbit enrollment does not support the "already enrolled" mode at the
 		// moment (see TODO in this file).
 		*orbitProb = 0
+	}
+
+	if *commonSoftwareUninstallCount >= *commonSoftwareCount {
+		log.Fatalf("Argument common_software_uninstall_count cannot be bigger than common_software_count")
+	}
+	if *uniqueSoftwareUninstallCount >= *uniqueSoftwareCount {
+		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
 	}
 
 	var tmpls []*template.Template
@@ -1262,9 +1292,13 @@ func main() {
 					common: *commonSoftwareCount,
 					unique: *uniqueSoftwareCount,
 				},
-				vulnerable:     *vulnerableSoftwareCount,
-				withLastOpened: *withLastOpenedSoftwareCount,
-				lastOpenedProb: *lastOpenedChangeProb,
+				vulnerable:                   *vulnerableSoftwareCount,
+				withLastOpened:               *withLastOpenedSoftwareCount,
+				lastOpenedProb:               *lastOpenedChangeProb,
+				commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
+				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 			}, entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,

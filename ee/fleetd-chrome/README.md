@@ -10,7 +10,9 @@
 
 ## Configure in Google Admin
 
-Left menu: Devices > Chrome > Users & browsers 
+Left menu: Devices > Chrome > Apps & Extensions > Users & browsers (https://admin.google.com/ac/chrome/apps/user)
+
+Select the appropriate organizational unit, users, or groups.
 
 Bottom right yellow + button > Add Chrome app or extension by ID
 

@@ -326,6 +326,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings status %s", macOSSettingsStatus)
 	}
 
+	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
+	switch fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
+	case
+		fleet.MacOSDiskEncryptionStatusApplied,
+		fleet.MacOSDiskEncryptionStatusActionRequired,
+		fleet.MacOSDiskEncryptionStatusEnforcing,
+		fleet.MacOSDiskEncryptionStatusFailed,
+		fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
+		hopt.MacOSSettingsDiskEncryptionFilter = fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.Atoi(munkiIssueID)

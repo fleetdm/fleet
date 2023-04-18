@@ -326,6 +326,14 @@ type Datastore interface {
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
 	ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*EnrollSecret) error
 
+	// AggregateEnrollSecretPerTeam returns a slice containing one
+	// EnrollSecret per team, plus an EnrollSecret for "no team"
+	//
+	// If any of the teams doesn't have any enroll secrets, then the
+	// corresponcing EnrollSecret.Secret entry will have an empty string
+	// value.
+	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 
@@ -720,6 +728,15 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
 
+	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
+	// profiles in bulk with the current payload.
+	//
+	// Be careful when using this for user actions, you generally want to
+	// use NewMDMAppleConfigProfile/DeleteMDMAppleConfigProfile or the
+	// batch insert/delete counterparts. With the current product vision,
+	// this is mainly aimed to internal usage within the Fleet server.
+	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
+
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile id.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
@@ -739,6 +756,8 @@ type Datastore interface {
 	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
+	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
@@ -753,8 +772,11 @@ type Datastore interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	// The map returned has a result for each target device ID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
+	// executed, based on the provided options.
+	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
@@ -829,9 +851,6 @@ type Datastore interface {
 	// and the status is "applied" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
-	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
-	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
-
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 
@@ -847,6 +866,15 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 }
 
 const (

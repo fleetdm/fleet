@@ -47,6 +47,10 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
+
+	// FleetdPublicManifestURL contains a valid manifest that can be used
+	// by InstallEnterpriseApplication to install `fleetd` in a host.
+	FleetdPublicManifestURL = "https://download.fleetdm.com/fleetd-base-manifest.plist"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -402,7 +406,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} Enrollment</string>
+	<string>{{ .Organization }} enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>

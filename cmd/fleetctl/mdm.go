@@ -52,7 +52,7 @@ func mdmRunCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := checkMDMEnabled(client); err != nil {
+			if err := client.CheckMDMEnabled(); err != nil {
 				return err
 			}
 
@@ -107,15 +107,4 @@ fleetctl get mdm-command-results --id=%v
 			return nil
 		},
 	}
-}
-
-func checkMDMEnabled(client *service.Client) error {
-	appCfg, err := client.GetAppConfig()
-	if err != nil {
-		return err
-	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
-	return nil
 }

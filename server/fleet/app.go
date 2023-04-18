@@ -124,6 +124,7 @@ type MDM struct {
 
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -171,8 +172,14 @@ func (m MacOSUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	CustomSettings       []string `json:"custom_settings"`
-	EnableDiskEncryption bool     `json:"enable_disk_encryption"`
+	// CustomSettings is a slice of configuration profile file paths.
+	//
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
+	CustomSettings []string `json:"custom_settings"`
+	// EnableDiskEncryption enables disk encryption on hosts such that the hosts'
+	// disk encryption keys will be stored in Fleet.
+	EnableDiskEncryption bool `json:"enable_disk_encryption"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -231,6 +238,11 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 	return set, nil
 }
 
+// MacOSSetup contains settings related to the setup of DEP enrolled devices.
+type MacOSSetup struct {
+	BootstrapPackage string `json:"bootstrap_package"`
+}
+
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
@@ -269,6 +281,19 @@ type AppConfig struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// Obfuscate overrides credentials with obfuscated characters.
+func (c *AppConfig) Obfuscate() {
+	if c.SMTPSettings.SMTPPassword != "" {
+		c.SMTPSettings.SMTPPassword = MaskedPassword
+	}
+	for _, jiraIntegration := range c.Integrations.Jira {
+		jiraIntegration.APIToken = MaskedPassword
+	}
+	for _, zdIntegration := range c.Integrations.Zendesk {
+		zdIntegration.APIToken = MaskedPassword
+	}
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
@@ -358,6 +383,7 @@ type enrichedAppConfigFields struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+	Email           *EmailConfig           `json:"email,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -671,6 +697,19 @@ func (e *EnrollSecret) AuthzType() string {
 	return "enroll_secret"
 }
 
+// ExtraAuthz implements authz.ExtraAuthzer.
+func (e *EnrollSecret) ExtraAuthz() (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"is_global_secret": e.TeamID == nil,
+	}, nil
+}
+
+// IsGlobalSecret returns whether the secret is global.
+// This method is defined for the Policy Rego code (is_global_secret).
+func (e *EnrollSecret) IsGlobalSecret() bool {
+	return e.TeamID == nil
+}
+
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
@@ -739,6 +778,16 @@ type Logging struct {
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
 	Audit  LoggingPlugin `json:"audit"`
+}
+
+type EmailConfig struct {
+	Backend string      `json:"backend"`
+	Config  interface{} `json:"config"`
+}
+
+type SESConfig struct {
+	Region    string `json:"region"`
+	SourceARN string `json:"source_arn"`
 }
 
 type UpdateIntervalConfig struct {
@@ -817,4 +866,12 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// Version is the authz type used to check access control to the version endpoint.
+type Version struct{}
+
+// AuthzType implements authz.AuthzTyper.
+func (v *Version) AuthzType() string {
+	return "version"
 }
