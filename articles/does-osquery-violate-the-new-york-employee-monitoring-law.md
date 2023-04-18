@@ -1,6 +1,6 @@
 # Does osquery violate the New York employee monitoring law?
 
-![Title]()
+![OSquery image](https://fleetdm.com/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg)
 
 **TL;DR:** A new law requires private-sector employers based in the state of New York who participate in monitoring activities to provide written notice to all employees. However, this law does not apply to osquery (and, by extension, Fleet) because a) osquery does not use monitoring processes that would fall under “employee monitoring” as defined by this law and b) osquery meets the exemption criteria provided by this law. 
 
