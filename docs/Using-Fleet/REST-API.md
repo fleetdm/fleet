@@ -841,9 +841,18 @@ None.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile.mobileconfig"],
+      "enable_disk_encryption": false
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1114,8 +1123,12 @@ Modifies the Fleet's configuration with the supplied information.
       "deadline": "2022-01-01"
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile1.mobileconfig"],
-      "enable_disk_encryption": true
+      "custom_settings": ["path/to/profile.mobileconfig"],
+      "enable_disk_encryption": false
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -4133,7 +4146,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Get a summary of bootstrap package status 
+### Get a summary of bootstrap package status
 
 _Available in Fleet Premium_
 
@@ -6113,9 +6126,17 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
@@ -6287,8 +6308,12 @@ _Available in Fleet Premium_
         "deadline": "2022-01-01"
       },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
