@@ -1,7 +1,3 @@
-data "aws_route53_zone" "main" {
-  name = var.domain
-}
-
 resource "aws_ses_domain_identity" "default" {
   domain = var.domain
 }
@@ -12,18 +8,19 @@ resource "aws_ses_domain_dkim" "default" {
 
 ###DKIM VERIFICATION#######
 
-resource "aws_route53_record" "dkim" {
-  for_each = toset(aws_ses_domain_dkim.default.dkim_tokens)
-  zone_id  = data.aws_route53_zone.main.zone_id
-  name     = format("%s._domainkey.%s", each.key, var.domain)
-  type     = "CNAME"
-  ttl      = 600
-  records  = [format("%s.dkim.amazonses.com", each.key)]
+resource "aws_route53_record" "amazonses_dkim_record" {
+  count   = 3 // no clue why this is three, but multiple modules all did the same thing
+  zone_id = var.zone_id
+  name    = "${element(aws_ses_domain_dkim.default.dkim_tokens, count.index)}._domainkey.${var.domain}"
+  type    = "CNAME"
+  ttl     = "600"
+  records = ["${element(aws_ses_domain_dkim.default.dkim_tokens, count.index)}.dkim.amazonses.com"]
 }
 
+
 resource "aws_route53_record" "spf_domain" {
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = ""
+  zone_id = var.zone_id
+  name    = "_amazonses.${aws_ses_domain_identity.default.domain}"
   type    = "TXT"
   ttl     = "600"
   records = ["v=spf1 include:amazonses.com -all"]

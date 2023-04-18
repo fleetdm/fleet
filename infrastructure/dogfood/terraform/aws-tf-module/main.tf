@@ -291,6 +291,7 @@ module "notify_slack" {
 }
 
 module "ses" {
-  source = "github.com/fleetdm/fleet//terraform/addons/ses?ref=main"
-  domain = "dogfood.fleetdm.com"
+  source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=main"
+  zone_id = aws_route53_zone.main.zone_id
+  domain  = "dogfood.fleetdm.com"
 }

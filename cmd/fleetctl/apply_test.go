@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -639,9 +642,36 @@ func TestApplyPolicies(t *testing.T) {
 	assert.True(t, ds.TeamByNameFuncInvoked)
 }
 
+func mobileconfigForTest(name, identifier string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name, identifier, uuid.New().String()))
+}
+
 func TestApplyAsGitOps(t *testing.T) {
+	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License:    license,
+		MDMStorage: enqueuer,
+		MDMPusher:  mockPusher{},
+	})
 
 	gitOps := &fleet.User{
 		Name:       "GitOps",
@@ -669,7 +699,15 @@ func TestApplyAsGitOps(t *testing.T) {
 
 	// Apply global config.
 	currentAppConfig := &fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Fleet",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
+		MDM: fleet.MDM{
+			EnabledAndConfigured: true,
+		},
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return currentAppConfig, nil
@@ -725,14 +763,19 @@ spec:
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	/*
-			# TODO(lucas): MDM still not defined.
-		    # mdm:
-		    #  macos_updates:
-		    #    minimum_version: 10.10.10
-		    #    deadline: 1992-03-01
-	*/
-	name = writeTmpYml(t, `
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
+		return nil
+	}
+
+	mobileConfig := mobileconfigForTest("foo", "bar")
+	mobileConfigPath := filepath.Join(t.TempDir(), "foo.mobileconfig")
+	err = os.WriteFile(mobileConfigPath, mobileConfig, 0o644)
+	require.NoError(t, err)
+
+	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
 spec:
@@ -742,22 +785,33 @@ spec:
         views:
           foo: qux
     name: Team1
+    mdm:
+      macos_updates:
+        minimum_version: 10.10.10
+        deadline: 1992-03-01
+      macos_settings:
+        custom_settings:
+          - %s
+        enable_disk_encryption: false
     secrets:
       - secret: BBB
-`)
+`, mobileConfigPath))
 
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
-	/*
-		assert.Equal(t, fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
-				MinimumVersion: "10.10.10",
-				Deadline:       "1992-03-01",
-			},
-		}, savedTeam.Config.MDM)
-	*/
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings:       []string{mobileConfigPath},
+			EnableDiskEncryption: false,
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.10.10",
+			Deadline:       "1992-03-01",
+		},
+	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 
 	// Apply policies.
 	var appliedPolicySpecs []*fleet.PolicySpec
