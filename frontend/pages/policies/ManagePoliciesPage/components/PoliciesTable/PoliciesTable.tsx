@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { AppContext } from "context/app";
 import { noop } from "lodash";
 import paths from "router/paths";
@@ -9,7 +9,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 
@@ -30,6 +30,8 @@ interface IPoliciesTableProps {
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
+  isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
 }
 
 const PoliciesTable = ({
@@ -41,10 +43,18 @@ const PoliciesTable = ({
   tableType,
   currentTeam,
   currentAutomatedPolicies,
+  isPremiumTier,
+  isSandboxMode,
 }: IPoliciesTableProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
   const { config } = useContext(AppContext);
+
+  const [searchString, setSearchString] = useState("");
+
+  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
+    setSearchString(searchQuery);
+  };
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
@@ -90,9 +100,18 @@ const PoliciesTable = ({
         </Button>
       );
     }
+    if (searchString) {
+      delete emptyPolicies.iconName;
+      delete emptyPolicies.primaryButton;
+      emptyPolicies.header = "No policies match the current search criteria.";
+      emptyPolicies.info =
+        "Expecting to see policies? Try again in a few seconds as the system catches up.";
+    }
 
     return emptyPolicies;
   };
+
+  const searchable = !(policiesList?.length === 0 && searchString === "");
 
   return (
     <div
@@ -105,11 +124,15 @@ const PoliciesTable = ({
       ) : (
         <TableContainer
           resultsTitle={"policies"}
-          columns={generateTableHeaders({
-            selectedTeamId: currentTeam?.id,
-            canAddOrDeletePolicy,
-            tableType,
-          })}
+          columns={generateTableHeaders(
+            {
+              selectedTeamId: currentTeam?.id,
+              canAddOrDeletePolicy,
+              tableType,
+            },
+            isPremiumTier,
+            isSandboxMode
+          )}
           data={generateDataSet(
             policiesList,
             currentAutomatedPolicies,
@@ -134,9 +157,13 @@ const PoliciesTable = ({
               primaryButton: emptyState().primaryButton,
             })
           }
-          onQueryChange={noop}
           disableCount={tableType === "inheritedPolicies"}
           isClientSidePagination
+          isClientSideFilter
+          searchQueryColumn="name"
+          onQueryChange={handleSearchChange}
+          inputPlaceHolder="Search by name"
+          searchable={searchable}
         />
       )}
     </div>

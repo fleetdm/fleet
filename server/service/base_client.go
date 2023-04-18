@@ -50,12 +50,11 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			break
 		}
 
-		return fmt.Errorf(
-			"%s %s received status %d %s",
-			verb, path,
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
+		e := &statusCodeErr{
+			code: response.StatusCode,
+			body: extractServerErrorText(response.Body),
+		}
+		return fmt.Errorf("%s %s received status %w", verb, path, e)
 	}
 
 	bc.setServerCapabilities(response)

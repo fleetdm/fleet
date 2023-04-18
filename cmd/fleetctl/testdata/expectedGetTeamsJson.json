@@ -31,6 +31,9 @@
 				"macos_settings": {
 					"custom_settings": null,
 					"enable_disk_encryption": false
+				},
+				"macos_setup": {
+					"bootstrap_package": ""
 				}
 			},
 			"user_count": 99,
@@ -86,6 +89,9 @@
 				"macos_settings": {
 					"custom_settings": null,
 					"enable_disk_encryption": false
+				},
+				"macos_setup": {
+					"bootstrap_package": ""
 				}
 			},
 			"user_count": 87,

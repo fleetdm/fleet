@@ -40,6 +40,7 @@ import {
   humanHostDiskEncryptionEnabled,
   wrapFleetHelper,
 } from "utilities/helpers";
+import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -107,7 +108,9 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const {
     config,
+    currentUser,
     isGlobalAdmin = false,
+    isGlobalObserver,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
@@ -605,26 +608,43 @@ const HostDetailsPage = ({
     host?.mdm.name === "Fleet" &&
     host?.mdm.macos_settings.disk_encryption === "action_required";
 
+  /*  Context team id might be different that host's team id
+  Observer plus must be checked against host's team id  */
+  const isGlobalOrHostsTeamObserverPlus =
+    currentUser && host?.team_id
+      ? permissions.isObserverPlus(currentUser, host.team_id)
+      : false;
+
+  const isHostsTeamObserver =
+    currentUser && host?.team_id
+      ? permissions.isTeamObserver(currentUser, host.team_id)
+      : false;
+
+  const canViewPacks =
+    !isGlobalObserver &&
+    !isGlobalOrHostsTeamObserverPlus &&
+    !isHostsTeamObserver;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-links`}>
-          {host?.platform === "darwin" &&
-            isMdmUnenrolled &&
-            config?.mdm.enabled_and_configured && (
-              <InfoBanner color="yellow" pageLevel>
-                To change settings and install software, ask the end user to
-                follow the <strong>Turn on MDM</strong> instructions on their{" "}
-                <strong>My device</strong> page.
-              </InfoBanner>
-            )}
-          {showDiskEncryptionUserActionRequired && (
+        {host?.platform === "darwin" &&
+          isMdmUnenrolled &&
+          config?.mdm.enabled_and_configured && (
             <InfoBanner color="yellow">
-              Disk encryption: Requires action from the end user. Ask the end
-              user to follow <b>Disk encryption</b> instructions on their{" "}
-              <b>My device</b> page.
+              To change settings and install software, ask the end user to
+              follow the <strong>Turn on MDM</strong> instructions on their{" "}
+              <strong>My device</strong> page.
             </InfoBanner>
           )}
+        {showDiskEncryptionUserActionRequired && (
+          <InfoBanner color="yellow">
+            Disk encryption: Requires action from the end user. Ask the end user
+            to follow <b>Disk encryption</b> instructions on their{" "}
+            <b>My device</b> page.
+          </InfoBanner>
+        )}
+        <div className={`${baseClass}__header-links`}>
           <BackLink
             text="Back to all hosts"
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
@@ -703,7 +723,9 @@ const HostDetailsPage = ({
                 scheduleState={scheduleState}
                 isLoading={isLoadingHost}
               />
-              <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              {canViewPacks && (
+                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+              )}
             </TabPanel>
             <TabPanel>
               <PoliciesCard
@@ -730,6 +752,7 @@ const HostDetailsPage = ({
             isOnlyObserver={isOnlyObserver}
             onQueryHostCustom={onQueryHostCustom}
             onQueryHostSaved={onQueryHostSaved}
+            hostsTeamId={host?.team_id}
           />
         )}
         {!!host && showTransferHostModal && (

@@ -28,7 +28,7 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
-variable "sentry_dsn" {
+variable "fleet_sentry_dsn" {
 }
 
 data "aws_caller_identity" "current" {}
@@ -45,7 +45,7 @@ locals {
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
   }
   sentry_secrets = {
-    SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+    FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
 }
 
@@ -87,9 +87,9 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies)
+    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn])
-    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, local.extra_environment_variables)
+    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
   }
   alb_config = {
@@ -153,7 +153,7 @@ resource "aws_secretsmanager_secret" "sentry" {
 resource "aws_secretsmanager_secret_version" "sentry" {
   secret_id = aws_secretsmanager_secret.sentry.id
   secret_string = jsonencode({
-    SENTRY_DSN = var.sentry_dsn
+    FLEET_SENTRY_DSN = var.fleet_sentry_dsn
   })
 }
 
@@ -288,4 +288,9 @@ module "notify_slack" {
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#help-p1"
   slack_username    = "monitoring"
+}
+
+module "ses" {
+  source = "github.com/fleetdm/fleet//terraform/addons/ses?ref=main"
+  domain = "dogfood.fleetdm.com"
 }

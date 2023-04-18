@@ -32,6 +32,7 @@ const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
   const { isPremiumTier, isSandboxMode, currentTeam } = useContext(AppContext);
+
   const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<

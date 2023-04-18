@@ -1,14 +1,17 @@
 import React from "react";
 
 import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
+import { DiskEncryptionStatus } from "utilities/constants";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IStatusCellValue {
   displayName: string;
   statusName: "success" | "pending" | "error";
+  value: DiskEncryptionStatus;
   tooltip?: string | JSX.Element;
 }
 
@@ -21,6 +24,12 @@ interface IStatusCellProps {
 interface ICellProps {
   cell: {
     value: string;
+  };
+  row: {
+    original: {
+      status: IStatusCellValue;
+      teamId: number;
+    };
   };
 }
 
@@ -71,9 +80,23 @@ const defaultTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "hosts",
-    Cell: ({ cell: { value } }: ICellProps) => (
-      <TextCell value={value} formatter={(val) => <>{val}</>} />
-    ),
+    Cell: ({
+      cell: { value: aggregateCount },
+      row: { original },
+    }: ICellProps) => {
+      return (
+        <div className="disk-encryption-table__aggregate-table-data">
+          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          <ViewAllHostsLink
+            className="view-hosts-link"
+            queryParams={{
+              macos_settings_disk_encryption: original.status.value,
+              team_id: original.teamId,
+            }}
+          />
+        </div>
+      );
+    },
   },
 ];
 
@@ -89,11 +112,13 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   applied: {
     displayName: "Applied",
     statusName: "success",
+    value: DiskEncryptionStatus.APPLIED,
     tooltip: "Disk encryption on and key stored in Fleet.",
   },
   action_required: {
     displayName: "Action required (pending)",
     statusName: "pending",
+    value: DiskEncryptionStatus.ACTION_REQUIRED,
     tooltip: (
       <>
         Ask the end user to follow <b>Disk encryption</b> instructions on their{" "}
@@ -104,20 +129,26 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   enforcing: {
     displayName: "Enforcing (pending)",
     statusName: "pending",
+    value: DiskEncryptionStatus.ENFORCING,
     tooltip: "Setting will be enforced when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
     statusName: "error",
+    value: DiskEncryptionStatus.FAILED,
   },
   removing_enforcement: {
     displayName: "Removing enforcement (pending)",
     statusName: "pending",
+    value: DiskEncryptionStatus.REMOVING_ENFORCEMENT,
     tooltip: "Enforcement will be removed when the hosts come online.",
   },
 };
 
-export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
+export const generateTableData = (
+  data?: IDiskEncryptionStatusAggregate,
+  currentTeamId?: number
+) => {
   if (!data) return [];
   const entries = Object.entries(data) as StatusEntry[];
 
@@ -125,5 +156,6 @@ export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
     // eslint-disable-next-line object-shorthand
     status: STATUS_CELL_VALUES[status],
     hosts: numHosts,
+    teamId: currentTeamId,
   }));
 };
