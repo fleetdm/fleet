@@ -17,6 +17,7 @@
     font-weight: $regular;
     color: $core-white;
     position: relative;
+    padding-bottom: 5px;
 
     &::before {
       content: "";
@@ -24,11 +25,11 @@
       width: 200px;
       height: 2px;
       background-color: $core-vibrant-blue;
-      bottom: 43px;
+      bottom: 46px;
       left: 87px;
 
       @include breakpoint(tablet) {
-        bottom: 23px;
+        bottom: 25px;
       }
     }
 
@@ -51,7 +52,8 @@
     }
 
     &:focus {
-      outline: none;
+      outline: 1px dashed $core-white;
+      border-radius: $border-radius;
     }
 
     &--active {
