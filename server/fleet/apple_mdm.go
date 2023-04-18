@@ -10,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanomdm/mdm"
 )
 
 type MDMAppleCommandIssuer interface {
@@ -248,14 +247,14 @@ type CommandEnqueueResult struct {
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 }
 
-// MDMAppleCommand represents an Apple MDM command.
-type MDMAppleCommand struct {
-	*mdm.Command
+// MDMAppleCommandAuthz is used to check user authorization to read/write an
+// Apple MDM command.
+type MDMAppleCommandAuthz struct {
 	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommand) AuthzType() string {
+func (m MDMAppleCommandAuthz) AuthzType() string {
 	return "mdm_apple_command"
 }
 
@@ -442,4 +441,43 @@ type NanoEnrollment struct {
 	Type             string `json:"-" db:"type"`
 	Enabled          bool   `json:"-" db:"enabled"`
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
+}
+
+// MDMAppleCommandListOptions defines the options to control the list of MDM
+// Apple Commands to return. Although it only supports the standard list
+// options for now, in the future we expect to add filtering options.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMAppleCommandListOptions struct {
+	ListOptions
+}
+
+// MDMAppleCommand represents an MDM Apple command that has been enqueued for
+// execution. It is similar to MDMAppleCommandResult, but a separate struct is
+// used as there are plans to evolve the `fleetctl get mdm-commands` command
+// output in the future to list one row per command instead of one per
+// command-host combination, and this fleetctl command is the only use of this
+// struct at the moment. Also, it is filled a bit differently than what we do
+// in MDMAppleCommandResult, since it needs to join with the hosts in the
+// query to make authorization (retrieving the team id) manageable.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMAppleCommand struct {
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	DeviceID string `json:"device_id" db:"device_id"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// Hostname is the hostname of the host that executed the command.
+	Hostname string `json:"hostname" db:"hostname"`
+	// TeamID is the host's team, null if the host is in no team. This is used
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
 }
