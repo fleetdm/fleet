@@ -105,7 +105,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter software by [vulnerabilities](<(https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)>) | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
-| Run only designated, **observer can run** ,queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
+| View and run queries marked as **observer can run**                                                                              | ✅             | ✅              | ✅               | ✅          |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
 | Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅               | ✅          | ✅           |
