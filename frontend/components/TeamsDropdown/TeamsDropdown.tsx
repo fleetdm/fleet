@@ -77,7 +77,6 @@ const TeamsDropdown = ({
   });
 
   const renderDropdown = () => {
-    console.log("isSandbox: ", isSandboxMode);
     if (isSandboxMode) {
       const tooltipId = uniqueId();
       return (

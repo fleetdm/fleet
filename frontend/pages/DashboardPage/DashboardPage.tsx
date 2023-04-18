@@ -82,7 +82,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isPremiumTier,
-    isFreeTier,
     isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
@@ -650,9 +649,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderDashboardHeader = () => {
-    if (isFreeTier) {
-      return <h1>{config?.org_info.org_name}</h1>;
-    }
     if (isPremiumTier) {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
@@ -669,9 +665,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           return <h1>{userTeams[0].name}</h1>;
         }
       }
-      throw new Error("userTeams should have length at least 1");
+      // userTeams.length should have at least 1 element
+      return null;
     }
-    throw new Error("Neither Free nor Premium tier");
+    // Free tier
+    return <h1>{config?.org_info.org_name}</h1>;
   };
   return !isRouteOk ? (
     <Spinner />
