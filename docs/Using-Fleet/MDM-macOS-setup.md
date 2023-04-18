@@ -55,45 +55,23 @@ To sign the package we need a valid Developer ID Installer certificate.
 
 > During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
 
-Confirm that certificate is installed on your Mac by opening the "Keychain Access" application. You should see your certificate in the **My Certificates**.
+Confirm that certificate is installed on your Mac by opening the **Keychain Access** application. You should see your certificate in the **Certificates** tab.
 
-2. Sign your package with a valid Developer ID certificate:\
-\
-```productsign --sign "Developer ID Installer: Your Developer Name (SerialNumber)" /path/to/your.pkg /path/to/your-signed.pkg``` \
+3. Run the following command in the **Terminal** application to sign your package with your Developer ID certificate:
 
-3. Upload the package to Apple's notary service for validation: \
-\
-     ```xcrun notarytool submit --keychain-profile "Your Keychain Name" --wait your-signed.pkg```\
-\
-This command will upload your package to the notary service, which will validate it and return a UUID that can be used to check its status later on.
+```bash
+productsign --sign "Developer ID Installer: Your name (Serial number)" /path/to/package.pkg /path/to/signed-package.pkg
+```
 
-4. Wait for the notary service to validate your package. You can use the UUID from the previous step
-   to check the status of your package: \
-\
-```xcrun notarytool info --keychain-profile "Your Keychain Name" --wait <uuid>```\
-\
-The `--wait` flag will cause the command to poll the notary service until the validation is complete. If the validation is successful, the command will return a JSON object with information about the notarization.
-5. Optional: Once your package has been notarized, staple the notarization ticket to it: \
-\
-```xcrun stapler staple your-signed.pkg```\
-\
-This command will attach the notarization ticket to your package, which will allow Gatekeeper to verify its authenticity even if it's not connected to the internet.
+You might be prompted to enter the password for your local account.
 
-6. Verify that your package has been notarized and stapled correctly: \
-\
-```pkgutil –check-signature /path/to/installer.pkg```\
-\
-This command will return *Notarization: trusted by the Apple notary service* along with the
-Certificate Chain.\
-\
-or\
-\
-```spctl -a -v your-signed.pkg```\
-\
-This command will use the `spctl` tool to verify that your package has been signed, notarized, and
-stapled correctly. If everything is in order, the command will return "accepted."\
-\
-Your package can be safely distributed and installed on macOS devices managed by your MDM.
+Confirm that your package is signed by running the following command:
+
+```bash
+pkgutil –check-signature /path/to/signed-package.pkg
+```
+
+In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
