@@ -97,6 +97,5 @@ That’s why we built Fleet Desktop (available on Windows, Linux, and macOS) to 
 <meta name="category" value="security">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac ">
-<meta name="publishedOn" value="2023-04-04">
+<meta name="publishedOn" value="2023-04-18">
 <meta name="articleTitle" value="Does osquery violate the New York employee monitoring law?">
-<meta name="articleImageUrl" value="insert image here">
