@@ -884,19 +884,20 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	var subquery string
+	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
-		subquery = subqueryHostsMacOSSettingsStatusFailing()
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
 	case fleet.MacOSSettingsStatusPending:
-		subquery = subqueryHostsMacOSSettingsStatusPending()
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.MacOSSettingsStatusLatest:
-		subquery = subqueryHostsMacOSSetttingsStatusLatest()
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusLatest()
 	}
 	if subquery != "" {
 		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
 	}
 
-	return sql + newSQL, params
+	return sql + newSQL, append(params, subqueryParams...)
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {

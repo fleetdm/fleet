@@ -1392,28 +1392,29 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func subqueryHostsMacOSSettingsStatusFailing() string {
-	return fmt.Sprintf(`
+func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
+	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
-                AND hmap.status = '%s'`,
-		fleet.MDMAppleDeliveryFailed,
-	)
+                AND hmap.status = ?`
+	args := []interface{}{fleet.MDMAppleDeliveryFailed}
+
+	return sql, args
 }
 
-func subqueryHostsMacOSSettingsStatusPending() string {
-	return fmt.Sprintf(`
+func subqueryHostsMacOSSettingsStatusPending() (string, []interface{}) {
+	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
                 AND (hmap.status IS NULL
-                    OR hmap.status = '%s'
-                    OR(hmap.profile_identifier = '%s'
-                        AND hmap.status = '%s'
-                        AND hmap.operation_type = '%s'
+                    OR hmap.status = ?
+                    OR(hmap.profile_identifier = ?
+                        AND hmap.status = ?
+                        AND hmap.operation_type = ?
                         AND NOT EXISTS (
                             SELECT
                                 1 FROM host_disk_encryption_keys hdek
@@ -1425,23 +1426,25 @@ func subqueryHostsMacOSSettingsStatusPending() string {
                         1 FROM host_mdm_apple_profiles hmap2
                     WHERE
                         h.uuid = hmap2.host_uuid
-                        AND hmap2.status = '%s')`,
+                        AND hmap2.status = ?)`
+	args := []interface{}{
 		fleet.MDMAppleDeliveryPending,
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryApplied,
 		fleet.MDMAppleOperationTypeInstall,
 		fleet.MDMAppleDeliveryFailed,
-	)
+	}
+	return sql, args
 }
 
-func subqueryHostsMacOSSetttingsStatusLatest() string {
-	return fmt.Sprintf(`
+func subqueryHostsMacOSSetttingsStatusLatest() (string, []interface{}) {
+	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
-                AND hmap.status = '%s'
-                AND(hmap.profile_identifier != '%s'
+                AND hmap.status = ?
+                AND(hmap.profile_identifier != ?
                     OR EXISTS (
                         SELECT
                             1 FROM host_disk_encryption_keys hdek
@@ -1454,26 +1457,36 @@ func subqueryHostsMacOSSetttingsStatusLatest() string {
                     WHERE
                         h.uuid = hmap2.host_uuid
                         AND (hmap2.status IS NULL
-                            OR hmap2.status != '%s'
-                            OR(hmap2.profile_identifier = '%s'
-                                AND hmap2.status = '%s'
-                                AND hmap2.operation_type = '%s'
+                            OR hmap2.status != ?
+                            OR(hmap2.profile_identifier = ?
+                                AND hmap2.status = ?
+                                AND hmap2.operation_type = ?
                                 AND NOT EXISTS (
                                     SELECT
                                         1 FROM host_disk_encryption_keys hdek
                                     WHERE
                                         h.id = hdek.host_id
-                                        AND hdek.decryptable = 1))))`,
+                                        AND hdek.decryptable = 1))))`
+	args := []interface{}{
 		fleet.MDMAppleDeliveryApplied,
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryApplied,
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryApplied,
 		fleet.MDMAppleOperationTypeInstall,
-	)
+	}
+	return sql, args
 }
 
 func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	var args []interface{}
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	args = append(args, subqueryFailedArgs...)
+	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
+	args = append(args, subqueryPendingArgs...)
+	subqueryLatest, subqueryLatestArgs := subqueryHostsMacOSSetttingsStatusLatest()
+	args = append(args, subqueryLatestArgs...)
+
 	sqlFmt := `
 SELECT
     COUNT(
@@ -1495,13 +1508,14 @@ WHERE
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryHostsMacOSSettingsStatusFailing(), subqueryHostsMacOSSettingsStatusPending(), subqueryHostsMacOSSetttingsStatusLatest(), teamFilter)
+	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryLatest, teamFilter)
 
 	var res fleet.MDMAppleHostsProfilesSummary
-	err := sqlx.GetContext(ctx, ds.reader, &res, stmt)
+	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
