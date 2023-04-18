@@ -358,7 +358,6 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
               isPremiumTier={isPremiumTier}

@@ -51,6 +51,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 
 import sortUtils from "utilities/sort";
 import {
+  BootstrapPackageStatus,
   DiskEncryptionStatus,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
@@ -241,6 +242,8 @@ const ManageHostsPage = ({
   const missingHosts = queryParams?.status === "missing";
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.macos_settings_disk_encryption;
+  const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
+    queryParams?.macos_setup_bootstrap_package;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -573,6 +576,23 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleChangeBootstrapPackageStatusFilter = (
+    newStatus: BootstrapPackageStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: Object.assign({}, queryParams, {
+          macos_setup_bootstrap_package: newStatus,
+        }),
+      })
+    );
+  };
+
   const handleClearRouteParam = () => {
     handleResetPageIndex();
 
@@ -729,6 +749,8 @@ const ManageHostsPage = ({
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+      } else if (bootstrapPackageStatus && isPremiumTier) {
+        newQueryParams.macos_setup_bootstrap_package = bootstrapPackageStatus;
       }
       router.replace(
         getNextLocationPath({
@@ -763,6 +785,7 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       diskEncryptionStatus,
+      bootstrapPackageStatus,
     ]
   );
 
@@ -1505,6 +1528,7 @@ const ManageHostsPage = ({
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
               diskEncryptionStatus,
+              bootstrapPackageStatus,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1513,6 +1537,9 @@ const ManageHostsPage = ({
             onChangePoliciesFilter={handleChangePoliciesFilter}
             onChangeDiskEncryptionStatusFilter={
               handleChangeDiskEncryptionStatusFilter
+            }
+            onChangeBootstrapPackageStatusFilter={
+              handleChangeBootstrapPackageStatusFilter
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}

@@ -651,7 +651,6 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          statusClassName={statusClassName}
           titleData={titleData}
           diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}

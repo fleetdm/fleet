@@ -23,7 +23,6 @@ interface IHostDiskEncryptionProps {
 }
 
 interface IHostSummaryProps {
-  statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
@@ -41,7 +40,6 @@ interface IHostSummaryProps {
 }
 
 const HostSummary = ({
-  statusClassName,
   titleData,
   diskEncryption,
   isPremiumTier,
@@ -171,6 +169,12 @@ const HostSummary = ({
               />
             </HostSummaryIndicator>
           )}
+
+        {/* {titleData.platform === "darwin" &&
+          isPremiumTier &&
+          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
+          hostMacSettings && ( //  2 - host has at least one setting (profile) enforced */}
+        {true && <p>bootstrap thingy</p>}
 
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
