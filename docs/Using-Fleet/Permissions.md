@@ -43,10 +43,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅        | ✅         | ✅          | ✅     |        |
 | Filter software by team\*                                                                                                                  | ✅        | ✅         | ✅          | ✅     |        |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |           |            | ✅     | ✅      |
-| Run only designated, **observer can run** ,queries as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
+| View and run queries marked as **observer can run** against all hosts                                                                      | ✅        | ✅         | ✅          | ✅     |        |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅          | ✅     |        |
 | Create, edit, and delete queries                                                                                                           |          |           | ✅          | ✅     | ✅      |
-| View all queries                                                                                                                           | ✅        | ✅         | ✅          | ✅     |        |
+| View all queries                                                                                                                           |         |          | ✅          | ✅     |        |
 | Add, edit, and remove queries from all schedules                                                                                           |          |           | ✅          | ✅     | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |           | ✅          | ✅     | ✅      |
 | View all policies                                                                                                                          | ✅        | ✅         | ✅          | ✅     |        |
