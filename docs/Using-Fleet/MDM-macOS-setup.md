@@ -68,7 +68,7 @@ You might be prompted to enter the password for your local account.
 Confirm that your package is signed by running the following command:
 
 ```bash
-pkgutil –check-signature /path/to/signed-package.pkg
+pkgutil --check-signature /path/to/signed-package.pkg
 ```
 
 In the output you should see that package has a "signed" status.
