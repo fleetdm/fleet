@@ -26,7 +26,7 @@ The following are examples of what some organizations deploy using a bootstrap p
 
 * Puppet agent to run custom scripts on your Macs
 
-* Several applications and scripts bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac background, and install the latest macOS update for the end user. 
+* Custom scripts and several packages bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac's background, and install the latest macOS update for the end user. 
 
 > In addition to installing the bootstrap package, Fleet automatically installs the fleetd agent on hosts that automatically enroll. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
@@ -38,13 +38,13 @@ To add a bootstrap package to Fleet, we will do the following steps:
 
 ### Step 1: download or generate a package
 
-If you use Munki, Chef, Puppet, or another configuration management tool, download the client (agent) for your tool. You can find the client on each tool's GitHub or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases). 
+Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
-Make sure the file you download is a `.pkg` file.
+* A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases). 
 
-If you plan to run a custom script during macOS setup, you'll need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
+* To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
-Make sure the package you generate is a `.pkg` file.
+Make sure your package is a `.pkg` file.
 
 ### Step 2: sign the package
 
