@@ -2,12 +2,11 @@
 
 In Fleet, you can customize the first-time macOS setup experience for your end users:
 
-You can customize the macOS Setup Assistant and choose to show or hide specific panes.
 * Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
 
 * Customize the macOS Setup Assistant by choosing to show or hide specific panes
 
-* Bootstrap new Macs with your configuration management tool of choice (ex. Munki, Chef, or Puppet)
+* Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
 
 ## End user authentication
 
@@ -17,7 +16,17 @@ You can customize the macOS Setup Assistant and choose to show or hide specific 
 
 _Available in Fleet Premium_
 
-Fleet supports installing a single package on macOS hosts that automatically enroll to Fleet.
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
+
+This allows full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
+
+The following are some examples of what some organizations deploy using a bootstrap package:
+
+* Munki client to install and keep software up to date on your Macs
+
+* Puppet agent to run custom scripts on your Macs
+
+* Several applications and scripts bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac background, and install the latest macOS update for the end user. 
 
 > In addition to installing the bootstrap package, Fleet automatically installs the fleetd agent on hosts that automatically enroll. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
@@ -27,7 +36,7 @@ To add a bootstrap package to Fleet, we will do the following steps:
 2. Sign the package
 3. Upload the package to Fleet
 
-### Step 1: Download or generate a package
+### Step 1: download or generate a package
 
 If you use Munki, Chef, Puppet, or another configuration management tool, download the client (agent) for your tool. You can find the client on each tool's GitHub or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases). 
 
@@ -37,19 +46,18 @@ If you plan to run a custom script during macOS setup, you'll need to generate a
 
 Make sure the package you generate is a `.pkg` file.
 
-### Step 2: Sign the package
+### Step 2: sign the package
 
-1. Obtain an appropriate TLS/SSL certificate with signing capability. You can do this by:
-   - Using an [Apple developer account](https://developer.apple.com/account).
-     - [Link your developer account to
-       Xcode](https://help.apple.com/xcode/mac/current/#/dev154b28f09) or [using your developer account](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
-     - Ensure you choose "Developer ID Installer" as the certificate type.
-     - Verify the certificate is saved to your macOS Keychain.
+To sign the package we need a valid Developer ID Installer certificate.
 
-   - Acquiring a certificate from third parties that meet the requirements.
-     - Follow their instructions for creating a TLS/SSL certificate with signing usage.
-     - Add the resulting `.p12` to your keychain.
-2. Sign your `pkg` with a valid Developer ID certificate:\
+1. Login to your [Apple Developer account](https://developer.apple.com/account).
+2. Follow Apple's instructions to create a Developer ID Installer certificate [here](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
+
+> During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
+
+Confirm that certificate is installed on your Mac by opening the "Keychain Access" application. You should see your certificate in the **My Certificates**.
+
+2. Sign your package with a valid Developer ID certificate:\
 \
 ```productsign --sign "Developer ID Installer: Your Developer Name (SerialNumber)" /path/to/your.pkg /path/to/your-signed.pkg``` \
 
@@ -87,7 +95,7 @@ stapled correctly. If everything is in order, the command will return "accepted.
 \
 Your package can be safely distributed and installed on macOS devices managed by your MDM.
 
-### Step 3: Upload the package to Fleet
+### Step 3: upload the package to Fleet
 
 Fleet supports installing a unique bootstrap package for each team. In Fleet, a team is a group of hosts.
 
