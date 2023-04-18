@@ -126,14 +126,14 @@ export const roleOptions = ({
       label: "Observer+",
       value: "observer_plus",
     });
-    // Next release:
-    // if (isApiOnly) {
-    //   roles.splice(3, 0, {
-    //     disabled: false,
-    //     label: "GitOps",
-    //     value: "gitops",
-    //   });
-    // }
+
+    if (isApiOnly) {
+      roles.splice(3, 0, {
+        disabled: false,
+        label: "GitOps",
+        value: "gitops",
+      });
+    }
   }
 
   return roles;

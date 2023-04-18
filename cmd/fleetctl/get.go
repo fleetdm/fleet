@@ -292,6 +292,7 @@ func getCommand() *cli.Command {
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
+			getMDMCommandsCommand(),
 		},
 	}
 }
@@ -1265,6 +1266,55 @@ func getMDMCommandResultsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-commands",
+		Aliases: []string{"mdm_commands"},
+		Usage:   "List information about MDM commands that were run.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckMDMEnabled(); err != nil {
+				return err
+			}
+
+			results, err := client.MDMAppleListCommands()
+			if err != nil {
+				return err
+			}
+			if len(results) == 0 {
+				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				return nil
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range results {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
 			printTable(c, columns, data)
 
 			return nil

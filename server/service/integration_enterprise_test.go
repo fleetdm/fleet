@@ -2592,7 +2592,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	//
 	// Setup test data.
-	// All actions are authored by a global admin.
+	// All setup actions are authored by a global admin.
 	//
 
 	admin, err := s.ds.UserByEmail(ctx, "admin1@example.com")

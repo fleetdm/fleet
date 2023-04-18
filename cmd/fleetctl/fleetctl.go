@@ -89,7 +89,6 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		hostsCommand(),
 		vulnerabilityDataStreamCommand(),
 		packageCommand(),
-		appleMDMCommand(),
 		generateCommand(),
 		{
 			// It's become common for folks to unintentionally install fleetctl when they actually

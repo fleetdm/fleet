@@ -21,6 +21,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -255,7 +256,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 		return nil, nil
 	}
 
-	// collect the team IDs and verify that the user has access to run commands
+	// collect the team IDs and verify that the user has access to view commands
 	// on all affected teams. Index the hosts by uuid for easly lookup as
 	// afterwards we'll want to store the hostname on the returned results.
 	hostsByUUID := make(map[string]*fleet.Host, len(hosts))
@@ -269,14 +270,14 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 		hostsByUUID[h.UUID] = h
 	}
 
-	var command fleet.MDMAppleCommand
+	var commandAuthz fleet.MDMAppleCommandAuthz
 	for tmID := range teamIDs {
-		command.TeamID = &tmID
+		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
-			command.TeamID = nil
+			commandAuthz.TeamID = nil
 		}
 
-		if err := svc.authz.Authorize(ctx, command, fleet.ActionRead); err != nil {
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
@@ -287,6 +288,109 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 			res.Hostname = hostsByUUID[res.DeviceID].Hostname
 		}
 	}
+	return results, nil
+}
+
+type listMDMAppleCommandsRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listMDMAppleCommandsResponse struct {
+	Results []*fleet.MDMAppleCommand `json:"results"`
+	Err     error                    `json:"error,omitempty"`
+}
+
+func (r listMDMAppleCommandsResponse) error() error { return r.Err }
+
+func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listMDMAppleCommandsRequest)
+	results, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{
+		ListOptions: req.ListOptions,
+	})
+	if err != nil {
+		return listMDMAppleCommandsResponse{
+			Err: err,
+		}, nil
+	}
+
+	return listMDMAppleCommandsResponse{
+		Results: results,
+	}, nil
+}
+
+func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	// first, authorize that the user has the right to list hosts
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// get the list of commands so we know what hosts (and therefore what teams)
+	// we're dealing with. Including the observers as they are allowed to view
+	// MDM Apple commands.
+	results, err := svc.ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	}, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// collect the different team IDs and verify that the user has access to view
+	// commands on all affected teams, do not assume that ListMDMAppleCommands
+	// only returned hosts that the user is authorized to view the command
+	// results of (that is, always verify with our rego authz policy).
+	teamIDs := make(map[uint]bool)
+	for _, res := range results {
+		var id uint
+		if res.TeamID != nil {
+			id = *res.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	// instead of returning an authz error if the user is not authorized for a
+	// team, we remove those commands from the results (as we want to return
+	// whatever the user is allowed to see). Since this can only be done after
+	// retrieving the list of commands, this may result in returning less results
+	// than requested, but it's ok - it's expected that the results retrieved
+	// from the datastore will all be authorized for the user.
+	var commandAuthz fleet.MDMAppleCommandAuthz
+	var authzErr error
+	for tmID := range teamIDs {
+		commandAuthz.TeamID = &tmID
+		if tmID == 0 {
+			commandAuthz.TeamID = nil
+		}
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
+			if authzErr == nil {
+				authzErr = err
+			}
+			teamIDs[tmID] = false
+		}
+	}
+
+	if authzErr != nil {
+		level.Error(svc.logger).Log("err", "unauthorized to view some team commands", "details", authzErr)
+
+		// filter-out the teams that the user is not allowed to view
+		allowedResults := make([]*fleet.MDMAppleCommand, 0, len(results))
+		for _, res := range results {
+			var id uint
+			if res.TeamID != nil {
+				id = *res.TeamID
+			}
+			if teamIDs[id] {
+				allowedResults = append(allowedResults, res)
+			}
+		}
+		results = allowedResults
+	}
+
 	return results, nil
 }
 
@@ -970,12 +1074,12 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
-	var premiumCommands = map[string]bool{
+	premiumCommands := map[string]bool{
 		"EraseDevice": true,
 		"DeviceLock":  true,
 	}
 
-	// load hosts (lite) by uuids, check that the user has the rigts to run
+	// load hosts (lite) by uuids, check that the user has the rights to run
 	// commands for every affected team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
@@ -1007,14 +1111,14 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		teamIDs[id] = true
 	}
 
-	var command fleet.MDMAppleCommand
+	var commandAuthz fleet.MDMAppleCommandAuthz
 	for tmID := range teamIDs {
-		command.TeamID = &tmID
+		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
-			command.TeamID = nil
+			commandAuthz.TeamID = nil
 		}
 
-		if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionWrite); err != nil {
 			return 0, nil, ctxerr.Wrap(ctx, err)
 		}
 	}
@@ -1173,8 +1277,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
 	}
 
-	// check authorization again based on host info for team-based permissions
-	if err := svc.authz.Authorize(ctx, h, fleet.ActionMDMCommand); err != nil {
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleCommandAuthz{
+		TeamID: h.TeamID,
+	}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -1464,11 +1570,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
 	}
 	if tmID != nil || tmName != nil {
-		license, err := svc.License(ctx)
-		if err != nil {
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return err
-		}
+		license, _ := license.FromContext(ctx)
 		if !license.IsPremium() {
 			field := "team_id"
 			if tmName != nil {
@@ -1498,7 +1600,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	appCfg, err := svc.AppConfigObfuscated(ctx)
+	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
