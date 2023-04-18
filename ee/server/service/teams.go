@@ -742,7 +742,7 @@ func (svc *Service) editTeamFromSpec(
 	newMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	if team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.macos_setup_assistant",
 				`Couldn't update macos_setup.macos_setup_assistant because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
