@@ -23,9 +23,6 @@ run := "run"
 # Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
 
-# MDM specific actions
-mdm_command := "mdm_command"
-
 # Roles
 admin := "admin"
 maintainer := "maintainer"
@@ -597,21 +594,6 @@ allow {
   object.type == "mdm_apple_config_profile"
   team_role(subject, object.team_id) == gitops
   action == write
-}
-
-# Global admins and maintainers can issue MDM commands to all hosts.
-allow {
-  object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-  action == mdm_command
-}
-
-# Team admins and maintainers can issue MDM commands to hosts on their teams.
-allow {
-  not is_null(object.team_id)
-  object.type == "host"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == mdm_command
 }
 
 # Global admins can read and write MDM apple information.
