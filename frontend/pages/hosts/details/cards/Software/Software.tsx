@@ -284,7 +284,10 @@ const SoftwareTable = ({
               <TableContainer
                 columns={tableHeaders}
                 data={tableSoftware || []}
-                // filters={filters}
+                filters={{
+                  global: searchString,
+                  vulnerabilities: filterVuln,
+                }}
                 isLoading={isLoading}
                 defaultSortHeader={sortHeader || DEFAULT_SORT_DIRECTION}
                 defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
