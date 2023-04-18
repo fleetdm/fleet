@@ -80,7 +80,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	hostID uint,
 	reported map[string]string,
 ) error {
-	stored, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
+	stored, err := ds.getHostSoftwareInstalledPaths(
+		ctx,
+		hostID,
+		func(s fleet.Software) string { return s.ToUniqueStr() },
+	)
 	if err != nil {
 		return err
 	}
@@ -107,9 +111,11 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
+// getHostSoftwareInstalledPaths returns all SoftwareInstalledPaths for the given hostID grouped by 'grouper'
 func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
+	grouper func(s fleet.Software) string,
 ) (
 	map[string]fleet.HostSoftwareInstalledPath,
 	error,
@@ -143,7 +149,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 
 	result := make(map[string]fleet.HostSoftwareInstalledPath, len(qResult))
 	for _, s := range qResult {
-		result[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+		result[grouper(s.Software)] = fleet.HostSoftwareInstalledPath{
 			HostID:        hostID,
 			SoftwareID:    s.ID,
 			InstalledPath: s.InstalledPath,
@@ -824,7 +830,24 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	if err != nil {
 		return err
 	}
-	host.Software = software
+
+	installedPaths, err := ds.getHostSoftwareInstalledPaths(
+		ctx,
+		host.ID,
+		func(s fleet.Software) string { return fmt.Sprint(s.ID) },
+	)
+	if err != nil {
+		return err
+	}
+
+	host.Software = make([]fleet.SoftwareWithInstalledPath, 0, len(software))
+	for _, s := range software {
+		iPath := installedPaths[fmt.Sprint(s.ID)]
+		host.Software = append(host.Software, fleet.SoftwareWithInstalledPath{
+			Software:      s,
+			InstalledPath: iPath.InstalledPath,
+		})
+	}
 	return nil
 }
 

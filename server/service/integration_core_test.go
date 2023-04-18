@@ -4985,7 +4985,10 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
-			sws = h.Software
+			sws = make([]fleet.Software, 0, len(h.Software))
+			for _, s := range h.Software {
+				sws = append(sws, s.Software)
+			}
 		}
 	}
 

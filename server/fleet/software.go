@@ -42,7 +42,7 @@ type Software struct {
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 
-	// Vulnerabilities lists all the found CVEs for the CPE
+	// Vulnerabilities lists all found vulnerablities
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 	// HostsCount indicates the number of hosts with that software, filled only
 	// if explicitly requested.
@@ -82,10 +82,17 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 	return "software_inventory"
 }
 
+type SoftwareWithInstalledPath struct {
+	Software
+	// Where this software was installed on the host, value is derived from the
+	// host_software_installed_paths table.
+	InstalledPath string `json:"installed_path,omitempty" db:"installed_path"`
+}
+
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []Software `json:"software,omitempty" csv:"-"`
+	Software []SoftwareWithInstalledPath `json:"software,omitempty" csv:"-"`
 
 	// SoftwareUpdatedAt is the time that the host software was last updated
 	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`

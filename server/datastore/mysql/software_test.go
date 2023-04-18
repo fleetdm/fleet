@@ -1459,7 +1459,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	lastYear := now.Add(-365 * 24 * time.Hour)
 
 	// sort software slice by last opened at timestamp
-	genSortFn := func(sl []fleet.Software) func(l, r int) bool {
+	genSortFn := func(sl []fleet.SoftwareWithInstalledPath) func(l, r int) bool {
 		return func(l, r int) bool {
 			lsw, rsw := sl[l], sl[r]
 			lts, rts := lsw.LastOpenedAt, rsw.LastOpenedAt
@@ -1964,11 +1964,13 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.Software) bool {
+	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
 		return c.Name == "foo" && c.Version == "0.0.1" && c.Source == "chrome_extensions"
 	})
-	foo_app_v2 := slices.IndexFunc(host.Software, func(c fleet.Software) bool { return c.Name == "foo" && c.Version == "v0.0.2" && c.Source == "apps" })
-	bar_v3 := slices.IndexFunc(host.Software, func(c fleet.Software) bool {
+	foo_app_v2 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
+		return c.Name == "foo" && c.Version == "v0.0.2" && c.Source == "apps"
+	})
+	bar_v3 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
 		return c.Name == "bar" && c.Version == "0.0.3" && c.Source == "deb_packages"
 	})
 
@@ -2173,9 +2175,10 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	grp := func(s fleet.Software) string { return s.ToUniqueStr() }
 
 	// No software entries
-	actual, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID, grp)
 	require.Empty(t, actual)
 	require.NoError(t, err)
 
@@ -2187,7 +2190,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 	// No installed_path entries
-	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID, grp)
 	require.NoError(t, err)
 	require.Len(t, actual, len(host.Software))
 	for _, s := range host.Software {
@@ -2202,7 +2205,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	_, err = ds.writer.ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
-	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID, grp)
 	require.Len(t, actual, len(host.Software))
 	require.NoError(t, err)
 
