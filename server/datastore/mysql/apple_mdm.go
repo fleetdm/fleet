@@ -1424,7 +1424,7 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
@@ -1477,7 +1477,7 @@ WHERE
 		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
 	}
 
-	var res fleet.MDMAppleHostsProfilesSummary
+	var res fleet.MDMAppleConfigProfilesSummary
 	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
 	if err != nil {
 		return nil, err
@@ -1672,6 +1672,71 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package bytes")
 	}
 	return &bp, nil
+}
+
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
+// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	stmt := `
+          SELECT
+              COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
+              COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
+              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+          FROM
+              hosts h
+          LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
+              hmabp.host_uuid = h.uuid
+          LEFT JOIN nano_command_results ncr ON
+              ncr.command_uuid  = hmabp.command_uuid
+          JOIN host_mdm hm ON
+              hm.host_id = h.id
+          WHERE
+              hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ?`
+
+	var bp fleet.MDMAppleBootstrapPackageSummary
+	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
+	}
+	return &bp, nil
+}
+
+func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
+	stmt := "INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)"
+	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
+	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
+// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	// TODO(Sarah): Is ncr.result the correct column to use here? I don't see where error details are stored.
+	stmt := `
+SELECT
+    CASE 
+        WHEN ncr.status = 'Acknowledged' THEN 'installed'
+        WHEN ncr.status = 'Error' THEN 'failed'
+        ELSE 'pending' 
+    END AS bootstrap_package_status,
+    COALESCE(ncr.result, '') AS detail
+FROM
+    hosts h
+JOIN host_mdm_apple_bootstrap_packages hmabp ON
+    hmabp.host_uuid = h.uuid
+LEFT JOIN nano_command_results ncr ON
+    ncr.command_uuid = hmabp.command_uuid
+JOIN host_mdm hm ON
+    hm.host_id = h.id
+WHERE
+    h.id = ? AND hm.installed_from_dep = 1`
+
+	var dest fleet.HostMDMMacOSSetup
+	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMMacOSSetup").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+	}
+	return &dest, nil
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {

@@ -341,6 +341,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
 	}
 
+	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
+	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
+		hopt.MDMBootstrapPackageFilter = fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid bootstrap_package status %s", mdmBootstrapPackageStatus)
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.Atoi(munkiIssueID)
