@@ -451,14 +451,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdm.DELETE("/api/_version_/fleet/mdm/apple/profiles/{profile_id:[0-9]+}", deleteMDMAppleConfigProfileEndpoint, deleteMDMAppleConfigProfileRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryEndpoint, getMDMAppleProfilesSummaryRequest{})
 
-	mdm.POST("/api/_version_/fleet/mdm/apple/enrollment_profile", createMDMAppleEnrollmentProfileEndpoint, createMDMAppleEnrollmentProfileRequest{})
-	mdm.GET("/api/_version_/fleet/mdm/apple/enrollment_profile", getMDMAppleEnrollmentProfileEndpoint, getMDMAppleEnrollmentProfileRequest{})
-	mdm.DELETE("/api/_version_/fleet/mdm/apple/enrollment_profile", deleteMDMAppleEnrollmentProfileEndpoint, deleteMDMAppleEnrollmentProfileRequest{})
-
 	// TODO: are those undocumented endpoints still needed? I think they were only used
 	// by 'fleetctl apple-mdm' sub-commands.
-	//mdm.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
-	//mdm.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
+	mdm.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
+	mdm.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
 	mdm.POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
 	mdm.DELETE("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", deleteAppleInstallerEndpoint, deleteAppleInstallerDetailsRequest{})

@@ -38,28 +38,32 @@ import (
 )
 
 type createMDMAppleEnrollmentProfileRequest struct {
-	TeamID            *uint           `json:"team_id"`
-	Name              string          `json:"name"`
-	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
+	Type       fleet.MDMAppleEnrollmentType `json:"type"`
+	DEPProfile *json.RawMessage             `json:"dep_profile"`
 }
 
 type createMDMAppleEnrollmentProfileResponse struct {
-	Err error `json:"error,omitempty"`
+	EnrollmentProfile *fleet.MDMAppleEnrollmentProfile `json:"enrollment_profile"`
+	Err               error                            `json:"error,omitempty"`
 }
 
 func (r createMDMAppleEnrollmentProfileResponse) error() error { return r.Err }
 
-func createMDMAppleEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMAppleEnrollmentProfileRequest)
 
-	// TODO(mna): adapt the service method, and TBD what we should return from this endpoint,
-	// maybe just the created_at timestamp, maybe a filename too...
-	if err := svc.NewMDMAppleEnrollmentProfile(ctx, req.TeamID, req.EnrollmentProfile); err != nil {
+	enrollmentProfile, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       req.Type,
+		DEPProfile: req.DEPProfile,
+	})
+	if err != nil {
 		return createMDMAppleEnrollmentProfileResponse{
 			Err: err,
 		}, nil
 	}
-	return createMDMAppleEnrollmentProfileResponse{}, nil
+	return createMDMAppleEnrollmentProfileResponse{
+		EnrollmentProfile: enrollmentProfile,
+	}, nil
 }
 
 func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
