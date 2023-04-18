@@ -11,22 +11,8 @@ import classnames from "classnames";
 interface ISettingSubNavItem {
   name: string;
   pathname: string;
+  exclude?: boolean;
 }
-
-const settingsSubNav: ISettingSubNavItem[] = [
-  {
-    name: "Organization settings",
-    pathname: PATHS.ADMIN_SETTINGS,
-  },
-  {
-    name: "Integrations",
-    pathname: PATHS.ADMIN_INTEGRATIONS,
-  },
-  {
-    name: "Users",
-    pathname: PATHS.ADMIN_USERS,
-  },
-];
 
 interface ISettingsWrapperProp {
   children: JSX.Element;
@@ -35,13 +21,6 @@ interface ISettingsWrapperProp {
   };
   router: InjectedRouter; // v3
 }
-
-const getTabIndex = (path: string): number => {
-  return settingsSubNav.findIndex((navItem) => {
-    // tab stays highlighted for paths that start with same pathname
-    return path.startsWith(navItem.pathname);
-  });
-};
 
 const baseClass = "settings-wrapper";
 
@@ -52,16 +31,42 @@ const SettingsWrapper = ({
 }: ISettingsWrapperProp): JSX.Element => {
   const { isPremiumTier, isSandboxMode } = useContext(AppContext);
 
-  if (isPremiumTier && settingsSubNav.length === 3) {
-    settingsSubNav.push({
+  const settingsSubNav: ISettingSubNavItem[] = [
+    {
+      name: "Organization settings",
+      pathname: PATHS.ADMIN_SETTINGS,
+      exclude: isSandboxMode,
+    },
+    {
+      name: "Integrations",
+      pathname: PATHS.ADMIN_INTEGRATIONS,
+    },
+    {
+      name: "Users",
+      pathname: PATHS.ADMIN_USERS,
+      exclude: isSandboxMode,
+    },
+    {
       name: "Teams",
       pathname: PATHS.ADMIN_TEAMS,
-    });
-  }
+      exclude: !isPremiumTier,
+    },
+  ];
+
+  const filteredSettingsSubNav = settingsSubNav.filter((navItem) => {
+    return !navItem.exclude;
+  });
 
   const navigateToNav = (i: number): void => {
-    const navPath = settingsSubNav[i].pathname;
+    const navPath = filteredSettingsSubNav[i].pathname;
     router.push(navPath);
+  };
+
+  const getTabIndex = (path: string): number => {
+    return settingsSubNav.findIndex((navItem) => {
+      // tab stays highlighted for paths that start with same pathname
+      return path.startsWith(navItem.pathname);
+    });
   };
 
   // we add a conditional sandbox-mode class here as we will need to make some
@@ -79,7 +84,7 @@ const SettingsWrapper = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {settingsSubNav.map((navItem) => {
+              {filteredSettingsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return (
