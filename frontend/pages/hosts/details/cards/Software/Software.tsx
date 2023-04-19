@@ -128,8 +128,8 @@ const SoftwareTable = ({
   })();
 
   const [searchString, setSearchString] = useState(initialQuery);
-  // const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
-  const filterVuln = initialVulnFilter;
+  const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  // const filterVuln = initialVulnFilter;
   const page = initialPage; // Never set page in component as url is source of truth
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -137,9 +137,11 @@ const SoftwareTable = ({
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-
+  console.log("filterVuln", filterVuln);
   useEffect(() => {
-    // setFilterVuln(queryParams?.vulnerable === "true");
+    if (queryParams?.vulnerable !== (filterVuln ? "true" : "false")) {
+      setFilterVuln(queryParams?.vulnerable === "true");
+    }
     setSearchString(queryParams?.query || "");
   }, [queryParams]);
 
@@ -173,7 +175,7 @@ const SoftwareTable = ({
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
-      newQueryParams.vulnerable = filterVuln ? "true" : "false";
+      newQueryParams.vulnerable = filterVuln ? "true" : "false"; // must grab from source of truth
       console.log("newQueryParams", newQueryParams);
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
@@ -189,7 +191,6 @@ const SoftwareTable = ({
       sortDirection,
       searchString,
       filterVuln,
-      page,
       router,
       routeTemplate,
     ]
@@ -197,6 +198,8 @@ const SoftwareTable = ({
 
   const onClientSidePaginationChange = useCallback((pageIndex: number) => {
     console.log("onClientSidePaginationChange filterVuln", filterVuln);
+    console.log("onClientSidePaginationChange pageIndex", pageIndex);
+    console.log("onClientSidePaginationChange queryParams", queryParams);
     // debugger;
     const locationPath = getNextLocationPath({
       pathPrefix: PATHS.HOST_SOFTWARE(hostId),
@@ -204,7 +207,7 @@ const SoftwareTable = ({
       queryParams: {
         ...queryParams,
         page: pageIndex,
-        vulnerable: queryParams?.vulnerable ? "true" : "false",
+        vulnerable: filterVuln ? "true" : "false",
       },
     });
     router?.replace(locationPath);
