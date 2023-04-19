@@ -38,6 +38,9 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
+  isTeamAdmin: boolean;
+  isTeamMaintainer: boolean;
+  isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -65,6 +68,9 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
   isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
@@ -103,13 +109,10 @@ const PolicyForm = ({
 
   const {
     currentUser,
-    isTeamObserver,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isTeamAdmin,
-    isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
 
