@@ -9,8 +9,6 @@ import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
-import SandboxGate from "components/Sandbox/SandboxGate";
-import SandboxMessage from "components/Sandbox/SandboxMessage";
 import Spinner from "components/Spinner";
 
 import SideNav from "../components/SideNav";
@@ -121,33 +119,23 @@ const OrgSettingsPage = ({ params }: IOrgSettingsPageProps) => {
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>
-      <SandboxGate
-        fallbackComponent={() => (
-          <SandboxMessage
-            message="Organization settings are only available in self-managed Fleet"
-            utmSource="fleet-ui-organization-settings-page"
-            className={`${baseClass}__sandbox-demo-message`}
-          />
-        )}
-      >
-        <SideNav
-          className={`${baseClass}__side-nav`}
-          navItems={navItems}
-          activeItem={currentFormSection.urlSection}
-          CurrentCard={
-            !isLoadingAppConfig && appConfig ? (
-              <CurrentCard
-                appConfig={appConfig}
-                handleSubmit={onFormSubmit}
-                isUpdatingSettings={isUpdatingSettings}
-                isPremiumTier={isPremiumTier}
-              />
-            ) : (
-              <Spinner />
-            )
-          }
-        />
-      </SandboxGate>
+      <SideNav
+        className={`${baseClass}__side-nav`}
+        navItems={navItems}
+        activeItem={currentFormSection.urlSection}
+        CurrentCard={
+          !isLoadingAppConfig && appConfig ? (
+            <CurrentCard
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+              isPremiumTier={isPremiumTier}
+            />
+          ) : (
+            <Spinner />
+          )
+        }
+      />
     </div>
   );
 };
