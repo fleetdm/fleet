@@ -49,7 +49,7 @@ func main() {
 	}
 
 	plugins := orbittable.OrbitDefaultTables()
-	plugins = append(plugins, orbittable.PlatformTables()...)
+	plugins = append(plugins, orbittable.PlatformTables("")...)
 	server.RegisterPlugin(plugins...)
 	if err := server.Run(); err != nil {
 		log.Fatalln(err)

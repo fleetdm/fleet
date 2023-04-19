@@ -10,9 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"strings"
 	"time"
 
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
 )
@@ -84,7 +84,7 @@ const (
 	allowedUsernameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-. "
 )
 
-// struct Table provides a table generator that will
+// Table provides a table generator that will
 // call osquery in a user context.
 //
 // This is necessary because some macOS tables need to run in user
@@ -121,9 +121,7 @@ func TablePlugin(
 func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	var results []map[string]string
 
-	users := tablehelpers.GetConstraints(queryContext, "user",
-		tablehelpers.WithAllowedCharacters(allowedUsernameCharacters),
-	)
+	users := validQueryUsers(queryContext)
 
 	if len(users) == 0 {
 		return nil, fmt.Errorf("The %s table requires a user", t.tablename)
@@ -132,7 +130,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	for _, user := range users {
 		osqueryResults, err := ExecOsqueryLaunchctlParsed(ctx, 5, user, t.osqueryd, t.query)
 		if err != nil {
-			continue
+			log.Info().Err(err).Msgf("Failed to run osquery as user %s", user)
 		}
 
 		for _, row := range osqueryResults {
@@ -141,4 +139,30 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 		}
 	}
 	return results, nil
+}
+
+func validQueryUsers(queryContext table.QueryContext) []string {
+	q, ok := queryContext.Constraints["user"]
+	if !ok || len(q.Constraints) == 0 {
+		return []string{}
+	}
+
+	users := []string{}
+
+Outer:
+	for _, c := range q.Constraints {
+		if c.Operator != table.OperatorEquals {
+			continue
+		}
+		for _, char := range c.Expression {
+			if !strings.ContainsRune(allowedUsernameCharacters, char) {
+				log.Info().Msgf("Attempted to use invalid username %s", c.Expression)
+				continue Outer
+			}
+		}
+		users = append(users, c.Expression)
+
+	}
+
+	return users
 }
