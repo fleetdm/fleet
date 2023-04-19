@@ -63,7 +63,7 @@ const SettingsWrapper = ({
   };
 
   const getTabIndex = (path: string): number => {
-    return settingsSubNav.findIndex((navItem) => {
+    return filteredSettingsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that start with same pathname
       return path.startsWith(navItem.pathname);
     });
