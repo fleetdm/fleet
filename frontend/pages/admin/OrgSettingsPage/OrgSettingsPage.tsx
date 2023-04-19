@@ -10,7 +10,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
 import SandboxGate from "components/Sandbox/SandboxGate";
-import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
+import SandboxMessage from "components/Sandbox/SandboxMessage";
 import Spinner from "components/Spinner";
 
 import SideNav from "../components/SideNav";
@@ -123,7 +123,7 @@ const OrgSettingsPage = ({ params }: IOrgSettingsPageProps) => {
       </p>
       <SandboxGate
         fallbackComponent={() => (
-          <SandboxDemoMessage
+          <SandboxMessage
             message="Organization settings are only available in self-managed Fleet"
             utmSource="fleet-ui-organization-settings-page"
             className={`${baseClass}__sandbox-demo-message`}
