@@ -1,7 +1,9 @@
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import { uniqueId } from "lodash";
 import React from "react";
 import ReactTooltip, { Place } from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 interface IPremiumFeatureIconWithTooltip {
   tooltipPlace?: Place;
@@ -31,7 +33,7 @@ const PremiumFeatureIconWithTooltip = ({
         type="dark"
         effect="solid"
         id={tipId}
-        backgroundColor="#515774"
+        backgroundColor={COLORS["tooltip-bg"]}
         delayHide={tooltipDelayHide}
         delayUpdate={500}
         overridePosition={(pos: { left: number; top: number }) => {
@@ -42,10 +44,13 @@ const PremiumFeatureIconWithTooltip = ({
         }}
       >
         {`This is a Fleet Premium feature. `}
-        <a href="https://fleetdm.com/upgrade" rel="noreferrer" target="_blank">
-          {"Learn more"}
-        </a>
-        .
+        <CustomLink
+          url="https://fleetdm.com/upgrade"
+          text="Learn more"
+          newTab
+          multiline={false}
+          iconColor="core-fleet-white"
+        />
       </ReactTooltip>
     </span>
   );
