@@ -2,9 +2,9 @@
 
 ![OSquery image](https://fleetdm.com/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg)
 
-**TL;DR:** A new law requires private-sector employers based in the state of New York who participate in monitoring activities to provide written notice to all employees. However, this law does not apply to osquery (and, by extension, Fleet) because a) osquery does not use monitoring processes that would fall under “employee monitoring” as defined by this law and b) osquery meets the exemption criteria provided by this law. 
+**TL;DR:** A new law requires private-sector employers based in the state of New York who participates in monitoring activities to provide written notice to all employees. However, this law does not apply to osquery (and, by extension, Fleet) because a) osquery does not use monitoring processes that would fall under “employee monitoring” as defined by this law and b) osquery meets the exemption criteria provided by this law. 
 
-## On May 7, 2022, a new employee electronic monitoring law came into force.
+## On May 7, 2022, a new employee electronic monitoring law was enacted.
 
 The legislation ([A.430/S.2628](https://legislation.nysenate.gov/pdf/bills/2021/S2628)) requires private sector employers (regardless of their size or type) in the state of New York to give employees written notice if they are being monitored or their emails, phone conversions, and/or internet usage is being intercepted in any way. 
 
@@ -17,7 +17,7 @@ In New York, monitoring employees without giving them notice now means breaking 
 
 While the law does not allow employees to directly take legal action for infringements (i.e., a provision for a private right of action), it can be enforced by New York’s Attorney General (AG). 
 
-The law gives the AG the right to fine offenders for each violation of the law and scale fines based on the number of offenses reported. First-time offenders can be fined up to $500, with the fine increasing to $1,000 for the second violation and $3,000 for all violations that follow.
+The law gives the AG the right to fine offenders for each violation of the law and scale fines based on the number of offenses reported. First-time offenders can be fined up to $500, with the fine increasing to $1,000 for the second violation and $3,000 for all subsequent violations.
 
 One important exception to the law is that monitoring processes performed for the purpose of system maintenance and/or protection are exempt from this law.
 
@@ -88,9 +88,9 @@ Consequently, the law’s computer system protection exemption also applies to o
 
 Osquery does not fall under the new employee monitoring law. And because Fleet is built on osquery, this law does not impact our device management platform either.
 
-At Fleet, privacy and transparency are very important to us. 
+At Fleet, privacy and transparency are crucial to us. 
 
-Although organizations that use osquery and Fleet are not required under the New York employee monitoring law to notify employees that their devices are being monitored, we urge employers to do so anyway.
+We urge employers to notify employees that their devices are monitored using osquery and Fleet, even if the New York employee monitoring law does not require employers to do so.
 
 That’s why we built Fleet Desktop (available on Windows, Linux, and macOS) to include an icon that automatically lets users know they’ve been enrolled in Fleet. Clicking on the icon will bring users to [Fleet’s transparency page](https://fleetdm.com/transparency), which shows exactly what kind of information osquery and Fleet can see about them and their devices.
 
