@@ -317,11 +317,25 @@ func getQueriesCommand() *cli.Command {
 
 			name := c.Args().First()
 
+			me, err := client.Me()
+			if err != nil {
+				return err
+			}
+
 			// if name wasn't provided, list all queries
 			if name == "" {
 				queries, err := client.GetQueries()
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
+				}
+
+				// Filter out queries that the user cannot execute (this behavior matches the UI).
+				if userIsObserver(me) {
+					for i := range queries {
+						if !queries[i].ObserverCanRun {
+							queries = append(queries[:i], queries[i+1:]...)
+						}
+					}
 				}
 
 				if len(queries) == 0 {
@@ -331,7 +345,11 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						if err := printQuery(c, query); err != nil {
+						if err := printQuery(c, &fleet.QuerySpec{
+							Name:        query.Name,
+							Description: query.Description,
+							Query:       query.Query,
+						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
 					}
@@ -364,6 +382,22 @@ func getQueriesCommand() *cli.Command {
 
 			return nil
 		},
+	}
+}
+
+// userIsObserver returns whether the user is a global/team observer/observer+.
+// In the case of user belonging to multiple teams, a user is considered observer
+// if it is observer of all teams.
+func userIsObserver(user *fleet.User) bool {
+	if user.GlobalRole != nil {
+		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus
+	} else { // Team user
+		for _, team := range user.Teams {
+			if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {
+				return false
+			}
+		}
+		return true
 	}
 }
 
@@ -418,7 +452,11 @@ func getPacksCommand() *cli.Command {
 						continue
 					}
 
-					if err := printQuery(c, query); err != nil {
+					if err := printQuery(c, &fleet.QuerySpec{
+						Name:        query.Name,
+						Description: query.Description,
+						Query:       query.Query,
+					}); err != nil {
 						return fmt.Errorf("unable to print query: %w", err)
 					}
 				}
