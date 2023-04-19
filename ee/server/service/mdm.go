@@ -246,3 +246,15 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 
 	return summary, nil
 }
+
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	panic("unimplemented")
+}
+
+func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	panic("unimplemented")
+}
+
+func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	panic("unimplemented")
+}
