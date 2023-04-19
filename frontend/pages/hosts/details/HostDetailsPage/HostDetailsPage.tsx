@@ -119,8 +119,9 @@ const HostDetailsPage = ({
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
   const routeTemplate = route?.path ?? "";
-  console.log("routeTemplate", routeTemplate);
   const queryParams = location.query;
+  console.log("HostDetailsPage.tsx location", location);
+  console.log("HostDetailsPage.tsx queryParams", queryParams);
 
   const {
     config,
