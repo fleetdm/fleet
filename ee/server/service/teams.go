@@ -785,11 +785,14 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
+
 	// if the macos setup assistant was cleared, remove it for that team
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
 		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
 		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
-		// TODO(mna): clear the existing setup assistant for that team
+		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "clear macos setup assistant for team %d", team.ID)
+		}
 	}
 
 	return nil

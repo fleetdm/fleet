@@ -383,11 +383,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
-		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
-		// TODO(mna): clear macos setup assistant for no team
-	}
-
 	if license.Tier != "premium" {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
@@ -395,6 +390,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
+		// clear macos setup assistant for no team
+		if err := svc.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		}
 	}
 
 	// retrieve new app config with obfuscated secrets
