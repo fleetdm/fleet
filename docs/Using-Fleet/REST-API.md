@@ -3547,6 +3547,9 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
+- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
+- [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
@@ -3936,6 +3939,98 @@ This endpoint returns the list of custom MDM commands that have been executed.
   ]
 }
 ```
+
+### Set custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Sets the custom MDM setup enrollment profile for a team or no team.
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                   |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------     |
+| team_id                   | integer | json  | The team id this custom enrollment profile applies to, or no team if omitted. |
+| name                      | string  | json  | The filename of the uploaded custom enrollment profile.                       |
+| enrollment_profile        | object  | json  | The custom enrollment profile's json, as documented in https://developer.apple.com/documentation/devicemanagement/profile. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Get custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the custom MDM setup enrollment profile for a team or no team.
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to return the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Delete custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to delete the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 204`
 
 ### Get Apple Push Notification service (APNs)
 
