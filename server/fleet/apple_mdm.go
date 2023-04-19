@@ -492,3 +492,8 @@ type MDMAppleSetupAssistant struct {
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
+
+// AuthzType implements authz.AuthzTyper.
+func (a MDMAppleSetupAssistant) AuthzType() string {
+	return "mdm_apple_setup_assistant"
+}
