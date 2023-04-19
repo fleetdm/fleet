@@ -76,7 +76,7 @@ interface IHostDetailsProps {
     pathname: string;
     query: {
       vulnerable?: string;
-      page?: number;
+      page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";

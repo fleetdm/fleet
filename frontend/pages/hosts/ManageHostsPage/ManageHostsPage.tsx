@@ -545,7 +545,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -555,6 +555,7 @@ const ManageHostsPage = ({
         queryParams: Object.assign({}, queryParams, {
           policy_id: policyId,
           policy_response: response,
+          page: 0, // resets page index
         }),
       })
     );
@@ -563,7 +564,7 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -572,46 +573,53 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: Object.assign({}, queryParams, {
           macos_settings_disk_encryption: newStatus,
+          page: 0, // resets page index
         }),
       })
     );
   };
 
   const handleClearRouteParam = () => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams: undefined,
-        queryParams,
+        queryParams: {...queryParams, page: 0},
       })
     );
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, omitParams),
+        queryParams: {
+          ...omit(queryParams, omitParams),
+          page: 0, // resets page index
+        },
       })
     );
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, status: statusName },
+        queryParams: {
+          ...queryParams,
+          status: statusName,
+          page: 0, // resets page index
       })
     );
   };
@@ -619,14 +627,14 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, macos_settings: newMacSettingsStatus },
+        queryParams: { ...queryParams, macos_settings: newMacSettingsStatus,           page: 0, // resets page index
       })
     );
   };
