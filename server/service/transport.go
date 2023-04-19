@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -313,7 +314,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("invalid mdm enrollment status %s", enrollmentStatus)))
 	}
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
