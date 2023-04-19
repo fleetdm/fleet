@@ -4003,7 +4003,7 @@ Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM
 assigned to a team. Note that in this example the form data specifies `team_id` in addition to
 `package`.
 
-`POST /api/v1/fleet/mdm/apple/profiles`
+`POST /api/v1/fleet/mdm/apple/bootstrap`
 
 ##### Request headers
 

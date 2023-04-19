@@ -1,21 +1,50 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 
-import { IBootstrapPackage } from "interfaces/mdm";
+import mdmAPI from "services/entities/mdm";
 
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
-import PackageUploader from "./components/PackageUploader";
+import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeletePackageModal from "./components/DeletePackageModal/DeletePackageModal";
 
 const baseClass = "bootstrap-package";
 
 interface IBootstrapPackageProps {
-  currentTeamId?: number;
+  bootstrapConfigured: boolean;
+  currentTeamId: number;
 }
 
-const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
+const BootstrapPackage = ({
+  bootstrapConfigured,
+  currentTeamId,
+}: IBootstrapPackageProps) => {
   // TODO: get bootstrap package API call
+  const [hasBootstrapPackage, setHasBootstrapPackage] = useState(
+    bootstrapConfigured
+  );
   const [showDeletePackageModal, setShowDeletePackageModal] = useState(false);
+
+  const {
+    data: bootstrapMetadata,
+    isLoading,
+    isError,
+    refetch: refretchBootstrapMetaData,
+  } = useQuery(
+    ["bootstrap-metadata", currentTeamId],
+    () => {
+      mdmAPI.getBootstrapPackageMetadata(currentTeamId);
+    },
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      enabled: hasBootstrapPackage,
+    }
+  );
+
+  const onUpload = () => {
+    refretchBootstrapMetaData();
+  };
 
   const onDelete = () => {};
 
@@ -23,13 +52,12 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     <div className={baseClass}>
       <h2>Bootstrap package</h2>
       <div className={`${baseClass}__content`}>
-        {/* {bootstrapPackage ? <UploadedPackageView /> : <PackageUploader />} */}
-        {true ? (
+        {!hasBootstrapPackage ? (
+          <PackageUploader currentTeamId={currentTeamId} onUpload={onUpload} />
+        ) : (
           <UploadedPackageView
             onDelete={() => setShowDeletePackageModal(true)}
           />
-        ) : (
-          <PackageUploader onUpload={() => {}} />
         )}
         <div className={`${baseClass}__preview-container`}>
           <BootstrapPackagePreview />

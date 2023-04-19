@@ -98,4 +98,23 @@ export default {
       team_id: teamId,
     });
   },
+
+  getBootstrapPackageMetadata: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
+
+    return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
+  },
+
+  uploadBootstrapPackage: (file: File, teamId?: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+
+    const formData = new FormData();
+    formData.append("package", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
+  },
 };

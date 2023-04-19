@@ -1,9 +1,15 @@
 import React, { useContext, useState } from "react";
 import PATHS from "router/paths";
+import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 
-import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  API_NO_TEAM_ID,
+  APP_CONTEXT_NO_TEAM_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { AppContext } from "context/app";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SideNav from "pages/admin/components/SideNav";
 import Button from "components/buttons/Button/Button";
@@ -54,6 +60,17 @@ const MacOSSetup = ({
       ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
       : currentTeam.id;
 
+  const { data: teamConfig, isLoading } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["teamConfig", teamId], () => teamsAPI.load(teamId), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: Boolean(teamId),
+    select: (res) => res.team,
+  });
+
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETUP_NAV_ITEMS[0];
 
   const currentFormSection =
@@ -80,7 +97,13 @@ const MacOSSetup = ({
             path: navItem.path.concat(queryString),
           }))}
           activeItem={currentFormSection.urlSection}
-          CurrentCard={<CurrentCard key={teamId} currentTeamId={teamId} />}
+          CurrentCard={
+            <CurrentCard
+              key={teamId}
+              currentTeamId={teamId}
+              bootstrapConfigured={false}
+            />
+          }
         />
       )}
     </div>

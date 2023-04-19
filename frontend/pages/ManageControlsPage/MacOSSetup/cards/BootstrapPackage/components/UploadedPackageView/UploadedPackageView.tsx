@@ -29,9 +29,8 @@ const UploadedPackageView = ({ onDelete }: IUploadedPackageViewProps) => {
     <div className={baseClass}>
       <BootstrapPackageTable />
       <p>
-        Upload a bootstrap package to install a configuration management tool
-        (ex. Munki, Chef, or Puppet) on hosts that automatically enroll to
-        Fleet.{" "}
+        This package is automatically installed on hosts that automatically
+        enroll to this team. Delete the package to upload a new one.
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup"
           text="Learn more"
