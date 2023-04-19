@@ -152,6 +152,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
+		// the bootstrap package filter is premium-only
+		opt.MDMBootstrapPackageFilter = nil
 	}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
@@ -836,7 +838,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.Profiles = &profiles
 
 	var macOSSetup *fleet.HostMDMMacOSSetup
-	if ac.MDM.EnabledAndConfigured {
+	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
 		macOSSetup, err = svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)
 		if err != nil {
 			if !fleet.IsNotFound(err) {

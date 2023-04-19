@@ -344,7 +344,8 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
-		hopt.MDMBootstrapPackageFilter = fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+		hopt.MDMBootstrapPackageFilter = &bpf
 	case "":
 		// No error when unset
 	default:

@@ -1781,6 +1781,7 @@ the `software` table.
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1935,6 +1936,7 @@ Response payload with the `munki_issue_id` filter provided:
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -2261,6 +2263,10 @@ Returns the information of the specified host.
         "disk_encryption": null,
         "action_required": null
       },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
       "profiles": [
         {
           "profile_id": 999,
@@ -2453,6 +2459,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
       },
       "profiles": [
         {
@@ -3011,6 +3021,7 @@ requested by a web browser.
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
@@ -3397,6 +3408,7 @@ Returns a list of the hosts that belong to the specified label.
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
@@ -4139,13 +4151,11 @@ The summary can optionally be filtered by team id.
 
 ```json
 {
-  "applied": 10,
+  "installed": 10,
   "failed": 1,
   "pending": 4
 }
 ```
-
-### 
 
 ---
 
