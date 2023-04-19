@@ -1949,3 +1949,15 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
+
+func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, teamID *uint, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	panic("unimplemented")
+}
