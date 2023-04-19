@@ -223,9 +223,9 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds, pageIndex } = tableState;
 
-  useEffect(() => {
-    onClientSidePaginationChange?.(pageIndex);
-  }, [pageIndex]);
+  // useEffect(() => {
+  //   onClientSidePaginationChange?.(pageIndex);
+  // }, [pageIndex]);
 
   console.log("tableState.pageIndex", pageIndex);
 
@@ -302,14 +302,6 @@ const DataTable = ({
   useEffect(() => {
     setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
-
-  // useEffect(() => {
-  //   console.log(
-  //     "USEEFFECT clientSidePaginationIndex on DataTable",
-  //     clientSidePaginationIndex
-  //   );
-  //   setPageIndex(clientSidePaginationIndex || 0);
-  // }, [clientSidePaginationIndex, setPageIndex]);
 
   useDeepEffect(() => {
     if (
@@ -589,14 +581,22 @@ const DataTable = ({
           <div className={`${baseClass}__pagination`}>
             <Button
               variant="unstyled"
-              onClick={() => previousPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
               disabled={!canPreviousPage}
             >
               {previousButton}
             </Button>
             <Button
               variant="unstyled"
-              onClick={() => nextPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
               disabled={!canNextPage}
             >
               {nextButton}
