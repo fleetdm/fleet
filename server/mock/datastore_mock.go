@@ -596,19 +596,17 @@ type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) 
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
 
-<<<<<<< HEAD
 type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
-=======
-type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
+
+type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
->>>>>>> b04fb4ad0 (Add setup assistant datastore layer skeletons)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1481,7 +1479,6 @@ type DataStore struct {
 	GetMDMAppleBootstrapPackageBytesFunc        GetMDMAppleBootstrapPackageBytesFunc
 	GetMDMAppleBootstrapPackageBytesFuncInvoked bool
 
-<<<<<<< HEAD
 	GetMDMAppleBootstrapPackageSummaryFunc        GetMDMAppleBootstrapPackageSummaryFunc
 	GetMDMAppleBootstrapPackageSummaryFuncInvoked bool
 
@@ -1490,7 +1487,7 @@ type DataStore struct {
 
 	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
 	GetHostMDMMacOSSetupFuncInvoked bool
-=======
+
 	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
 	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
 
@@ -1499,7 +1496,6 @@ type DataStore struct {
 
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
->>>>>>> b04fb4ad0 (Add setup assistant datastore layer skeletons)
 
 	mu sync.Mutex
 }
@@ -3534,7 +3530,6 @@ func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
 }
 
-<<<<<<< HEAD
 func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleBootstrapPackageSummaryFuncInvoked = true
@@ -3554,12 +3549,13 @@ func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fle
 	s.GetHostMDMMacOSSetupFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
-=======
-func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, teamID *uint, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+}
+
+func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	s.mu.Lock()
 	s.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateMDMAppleSetupAssistantFunc(ctx, teamID, asst)
+	return s.SetOrUpdateMDMAppleSetupAssistantFunc(ctx, asst)
 }
 
 func (s *DataStore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -3574,5 +3570,4 @@ func (s *DataStore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
->>>>>>> b04fb4ad0 (Add setup assistant datastore layer skeletons)
 }

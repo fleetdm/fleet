@@ -1950,7 +1950,7 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 	return err
 }
 
-func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, teamID *uint, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	const stmt = `
 		INSERT INTO
 			mdm_apple_setup_assistants (team_id, global_or_team_id, name, profile)
@@ -1961,16 +1961,16 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, team
 			profile = VALUES(profile)
 `
 	var globalOrTmID uint
-	if teamID != nil {
-		globalOrTmID = *teamID
+	if asst.TeamID != nil {
+		globalOrTmID = *asst.TeamID
 	}
-	_, err := ds.writer.ExecContext(ctx, stmt, teamID, globalOrTmID, asst.Name, asst.Profile)
+	_, err := ds.writer.ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upsert mdm apple setup assistant")
 	}
 
 	// reload to return the proper timestamp and id
-	return ds.getMDMAppleSetupAssistant(ctx, ds.writer, teamID)
+	return ds.getMDMAppleSetupAssistant(ctx, ds.writer, asst.TeamID)
 }
 
 func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -1986,7 +1986,7 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 		profile,
 		updated_at as uploaded_at
 	FROM
-		mdm_apple_bootstrap_packages
+		mdm_apple_setup_assistants
 	WHERE global_or_team_id = ?`
 
 	var asst fleet.MDMAppleSetupAssistant
