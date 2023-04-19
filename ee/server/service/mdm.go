@@ -248,13 +248,22 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 }
 
 func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
-	panic("unimplemented")
+	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	return svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 }
 
 func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-	panic("unimplemented")
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
 }
 
 func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
-	panic("unimplemented")
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	return svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID)
 }
