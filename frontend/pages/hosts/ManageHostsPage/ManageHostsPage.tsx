@@ -342,6 +342,7 @@ const ManageHostsPage = ({
     select: (data) => data.os_versions,
   });
 
+  console.log("ManageHostPage.tsx page", page);
   const {
     data: hostsData,
     error: errorHosts,
@@ -545,7 +546,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -564,7 +565,7 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -580,20 +581,23 @@ const ManageHostsPage = ({
   };
 
   const handleClearRouteParam = () => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams: undefined,
-        queryParams: {...queryParams, page: 0},
+        queryParams: {
+          ...queryParams,
+          page: 0, // resets page index
+        },
       })
     );
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -609,7 +613,7 @@ const ManageHostsPage = ({
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -620,6 +624,7 @@ const ManageHostsPage = ({
           ...queryParams,
           status: statusName,
           page: 0, // resets page index
+        },
       })
     );
   };
@@ -627,14 +632,18 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    // handleResetPageIndex();
+    handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, macos_settings: newMacSettingsStatus,           page: 0, // resets page index
+        queryParams: {
+          ...queryParams,
+          macos_settings: newMacSettingsStatus,
+          page: 0, // resets page index
+        },
       })
     );
   };
@@ -661,7 +670,10 @@ const ManageHostsPage = ({
     if (queryParams.add_hosts === "true") {
       setShowAddHostsModal(true);
     }
-  }, [queryParams]);
+    if (queryParams.page === page) {
+      setPage(queryParams.page);
+    }
+  }, [queryParams, page]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
