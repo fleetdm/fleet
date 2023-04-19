@@ -54,6 +54,7 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -64,6 +65,7 @@ interface IDataTableProps {
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  defaultPageIndex?: number;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -96,6 +98,7 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   disableHighlightOnHover,
   searchQuery,
@@ -135,7 +138,6 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
-    // gotoPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -219,7 +221,13 @@ const DataTable = ({
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds } = tableState;
+  const { sortBy, selectedRowIds, pageIndex } = tableState;
+
+  useEffect(() => {
+    onClientSidePaginationChange?.(pageIndex);
+  }, [pageIndex, onClientSidePaginationChange]);
+
+  console.log("tableState.pageIndex", pageIndex);
 
   useEffect(() => {
     if (tableFilters) {
@@ -294,6 +302,14 @@ const DataTable = ({
   useEffect(() => {
     setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
+
+  // useEffect(() => {
+  //   console.log(
+  //     "USEEFFECT clientSidePaginationIndex on DataTable",
+  //     clientSidePaginationIndex
+  //   );
+  //   setPageIndex(clientSidePaginationIndex || 0);
+  // }, [clientSidePaginationIndex, setPageIndex]);
 
   useDeepEffect(() => {
     if (

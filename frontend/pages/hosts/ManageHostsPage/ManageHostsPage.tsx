@@ -545,7 +545,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -564,7 +564,7 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -580,7 +580,7 @@ const ManageHostsPage = ({
   };
 
   const handleClearRouteParam = () => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -596,7 +596,7 @@ const ManageHostsPage = ({
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -612,7 +612,7 @@ const ManageHostsPage = ({
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({
@@ -631,7 +631,7 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    handleResetPageIndex();
+    // handleResetPageIndex();
 
     router.replace(
       getNextLocationPath({

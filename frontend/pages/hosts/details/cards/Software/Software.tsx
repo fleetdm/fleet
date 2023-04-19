@@ -44,7 +44,7 @@ interface ISoftwareTableProps {
   router?: InjectedRouter;
   queryParams?: {
     vulnerable?: string;
-    page?: number;
+    page?: string;
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
@@ -97,7 +97,7 @@ const SoftwareTable = ({
   })();
 
   const initialSortDirection = ((): "asc" | "desc" | undefined => {
-    let sortDirection = "desc";
+    let sortDirection = "asc";
 
     if (queryParams && queryParams.order_direction) {
       sortDirection = queryParams.order_direction;
@@ -120,15 +120,16 @@ const SoftwareTable = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page as number;
+      page = parseInt(queryParams?.page, 10) || 0;
     }
 
     return page;
   })();
 
+  console.log("initialPage", initialPage);
   const [searchString, setSearchString] = useState(initialQuery);
   const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
-  const [page, setPage] = useState(initialPage);
+  const page = initialPage; // Never set page in component as url is source of truth
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
@@ -137,27 +138,22 @@ const SoftwareTable = ({
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   useEffect(() => {
-    setFilterVuln(queryParams?.vulnerable === "true" || false);
-    setPage(queryParams?.page || 0);
+    setFilterVuln(queryParams?.vulnerable === "true");
     setSearchString(queryParams?.query || "");
   }, [queryParams]);
 
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
       setTableQueryData({ ...newTableQuery });
-
+      console.log("newTablequery", newTableQuery);
       const {
-        pageIndex,
+        pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
         sortDirection: newSortDirection,
         sortHeader: newSortHeader,
       } = newTableQuery;
-      console.log("pageIndex", pageIndex);
-      console.log("typeof pageIndex", typeof pageIndex);
-      console.log("newTableQuery.pageIndex", pageIndex);
-      console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
-      console.log("newTableQuery", newTableQuery);
-      pageIndex !== page && setPage(pageIndex as number);
+
+      // page !== newPageIndex && setPage(newPageIndex);
       searchString !== newSearchQuery && setSearchString(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -173,13 +169,12 @@ const SoftwareTable = ({
       if (!isEmpty(newSearchQuery)) {
         newQueryParams.query = newSearchQuery;
       }
-      newQueryParams.page = pageIndex as number;
+      newQueryParams.page = newPageIndex;
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
-
-      newQueryParams.vulnerable = filterVuln ? "true" : undefined;
-      console.log("newQueryParams.page", newQueryParams.page);
+      newQueryParams.vulnerable = filterVuln ? "true" : "false";
+      console.log("newQueryParams", newQueryParams);
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
         routeTemplate,
@@ -193,12 +188,25 @@ const SoftwareTable = ({
       sortHeader,
       sortDirection,
       searchString,
-      page,
       filterVuln,
+      page,
       router,
       routeTemplate,
     ]
   );
+
+  const onClientSidePaginationChange = useCallback((pageIndex: number) => {
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+      routeTemplate,
+      queryParams: {
+        ...queryParams,
+        page: pageIndex,
+        vulnerable: filterVuln ? "true" : "false",
+      },
+    });
+    router?.replace(locationPath);
+  }, []);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
@@ -207,17 +215,11 @@ const SoftwareTable = ({
         ({
           ...prevState,
           pageIndex: 0,
+          vulnerable: filterVuln ? "true" : "false",
         } as ITableQueryData)
     );
     setResetPageIndex(true);
-    console.log("resetpageindex");
   };
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    // TODO: cleanup this effect
-    setResetPageIndex(false);
-  }, [queryParams]);
 
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
@@ -234,7 +236,11 @@ const SoftwareTable = ({
       getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
         routeTemplate,
-        queryParams: { ...queryParams, vulnerable: isFilterVulnerable },
+        queryParams: {
+          ...queryParams,
+          page: 0,
+          vulnerable: isFilterVulnerable,
+        },
       })
     );
   };
@@ -266,7 +272,7 @@ const SoftwareTable = ({
       />
     );
   };
-
+  console.log("SOFTWARE.TSX variable:: print page:", page);
   return (
     <div className="section section--software">
       <p className="section__header">Software</p>
@@ -291,7 +297,7 @@ const SoftwareTable = ({
                 isLoading={isLoading}
                 defaultSortHeader={sortHeader || DEFAULT_SORT_DIRECTION}
                 defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-                defaultPageIndex={page || 0}
+                defaultPageIndex={page}
                 defaultSearchQuery={searchString}
                 inputPlaceHolder={
                   "Search software by name or vulnerabilities ( CVEs)"
@@ -311,6 +317,7 @@ const SoftwareTable = ({
                 searchable
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
+                onClientSidePaginationChange={onClientSidePaginationChange}
                 pageSize={DEFAULT_PAGE_SIZE}
                 isClientSideFilter
                 disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software

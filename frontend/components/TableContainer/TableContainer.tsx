@@ -68,6 +68,7 @@ interface ITableContainerProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results
@@ -131,6 +132,7 @@ const TableContainer = ({
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
   disableHighlightOnHover,
@@ -154,8 +156,15 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState(defaultPageIndex);
+  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
+
+  // Client side pagination is being overridden to previous page without this
+  useEffect(() => {
+    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
+      setPageIndex(defaultPageIndex);
+    }
+  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -184,18 +193,22 @@ const TableContainer = ({
   const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
-      setPageIndex(newPage);
-      hasPageIndexChangedRef.current = true;
+      if (!isClientSidePagination) {
+        setPageIndex(newPage);
+        hasPageIndexChangedRef.current = true;
+        console.log("3. is this printing?");
+      }
     },
-    [hasPageIndexChangedRef]
+    [hasPageIndexChangedRef, isClientSidePagination]
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex) {
+    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
       onPaginationChange(0);
+      console.log("4. is this printing?");
     }
-  }, [resetPageIndex, pageIndex]);
+  }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -216,12 +229,14 @@ const TableContainer = ({
 
     if (prevPageIndex.current === pageIndex) {
       setPageIndex(0);
+      console.log("1. is this printing?");
     }
 
     // NOTE: used to reset page number to 0 when modifying filters
     const newPageIndex = onQueryChange(queryData);
     if (newPageIndex === 0) {
       setPageIndex(0);
+      console.log("2. is this printing?");
     }
 
     prevPageIndex.current = pageIndex;
@@ -435,6 +450,7 @@ const TableContainer = ({
                 onSelectSingleRow={onSelectSingleRow}
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
+                onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}
                 disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}
@@ -443,6 +459,7 @@ const TableContainer = ({
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
                 setExportRows={setExportRows}
+                defaultPageIndex={pageIndex}
               />
             </div>
           </>
