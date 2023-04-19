@@ -128,8 +128,8 @@ const SoftwareTable = ({
   })();
 
   const [searchString, setSearchString] = useState(initialQuery);
-  const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
-  // const filterVuln = initialVulnFilter;
+  // const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  const filterVuln = initialVulnFilter;
   const page = initialPage; // Never set page in component as url is source of truth
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
@@ -139,9 +139,9 @@ const SoftwareTable = ({
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   console.log("filterVuln", filterVuln);
   useEffect(() => {
-    if (queryParams?.vulnerable !== (filterVuln ? "true" : "false")) {
-      setFilterVuln(queryParams?.vulnerable === "true");
-    }
+    // if (queryParams?.vulnerable !== (filterVuln ? "true" : "false")) {
+    //   setFilterVuln(queryParams?.vulnerable === "true");
+    // }
     setSearchString(queryParams?.query || "");
   }, [queryParams]);
 
@@ -195,23 +195,26 @@ const SoftwareTable = ({
       routeTemplate,
     ]
   );
-
-  const onClientSidePaginationChange = useCallback((pageIndex: number) => {
-    console.log("onClientSidePaginationChange filterVuln", filterVuln);
-    console.log("onClientSidePaginationChange pageIndex", pageIndex);
-    console.log("onClientSidePaginationChange queryParams", queryParams);
-    // debugger;
-    const locationPath = getNextLocationPath({
-      pathPrefix: PATHS.HOST_SOFTWARE(hostId),
-      routeTemplate,
-      queryParams: {
-        ...queryParams,
-        page: pageIndex,
-        vulnerable: filterVuln ? "true" : "false",
-      },
-    });
-    router?.replace(locationPath);
-  }, []);
+  console.log("filterVuln", filterVuln);
+  const onClientSidePaginationChange = useCallback(
+    (pageIndex: number) => {
+      console.log("onClientSidePaginationChange filterVuln", filterVuln);
+      console.log("onClientSidePaginationChange pageIndex", pageIndex);
+      console.log("onClientSidePaginationChange queryParams", queryParams);
+      // debugger;
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        routeTemplate,
+        queryParams: {
+          ...queryParams,
+          page: pageIndex,
+          vulnerable: filterVuln ? "true" : "false",
+        },
+      });
+      router?.replace(locationPath);
+    },
+    [filterVuln] // Need filterVuln or else not always correct variable state
+  );
 
   // NOTE: used to reset page number to 0 when modifying filters
   // const handleResetPageIndex = () => {
