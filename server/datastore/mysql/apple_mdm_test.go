@@ -43,6 +43,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
+		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
@@ -1383,6 +1384,177 @@ func upsertHostCPs(
 	require.NoError(t, err)
 }
 
+func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	checkListHosts := func(status fleet.MacOSSettingsStatus, teamID *uint, expected []*fleet.Host) bool {
+		expectedIDs := []uint{}
+		for _, h := range expected {
+			expectedIDs = append(expectedIDs, h.ID)
+		}
+
+		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.HostListOptions{MacOSSettingsFilter: status, TeamFilter: teamID})
+		gotIDs := []uint{}
+		for _, h := range gotHosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+
+		return assert.NoError(t, err) && assert.Len(t, gotHosts, len(expected)) && assert.ElementsMatch(t, expectedIDs, gotIDs)
+	}
+
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+	}
+
+	// create somes config profiles for no team
+	var noTeamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 10; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), 0))
+		require.NoError(t, err)
+		noTeamCPs = append(noTeamCPs, cp)
+	}
+	// add filevault profile for no team
+	fvNoTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", "com.fleetdm.fleet.mdm.filevault", 0))
+	require.NoError(t, err)
+
+	upsertHostCPs(hosts, append(noTeamCPs, fvNoTeam), fleet.MDMAppleOperationTypeInstall, nil, ctx, ds, t)
+	res, err := ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	upsertHostCPs(hosts, noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault not installed
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{fvNoTeam}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault pending
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{fvNoTeam}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because no disk encryption key
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "foo")
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is not set
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, false, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is false
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-1), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Latest) // hosts[0] now has filevault fully enforced
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1].ID, "bar")
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[1].ID}, false, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-1), res.Pending) // hosts[1] still pending because disk encryption key decryptable is false
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Latest)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[1].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-2), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(2), res.Latest) // hosts[0] and hosts[1] now have filevault fully enforced
+
+	// check that list hosts by status matches summary
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, hosts[:2]))
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+	require.NoError(t, err)
+
+	// add hosts[9] to team
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[9].ID})
+	require.NoError(t, err)
+
+	// remove profiles from hosts[9]
+	upsertHostCPs(hosts[9:10], append(noTeamCPs, fvNoTeam), fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Latest)
+
+	// create somes config profiles for team
+	var teamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 2; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), team.ID))
+		require.NoError(t, err)
+		teamCPs = append(teamCPs, cp)
+	}
+	// add filevault profile for team
+	fvTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", mobileconfig.FleetFileVaultPayloadIdentifier, team.ID))
+	require.NoError(t, err)
+
+	upsertHostCPs(hosts[9:10], append(teamCPs, fvTeam), fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(1), res.Pending) // hosts[9] is pending because it has no disk encryption key
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[9].ID, "baz")
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[9].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Latest) // hosts[9] now has filevault fully enforced
+
+	// check that list hosts by status matches summary
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, &team.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, &team.ID, hosts[9:10]))
+}
+
 func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1801,14 +1973,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	createDiskEncryptionRecord(ctx, ds, t, appliedHost.ID, "key-1", true, oneMinuteAfterThreshold)
 
-	res, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(0), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(0), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err := ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// action required status
 	requiredActionHost := hosts[1]
@@ -1821,14 +2000,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{requiredActionHost.ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// enforcing status
 	enforcingHost := hosts[2]
@@ -1841,14 +2027,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
 	)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// host profile status does not exist
 	upsertHostCPs(
@@ -1858,14 +2051,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 		nil, ctx, ds, t,
 	)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// host profile status is applied but decryptable key field does not exist
 	upsertHostCPs(
@@ -1877,41 +2077,61 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{enforcingHost.ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
-
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// failed status
 	failedHost := hosts[3]
 	upsertHostCPs([]*fleet.Host{failedHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(1), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(1), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(1), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// removing enforcement status
 	removingEnforcementHost := hosts[4]
 	upsertHostCPs([]*fleet.Host{removingEnforcementHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(1), res.Failed)
-	require.Equal(t, uint(1), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(1), fvProfileSummary.Failed)
+	require.Equal(t, uint(1), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(3), allProfilesSummary.Pending)
+	require.Equal(t, uint(1), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 
 	// teams filter tests =====
 	appliedTeam1Host := hosts[6]
@@ -1924,15 +2144,22 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	upsertHostCPs([]*fleet.Host{appliedTeam1Host}, []*fleet.MDMAppleConfigProfile{team1FVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
 	createDiskEncryptionRecord(ctx, ds, t, appliedTeam1Host.ID, "key-2", true, oneMinuteAfterThreshold)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, &tm.ID)
 
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, &tm.ID)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(0), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Applied)
+	require.Equal(t, uint(0), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Latest)
 }
 
 func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
@@ -2205,12 +2432,18 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	// (meant to be called from the MDMDirector in response from MDM commands), it would delete/update
 	// all rows in this test since we don't have command uuids.
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
-			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
+			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
 	})
 	require.NoError(t, err)
 
