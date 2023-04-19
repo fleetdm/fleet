@@ -295,7 +295,7 @@ const ManageSoftwarePage = ({
     [
       {
         scope: "software",
-        page,
+        page: tableQueryData?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -536,7 +536,11 @@ const ManageSoftwarePage = ({
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_SOFTWARE,
         routeTemplate,
-        queryParams: { ...queryParams, vulnerable: isFilterVulnerable },
+        queryParams: {
+          ...queryParams,
+          vulnerable: isFilterVulnerable,
+          page: 0, // resets page index
+        },
       })
     );
   };

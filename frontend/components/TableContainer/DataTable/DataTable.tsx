@@ -223,7 +223,7 @@ const DataTable = ({
 
   useEffect(() => {
     onClientSidePaginationChange?.(pageIndex);
-  }, [pageIndex, onClientSidePaginationChange]);
+  }, [pageIndex]);
 
   console.log("tableState.pageIndex", pageIndex);
 

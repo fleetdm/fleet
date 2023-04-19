@@ -195,7 +195,6 @@ const TableContainer = ({
       if (!isClientSidePagination) {
         setPageIndex(newPage);
         hasPageIndexChangedRef.current = true;
-        console.log("3. is this printing?");
       }
     },
     [hasPageIndexChangedRef, isClientSidePagination]
@@ -205,7 +204,6 @@ const TableContainer = ({
   useEffect(() => {
     if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
       onPaginationChange(0);
-      console.log("4. is this printing?");
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
@@ -228,14 +226,12 @@ const TableContainer = ({
 
     if (prevPageIndex.current === pageIndex) {
       setPageIndex(0);
-      console.log("1. is this printing?");
     }
 
     // NOTE: used to reset page number to 0 when modifying filters
     const newPageIndex = onQueryChange(queryData);
     if (newPageIndex === 0) {
       setPageIndex(0);
-      console.log("2. is this printing?");
     }
 
     prevPageIndex.current = pageIndex;
