@@ -8,6 +8,8 @@ In Fleet, you can customize the first-time macOS setup experience for your end u
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
 
+In addition to the customization above, Fleet automatically installs the fleetd agent during first-time macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
+
 ## End user authentication
 
 > This feature is currently in development.
@@ -26,9 +28,7 @@ The following are examples of what some organizations deploy using a bootstrap p
 
 * Puppet agent to run custom scripts on your Macs
 
-* Custom scripts and several packages bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac's background, and install the latest macOS update for the end user. 
-
-> In addition to installing the bootstrap package, Fleet automatically installs the fleetd agent on hosts that automatically enroll. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
+* Custom scripts and several packages bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac's background, and install the latest macOS update for the end user.
 
 To add a bootstrap package to Fleet, we will do the following steps:
 

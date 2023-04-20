@@ -1,10 +1,12 @@
 # macOS settings
 
-In Fleet you can enforce settings on your macOS hosts remotely.
+In Fleet you can enforce settings on your macOS hosts remotely:
 
-If you enforce disk encryption with Fleet, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
+* Disk encryption (FileVault): If enforced, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
 
-You can also enforce custom macOS settings. Learn how [here](#custom-settings).
+* Custom settings: learn how [here](#custom-settings).
+
+In addition to the above, Fleet automatically enforces settings for the fleetd agent using a "Fleetd configuration" configuration profile.
 
 ## Disk encryption
 
