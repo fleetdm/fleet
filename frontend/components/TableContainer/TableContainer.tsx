@@ -68,7 +68,6 @@ interface ITableContainerProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results
@@ -93,6 +92,7 @@ interface ITableContainerProps {
 const baseClass = "table-container";
 
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
   columns,
@@ -101,9 +101,9 @@ const TableContainer = ({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  defaultPageIndex = 0,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
-  defaultPageIndex = 0,
   inputPlaceHolder = "Search",
   additionalQueries,
   resultsTitle,
@@ -131,7 +131,6 @@ const TableContainer = ({
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
-  onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
   disableHighlightOnHover,
@@ -155,15 +154,8 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
+  const [pageIndex, setPageIndex] = useState(defaultPageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
-
-  // Client side pagination is being overridden to previous page without this
-  useEffect(() => {
-    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
-      setPageIndex(defaultPageIndex);
-    }
-  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -192,20 +184,18 @@ const TableContainer = ({
   const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
-      if (!isClientSidePagination) {
-        setPageIndex(newPage);
-        hasPageIndexChangedRef.current = true;
-      }
+      setPageIndex(newPage);
+      hasPageIndexChangedRef.current = true;
     },
-    [hasPageIndexChangedRef, isClientSidePagination]
+    [hasPageIndexChangedRef]
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
+    if (pageIndex !== 0 && resetPageIndex) {
       onPaginationChange(0);
     }
-  }, [resetPageIndex, pageIndex, isClientSidePagination]);
+  }, [resetPageIndex, pageIndex]);
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -434,6 +424,7 @@ const TableContainer = ({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
+                defaultPageIndex={defaultPageIndex}
                 primarySelectActionButtonVariant={
                   primarySelectActionButtonVariant
                 }
@@ -444,7 +435,6 @@ const TableContainer = ({
                 onSelectSingleRow={onSelectSingleRow}
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
-                onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}
                 disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}
@@ -453,7 +443,6 @@ const TableContainer = ({
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
                 setExportRows={setExportRows}
-                defaultPageIndex={pageIndex}
               />
             </div>
           </>

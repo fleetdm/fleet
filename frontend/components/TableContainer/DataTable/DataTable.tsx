@@ -46,13 +46,13 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  defaultPageIndex?: number;
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -63,7 +63,6 @@ interface IDataTableProps {
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
-  defaultPageIndex?: number;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -96,7 +95,6 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   isClientSidePagination,
-  onClientSidePaginationChange,
   isClientSideFilter,
   disableHighlightOnHover,
   searchQuery,
@@ -136,6 +134,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
+    // gotoPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -219,13 +218,7 @@ const DataTable = ({
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds, pageIndex } = tableState;
-
-  // useEffect(() => {
-  //   onClientSidePaginationChange?.(pageIndex);
-  // }, [pageIndex]);
-
-  console.log("tableState.pageIndex", pageIndex);
+  const { sortBy, selectedRowIds } = tableState;
 
   useEffect(() => {
     if (tableFilters) {
@@ -579,22 +572,14 @@ const DataTable = ({
           <div className={`${baseClass}__pagination`}>
             <Button
               variant="unstyled"
-              onClick={() => {
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex - 1);
-                previousPage();
-              }}
+              onClick={() => previousPage()}
               disabled={!canPreviousPage}
             >
               {previousButton}
             </Button>
             <Button
               variant="unstyled"
-              onClick={() => {
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex + 1);
-                nextPage();
-              }}
+              onClick={() => nextPage()}
               disabled={!canNextPage}
             >
               {nextButton}

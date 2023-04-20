@@ -3,7 +3,6 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { RouteProps } from "react-router";
 
 import classnames from "classnames";
 import { pick } from "lodash";
@@ -35,7 +34,6 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
-import { ITableQueryData } from "components/TableContainer";
 
 import {
   normalizeEmptyValues,
@@ -70,20 +68,19 @@ import MacSettingsModal from "../MacSettingsModal";
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
-    query: {
-      vulnerable?: string;
-      page?: string;
-      query?: string;
-      order_key?: string;
-      order_direction?: "asc" | "desc";
-    };
-    search?: string;
   };
   params: Params;
+}
+
+interface ISearchQueryData {
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+  pageSize: number;
+  pageIndex: number;
 }
 
 interface IHostDiskEncryptionProps {
@@ -104,17 +101,11 @@ const TAGGED_TEMPLATES = {
 };
 
 const HostDetailsPage = ({
-  route,
   router,
-  location,
+  location: { pathname },
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const routeTemplate = route?.path ?? "";
-  const queryParams = location.query;
-  console.log("HostDetailsPage.tsx location", location);
-  console.log("HostDetailsPage.tsx queryParams", queryParams);
-
   const {
     config,
     currentUser,
@@ -123,8 +114,6 @@ const HostDetailsPage = ({
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
-    filteredSoftwarePath,
-    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -347,13 +336,6 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString, host?.users]);
 
-  useEffect(() => {
-    const path = location.pathname + location.search;
-    if (filteredSoftwarePath !== path && path.includes("software")) {
-      setFilteredSoftwarePath(location.pathname + location.search);
-    }
-  }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
-
   const titleData = normalizeEmptyValues(
     pick(host, [
       "id",
@@ -524,10 +506,13 @@ const HostDetailsPage = ({
     }
   };
 
-  const onUsersTableSearchChange = useCallback((queryData: ITableQueryData) => {
-    const { searchQuery } = queryData;
-    setUsersSearchString(searchQuery);
-  }, []);
+  const onUsersTableSearchChange = useCallback(
+    (queryData: ISearchQueryData) => {
+      const { searchQuery } = queryData;
+      setUsersSearchString(searchQuery);
+    },
+    []
+  );
 
   const onSelectHostAction = (action: string) => {
     switch (action) {
@@ -681,7 +666,7 @@ const HostDetailsPage = ({
         />
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(location.pathname)}
+            selectedIndex={getTabIndex(pathname)}
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
@@ -724,9 +709,6 @@ const HostDetailsPage = ({
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
-                queryParams={queryParams}
-                routeTemplate={routeTemplate}
-                hostId={host?.id || 0}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard

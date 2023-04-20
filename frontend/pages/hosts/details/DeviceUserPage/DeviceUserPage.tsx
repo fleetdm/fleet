@@ -399,7 +399,6 @@ const DeviceUserPage = ({
                     isLoading={isLoadingHost}
                     software={hostSoftware}
                     deviceUser
-                    hostId={host?.id || 0}
                   />
                 </TabPanel>
                 {isPremiumTier && (
