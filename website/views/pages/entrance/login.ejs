@@ -11,7 +11,7 @@
     <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
       <div class="order-first flex-grow-1">
         <div class="card card-body">
-          <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+          <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
             <div class="form-group">
               <label for="email">Email</label>
               <span style="float: right" class="text-right small" v-if="showCustomerLogin"><a href="/customers/register">Create an account</a></span>
