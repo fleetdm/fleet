@@ -493,6 +493,8 @@ CREATE TABLE `mdm_apple_bootstrap_packages` (
   `sha256` binary(32) NOT NULL,
   `bytes` longblob,
   `token` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`team_id`),
   UNIQUE KEY `idx_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
