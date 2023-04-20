@@ -161,7 +161,7 @@ type HostListOptions struct {
 	MacOSSettingsDiskEncryptionFilter MacOSDiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
-	MDMBootstrapPackageFilter MDMBootstrapPackageStatus
+	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
@@ -194,6 +194,9 @@ func (h HostListOptions) Empty() bool {
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
+		h.MacOSSettingsFilter == "" &&
+		h.MacOSSettingsDiskEncryptionFilter == "" &&
+		h.MDMBootstrapPackageFilter == nil &&
 		h.MDMIDFilter == nil &&
 		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&

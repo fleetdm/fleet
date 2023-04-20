@@ -1244,9 +1244,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	})
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
-	for _, h := range resp.Hosts {
-		fmt.Println("host", fmt.Sprintf("%+v", h.Host.HardwareSerial))
-	}
 
 	// set MDM information for another host installed from DEP and pending enrollment to Fleet MDM
 	pendingMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -1312,7 +1309,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "mdm_enrollment_status", "invalid-status")
+
+	// Filter by inexistent software.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))

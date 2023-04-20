@@ -2645,7 +2645,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackage() {
-	// ctx := context.Background()
 	t := s.T()
 
 	read := func(name string) []byte {
@@ -2674,15 +2673,15 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
-	require.Equal(t, metadataResp.Metadata.Name, "pkg.pkg")
-	require.NotEmpty(t, metadataResp.Metadata.Sha256, "")
-	require.NotEmpty(t, metadataResp.Metadata.Token)
+	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
+	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
+	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Token)
 
 	// download a package, wrong token
 	var downloadResp downloadBootstrapPackageResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
 
-	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap?token=%s", metadataResp.Metadata.Token), nil, http.StatusOK)
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, signedPkg, respBytes)
@@ -2711,7 +2710,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
-	globalBootstrapPackage := metadataResp.Metadata
+	globalBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	// create a team and upload a bootstrap package for that team.
 	teamName := t.Name() + "team1"
@@ -2730,7 +2729,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// get package metadata
 	metadataResp = bootstrapPackageMetadataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", team.ID), nil, http.StatusOK, &metadataResp)
-	teamBootstrapPackage := metadataResp.Metadata
+	teamBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	type deviceWithResponse struct {
 		// An empty string here means "skip the response", ie: pending

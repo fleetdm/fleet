@@ -879,38 +879,27 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	newSQL := ""
-	newParams := []interface{}{}
-
 	if opt.TeamFilter == nil {
 		// macOS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
-	newSQL += ` AND EXISTS (
-		SELECT 1
-		FROM host_mdm_apple_profiles hmap
-		WHERE hmap.host_uuid = h.uuid
-		AND `
-
+	var subquery string
+	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
-		newSQL += `hmap.status = ?)`
-		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
-
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
 	case fleet.MacOSSettingsStatusPending:
-		newSQL += `(hmap.status = ? OR hmap.status IS NULL) AND NOT EXISTS
-		(SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
-
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.MacOSSettingsStatusLatest:
-		newSQL += `hmap.status = ? AND NOT EXISTS (
-			SELECT 1 FROM host_mdm_apple_profiles hmap2
-			WHERE h.uuid = hmap2.host_uuid AND (hmap2.status IS NULL OR hmap2.status != ?) ))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryApplied)
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusLatest()
+	}
+	if subquery != "" {
+		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
 	}
 
-	return sql + newSQL, append(params, newParams...)
+	return sql + newSQL, append(params, subqueryParams...)
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -942,7 +931,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 // TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
 // specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if !opt.MDMBootstrapPackageFilter.IsValid() {
+	if opt.MDMBootstrapPackageFilter == nil || !opt.MDMBootstrapPackageFilter.IsValid() {
 		return sql, params
 	}
 
@@ -957,7 +946,7 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 	// NOTE: The approach below assumes that there is only one bootstrap package per host. If this
 	// is not the case, then the query will need to be updated to use a GROUP BY and HAVING
 	// clause to ensure that the correct status is returned.
-	switch opt.MDMBootstrapPackageFilter {
+	switch *opt.MDMBootstrapPackageFilter {
 	case fleet.MDMBootstrapPackageFailed:
 		subquery += ` AND ncr.status = 'Error'`
 	case fleet.MDMBootstrapPackagePending:

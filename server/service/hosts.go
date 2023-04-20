@@ -106,11 +106,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := fleet.HostResponseForHost(ctx, svc, host)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-
+		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{
@@ -152,6 +148,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
+		// the bootstrap package filter is premium-only
+		opt.MDMBootstrapPackageFilter = nil
 	}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
@@ -836,7 +834,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.Profiles = &profiles
 
 	var macOSSetup *fleet.HostMDMMacOSSetup
-	if ac.MDM.EnabledAndConfigured {
+	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
 		macOSSetup, err = svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)
 		if err != nil {
 			if !fleet.IsNotFound(err) {
@@ -1351,10 +1349,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 	hostResps := make([]*fleet.HostResponse, len(hosts))
 	for i, h := range hosts {
-		hr, err := fleet.HostResponseForHost(ctx, svc, h)
-		if err != nil {
-			return hostsReportResponse{Err: err}, nil
-		}
+		hr := fleet.HostResponseForHost(ctx, svc, h)
 		hostResps[i] = hr
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil

@@ -1897,8 +1897,8 @@ type bootstrapPackageMetadataRequest struct {
 }
 
 type bootstrapPackageMetadataResponse struct {
-	Err      error                           `json:"error,omitempty"`
-	Metadata *fleet.MDMAppleBootstrapPackage `json:"metadata,omitempty"`
+	Err                             error `json:"error,omitempty"`
+	*fleet.MDMAppleBootstrapPackage `json:",omitempty"`
 }
 
 func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
@@ -1909,7 +1909,7 @@ func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, 
 	if err != nil {
 		return bootstrapPackageMetadataResponse{Err: err}, nil
 	}
-	return bootstrapPackageMetadataResponse{Metadata: meta}, nil
+	return bootstrapPackageMetadataResponse{MDMAppleBootstrapPackage: meta}, nil
 }
 
 func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {

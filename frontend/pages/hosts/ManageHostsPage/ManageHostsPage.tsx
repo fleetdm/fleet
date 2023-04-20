@@ -124,14 +124,11 @@ const ManageHostsPage = ({
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
   const {
-    availableTeams,
     config,
     currentUser,
     filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamMaintainer,
-    isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -148,7 +145,11 @@ const ManageHostsPage = ({
     currentTeamName,
     isAnyTeamSelected,
     isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     teamIdForApi,
+    userTeams,
     handleTeamChange,
   } = useTeamIdParam({
     location,
@@ -1024,7 +1025,7 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      currentUserTeams={availableTeams || []}
+      currentUserTeams={userTeams || []}
       selectedTeamId={currentTeamId}
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
@@ -1143,13 +1144,13 @@ const ManageHostsPage = ({
         <div className={`${baseClass}__title`}>
           {isFreeTier && <h1>Hosts</h1>}
           {isPremiumTier &&
-            availableTeams &&
-            (availableTeams.length > 1 || isOnGlobalTeam) &&
+            userTeams &&
+            (userTeams.length > 1 || isOnGlobalTeam) &&
             renderTeamsFilterDropdown()}
           {isPremiumTier &&
             !isOnGlobalTeam &&
-            availableTeams &&
-            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>}
+            userTeams &&
+            userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
         </div>
       </div>
     </div>
@@ -1363,7 +1364,8 @@ const ManageHostsPage = ({
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
-      isOnlyObserver,
+      isOnlyObserver:
+        isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
 
     // Update last column

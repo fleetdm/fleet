@@ -19,10 +19,10 @@ type HostResponse struct {
 }
 
 // HostResponseForHost returns a HostResponse from Host with Geolocation.
-func HostResponseForHost(ctx context.Context, svc Service, host *Host) (*HostResponse, error) {
+func HostResponseForHost(ctx context.Context, svc Service, host *Host) *HostResponse {
 	hr := HostResponseForHostCheap(host)
 	hr.Geolocation = svc.LookupGeoIP(ctx, host.PublicIP)
-	return hr, nil
+	return hr
 }
 
 // HostResponseForHostCheap returns a new HostResponse from a Host without computing Geolocation.
