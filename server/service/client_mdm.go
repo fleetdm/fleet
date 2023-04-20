@@ -154,13 +154,16 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 	}
 
 	// try to extract the name from a header
-	filename := "bootstrap-package.pkg"
+	var filename string
 	cdh, ok := resp.Header["Content-Disposition"]
 	if ok && len(cdh) > 0 {
 		_, params, err := mime.ParseMediaType(cdh[0])
 		if err == nil {
 			filename = params["filename"]
 		}
+	}
+	if filename == "" {
+		filename = "bootstrap-package.pkg"
 	}
 
 	// get checksums

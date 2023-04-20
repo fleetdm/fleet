@@ -448,7 +448,6 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	return &fleet.MacOSSetup{
 		BootstrapPackage: bp,
 	}
-
 }
 
 func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {

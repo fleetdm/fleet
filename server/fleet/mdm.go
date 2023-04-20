@@ -66,11 +66,13 @@ type MDMIdPAccount struct {
 }
 
 type MDMAppleBootstrapPackage struct {
-	Name   string `json:"name"`
-	TeamID uint   `json:"team_id" db:"team_id"`
-	Bytes  []byte `json:"bytes"`
-	Sha256 []byte `json:"sha256" db:"sha256"`
-	Token  string `json:"token"`
+	Name      string    `json:"name"`
+	TeamID    uint      `json:"team_id" db:"team_id"`
+	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {

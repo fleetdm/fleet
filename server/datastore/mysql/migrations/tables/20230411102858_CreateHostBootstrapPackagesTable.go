@@ -10,17 +10,26 @@ func init() {
 }
 
 func Up_20230411102858(tx *sql.Tx) error {
+	// create host_mdm_apple_bootstrap_packages table
 	_, err := tx.Exec(`
           CREATE TABLE host_mdm_apple_bootstrap_packages (
-	    host_uuid    varchar(127) NOT NULL,
+	        host_uuid    varchar(127) NOT NULL,
             command_uuid varchar(127) NOT NULL,
 
             PRIMARY KEY (host_uuid, command_uuid),
             FOREIGN KEY (command_uuid) REFERENCES nano_commands (command_uuid) ON DELETE CASCADE
           )`)
-
 	if err != nil {
 		return fmt.Errorf("create host_mdm_apple_bootstrap_packages: %w", err)
+	}
+
+	// add created_at and updated_at columns to mdm_apple_bootstrap_packages
+	_, err = tx.Exec(`
+		  ALTER TABLE mdm_apple_bootstrap_packages
+		    ADD COLUMN created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		    ADD COLUMN updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
+	if err != nil {
+		return fmt.Errorf("add created_at and updated_at columns to mdm_apple_bootstrap_packages: %w", err)
 	}
 
 	return nil
