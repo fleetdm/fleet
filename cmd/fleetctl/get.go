@@ -317,11 +317,6 @@ func getQueriesCommand() *cli.Command {
 
 			name := c.Args().First()
 
-			me, err := client.Me()
-			if err != nil {
-				return err
-			}
-
 			// if name wasn't provided, list all queries
 			if name == "" {
 				queries, err := client.GetQueries()
@@ -329,13 +324,25 @@ func getQueriesCommand() *cli.Command {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
 
-				// Filter out queries that the user cannot execute (this behavior matches the UI).
-				if userIsObserver(me) {
-					for i := range queries {
-						if !queries[i].ObserverCanRun {
-							queries = append(queries[:i], queries[i+1:]...)
+				me, err := client.Me()
+				if err != nil {
+					return err
+				}
+				ok, err := userIsObserver(me)
+				if err != nil {
+					return err
+				}
+				if ok {
+					// Filter out queries (in-place) that a observer user
+					// cannot execute (this behavior matches the UI).
+					n := 0
+					for _, query := range queries {
+						if query.ObserverCanRun {
+							queries[n] = query
+							n++
 						}
 					}
+					queries = queries[:n]
 				}
 
 				if len(queries) == 0 {
@@ -388,17 +395,19 @@ func getQueriesCommand() *cli.Command {
 // userIsObserver returns whether the user is a global/team observer/observer+.
 // In the case of user belonging to multiple teams, a user is considered observer
 // if it is observer of all teams.
-func userIsObserver(user *fleet.User) bool {
+func userIsObserver(user *fleet.User) (bool, error) {
 	if user.GlobalRole != nil {
-		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus
-	} else { // Team user
-		for _, team := range user.Teams {
-			if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {
-				return false
-			}
-		}
-		return true
+		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus, nil
+	} // Team user
+	if len(user.Teams) == 0 {
+		return false, errors.New("user does not have roles")
 	}
+	for _, team := range user.Teams {
+		if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func getPacksCommand() *cli.Command {
