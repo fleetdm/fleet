@@ -4068,9 +4068,15 @@ Get information about a bootstrap package that was uploaded to Fleet.
   "name": "bootstrap-package.pkg",
   "team_id": 0,
   "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
-  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233"
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+  "created_at": "2023-04-20T13:02:05Z"
 }
 ```
+
+In the response above:
+
+- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
+- `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 ### Delete a bootstrap package
 

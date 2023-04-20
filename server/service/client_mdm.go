@@ -49,7 +49,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint) (*fleet.MDMAppleBootst
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
 	err := c.authenticatedRequest(request, verb, path, &responseBody)
-	return responseBody.Metadata, err
+	return responseBody.MDMAppleBootstrapPackage, err
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {

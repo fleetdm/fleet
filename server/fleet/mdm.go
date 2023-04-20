@@ -72,7 +72,7 @@ type MDMAppleBootstrapPackage struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	UpdatedAt time.Time `json:"-" db:"updated_at"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
