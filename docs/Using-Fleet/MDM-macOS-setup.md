@@ -35,6 +35,7 @@ To add a bootstrap package to Fleet, we will do the following steps:
 1. Download or generate a package
 2. Sign the package
 3. Upload the package to Fleet
+4. Confirm package is uploaded
 
 ### Step 1: download or generate a package
 
@@ -75,15 +76,13 @@ In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
-Fleet supports installing a unique bootstrap package for each team. In Fleet, a team is a group of hosts.
+Fleet supports installing a bootstrap package on hosts assigned to a team. In Fleet, a team is a group of hosts.
 
 1. Upload the package to a publicly accessible location on the internet. We'll point Fleet to this location so that Fleet can download the package.
 
-2. Create a `team` YAML document if you don't already have one. Learn how [here](./configuration-files/README.md#teams). If you're uploading the package to a team that already exists, make sure the `name` key in your YAML document matches the name of the team.
+2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
 
-> If you want to install a bootstrap package on hosts that are assigned to "No team," use the `config` YAML document. Learn how to create one [here](./configuration-files/README.md#organization-settings). 
-
-3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts an absolute URL to the location of the bootstrap package. 
+Use the `team` YAML document if you want to install the package on hosts assigned to a specific team:
 
 ```yaml
 apiVersion: v1
@@ -94,9 +93,36 @@ spec:
     mdm:
       macos_setup:
         bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
+    ...
 ```
 
-Run the fleetctl `apply -f <your-team-here>.yml` command to upload your bootstrap package to Fleet.
+Learn more about the `team` YAML document [here](./configuration-files/README.md#teams)
+
+Use the `config` YAML document if you want to install the package on hosts assigned to "No team":
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
+  ...
+```
+
+Learn more about the `config` YAML document [here](./configuration-files/README.md#organization-settings).
+
+3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts an absolute URL to the location of the bootstrap package. 
+
+4. Run the fleetctl `apply -f <your-team-here>.yml` command to upload your bootstrap package to Fleet.
+
+### Step 4: confirm package is uploaded
+
+Confirm that your bootstrap package was uploaded to Fleet:
+
+1. Run `fleetctl get teams --name=Workstations --yaml`.
+
+You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`. 
 
 ## macOS Setup Assistant
 
