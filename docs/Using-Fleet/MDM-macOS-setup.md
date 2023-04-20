@@ -76,9 +76,10 @@ In the output you should see that package has a "signed" status.
 
 ### Step 3: upload the package to Fleet
 
-Fleet supports installing a bootstrap package on hosts assigned to a team. In Fleet, a team is a group of hosts.
+1. Upload the package to a storage location (ex. S3 or GitHub). In a later step, we'll use this location's URL to upload the package to Fleet.
 
-1. Upload the package to a publicly accessible location on the internet. We'll point Fleet to this location so that Fleet can download the package.
+> The storage location must be accessible by the computer responsible for uploading the package to Fleet.
+> * This could be your local computer or the computer that runs your CI/CD workflow.
 
 2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
 
@@ -96,7 +97,7 @@ spec:
     ...
 ```
 
-Learn more about the `team` YAML document [here](./configuration-files/README.md#teams)
+Learn more about the `team` YAML document [here](./configuration-files/README.md#teams).
 
 Use the `config` YAML document if you want to install the package on hosts assigned to "No team":
 
@@ -112,15 +113,17 @@ spec:
 
 Learn more about the `config` YAML document [here](./configuration-files/README.md#organization-settings).
 
-3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts an absolute URL to the location of the bootstrap package. 
+3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package. 
 
-4. Run the fleetctl `apply -f <your-team-here>.yml` command to upload your bootstrap package to Fleet.
+4. Run the fleetctl `apply -f yaml-document.yml` command to upload your bootstrap package to Fleet.
 
 ### Step 4: confirm package is uploaded
 
 Confirm that your bootstrap package was uploaded to Fleet:
 
-1. Run `fleetctl get teams --name=Workstations --yaml`.
+If you uploaded the package to a team, run `fleetctl get teams --name=Workstations --yaml`.
+
+If you uploaded the package to "No team," run `fleetctl get config`.
 
 You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`. 
 
