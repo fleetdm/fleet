@@ -81,9 +81,11 @@ In the output you should see that package has a "signed" status.
 > The storage location must be accessible by the computer that uploads the package to Fleet.
 > * This could be your local computer or the computer that runs your CI/CD workflow.
 
-2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
+2. Choose which team you want to add the bootstrap package to.
 
-In this example, we'll install a package on hosts that automatically enroll to the "Workstations (canary)" team. To do this, we'll need to create a `workstations-canary-config.yaml` file:
+In this example, we'll add a bootstrap package to the "Workstations (canary)" team so that the package only gets installed on hosts that automatically enroll to this team.
+
+3. Create a `workstations-canary-config.yaml` file:
 
 ```yaml
 apiVersion: v1
@@ -99,7 +101,7 @@ spec:
 
 Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-To install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
+If you want to  install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
 
 ```yaml
 apiVersion: v1
