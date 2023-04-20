@@ -131,10 +131,12 @@ const SoftwareTable = ({
   // const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
   const filterVuln = initialVulnFilter;
   const page = initialPage; // Never set page in component as url is source of truth
-  const [sortDirection, setSortDirection] = useState<
-    "asc" | "desc" | undefined
-  >(initialSortDirection);
-  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  // const [sortDirection, setSortDirection] = useState<
+  //   "asc" | "desc" | undefined
+  // >(initialSortDirection);
+  // const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   console.log("filterVuln", filterVuln);
@@ -157,14 +159,14 @@ const SoftwareTable = ({
       } = newTableQuery;
 
       searchString !== newSearchQuery && setSearchString(newSearchQuery);
-      sortDirection !== newSortDirection &&
-        setSortDirection(
-          newSortDirection === "asc" || newSortDirection === "desc"
-            ? newSortDirection
-            : DEFAULT_SORT_DIRECTION
-        );
+      // sortDirection !== newSortDirection &&
+      //   setSortDirection(
+      //     newSortDirection === "asc" || newSortDirection === "desc"
+      //       ? newSortDirection
+      //       : DEFAULT_SORT_DIRECTION
+      //   );
 
-      sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+      // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
 
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
@@ -209,11 +211,14 @@ const SoftwareTable = ({
           ...queryParams,
           page: pageIndex,
           vulnerable: filterVuln ? "true" : "false",
+          query: searchString,
+          order_direction: sortDirection,
+          order_key: sortHeader,
         },
       });
       router?.replace(locationPath);
     },
-    [filterVuln] // Need filterVuln or else not always correct variable state
+    [filterVuln, searchString, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
