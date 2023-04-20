@@ -70,7 +70,9 @@ const SummaryTile = ({
                 title
               )}
               {isSandboxMode && sandboxPremiumOnlyIcon && (
-                <PremiumFeatureIconWithTooltip />
+                <PremiumFeatureIconWithTooltip
+                  tooltipPositionOverrides={{ leftAdj: 2, topAdj: 5 }}
+                />
               )}
             </div>
           </div>
