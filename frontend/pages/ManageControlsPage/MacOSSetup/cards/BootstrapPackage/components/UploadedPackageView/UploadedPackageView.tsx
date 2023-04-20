@@ -31,28 +31,6 @@ const UploadedPackageView = ({
     created_at: "2023-04-12T15:56:23Z", // TODO: add created at field.
   };
 
-  const {
-    data: bootstrapMetadata,
-    isError,
-    status,
-    refetch: refretchBootstrapMetaData,
-  } = useQuery(
-    ["bootstrap-metadata", currentTeamId],
-    () => {
-      mdmAPI.getBootstrapPackageMetadata(currentTeamId);
-    },
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-      onError: (e) => {
-        // setPageState("error");
-      },
-      onSuccess: (e) => {
-        // setPageState("packageUploaded")
-      },
-    }
-  );
-
   return (
     <div className={baseClass}>
       <BootstrapPackageTable />

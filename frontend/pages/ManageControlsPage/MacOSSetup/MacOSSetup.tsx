@@ -1,15 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import PATHS from "router/paths";
-import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 
-import {
-  API_NO_TEAM_ID,
-  APP_CONTEXT_NO_TEAM_ID,
-  ITeamConfig,
-} from "interfaces/team";
 import { AppContext } from "context/app";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SideNav from "pages/admin/components/SideNav";
 import Button from "components/buttons/Button/Button";
@@ -43,33 +36,17 @@ interface IMacOSSetupProps {
   params: Params;
   location: { search: string };
   router: any;
+  teamIdForApi: number;
 }
 
 const MacOSSetup = ({
   params,
   location: { search: queryString },
   router,
+  teamIdForApi,
 }: IMacOSSetupProps) => {
   const { section } = params;
-  const { currentTeam, isPremiumTier } = useContext(AppContext);
-  const [isConfigured, setIsConfigured] = useState(false);
-
-  // TODO: consider using useTeamIdParam hook here instead in the future
-  const teamId =
-    currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
-      ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
-      : currentTeam.id;
-
-  const { data: teamConfig, isLoading } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["teamConfig", teamId], () => teamsAPI.load(teamId), {
-    refetchOnWindowFocus: false,
-    retry: false,
-    enabled: Boolean(teamId),
-    select: (res) => res.team,
-  });
+  const { isPremiumTier, config } = useContext(AppContext);
 
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETUP_NAV_ITEMS[0];
 
@@ -79,7 +56,11 @@ const MacOSSetup = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  if (isConfigured) return <SetupEmptyState router={router} />; // TODO: needs api still
+  // TODO: uncomment when API done
+  // if (!config?.mdm.apple_bm_enabled_and_configured) {
+  if (false) {
+    return <SetupEmptyState router={router} />;
+  }
 
   return (
     <div className={baseClass}>
@@ -98,13 +79,7 @@ const MacOSSetup = ({
           }))}
           activeItem={currentFormSection.urlSection}
           CurrentCard={
-            <CurrentCard
-              key={teamId}
-              isLoading={isLoading}
-              currentTeamId={teamId}
-              bootstrapConfigured={teamId ? }
-              bootstrapConfigured={true}
-            />
+            <CurrentCard key={teamIdForApi} currentTeamId={teamIdForApi} />
           }
         />
       )}

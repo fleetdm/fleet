@@ -13,20 +13,37 @@ import DeletePackageModal from "./components/DeletePackageModal/DeletePackageMod
 const baseClass = "bootstrap-package";
 
 interface IBootstrapPackageProps {
-  bootstrapConfigured: boolean;
-  isLoading: boolean;
   currentTeamId: number;
 }
 
-const BootstrapPackage = ({
-  bootstrapConfigured,
-  isLoading,
-  currentTeamId,
-}: IBootstrapPackageProps) => {
+const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showDeletePackageModal, setShowDeletePackageModal] = useState(false);
 
-  const onUpload = () => {};
+  const {
+    data: bootstrapMetadata,
+    isLoading,
+    isError,
+    status,
+    refetch: refretchBootstrapMetaData,
+  } = useQuery(
+    ["bootstrap-metadata", currentTeamId],
+    () => mdmAPI.getBootstrapPackageMetadata(currentTeamId),
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      onError: (e) => {
+        // setPageState("error");
+      },
+      onSuccess: (e) => {
+        // setPageState("packageUploaded")
+      },
+    }
+  );
+
+  const onUpload = () => {
+    refretchBootstrapMetaData();
+  };
 
   const onDelete = async () => {
     try {
@@ -42,30 +59,33 @@ const BootstrapPackage = ({
   return (
     <div className={baseClass}>
       <h2>Bootstrap package</h2>
-      <div className={`${baseClass}__content`}>
-        {isLoading && <Spinner />}
-        {bootstrapConfigured ? (
-          <>
-            <UploadedPackageView
-              currentTeamId={currentTeamId}
-              onDelete={() => setShowDeletePackageModal(true)}
-            />
-            <div className={`${baseClass}__preview-container`}>
-              <BootstrapPackagePreview />
-            </div>
-          </>
-        ) : (
-          <>
-            <PackageUploader
-              currentTeamId={currentTeamId}
-              onUpload={onUpload}
-            />
-            <div className={`${baseClass}__preview-container`}>
-              <BootstrapPackagePreview />
-            </div>
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <div className={`${baseClass}__content`}>
+          {bootstrapMetadata ? (
+            <>
+              <UploadedPackageView
+                currentTeamId={currentTeamId}
+                onDelete={() => setShowDeletePackageModal(true)}
+              />
+              <div className={`${baseClass}__preview-container`}>
+                <BootstrapPackagePreview />
+              </div>
+            </>
+          ) : (
+            <>
+              <PackageUploader
+                currentTeamId={currentTeamId}
+                onUpload={onUpload}
+              />
+              <div className={`${baseClass}__preview-container`}>
+                <BootstrapPackagePreview />
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {showDeletePackageModal && (
         <DeletePackageModal
           onDelete={onDelete}
