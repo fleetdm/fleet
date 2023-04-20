@@ -191,8 +191,6 @@ const ManageSoftwarePage = ({
     return isFilteredByVulnerabilities;
   })();
 
-  // TODO: refactor usage of vulnerable query param in accordance with new patterns for query params
-  // and management of URL state
   const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortDirection, setSortDirection] = useState<
@@ -220,7 +218,6 @@ const ManageSoftwarePage = ({
     if (filteredSoftwarePath !== path) {
       setFilteredSoftwarePath(location.pathname + location.search);
     }
-    console.log("manage software page path", path);
   }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
   // softwareConfig is either the global config or the team config of the currently selected team
@@ -355,11 +352,7 @@ const ManageSoftwarePage = ({
         sortDirection: newSortDirection,
       } = newTableQuery;
       let { sortHeader: newSortHeader } = newTableQuery;
-      console.log("pageIndex", page);
-      console.log("typeof pageIndex", typeof page);
-      console.log("newTableQuery.pageIndex", pageIndex);
-      console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
-      console.log("newTableQuery", newTableQuery);
+
       pageIndex !== page && setPage(pageIndex as number);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
@@ -386,13 +379,11 @@ const ManageSoftwarePage = ({
 
       newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
-      console.log("newQueryParams.page", newQueryParams.page);
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_SOFTWARE,
         routeTemplate,
         queryParams: newQueryParams,
       });
-      console.log("locationPath", locationPath);
       router.replace(locationPath);
     },
     [
@@ -447,7 +438,6 @@ const ManageSoftwarePage = ({
     (teamId: number) => {
       handleTeamChange(teamId);
       setPage(0);
-      console.log("onteamchange called");
     },
     [handleTeamChange]
   );

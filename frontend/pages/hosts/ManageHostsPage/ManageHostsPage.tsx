@@ -342,7 +342,6 @@ const ManageHostsPage = ({
     select: (data) => data.os_versions,
   });
 
-  console.log("ManageHostPage.tsx page", page);
   const {
     data: hostsData,
     error: errorHosts,
@@ -714,12 +713,6 @@ const ManageHostsPage = ({
       if (!isEqual(page, pageIndex)) {
         setPage(pageIndex as number);
       }
-
-      console.log("page", page);
-      console.log("typeof page", typeof page);
-      console.log("newTableQuery.pageIndex", pageIndex);
-      console.log("typeof newTableQuery.pageIndex", typeof pageIndex);
-      console.log("newTableQuery", newTableQuery);
 
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
