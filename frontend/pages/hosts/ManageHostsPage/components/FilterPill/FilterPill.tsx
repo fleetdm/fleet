@@ -41,10 +41,7 @@ const FilterPill = ({
       aria-label={`hosts filtered by ${label}`}
     >
       <>
-        <span
-          data-tip={tooltipDescription}
-          data-for={`filter-pill-tooltip-${label}`}
-        >
+        <span>
           <div className={labelClasses}>
             {icon && (
               <img src={icon} alt="" data-testid={`${baseClass}__icon`} />
@@ -55,7 +52,12 @@ const FilterPill = ({
                 tooltipDelayHide={500}
               />
             )}
-            {label}
+            <span
+              data-tip={tooltipDescription}
+              data-for={`filter-pill-tooltip-${label}`}
+            >
+              {label}
+            </span>
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
