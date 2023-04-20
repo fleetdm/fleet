@@ -444,6 +444,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi} // TODO: confirm
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -458,6 +459,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi} // TODO: confirm
+        isSandboxMode={isSandboxMode}
       />
     ),
   });

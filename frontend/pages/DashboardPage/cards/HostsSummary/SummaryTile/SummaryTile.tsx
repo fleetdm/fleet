@@ -6,6 +6,7 @@ import { kebabCase } from "lodash";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 interface ISummaryTileProps {
   count: number;
@@ -13,8 +14,10 @@ interface ISummaryTileProps {
   showUI: boolean;
   title: string;
   iconName: IconNames;
-  tooltip?: string;
   path: string;
+  tooltip?: string;
+  isSandboxMode?: boolean;
+  sandboxPremiumOnlyIcon?: boolean;
 }
 
 const baseClass = "summary-tile";
@@ -25,8 +28,10 @@ const SummaryTile = ({
   showUI, // false on first load only
   title,
   iconName,
-  tooltip,
   path,
+  tooltip,
+  isSandboxMode = false,
+  sandboxPremiumOnlyIcon = false,
 }: ISummaryTileProps): JSX.Element => {
   const numberWithCommas = (x: number): string => {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -63,6 +68,9 @@ const SummaryTile = ({
                 <TooltipWrapper tipContent={tooltip}>{title}</TooltipWrapper>
               ) : (
                 title
+              )}
+              {isSandboxMode && sandboxPremiumOnlyIcon && (
+                <PremiumFeatureIconWithTooltip />
               )}
             </div>
           </div>
