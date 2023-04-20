@@ -83,7 +83,7 @@ In the output you should see that package has a "signed" status.
 
 2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
 
-Use the `team` YAML document if you want to install the package on hosts assigned to a specific team:
+Use the `team` YAML document if you want to install the package on hosts that automatically enroll to a specific team:
 
 ```yaml
 apiVersion: v1
@@ -99,7 +99,7 @@ spec:
 
 Learn more about the `team` YAML document [here](./configuration-files/README.md#teams).
 
-Use the `config` YAML document if you want to install the package on hosts assigned to "No team":
+Use the `config` YAML document if you want to install the package on hosts that automatically enroll to "No team":
 
 ```yaml
 apiVersion: v1
