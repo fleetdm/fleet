@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\UseEnhancedPin' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.1
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -35,7 +35,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSAllowSecureBootForIntegrity' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.2
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -59,7 +59,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSRecovery' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.3
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -79,7 +79,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSManageDRA' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.4
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -99,7 +99,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSRecoveryPassword' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.5
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -119,7 +119,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSRecoveryKey' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.6
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.6
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -139,7 +139,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSHideRecoveryPage' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.7
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.7
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -159,7 +159,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSActiveDirectoryBackup' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.8
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.8
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -179,7 +179,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSActiveDirectoryInfoToStore' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.9
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.9
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -199,7 +199,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSRequireActiveDirectoryBackup' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.10
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.10
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -210,7 +210,7 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    This policy setting allows you to manage BitLocker's use of hardware-based encryption on operating system drives and specify which encryption algorithms it can use with hardware- based encryption. Using hardware-based encryption can improve performance of drive operations that involve frequent reading or writing of data to the drive.
+    This policy setting allows you to manage BitLocker's use of hardware-based encryption on operating system drives and specify which encryption algorithms it can use with hardware-based encryption. Using hardware-based encryption can improve performance of drive operations that involve frequent reading or writing of data to the drive.
     You can specify additional options that control whether BitLocker software-based encryption is used instead of hardware-based encryption on computers that do not support hardware-based encryption and whether you want to restrict the encryption algorithms and cipher suites used with hardware-based encryption.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
@@ -219,7 +219,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSHardwareEncryption' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.11
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.11
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -230,7 +230,7 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    This policy setting specifies the constraints for passwords used to unlock BitLocker- protected operating system drives.
+    This policy setting specifies the constraints for passwords used to unlock BitLocker-protected operating system drives.
     Note: This setting is enforced when turning on BitLocker, not when unlocking a volume. BitLocker will allow unlocking a drive with any of the protectors available on the drive.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
@@ -239,7 +239,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\OSPassphrase' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.12
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.12
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -258,7 +258,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\UseAdvancedStartup' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.13
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.13
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -277,7 +277,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\EnableBDEWithNoTPM' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.14
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.2.14
   contributors: rachelelysia
 ---
 
