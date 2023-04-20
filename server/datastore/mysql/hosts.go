@@ -928,8 +928,6 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + newSQL, params
 }
 
-// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
-// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	if opt.MDMBootstrapPackageFilter == nil || !opt.MDMBootstrapPackageFilter.IsValid() {
 		return sql, params

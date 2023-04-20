@@ -245,7 +245,7 @@ CREATE TABLE `host_mdm` (
 CREATE TABLE `host_mdm_apple_bootstrap_packages` (
   `host_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`host_uuid`,`command_uuid`),
+  PRIMARY KEY (`host_uuid`),
   KEY `command_uuid` (`command_uuid`),
   CONSTRAINT `host_mdm_apple_bootstrap_packages_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

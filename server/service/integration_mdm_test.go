@@ -2853,6 +2853,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
+	mockErrorChain := []mdm.ErrorChain{
+		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
+	}
+
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
 		d.device.mdmEnroll(s)
@@ -2872,7 +2876,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 					cmd = d.device.acknowledge(cmd.CommandUUID)
 					continue
 				case "Error":
-					cmd = d.device.err(cmd.CommandUUID, "")
+					cmd = d.device.err(cmd.CommandUUID, mockErrorChain)
 					continue
 				case "Offline":
 					// host is offline, can't process any more commands
@@ -2900,6 +2904,11 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		require.NotNil(t, hostResp.Host)
 		require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
 		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		if expectedStatus == fleet.MDMBootstrapPackageFailed {
+			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
+		} else {
+			require.Empty(t, hostResp.Host.MDM.MacOSSetup.Detail)
+		}
 
 		var hostByIdentifierResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
@@ -3184,13 +3193,14 @@ func (d *device) acknowledge(cmdUUID string) *micromdm.CommandPayload {
 	return d.sendAndDecodeCommandResponse(payload)
 }
 
-func (d *device) err(cmdUUID string, msg string) *micromdm.CommandPayload {
+func (d *device) err(cmdUUID string, errChain []mdm.ErrorChain) *micromdm.CommandPayload {
 	payload := map[string]any{
 		"Status":       "Error",
 		"Topic":        "com.apple.mgmt.External." + d.uuid,
 		"UDID":         d.uuid,
 		"EnrollmentID": "testenrollmentid-" + d.uuid,
 		"CommandUUID":  cmdUUID,
+		"ErrorChain":   errChain,
 	}
 	return d.sendAndDecodeCommandResponse(payload)
 }
