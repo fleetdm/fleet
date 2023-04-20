@@ -83,23 +83,23 @@ In the output you should see that package has a "signed" status.
 
 2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
 
-Use the `team` YAML document if you want to install the package on hosts that automatically enroll to a specific team:
+To install the package on hosts that automatically enroll to the "Workstations (canary)" team, we'll need to create a `workstations-canary-config.yaml` file:
 
 ```yaml
 apiVersion: v1
 kind: team
 spec:
   team:
-    name: Workstations
+    name: Workstations (canary)
     mdm:
       macos_setup:
         bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
     ...
 ```
 
-Learn more about the `team` YAML document [here](./configuration-files/README.md#teams).
+Learn more about team configurations options [here](./configuration-files/README.md#teams).
 
-Use the `config` YAML document if you want to install the package on hosts that automatically enroll to "No team":
+To install the package on hosts that automatically enroll to "No team," we'll need to create an `fleet-config.yaml` file:
 
 ```yaml
 apiVersion: v1
@@ -111,7 +111,7 @@ spec:
   ...
 ```
 
-Learn more about the `config` YAML document [here](./configuration-files/README.md#organization-settings).
+Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
 
 3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package. 
 
