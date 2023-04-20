@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -104,6 +105,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -115,7 +121,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSettings != nil {
-			if !svc.config.MDM.AppleEnable && payload.MDM.MacOSSettings.EnableDiskEncryption {
+			if !appCfg.MDM.EnabledAndConfigured && payload.MDM.MacOSSettings.EnableDiskEncryption {
 				return nil, fleet.NewInvalidArgumentError("macos_settings.enable_disk_encryption",
 					`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 			}
@@ -126,10 +132,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	if payload.Integrations != nil {
 		// the team integrations must reference an existing global config integration.
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
 			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
@@ -382,8 +384,30 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 	name := team.Name
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
+	}
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
+	}
+	// team id 0 is provided since the team's hosts are now part of no team
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+
+	if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
@@ -476,23 +500,30 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 
 var jsonNull = json.RawMessage(`null`)
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return err
+// setAuthCheckedOnPreAuthErr can be used to set the authentication as checked
+// in case of errors that happened before an auth check can be performed.
+// Otherwise the endpoints return a "authentication skipped" error instead of
+// the actual returned error.
+func setAuthCheckedOnPreAuthErr(ctx context.Context) {
+	if az, ok := authz_ctx.FromContext(ctx); ok {
+		az.SetChecked()
 	}
+}
 
-	// check auth for all teams specified first
+func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec) error {
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
 			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				// can the user create a new team?
+				// Can the user create a new team?
 				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
 				}
 				continue
 			}
 
+			// Set authorization as checked to return a proper error.
+			setAuthCheckedOnPreAuthErr(ctx)
 			return err
 		}
 
@@ -501,11 +532,25 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return err
 		}
 	}
+	return nil
+}
 
-	appConfig, err := svc.AppConfig(ctx)
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+	if len(specs) == 0 {
+		setAuthCheckedOnPreAuthErr(ctx)
+		// Nothing to do.
+		return nil
+	}
+
+	if err := svc.checkAuthorizationForTeams(ctx, specs); err != nil {
+		return err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
+	appConfig.Obfuscate()
 
 	var details []fleet.TeamActivityDetail
 
@@ -731,15 +776,18 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		return fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "apply team macos settings")
+	}
+
 	if (setFields["custom_settings"] && len(applyUpon.CustomSettings) > 0) ||
 		(setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption) {
 		field := "custom_settings"
 		if !setFields["custom_settings"] {
 			field = "enable_disk_encryption"
 		}
-		if !svc.config.MDM.AppleEnable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
+		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}

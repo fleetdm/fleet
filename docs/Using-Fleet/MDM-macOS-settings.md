@@ -30,6 +30,8 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
+> It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
+
 ### Viewing a disk encryption key
 
 The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
@@ -79,8 +81,6 @@ How to create a configuration profile with iMazing Profile Creator:
 In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
 
 The Fleet UI method is a good start if you're just getting familiar with Fleet.
-
-> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM features in the UI.
 
 The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
 

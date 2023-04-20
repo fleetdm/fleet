@@ -7,6 +7,7 @@ import {
   IUpdateTeamScheduledQuery,
 } from "interfaces/scheduled_query";
 import helpers from "utilities/helpers";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 interface ICreateTeamScheduledQueryFormData {
   interval: number;
@@ -49,15 +50,29 @@ export default {
 
     return sendRequest("POST", TEAM_SCHEDULE(teamID || 0), params);
   },
-  destroy: (teamID: number, queryID: number) => {
+  destroy: (teamId: number | undefined, queryID: number) => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     const { TEAM_SCHEDULE } = endpoints;
-    const path = `${TEAM_SCHEDULE(teamID)}/${queryID}`;
+    const path = `${TEAM_SCHEDULE(teamId)}/${queryID}`;
 
     return sendRequest("DELETE", path);
   },
-  loadAll: (teamID: number) => {
+  loadAll: (teamId?: number) => {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
+      return Promise.reject(
+        new Error(
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+        )
+      );
+    }
     const { TEAM_SCHEDULE } = endpoints;
-    const path = TEAM_SCHEDULE(teamID);
+    const path = TEAM_SCHEDULE(teamId);
 
     return sendRequest("GET", path);
   },

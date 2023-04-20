@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"io"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -27,7 +30,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, notFoundError{}
 	}
 
-	appCfg, err := svc.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -191,4 +194,78 @@ func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password st
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
+}
+
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	hashBuf := bytes.NewBuffer(nil)
+	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+		msg := "invalid package"
+		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
+			msg = err.Error()
+		}
+
+		return &fleet.BadRequestError{
+			Message:     msg,
+			InternalErr: err,
+		}
+	}
+
+	pkgBuf := bytes.NewBuffer(nil)
+	hash := sha256.New()
+	if _, err := io.Copy(hash, io.TeeReader(hashBuf, pkgBuf)); err != nil {
+		return err
+	}
+
+	bp := &fleet.MDMAppleBootstrapPackage{
+		TeamID: teamID,
+		Name:   name,
+		Token:  uuid.New().String(),
+		Sha256: hash.Sum(nil),
+		Bytes:  pkgBuf.Bytes(),
+	}
+	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	// skipauth: bootstrap packages are gated by token
+	svc.authz.SkipAuthorization(ctx)
+
+	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return pkg, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	return meta, nil
+}
+
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
+	}
+
+	return nil
 }

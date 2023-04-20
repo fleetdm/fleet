@@ -47,6 +47,7 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
 
 // MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
@@ -62,6 +63,30 @@ const (
 func (s MacOSSettingsStatus) IsValid() bool {
 	switch s {
 	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+		return true
+	default:
+		return false
+	}
+}
+
+type MacOSDiskEncryptionStatus string
+
+const (
+	MacOSDiskEncryptionStatusApplied             = MacOSDiskEncryptionStatus("applied")
+	MacOSDiskEncryptionStatusActionRequired      = MacOSDiskEncryptionStatus("action_required")
+	MacOSDiskEncryptionStatusEnforcing           = MacOSDiskEncryptionStatus("enforcing")
+	MacOSDiskEncryptionStatusFailed              = MacOSDiskEncryptionStatus("failed")
+	MacOSDiskEncryptionStatusRemovingEnforcement = MacOSDiskEncryptionStatus("removing_enforcement")
+)
+
+func (s MacOSDiskEncryptionStatus) IsValid() bool {
+	switch s {
+	case
+		MacOSDiskEncryptionStatusApplied,
+		MacOSDiskEncryptionStatusActionRequired,
+		MacOSDiskEncryptionStatusEnforcing,
+		MacOSDiskEncryptionStatusFailed,
+		MacOSDiskEncryptionStatusRemovingEnforcement:
 		return true
 	default:
 		return false
@@ -105,11 +130,18 @@ type HostListOptions struct {
 	DisableFailingPolicies bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
-	// appled to the hosts.
+	// applied to the hosts.
 	MacOSSettingsFilter MacOSSettingsStatus
+
+	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// MDM profile.
+	MacOSSettingsDiskEncryptionFilter MacOSDiskEncryptionStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
+	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
+	// fleet.WellKnownMDM... constants).
+	MDMNameFilter *string
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
@@ -136,6 +168,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
 		h.MDMIDFilter == nil &&
+		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil
@@ -829,6 +862,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName      string `json:"display_name" db:"display_name"`
+	TeamID           uint   `json:"team_id" db:"team_id"`
 }
 
 type HostDiskEncryptionKey struct {

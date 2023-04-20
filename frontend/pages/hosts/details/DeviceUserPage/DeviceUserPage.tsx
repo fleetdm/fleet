@@ -334,7 +334,7 @@ const DeviceUserPage = ({
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
                 // Turn on MDM banner
-                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                <InfoBanner color="yellow" cta={turnOnMdmButton}>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
                   lets your organization keep your device up to date so you
@@ -345,8 +345,8 @@ const DeviceUserPage = ({
               // MDM - Disk Encryption: Logout or restart banner
               <InfoBanner color="yellow">
                 Disk encryption: Log out of your device or restart to turn on
-                disk encryption. This prevents unauthorized access to the
-                information on your device.
+                disk encryption. Then, select <strong>Refetch</strong>. This
+                prevents unauthorized access to the information on your device.
               </InfoBanner>
             )}
             {showDiskEncryptionKeyResetRequired && (
@@ -441,11 +441,15 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      <nav className="site-nav">
-        <div className="site-nav-container">
+      <nav className="site-nav-container">
+        <div className="site-nav-content">
           <ul className="site-nav-list">
-            <li className={`site-nav-item--logo`} key={`nav-item`}>
-              <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+            <li className="site-nav-item dup-org-logo" key="dup-org-logo">
+              <div className="site-nav-item__logo-wrapper">
+                <div className="site-nav-item__logo">
+                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                </div>
+              </div>
             </li>
           </ul>
         </div>

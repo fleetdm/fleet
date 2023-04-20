@@ -106,11 +106,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := fleet.HostResponseForHost(ctx, svc, host)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-
+		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{
@@ -644,7 +640,13 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -699,7 +701,13 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	}
 
 	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+		return err
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1325,10 +1333,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 	hostResps := make([]*fleet.HostResponse, len(hosts))
 	for i, h := range hosts {
-		hr, err := fleet.HostResponseForHost(ctx, svc, h)
-		if err != nil {
-			return hostsReportResponse{Err: err}, nil
-		}
+		hr := fleet.HostResponseForHost(ctx, svc, h)
 		hostResps[i] = hr
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil

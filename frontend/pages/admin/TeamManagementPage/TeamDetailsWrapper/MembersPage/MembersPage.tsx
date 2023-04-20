@@ -1,25 +1,26 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { IconNames } from "components/icons";
+import { InjectedRouter, Link } from "react-router";
 
-import { NotificationContext } from "context/notification";
-import PATHS from "router/paths";
-import { IApiError } from "interfaces/errors";
-import { IUser, IUserFormErrors } from "interfaces/user";
-import { INewMembersBody, ITeam } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
-import { Link } from "react-router";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { IEmptyTableProps } from "interfaces/empty_table";
+import { IApiError } from "interfaces/errors";
+import { INewMembersBody, ITeam } from "interfaces/team";
+import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
+import Spinner from "components/Spinner";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
-import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
   IFormData,
@@ -39,26 +40,36 @@ const baseClass = "members";
 const noMembersClass = "no-members";
 
 interface IMembersPageProps {
-  params: {
-    team_id: string;
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: { team_id?: string };
   };
+  router: InjectedRouter;
 }
 
-const MembersPage = ({
-  params: { team_id },
-}: IMembersPageProps): JSX.Element => {
-  const teamId = parseInt(team_id, 10);
-
+const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const {
-    config,
-    currentUser,
-    isGlobalAdmin,
-    isPremiumTier,
-    isTeamAdmin,
-  } = useContext(AppContext);
+  const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
+    AppContext
+  );
+
+  const { isRouteOk, isTeamAdmin, teamIdForApi } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: false,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: false,
+      observer: false,
+      observer_plus: false,
+    },
+  });
 
   const smtpConfigured = config?.smtp_settings.configured || false;
+  const sesConfigured = config?.email?.backend === "ses" || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -75,7 +86,6 @@ const MembersPage = ({
     DEFAULT_CREATE_USER_ERRORS
   );
   const [memberIds, setMemberIds] = useState<number[]>([]);
-  const [currentTeam, setCurrentTeam] = useState<ITeam>();
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -97,10 +107,12 @@ const MembersPage = ({
     error: loadingMembersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IMembersTableData[]>(
-    ["users", teamId, searchString],
-    () => usersAPI.loadAll({ teamId, globalFilter: searchString }),
+    ["users", teamIdForApi, searchString],
+    () =>
+      usersAPI.loadAll({ teamId: teamIdForApi, globalFilter: searchString }),
     {
-      select: (data: IUser[]) => generateDataSet(teamId, data),
+      enabled: isRouteOk && !!teamIdForApi,
+      select: (data: IUser[]) => generateDataSet(teamIdForApi || 0, data), // Note: `enabled` condition ensures that teamIdForApi will be defined here but TypeScript can't infer type assertion
       onSuccess: (data) => {
         setMemberIds(data.map((member) => member.id));
       },
@@ -112,14 +124,17 @@ const MembersPage = ({
     isLoading: isLoadingTeams,
     error: loadingTeamsError,
   } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    ["teams", teamId],
+    ["teams"],
     () => teamsAPI.loadAll(),
     {
+      enabled: isRouteOk,
       select: (data: ILoadTeamsResponse) => data.teams,
-      onSuccess: (data) => {
-        setCurrentTeam(data.find((team) => team.id === teamId));
-      },
     }
+  );
+
+  const currentTeamDetails = useMemo(
+    () => teams?.find((team) => team.id === teamIdForApi),
+    [teams, teamIdForApi]
   );
 
   // TOGGLE MODALS
@@ -144,7 +159,7 @@ const MembersPage = ({
     const removedUsers = { users: [{ id: userEditing?.id }] };
     setIsUpdatingMembers(true);
     teamsAPI
-      .removeMembers(teamId, removedUsers)
+      .removeMembers(teamIdForApi, removedUsers)
       .then(() => {
         renderFlash(
           "success",
@@ -164,9 +179,11 @@ const MembersPage = ({
         refetchUsers();
       });
   }, [
-    teamId,
     userEditing?.id,
     userEditing?.name,
+    teamIdForApi,
+    renderFlash,
+    currentUser,
     toggleRemoveMemberModal,
     refetchUsers,
   ]);
@@ -174,14 +191,14 @@ const MembersPage = ({
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
       teamsAPI
-        .addMembers(teamId, newMembers)
+        .addMembers(currentTeamDetails?.id, newMembers)
         .then(() => {
           const count = newMembers.users.length;
           renderFlash(
             "success",
             `${count} ${
               count === 1 ? "member" : "members"
-            } successfully added to ${currentTeam?.name}.`
+            } successfully added to ${currentTeamDetails?.name}.`
           );
         })
         .catch(() =>
@@ -192,7 +209,13 @@ const MembersPage = ({
           refetchUsers();
         });
     },
-    [teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
+    [
+      currentTeamDetails?.id,
+      currentTeamDetails?.name,
+      renderFlash,
+      toggleAddUserModal,
+      refetchUsers,
+    ]
   );
 
   const onCreateMemberSubmit = (formData: IFormData) => {
@@ -275,7 +298,7 @@ const MembersPage = ({
 
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
-      const updatedAttrs = userManagementHelpers.generateUpdateData(
+      const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
       );
@@ -301,7 +324,7 @@ const MembersPage = ({
               // If user edits self and removes "admin" role,
               // redirect to home
               const selectedTeam = formData.teams.filter(
-                (thisTeam) => thisTeam.id === teamId
+                (thisTeam) => thisTeam.id === teamIdForApi
               );
               if (selectedTeam && selectedTeam[0].role !== "admin") {
                 window.location.href = "/";
@@ -327,7 +350,14 @@ const MembersPage = ({
             setIsUpdatingMembers(false);
           });
     },
-    [toggleEditMemberModal, userEditing, refetchUsers]
+    [
+      userEditing,
+      renderFlash,
+      currentUser,
+      toggleEditMemberModal,
+      teamIdForApi,
+      refetchUsers,
+    ]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -378,6 +408,10 @@ const MembersPage = ({
     return emptyMembers;
   };
 
+  if (!isRouteOk) {
+    return <Spinner />;
+  }
+
   const tableHeaders = generateTableHeaders(onActionSelection);
 
   return (
@@ -392,7 +426,7 @@ const MembersPage = ({
       </p>
       {loadingMembersError ||
       loadingTeamsError ||
-      (!currentTeam && !isLoadingTeams && !isLoadingMembers) ? (
+      (!currentTeamDetails && !isLoadingTeams && !isLoadingMembers) ? (
         <TableDataError />
       ) : (
         <TableContainer
@@ -423,9 +457,9 @@ const MembersPage = ({
           searchable={memberIds.length > 0 || searchString !== ""}
         />
       )}
-      {showAddMemberModal && currentTeam ? (
+      {showAddMemberModal && currentTeamDetails ? (
         <AddMemberModal
-          team={currentTeam}
+          team={currentTeamDetails}
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
@@ -445,34 +479,39 @@ const MembersPage = ({
           availableTeams={teams || []}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          currentTeam={currentTeam}
+          currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingMembers}
+          isApiOnly={userEditing?.api_only || false}
         />
       )}
-      {showCreateUserModal && (
+      {showCreateUserModal && currentTeamDetails && (
         <CreateUserModal
           createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
           onSubmit={onCreateMemberSubmit}
           defaultGlobalRole={null}
           defaultTeamRole={"observer"}
-          defaultTeams={[{ id: teamId, name: "", role: "observer" }]}
+          defaultTeams={[
+            { id: currentTeamDetails.id, name: "", role: "observer" },
+          ]}
           availableTeams={teams}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
+          sesConfigured={sesConfigured}
           canUseSso={canUseSso}
-          currentTeam={currentTeam}
+          currentTeam={currentTeamDetails}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isUpdatingUsers={isUpdatingMembers}
         />
       )}
-      {showRemoveMemberModal && currentTeam && (
+      {showRemoveMemberModal && currentTeamDetails && (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
-          teamName={currentTeam.name}
+          teamName={currentTeamDetails.name}
           isUpdatingMembers={isUpdatingMembers}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}

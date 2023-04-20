@@ -1,9 +1,8 @@
 # Community
 
-## Marketing
+## Marketing Mission
 
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
+To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
 
 ### Positioning
 
@@ -17,9 +16,18 @@ Marketing's goal is to increase product usage. We value users of all sizes adopt
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-### Posting on social media as Fleet
+### Product Marketing and Launch strategies
 
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+- [How we rank features for launch](https://fleetdm.com/handbook/product#ranking-features)
+- Our Launch Playbook on [Monday.com](https://fleetdm.monday.com/boards/3971829429) To start a new major product launch, duplicate this monday board, as well as the [Run-of-show board](https://fleetdm.monday.com/boards/4261275399).
+- [MDM Launch Retrospective](https://docs.google.com/document/d/16GPIY94nDLSinmZg1FRoiAccfnZNP0X2qfP5j7Yso4I/edit#heading=h.cd1i3rfqahn1)
+
+### How we show up for our community online
+
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts. Some specific guidelines that we follow at Fleet:
+- Answer technical questions quickly: if a community member has a technical question drop it in #g-marketing in slack if you can't answer it yourself.
+- Never engage with un-constructive feedback or competitive spamming. If there is a valuable conversation to be had, let our community lead the conversation, and let our community come to our defense. They are the users, and often their insight and debates are more attuned then ours.
+- Do not share Hacker News links directly. If we are on Hacker News, just let the community know and if they find us then great. 
 
 #### Topics:
 
@@ -53,6 +61,12 @@ Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the 
 ### Promoting blog posts on social media
 
 Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
+
+### Fleet in the news!
+- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
+- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
+- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
+- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
 
 ### Press releases
@@ -473,6 +487,21 @@ We hold regular design review sessions to evaluate, revise, and approve wirefram
 
 Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
 
+#### Experimentation
+
+In order for marketing to iterate rapidly we have created a process of experimentation. This will allow a small group of marketers to draft, review and publish a page or a flyer or an experiment without getting a series of approvals. Experiments should be short-lived, temporary things intended for a small audience. When an experiment succeeds it should immediately be turned into a part of Fleet'd rituals and then go through the proper wireframe-first approach. 
+
+Website experiments and landing pages should live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
+
+Some examples of experiments that would qualify to get a rapid approach:
+- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
+- A landing page for a movie screening presented by Fleet
+- A landing page for a private event
+- A landing page for an ad campaign that is running for 4 weeks.
+- An A/B test on product positioning
+- A giveaway page for a conference
+- Table-top signage for a conference booth or meetup
+
 #### Estimation sessions
 
 We use estimation sessions to estimate the effort required to complete a prioritized task. 
@@ -583,7 +612,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
@@ -591,6 +620,18 @@ To propose changes:
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, the Brand team often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
+
+#### Cloudflare
+
+We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
+If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
+
+
+To make DNS changes in Cloudflare:
+1. Log into your Cloudflare account and select the "Fleet" account.
+2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
+3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
+
 
 ## Rituals
 

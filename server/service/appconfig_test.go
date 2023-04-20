@@ -70,6 +70,18 @@ func TestAppConfigAuth(t *testing.T) {
 			false,
 		},
 		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			false,
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			true,
+		},
+		{
 			"team admin",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			true,
@@ -88,27 +100,99 @@ func TestAppConfigAuth(t *testing.T) {
 			false,
 		},
 		{
-			"user",
-			&fleet.User{ID: 777},
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			true,
 			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+			true,
+		},
+		{
+			"user without roles",
+			&fleet.User{ID: 777},
+			true,
+			true,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.AppConfig(ctx)
+			_, err := svc.AppConfigObfuscated(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`), fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.Version(ctx)
-			checkAuthErr(t, tt.shouldFailRead, err)
-
 			_, err = svc.CertificateChain(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
+		})
+	}
+}
+
+// TestVersion tests that all users can access the version endpoint.
+func TestVersion(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+		},
+		{
+			"team admin",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+		},
+		{
+			"team maintainer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+		},
+		{
+			"team observer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+		},
+		{
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+		},
+		{
+			"user without roles",
+			&fleet.User{ID: 777},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			_, err := svc.Version(ctx)
+			require.NoError(t, err)
 		})
 	}
 }
@@ -387,47 +471,79 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name string
-		user *fleet.User
+		name       string
+		user       *fleet.User
+		shouldFail bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
 		},
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			false,
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			true,
 		},
 		{
 			"team admin",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			false,
 		},
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			false,
 		},
 		{
 			"team observer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			false,
 		},
 		{
-			"user",
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+		},
+		{
+			"user without roles",
 			&fleet.User{ID: 777},
+			true,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ac, err := svc.AppConfig(ctx)
-			require.NoError(t, err)
-			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
-			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
-			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+			ac, err := svc.AppConfigObfuscated(ctx)
+			if tt.shouldFail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
+				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
+				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+			}
 		})
 	}
 }
@@ -564,7 +680,7 @@ func TestTransparencyURL(t *testing.T) {
 				return nil
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
 
@@ -576,7 +692,7 @@ func TestTransparencyURL(t *testing.T) {
 
 			if modified != nil {
 				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
-				ac, err = svc.AppConfig(ctx)
+				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
@@ -613,7 +729,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 		return nil
 	}
 
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
 
@@ -633,7 +749,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, modified)
 	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)
-	ac, err = svc.AppConfig(ctx)
+	ac, err = svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "f1337", ac.OrgInfo.OrgName)
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
@@ -716,7 +832,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 				return nil, errors.New(notFoundErr)
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.oldMDM, ac.MDM)
 
@@ -731,7 +847,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, modified.MDM)
-			ac, err = svc.AppConfig(ctx)
+			ac, err = svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})

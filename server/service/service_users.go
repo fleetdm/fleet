@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -30,6 +31,14 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+	license, _ := license.FromContext(ctx)
+	if license == nil {
+		return nil, ctxerr.New(ctx, "license not found")
+	}
+	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate role")
+	}
+
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err

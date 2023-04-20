@@ -183,10 +183,6 @@ describe("App settings flow", () => {
         .click({ force: true })
         .type("my entity id");
 
-      cy.findByLabelText(/issuer uri/i)
-        .click({ force: true })
-        .type("my issuer uri");
-
       cy.findByLabelText(/idp image url/i)
         .click()
         .type("https://http.cat/100");
@@ -215,8 +211,6 @@ describe("App settings flow", () => {
       );
 
       cy.findByLabelText(/entity id/i).should("have.value", "my entity id");
-
-      cy.findByLabelText(/issuer uri/i).should("have.value", "my issuer uri");
 
       cy.findByLabelText(/idp image url/i).should(
         "have.value",

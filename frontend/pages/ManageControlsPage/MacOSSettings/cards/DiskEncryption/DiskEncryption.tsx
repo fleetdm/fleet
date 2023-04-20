@@ -99,14 +99,18 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
     <div className={baseClass}>
       <h2>Disk encryption</h2>
       {!isPremiumTier ? (
-        <PremiumFeatureMessage />
+        <PremiumFeatureMessage
+          className={`${baseClass}__premium-feature-message`}
+        />
       ) : (
         <>
           {isLoadingTeam ? (
             <Spinner />
           ) : (
             <div className="disk-encryption-content">
-              {/* <DiskEncryptionTable currentTeamId={currentTeamId} /> */}
+              {showAggregate && (
+                <DiskEncryptionTable currentTeamId={currentTeamId} />
+              )}
               <Checkbox
                 onChange={onToggleCheckbox}
                 value={diskEncryptionEnabled}

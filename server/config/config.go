@@ -85,14 +85,15 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address        string
-	Cert           string
-	Key            string
-	TLS            bool
-	TLSProfile     string `yaml:"tls_compatibility"`
-	URLPrefix      string `yaml:"url_prefix"`
-	Keepalive      bool   `yaml:"keepalive"`
-	SandboxEnabled bool   `yaml:"sandbox_enabled"`
+	Address                     string
+	Cert                        string
+	Key                         string
+	TLS                         bool
+	TLSProfile                  string `yaml:"tls_compatibility"`
+	URLPrefix                   string `yaml:"url_prefix"`
+	Keepalive                   bool   `yaml:"keepalive"`
+	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -258,6 +259,20 @@ type KinesisConfig struct {
 	AuditStream      string `yaml:"audit_stream"`
 }
 
+// SESConfig defines configs for the AWS SES service for emailing
+type SESConfig struct {
+	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	SourceArn        string `yaml:"source_arn"`
+}
+
+type EmailConfig struct {
+	EmailBackend string `yaml:"backend"`
+}
+
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
 	Region           string
@@ -390,6 +405,8 @@ type FleetConfig struct {
 	Kinesis          KinesisConfig
 	Lambda           LambdaConfig
 	S3               S3Config
+	Email            EmailConfig
+	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
 	KafkaREST        KafkaRESTConfig
@@ -763,6 +780,7 @@ func (man Manager) addConfigs() {
 		"Controls whether HTTP keep-alives are enabled.")
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
+	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -859,6 +877,16 @@ func (man Manager) addConfigs() {
 		"Enable Tracing, further configured via standard env variables")
 	man.addConfigString("logging.tracing_type", "opentelemetry",
 		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
+
+	// Email
+	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+	// SES
+	man.addConfigString("ses.region", "", "AWS Region to use")
+	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
+	man.addConfigString("ses.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("ses.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1081,14 +1109,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:        man.getConfigString("server.address"),
-			Cert:           man.getConfigString("server.cert"),
-			Key:            man.getConfigString("server.key"),
-			TLS:            man.getConfigBool("server.tls"),
-			TLSProfile:     man.getConfigTLSProfile(),
-			URLPrefix:      man.getConfigString("server.url_prefix"),
-			Keepalive:      man.getConfigBool("server.keepalive"),
-			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
+			Address:                     man.getConfigString("server.address"),
+			Cert:                        man.getConfigString("server.cert"),
+			Key:                         man.getConfigString("server.key"),
+			TLS:                         man.getConfigBool("server.tls"),
+			TLSProfile:                  man.getConfigTLSProfile(),
+			URLPrefix:                   man.getConfigString("server.url_prefix"),
+			Keepalive:                   man.getConfigBool("server.keepalive"),
+			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -1181,6 +1210,17 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
 			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
+		},
+		Email: EmailConfig{
+			EmailBackend: man.getConfigString("email.backend"),
+		},
+		SES: SESConfig{
+			Region:           man.getConfigString("ses.region"),
+			EndpointURL:      man.getConfigString("ses.endpoint_url"),
+			AccessKeyID:      man.getConfigString("ses.access_key_id"),
+			SecretAccessKey:  man.getConfigString("ses.secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
+			SourceArn:        man.getConfigString("ses.source_arn"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -1628,7 +1668,6 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleSCEPPEMCert = cert
 	cfg.MDM.appleSCEPPEMKey = key
 	cfg.MDM.appleBMToken = appleBMToken
-	cfg.MDM.AppleEnable = true
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }

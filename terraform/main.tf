@@ -1,3 +1,7 @@
+terraform {
+  required_version = ">= 1.3.8"
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.18.1"
@@ -25,6 +29,8 @@ module "vpc" {
   flow_log_cloudwatch_log_group_name_prefix = var.vpc.flow_log_cloudwatch_log_group_name_prefix
   flow_log_cloudwatch_log_group_name_suffix = var.vpc.flow_log_cloudwatch_log_group_name_suffix
   vpc_flow_log_tags                         = var.vpc.vpc_flow_log_tags
+  enable_dns_hostnames                      = var.vpc.enable_dns_hostnames
+  enable_dns_support                        = var.vpc.enable_dns_support
 }
 
 module "byo-vpc" {

@@ -36,7 +36,7 @@ class FleetDetails extends Component {
 
   render() {
     const { className, currentPage, fields, handleSubmit } = this.props;
-    const tabIndex = currentPage ? 1 : -1;
+    const tabIndex = currentPage ? 0 : -1;
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">

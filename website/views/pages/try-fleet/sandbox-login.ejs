@@ -9,7 +9,7 @@
         The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
       </p>
       <div class="pt-3">
-        <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedLoginForm()" >
+        <ajax-form action="login" class="sandbox-login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedLoginForm()" >
           <div class="form-group mb-3">
             <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Email">
             <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
