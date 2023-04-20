@@ -921,6 +921,7 @@ None.
   },
   "mdm": {
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "apple_bm_default_team": "",
     "macos_updates": {
@@ -1106,6 +1107,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "macos_updates": {
       "minimum_version": "12.3.1",

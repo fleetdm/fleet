@@ -108,6 +108,13 @@ type VulnerabilitySettings struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+
+	// AppleBMEnabledAndConfigured is set to true if Fleet has been
+	// configured with all the required Apple BM settings. It cant' be set
+	// manually via the PATCH /config API, it's only set automatically when
+	// the server starts.
+	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
+
 	// AppleBMTermsExpired is set to true if an Apple Business Manager request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
