@@ -2,7 +2,9 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import mdmAPI from "services/entities/mdm";
+import { NotificationContext } from "context/notification";
 
+import Spinner from "components/Spinner";
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
@@ -12,56 +14,57 @@ const baseClass = "bootstrap-package";
 
 interface IBootstrapPackageProps {
   bootstrapConfigured: boolean;
+  isLoading: boolean;
   currentTeamId: number;
 }
 
 const BootstrapPackage = ({
   bootstrapConfigured,
+  isLoading,
   currentTeamId,
 }: IBootstrapPackageProps) => {
-  // TODO: get bootstrap package API call
-  const [hasBootstrapPackage, setHasBootstrapPackage] = useState(
-    bootstrapConfigured
-  );
+  const { renderFlash } = useContext(NotificationContext);
   const [showDeletePackageModal, setShowDeletePackageModal] = useState(false);
 
-  const {
-    data: bootstrapMetadata,
-    isLoading,
-    isError,
-    refetch: refretchBootstrapMetaData,
-  } = useQuery(
-    ["bootstrap-metadata", currentTeamId],
-    () => {
-      mdmAPI.getBootstrapPackageMetadata(currentTeamId);
-    },
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-      enabled: hasBootstrapPackage,
+  const onUpload = () => {};
+
+  const onDelete = async () => {
+    try {
+      await mdmAPI.deleteBootstrapPackage(currentTeamId);
+      renderFlash("success", "Successfully deleted!");
+    } catch {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    } finally {
+      setShowDeletePackageModal(false);
     }
-  );
-
-  const onUpload = () => {
-    refretchBootstrapMetaData();
   };
-
-  const onDelete = () => {};
 
   return (
     <div className={baseClass}>
       <h2>Bootstrap package</h2>
       <div className={`${baseClass}__content`}>
-        {!hasBootstrapPackage ? (
-          <PackageUploader currentTeamId={currentTeamId} onUpload={onUpload} />
+        {isLoading && <Spinner />}
+        {bootstrapConfigured ? (
+          <>
+            <UploadedPackageView
+              currentTeamId={currentTeamId}
+              onDelete={() => setShowDeletePackageModal(true)}
+            />
+            <div className={`${baseClass}__preview-container`}>
+              <BootstrapPackagePreview />
+            </div>
+          </>
         ) : (
-          <UploadedPackageView
-            onDelete={() => setShowDeletePackageModal(true)}
-          />
+          <>
+            <PackageUploader
+              currentTeamId={currentTeamId}
+              onUpload={onUpload}
+            />
+            <div className={`${baseClass}__preview-container`}>
+              <BootstrapPackagePreview />
+            </div>
+          </>
         )}
-        <div className={`${baseClass}__preview-container`}>
-          <BootstrapPackagePreview />
-        </div>
       </div>
       {showDeletePackageModal && (
         <DeletePackageModal

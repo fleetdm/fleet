@@ -7,8 +7,7 @@ export const UPLOAD_ERROR_MESSAGES = {
     message: "Couldn’t upload. The file should be a package (.pkg).",
   },
   unsigned: {
-    condition: (reason: string) =>
-      reason.includes("MDMAppleConfigProfile.PayloadIdentifier"), // TODO: get reason condition
+    condition: (reason: string) => reason.includes("file is not"),
     message:
       "Couldn’t upload. The package must be signed. Click “Learn more” below to learn how to sign.",
   },

@@ -117,4 +117,15 @@ export default {
 
     return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
   },
+  deleteBootstrapPackage: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+    return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
+  },
+  downloadBootstrapPackage: (token: string) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+    return sendRequest(
+      "GET",
+      `${MDM_BOOTSTRAP_PACKAGE}?${buildQueryStringFromParams({ token })}`
+    );
+  },
 };

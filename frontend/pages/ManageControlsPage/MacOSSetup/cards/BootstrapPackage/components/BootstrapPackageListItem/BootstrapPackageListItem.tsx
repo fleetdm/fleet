@@ -20,11 +20,10 @@ const BootstrapPackageListItem = ({
   onDelete,
 }: IBootstrapPackageListItemProps) => {
   const onClickDownload = async () => {
-    return; // TODO: hook up API
-    const fileContent = await mdmAPI.downloadProfile(1);
-    const formatDate = format(new Date(), "yyyy-MM-dd");
-    const filename = `${formatDate}_${bootstrapPackage.name}.pkg`;
-    const file = new File([fileContent], filename);
+    const fileContent = await mdmAPI.downloadBootstrapPackage(
+      bootstrapPackage.token
+    );
+    const file = new File([fileContent], bootstrapPackage.name);
     FileSaver.saveAs(file);
   };
 

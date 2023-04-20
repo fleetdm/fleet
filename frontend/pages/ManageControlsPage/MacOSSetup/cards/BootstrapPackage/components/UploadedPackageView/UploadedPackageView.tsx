@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useQuery } from "react-query";
 
 import { IBootstrapPackage } from "interfaces/mdm";
+import mdmAPI from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
 import UploadList from "pages/ManageControlsPage/components/UploadList";
@@ -12,10 +14,14 @@ import DeletePackageModal from "../DeletePackageModal/DeletePackageModal";
 const baseClass = "uploaded-package-view";
 
 interface IUploadedPackageViewProps {
+  currentTeamId: number;
   onDelete: () => void;
 }
 
-const UploadedPackageView = ({ onDelete }: IUploadedPackageViewProps) => {
+const UploadedPackageView = ({
+  currentTeamId,
+  onDelete,
+}: IUploadedPackageViewProps) => {
   // TODO: hook up API call to get data
   const bootstrapPackage: IBootstrapPackage = {
     name: "test_package",
@@ -24,6 +30,28 @@ const UploadedPackageView = ({ onDelete }: IUploadedPackageViewProps) => {
     token: "test-token",
     created_at: "2023-04-12T15:56:23Z", // TODO: add created at field.
   };
+
+  const {
+    data: bootstrapMetadata,
+    isError,
+    status,
+    refetch: refretchBootstrapMetaData,
+  } = useQuery(
+    ["bootstrap-metadata", currentTeamId],
+    () => {
+      mdmAPI.getBootstrapPackageMetadata(currentTeamId);
+    },
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      onError: (e) => {
+        // setPageState("error");
+      },
+      onSuccess: (e) => {
+        // setPageState("packageUploaded")
+      },
+    }
+  );
 
   return (
     <div className={baseClass}>

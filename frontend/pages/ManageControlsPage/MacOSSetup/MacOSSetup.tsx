@@ -79,7 +79,7 @@ const MacOSSetup = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  if (isConfigured) return <SetupEmptyState router={router} />;
+  if (isConfigured) return <SetupEmptyState router={router} />; // TODO: needs api still
 
   return (
     <div className={baseClass}>
@@ -100,8 +100,10 @@ const MacOSSetup = ({
           CurrentCard={
             <CurrentCard
               key={teamId}
+              isLoading={isLoading}
               currentTeamId={teamId}
-              bootstrapConfigured={false}
+              bootstrapConfigured={teamId ? }
+              bootstrapConfigured={true}
             />
           }
         />
