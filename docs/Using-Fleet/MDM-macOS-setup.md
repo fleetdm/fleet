@@ -83,7 +83,7 @@ In the output you should see that package has a "signed" status.
 
 2. Choose which team you want to add the bootstrap package to or add the package to "No team." 
 
-To install the package on hosts that automatically enroll to the "Workstations (canary)" team, we'll need to create a `workstations-canary-config.yaml` file:
+In this example, we'll install a package on hosts that automatically enroll to the "Workstations (canary)" team. To do this, we'll need to create a `workstations-canary-config.yaml` file:
 
 ```yaml
 apiVersion: v1
