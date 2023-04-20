@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"strings"
@@ -42,17 +41,10 @@ func ExecOsqueryLaunchctl(ctx context.Context, timeoutSeconds int, username stri
 		query,
 	)
 
-	dir, err := os.MkdirTemp("", "osq-launchctl")
-	if err != nil {
-		return nil, fmt.Errorf("mktemp: %w", err)
-	}
-	defer os.RemoveAll(dir)
-
-	if err := os.Chmod(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("chmod: %w", err)
-	}
-
-	cmd.Dir = dir
+	// On almost all macOS systems the root directory will be read only and we will get an
+	// error if it tries to write. However, I cannot find any reason launchctl asuser or osquery would want to
+	// write to the current directory
+	cmd.Dir = "/"
 
 	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = stdout, stderr
