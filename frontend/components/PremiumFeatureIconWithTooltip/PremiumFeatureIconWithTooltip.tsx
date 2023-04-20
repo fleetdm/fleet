@@ -26,7 +26,7 @@ const PremiumFeatureIconWithTooltip = ({
   return (
     <span className="premium-icon-tip">
       <span data-tip data-for={tipId}>
-        <Icon name="premium-feature" />
+        <Icon name="premium-feature" className="premium-feature-icon" />
       </span>
       <ReactTooltip
         place={tooltipPlace ?? "top"}
