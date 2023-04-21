@@ -101,7 +101,7 @@ const CustomSettings = ({
         <CustomLink
           newTab
           text="Learn how"
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#custom-settings"
+          url="https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings"
         />
       </p>
 

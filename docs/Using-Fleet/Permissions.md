@@ -72,8 +72,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          |           | ✅          | ✅     | ✅      |
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                                |          |           | ✅          | ✅     |        |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
-| Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
-| Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
+| Enforce disk encryption settings and [custom macOS settings](./mobile-device-management.md)                                                               |          |           |            | ✅     | ✅      |
+| Enforce disk encryption settings and [custom macOS settings](./mobile-device-management.md) for a team\*                                                     |          |           |            | ✅     | ✅      |
 
 \*Applies only to Fleet Premium
 
@@ -125,7 +125,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅               | ✅          |             |
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
-| Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
+| Edit [MDM configuration for a team](./mobile-device-management.md)                                                |               |                |                 | ✅          | ✅           |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

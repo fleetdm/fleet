@@ -71,5 +71,5 @@ Fleet UI:
 
 2. Look at the on-screen information.
 
-<meta name="pageOrderInSection" value="1504">
+<meta name="pageOrderInSection" value="1506">
 <meta name="title" value="MDM commands">

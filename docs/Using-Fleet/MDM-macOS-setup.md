@@ -102,5 +102,5 @@ Run the fleetctl `apply -f <your-team-here>.yml` command to upload your bootstra
 
 > This feature is currently in development.
 
-<meta name="pageOrderInSection" value="1504">
+<meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">
