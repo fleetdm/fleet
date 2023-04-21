@@ -1,6 +1,8 @@
 # macOS setup
 
-In Fleet, you can customize the first-time macOS setup experience for your end users:
+_Available in Fleet Premium_
+
+In Fleet, you can customize the out-of-the-box macOS setup experience for your end users:
 
 * Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
 
@@ -8,13 +10,15 @@ In Fleet, you can customize the first-time macOS setup experience for your end u
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
 
+In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
+
+MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
+
 ## End user authentication
 
 > This feature is currently in development.
 
 ## Bootstrap package
-
-_Available in Fleet Premium_
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
 
@@ -26,9 +30,7 @@ The following are examples of what some organizations deploy using a bootstrap p
 
 * Puppet agent to run custom scripts on your Macs
 
-* Custom scripts and several packages bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac's background, and install the latest macOS update for the end user. 
-
-> In addition to installing the bootstrap package, Fleet automatically installs the fleetd agent on hosts that automatically enroll. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
+* Custom scripts and several packages bundled into one bootstrap package using a tool like [InstallApplications](https://github.com/macadmins/installapplications) to install a base set of applications, set the Mac's background, and install the latest macOS update for the end user.
 
 To add a bootstrap package to Fleet, we will do the following steps:
 

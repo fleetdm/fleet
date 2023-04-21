@@ -33,7 +33,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -75,7 +74,6 @@ type integrationMDMTestSuite struct {
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
 	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
-	oktaMock             *externalsvc.MockOktaServer
 	mdmStorage           *mysql.NanoMDMStorage
 }
 
@@ -93,13 +91,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
-	oktaMock := externalsvc.RunMockOktaServer(s.T())
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
 	fleetCfg.Osquery.EnrollCooldown = 0
-	fleetCfg.MDM.OktaServerURL = oktaMock.Srv.URL
-	fleetCfg.MDM.OktaClientID = oktaMock.ClientID
-	fleetCfg.MDM.OktaClientSecret = oktaMock.ClientSecret()
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(s.T(), err)
@@ -172,7 +166,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depStorage = depStorage
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
-	s.oktaMock = oktaMock
 	s.mdmStorage = mdmStorage
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1954,54 +1947,6 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
-}
-
-func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
-	t := s.T()
-
-	params := func(u, p string) []byte {
-		j, err := json.Marshal(&mdmAppleDEPLoginRequest{
-			Username: u,
-			Password: p,
-		})
-		require.NoError(t, err)
-		return j
-	}
-
-	// invalid user/pass combination returns an unauthorized
-	// error
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, "bad"),
-		http.StatusUnauthorized,
-	)
-
-	// invalid clientID/clientSecret returns a server error
-	oldSecret := s.oktaMock.ClientSecret()
-	s.oktaMock.SetClientSecret("new-secret")
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, s.oktaMock.UserPassword),
-		http.StatusInternalServerError,
-	)
-	s.oktaMock.SetClientSecret(oldSecret)
-
-	// valid user/pass authenticates the user and creates a new
-	// entry in `mdm_idp_accounts`
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, s.oktaMock.UserPassword),
-		http.StatusOK,
-	)
-	var uuid string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &uuid,
-			`SELECT uuid FROM mdm_idp_accounts WHERE username = ?`, s.oktaMock.Username)
-	})
-	require.NotEmpty(t, uuid)
 }
 
 func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
