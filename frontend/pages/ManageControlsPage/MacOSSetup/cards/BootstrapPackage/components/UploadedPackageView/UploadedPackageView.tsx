@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { IBootstrapPackage } from "interfaces/mdm";
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
@@ -14,22 +14,24 @@ import DeletePackageModal from "../DeletePackageModal/DeletePackageModal";
 const baseClass = "uploaded-package-view";
 
 interface IUploadedPackageViewProps {
+  bootstrapPackage: IBootstrapPackageMetadata;
   currentTeamId: number;
   onDelete: () => void;
 }
 
 const UploadedPackageView = ({
+  bootstrapPackage,
   currentTeamId,
   onDelete,
 }: IUploadedPackageViewProps) => {
-  // TODO: hook up API call to get data
-  const bootstrapPackage: IBootstrapPackage = {
-    name: "test_package",
-    team_id: 0,
-    sha256: "123",
-    token: "test-token",
-    created_at: "2023-04-12T15:56:23Z", // TODO: add created at field.
-  };
+  const { data: bootstrapPackageAggregate } = useQuery(
+    [],
+    () => mdmAPI.getBootstrapPackageAggregate(currentTeamId),
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   return (
     <div className={baseClass}>

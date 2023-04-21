@@ -40,7 +40,7 @@ const BootstrapPackageTable = ({
   // );
 
   const data: IBootstrapPackageAggregate = {
-    applied: 1,
+    installed: 1,
     pending: 2,
     failed: 3,
   };

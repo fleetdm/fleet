@@ -109,10 +109,10 @@ export const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
-  applied: {
+  installed: {
     displayName: "Installed",
     statusName: "success",
-    value: BootstrapPackageStatus.APPLIED,
+    value: BootstrapPackageStatus.INSTALLED,
     tooltip: "The host installed the package.",
   },
   pending: {

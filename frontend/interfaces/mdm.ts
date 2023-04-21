@@ -106,16 +106,16 @@ export interface IMdmScript {
   updated_at: string;
 }
 
-export interface IBootstrapPackage {
+export interface IBootstrapPackageMetadata {
   name: string;
   team_id: number;
   sha256: string;
   token: string;
-  created_at: string; // TODO: add created at field to API.
+  created_at: string;
 }
 
 export interface IBootstrapPackageAggregate {
-  applied: number; // TODO: check this the correct value coming back from API. applied vs installed
+  installed: number;
   pending: number;
   failed: number;
 }

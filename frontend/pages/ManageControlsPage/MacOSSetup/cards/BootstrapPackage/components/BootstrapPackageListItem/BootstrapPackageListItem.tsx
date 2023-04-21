@@ -2,7 +2,7 @@ import React from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import FileSaver from "file-saver";
 
-import { IBootstrapPackage } from "interfaces/mdm";
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 
 import Icon from "components/Icon";
@@ -11,8 +11,8 @@ import Button from "components/buttons/Button";
 const baseClass = "bootstrap-package-list-item";
 
 interface IBootstrapPackageListItemProps {
-  bootstrapPackage: IBootstrapPackage; // TODO: types
-  onDelete: (bootstrapPackage: any) => void;
+  bootstrapPackage: IBootstrapPackageMetadata;
+  onDelete: (bootstrapPackage: IBootstrapPackageMetadata) => void;
 }
 
 const BootstrapPackageListItem = ({

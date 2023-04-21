@@ -19,7 +19,7 @@ export enum DiskEncryptionStatus {
 }
 
 export enum BootstrapPackageStatus {
-  APPLIED = "applied", // TODO: check this is the correct value. applied vs installed
+  INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
 }

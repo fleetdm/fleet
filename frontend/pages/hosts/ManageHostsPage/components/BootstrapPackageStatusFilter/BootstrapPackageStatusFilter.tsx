@@ -11,8 +11,8 @@ const baseClass = "bootstrap-package-status-filter";
 const BOOTSTRAP_PACKAGE_STATUS: IDropdownOption[] = [
   {
     disabled: false,
-    label: "Applied",
-    value: BootstrapPackageStatus.APPLIED,
+    label: "Installed",
+    value: BootstrapPackageStatus.INSTALLED,
   },
   {
     disabled: false,

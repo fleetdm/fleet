@@ -1,6 +1,9 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { AxiosResponse } from "axios";
 
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
+import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
@@ -23,26 +26,24 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const {
     data: bootstrapMetadata,
     isLoading,
-    isError,
-    status,
-    refetch: refretchBootstrapMetaData,
-  } = useQuery(
+    error,
+    refetch: refretchBootstrapMetadata,
+  } = useQuery<
+    IBootstrapPackageMetadata,
+    AxiosResponse<IApiError>,
+    IBootstrapPackageMetadata
+  >(
     ["bootstrap-metadata", currentTeamId],
     () => mdmAPI.getBootstrapPackageMetadata(currentTeamId),
     {
       retry: false,
       refetchOnWindowFocus: false,
-      onError: (e) => {
-        // setPageState("error");
-      },
-      onSuccess: (e) => {
-        // setPageState("packageUploaded")
-      },
+      cacheTime: 0,
     }
   );
 
   const onUpload = () => {
-    refretchBootstrapMetaData();
+    refretchBootstrapMetadata();
   };
 
   const onDelete = async () => {
@@ -53,8 +54,14 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
       renderFlash("error", "Couldn’t delete. Please try again.");
     } finally {
       setShowDeletePackageModal(false);
+      refretchBootstrapMetadata();
     }
   };
+
+  // we are relying on the API to tell us this resource does not exist to
+  // determine if the user has uploaded a bootstrap package.
+  const noPackageUploaded =
+    (error && error.status === 404) || !bootstrapMetadata;
 
   return (
     <div className={baseClass}>
@@ -63,11 +70,11 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
-          {bootstrapMetadata ? (
+          {noPackageUploaded ? (
             <>
-              <UploadedPackageView
+              <PackageUploader
                 currentTeamId={currentTeamId}
-                onDelete={() => setShowDeletePackageModal(true)}
+                onUpload={onUpload}
               />
               <div className={`${baseClass}__preview-container`}>
                 <BootstrapPackagePreview />
@@ -75,9 +82,10 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
             </>
           ) : (
             <>
-              <PackageUploader
+              <UploadedPackageView
+                bootstrapPackage={bootstrapMetadata}
                 currentTeamId={currentTeamId}
-                onUpload={onUpload}
+                onDelete={() => setShowDeletePackageModal(true)}
               />
               <div className={`${baseClass}__preview-container`}>
                 <BootstrapPackagePreview />

@@ -128,4 +128,13 @@ export default {
       `${MDM_BOOTSTRAP_PACKAGE}?${buildQueryStringFromParams({ token })}`
     );
   },
+  getBootstrapPackageAggregate: (teamId?: number) => {
+    let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
 };
