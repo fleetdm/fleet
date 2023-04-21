@@ -7,14 +7,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
@@ -148,52 +146,6 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
-}
-
-func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error) {
-	// skipauth: No user context available yet to authorize against.
-	svc.authz.SkipAuthorization(ctx)
-
-	okta := externalsvc.Okta{
-		BaseURL:      svc.config.MDM.OktaServerURL,
-		ClientID:     svc.config.MDM.OktaClientID,
-		ClientSecret: svc.config.MDM.OktaClientSecret,
-	}
-
-	if err := okta.ROPLogin(ctx, username, password); err != nil {
-		if errors.Is(err, externalsvc.ErrInvalidGrant) {
-			return nil, fleet.NewAuthFailedError(err.Error())
-		}
-		return nil, err
-	}
-
-	dict, err := apple_mdm.SaltedSHA512PBKDF2(password)
-	if err != nil {
-		return nil, err
-	}
-
-	uuid := uuid.New().String()
-	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		SaltedSHA512PBKDF2Dictionary: dict,
-		UUID:                         uuid,
-		Username:                     username,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	query := url.Values{"ref": []string{uuid}}
-	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL+"?"+query.Encode(),
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
-	)
 }
 
 func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
