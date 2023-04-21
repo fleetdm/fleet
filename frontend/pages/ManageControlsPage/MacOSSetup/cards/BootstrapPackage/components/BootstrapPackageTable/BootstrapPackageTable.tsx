@@ -16,7 +16,7 @@ import {
 const baseClass = "bootstrap-package-table";
 
 interface IBootstrapPackageTableProps {
-  currentTeamId?: number;
+  currentTeamId: number;
 }
 
 const DEFAULT_SORT_HEADER = "hosts";
@@ -25,35 +25,26 @@ const DEFAULT_SORT_DIRECTION = "asc";
 const BootstrapPackageTable = ({
   currentTeamId,
 }: IBootstrapPackageTableProps) => {
-  // TODO: hook up API to get aggregate data
-  // const { data, error } = useQuery<
-  //   IBootstrapPackageAggregate,
-  //   Error,
-  //   IBootstrapPackageAggregate
-  // >(
-  //   ["bootstrap-package-summary", currentTeamId],
-  //   () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
-  //   {
-  //     refetchOnWindowFocus: false,
-  //     retry: false,
-  //   }
-  // );
-
-  const data: IBootstrapPackageAggregate = {
-    installed: 1,
-    pending: 2,
-    failed: 3,
-  };
+  const { data: bootstrapPackageAggregatem, isLoading, isError } = useQuery<
+    IBootstrapPackageAggregate,
+    Error,
+    IBootstrapPackageAggregate
+  >(
+    ["bootstrap-package-summary", currentTeamId],
+    () => mdmAPI.getBootstrapPackageAggregate(currentTeamId),
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(data, currentTeamId);
+  const tableData = generateTableData(
+    bootstrapPackageAggregatem,
+    currentTeamId
+  );
 
-  // if (error) {
-  if (false) {
-    return <DataError />;
-  }
-
-  if (!data) return null;
+  if (isError) return <DataError />;
 
   return (
     <div className={baseClass}>
@@ -61,7 +52,7 @@ const BootstrapPackageTable = ({
         columns={tableHeaders}
         data={tableData}
         resultsTitle=""
-        isLoading={false}
+        isLoading={isLoading}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         defaultSortHeader={DEFAULT_SORT_HEADER}

@@ -24,18 +24,9 @@ const UploadedPackageView = ({
   currentTeamId,
   onDelete,
 }: IUploadedPackageViewProps) => {
-  const { data: bootstrapPackageAggregate } = useQuery(
-    [],
-    () => mdmAPI.getBootstrapPackageAggregate(currentTeamId),
-    {
-      retry: false,
-      refetchOnWindowFocus: false,
-    }
-  );
-
   return (
     <div className={baseClass}>
-      <BootstrapPackageTable />
+      <BootstrapPackageTable currentTeamId={currentTeamId} />
       <p>
         This package is automatically installed on hosts that automatically
         enroll to this team. Delete the package to upload a new one.

@@ -2,6 +2,9 @@
   padding: $pad-xxlarge;
   border: 1px solid $ui-fleet-black-10;
   border-radius: $border-radius;
+  // keep a minimum height to prevent UI jumping when the table data is done
+  // loading.
+  min-height: 191px;
 
   .data-table-block .data-table tbody td .w250 {
     min-width: auto;
@@ -26,7 +29,7 @@
     }
   }
 
-  @media (max-width: $break-990) {
+  @media (max-width: $break-1400) {
     .view-hosts-link {
       span {
         display: none;
