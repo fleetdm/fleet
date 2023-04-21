@@ -246,3 +246,15 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 
 	return summary, nil
 }
+
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.Reader) error {
+	return errors.New("not implemented")
+}
+
+func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) ([]byte, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	return errors.New("not implemented")
+}
