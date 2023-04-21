@@ -2909,12 +2909,19 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		} else {
 			require.Empty(t, hostResp.Host.MDM.MacOSSetup.Detail)
 		}
+		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 
 		var hostByIdentifierResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
 		require.NotNil(t, hostByIdentifierResp.Host)
 		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
 		require.Equal(t, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		if expectedStatus == fleet.MDMBootstrapPackageFailed {
+			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
+		} else {
+			require.Empty(t, hostResp.Host.MDM.MacOSSetup.Detail)
+		}
+		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 	}
 
 	checkHostAPIs := func(t *testing.T, status fleet.MDMBootstrapPackageStatus, teamID *uint) {
