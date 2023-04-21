@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the first-time macOS setup experience for your end users:
+In Fleet, you can customize the out-of-the-box macOS setup experience for your end users:
 
 * Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac
 
@@ -10,7 +10,7 @@ In Fleet, you can customize the first-time macOS setup experience for your end u
 
 * Install a bootstrap package to gain full control over the setup experience by installing tools like Puppet, Munki, DEP notify, custom scrips, and more.
 
-In addition to the customization above, Fleet automatically installs the fleetd agent during first-time macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
+In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
 MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
 
