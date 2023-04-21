@@ -575,5 +575,8 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"GET", "/api/latest/fleet/mdm/apple"},
 		{"GET", apple_mdm.EnrollPath + "?token=test"},
 		{"GET", apple_mdm.InstallerPath + "?token=test"},
+		{"POST", "/api/latest/fleet/mdm/apple/setup/eula"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token"},
 	}
 }
