@@ -37,10 +37,6 @@ const SoftwareDetailsPage = ({
   );
   const handlePageError = useErrorHandler();
 
-  console.log(
-    "filteredSoftwarePath on software details page",
-    filteredSoftwarePath
-  );
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
     IGetSoftwareByIdResponse,
     Error,
