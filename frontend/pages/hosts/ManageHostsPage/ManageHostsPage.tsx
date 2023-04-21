@@ -67,6 +67,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1240,12 +1241,28 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
+    // Add the "Premium Feature Icon" to the "Missing hosts" dropdown option in Sandbox mode
+    const dropdownOptions: {
+      disabled: boolean;
+      label: string | JSX.Element;
+      value: string;
+      helpText: string;
+    }[] = HOST_SELECT_STATUSES.slice();
+    if (isSandboxMode) {
+      dropdownOptions[3].label = (
+        <span>
+          <span>Missing hosts</span>
+          <PremiumFeatureIconWithTooltip />
+        </span>
+      );
+    }
+
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
           className={`${baseClass}__status_dropdown`}
-          options={HOST_SELECT_STATUSES}
+          options={dropdownOptions}
           searchable={false}
           onChange={handleStatusDropdownChange}
         />
@@ -1520,6 +1537,7 @@ const ManageHostsPage = ({
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
+            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}
