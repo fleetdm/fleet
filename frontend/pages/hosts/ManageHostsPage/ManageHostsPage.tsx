@@ -181,7 +181,7 @@ const ManageHostsPage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page as number;
+      page = parseInt(queryParams.page, 10);
     }
 
     return page;
@@ -711,7 +711,7 @@ const ManageHostsPage = ({
       }
 
       if (!isEqual(page, pageIndex)) {
-        setPage(pageIndex as number);
+        setPage(pageIndex);
       }
 
       // Rebuild queryParams to dispatch new browser location to react-router
@@ -719,7 +719,7 @@ const ManageHostsPage = ({
       if (!isEmpty(searchText)) {
         newQueryParams.query = searchText;
       }
-      newQueryParams.page = pageIndex as number;
+      newQueryParams.page = pageIndex;
       newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;

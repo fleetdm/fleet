@@ -175,7 +175,7 @@ const ManageSoftwarePage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page as number;
+      page = queryParams.page;
     }
 
     return page;
@@ -353,7 +353,7 @@ const ManageSoftwarePage = ({
       } = newTableQuery;
       let { sortHeader: newSortHeader } = newTableQuery;
 
-      pageIndex !== page && setPage(pageIndex as number);
+      pageIndex !== page && setPage(pageIndex);
       searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
       sortDirection !== newSortDirection &&
         setSortDirection(
@@ -372,7 +372,7 @@ const ManageSoftwarePage = ({
       if (!isEmpty(newSearchQuery)) {
         newQueryParams.query = newSearchQuery;
       }
-      newQueryParams.page = pageIndex as number;
+      newQueryParams.page = pageIndex;
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
