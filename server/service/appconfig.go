@@ -320,11 +320,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// ignore AppleBMTermsExpired and Enabled if provided in the modify
-	// payload we don't return an error in this case because it would
-	// prevent using the output of fleetctl get config as input to fleetctl
-	// apply or this endpoint.
+	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
+	// if provided in the modify payload we don't return an error in this case because it would
+	// prevent using the output of fleetctl get config as input to fleetctl apply or this endpoint.
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
+	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
