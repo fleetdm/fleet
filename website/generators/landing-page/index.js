@@ -87,7 +87,7 @@ module.exports = {
     // Make sure all parent sub-folders are kebab-cased and don't contain any
     // uppercase or non-alphanumeric characters (except dashes are ok, of course).
     var parentSubFoldersString = path.dirname(scope.relPath);
-    var arrayOfParentSubFolders = ['landing-pages'];
+    var arrayOfParentSubFolders = ['imagine'];
 
     // Tease out the "stem".
     // (e.g. `activity-summary`)
@@ -114,11 +114,11 @@ module.exports = {
     scope.stem = stem;
     scope.newActionSlug = path.join(arrayOfParentSubFolders.join('/'), 'view-'+stem);
     console.log(scope.newActionSlug);
-    scope.newActionRelPath = path.join('api/controllers/landing-pages/', scope.newActionSlug+'.js');
+    scope.newActionRelPath = path.join('api/controllers/imagine/', scope.newActionSlug+'.js');
     console.log(scope.newActionRelPath);
-    scope.newViewRelPath = path.join('views/pages/landing-pages/', scope.relPath+'.ejs');
-    scope.newStylesheetRelPath = path.join('assets/styles/pages/landing-pages/', scope.relPath+'.less');
-    scope.newPageScriptRelPath = path.join('assets/js/pages/landing-pages/', scope.relPath+'.page.js');
+    scope.newViewRelPath = path.join('views/pages/imagine/', scope.relPath+'.ejs');
+    scope.newStylesheetRelPath = path.join('assets/styles/pages/imagine/', scope.relPath+'.less');
+    scope.newPageScriptRelPath = path.join('assets/js/pages/imagine/', scope.relPath+'.page.js');
 
     // Set up underlying "action" generator.
     scope.actions2 = true;
@@ -145,14 +145,14 @@ module.exports = {
     console.log();
     console.log(' (2)  You\'ll need to manually add a route for this new page\'s');
     console.log('      action in your `config/routes.js` file; e.g.');
-    console.log('          \'GET /'+scope.relPath+'\': { action: \''+(
+    console.log('          \'GET /imagine/'+scope.relPath+'\': { action: \''+(
       scope.newActionSlug.replace(/\\/g,'/')//« because Windows
     )+'\' },');
     console.log();
     console.log(' (3)  You\'ll need to manually import the new LESS stylesheet');
     console.log('      from your `assets/styles/importer.less` file; e.g.');
     console.log('          @import \''+(
-      path.join('pages/landing-pages/', scope.relPath+'.less').replace(/\\/g,'/')//« because Windows
+      path.join('pages/imagine/', scope.relPath+'.less').replace(/\\/g,'/')//« because Windows
     )+'\';');
     console.log();
     console.log(' (4)  Last but not least, since some of the above are backend changes,');

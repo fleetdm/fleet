@@ -17,12 +17,6 @@
   ],
   "author": "eashaw",
   "license": "MIT",
-  "dependencies": {
-    "@sailshq/lodash": "^3.10.3"
-  },
-  "devDependencies": {
-    "eslint": "3.19.0"
-  },
   "repository": {"type":"git","url":"git://github.com/eashaw/sails-generate-landing-page.git"},
   "sailsGenerator": {
     "type": "landing-page",
