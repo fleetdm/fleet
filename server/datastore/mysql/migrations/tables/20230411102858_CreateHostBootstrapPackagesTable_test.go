@@ -23,7 +23,7 @@ func TestUp_20230411102858(t *testing.T) {
 	_, err = db.Exec(insertStmt, "host-uuid-2", "command-uuid")
 	require.NoError(t, err)
 
-	_, err = db.Exec(insertStmt, "host-uuid-2", "not-exists")
+	_, err = db.Exec(insertStmt, "host-uuid-3", "not-exists")
 	require.ErrorContains(t, err, "Error 1452")
 
 	_, err = db.Exec(insertStmt, "host-uuid", "command-uuid")
