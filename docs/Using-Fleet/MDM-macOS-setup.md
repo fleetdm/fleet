@@ -117,7 +117,7 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package. 
 
-4. Run the fleetctl `apply -f yaml-document.yml` command to upload your bootstrap package to Fleet.
+4. Run the fleetctl `apply -f workstations-canary-config.yml` command to upload your bootstrap package to Fleet.
 
 ### Step 4: confirm package is uploaded
 
