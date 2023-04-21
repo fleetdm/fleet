@@ -571,28 +571,45 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 
 
 ### Purchasing a company-issued device
-Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
+Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
+
+Apple computers shipping to the United States, Canada, and countries Apple does business with should be ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store, or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie, if needed.
+
+> The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
+
+Apple computers for Fleeties in countries Apple does not operate cannot be enrolled in ADE and should be purchased through a participating authorized reseller. The Brex card limit will be temporarily increased to accommodate the purchase. 
 
 #### Selecting a laptop
-Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
+Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
 
 When selecting a new laptop for a team member, optimize their configuration to:
-1. have a reasonably large hard drive (at least 512GB hard drive, and if there's any concern go biger)
-2. BUT make sure it's still available for delivery or pickup as quickly as possible, and prior to the start date
+1. Have a reasonably large storage (at least 512GB of storage, and if there's any concern go bigger)
+2. Look for pre-configured models with the desired memory and storage requirements. These tend to be available for delivery or pickup as quickly as possible and before the start date.
 
 > Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
-For example, someone in sales, marketing, or business operations might like to use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.  **Default to a 16" MacBook Pro.**
+For example, someone in sales, marketing, or business operations might like to use a 14-inch Macbook Air, whereas someone in an engineering, product, or design role might use a 16-inch MacBook Pro.  **Default to a 16-inch MacBook Pro.**
+
+> A 3-year AppleCare+ Protection Plan (APP) should be considered for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
 #### Buying other new equipment
-At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), the reason for the request, and a timeline for when the device is needed. 
 
 #### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
 
-When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+
+#### Returning equipment
+Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with Luke Heath. 
+
+#### Reprovisioning equipment
+Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
+
+#### Equipment retention and replacement
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare Protection Plan (or another warranty plan) and are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs). The old equipment should be evaluated for return or retention as a test environment.
 
 
 
