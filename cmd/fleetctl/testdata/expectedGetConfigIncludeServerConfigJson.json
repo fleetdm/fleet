@@ -50,6 +50,13 @@
       },
       "macos_setup": {
         "bootstrap_package": ""
+      },
+      "end_user_authentication": {
+        "entity_id": "",
+        "issuer_uri": "",
+        "metadata": "",
+        "metadata_url": "",
+        "idp_name": ""
       }
     },
     "sso_settings": {

@@ -502,32 +502,49 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_updates", err.Error())
 		}
 	}
+
+	// EndUserAuthentication
+	// only validate SSO settings if they changed
+	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
+		if !license.IsPremium() {
+			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
+			return
+		}
+
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+	}
+}
+
+func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
+	if incoming.Metadata == "" && incoming.MetadataURL == "" {
+		if existing.Metadata == "" && existing.MetadataURL == "" {
+			invalid.Append("metadata", "either metadata or metadata_url must be defined")
+		}
+	}
+	if incoming.Metadata != "" && incoming.MetadataURL != "" {
+		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
+	}
+	if incoming.EntityID == "" {
+		if existing.EntityID == "" {
+			invalid.Append("entity_id", "required")
+		}
+	} else {
+		if len(incoming.EntityID) < 5 {
+			invalid.Append("entity_id", "must be 5 or more characters")
+		}
+	}
+	if incoming.IDPName == "" {
+		if existing.IDPName == "" {
+			invalid.Append("idp_name", "required")
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
 	if p.SSOSettings.EnableSSO {
-		if p.SSOSettings.Metadata == "" && p.SSOSettings.MetadataURL == "" {
-			if existing.SSOSettings.Metadata == "" && existing.SSOSettings.MetadataURL == "" {
-				invalid.Append("metadata", "either metadata or metadata_url must be defined")
-			}
-		}
-		if p.SSOSettings.Metadata != "" && p.SSOSettings.MetadataURL != "" {
-			invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
-		}
-		if p.SSOSettings.EntityID == "" {
-			if existing.SSOSettings.EntityID == "" {
-				invalid.Append("entity_id", "required")
-			}
-		} else {
-			if len(p.SSOSettings.EntityID) < 5 {
-				invalid.Append("entity_id", "must be 5 or more characters")
-			}
-		}
-		if p.SSOSettings.IDPName == "" {
-			if existing.SSOSettings.IDPName == "" {
-				invalid.Append("idp_name", "required")
-			}
-		}
+
+		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existing.SSOSettings.SSOProviderSettings, invalid)
+
 		if !license.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())

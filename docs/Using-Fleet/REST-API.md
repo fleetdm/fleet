@@ -1116,6 +1116,13 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": "",
     }
   },
   "agent_options": {
