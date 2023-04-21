@@ -866,7 +866,7 @@ To make a request of the business operations department, [create an issue using 
 
 Upload the agreement to the [drafts folder](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c) in GoogleDrive.
 
-Complete the contract review issue template in GitHub, being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday.
+Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday.
 
 Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
 
