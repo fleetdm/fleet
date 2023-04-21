@@ -6,7 +6,11 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
+import {
+  BootstrapPackageStatus,
+  IMdmSolution,
+  MDM_ENROLLMENT_STATUS,
+} from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
@@ -15,7 +19,6 @@ import { IPolicy } from "interfaces/policy";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
 import {
-  BootstrapPackageStatus,
   DiskEncryptionStatus,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,

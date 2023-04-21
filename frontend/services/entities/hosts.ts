@@ -9,12 +9,9 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
-import {
-  BootstrapPackageStatus,
-  DiskEncryptionStatus,
-} from "utilities/constants";
+import { DiskEncryptionStatus } from "utilities/constants";
 import { ISoftware } from "interfaces/software";
-import { IMdmSolution } from "interfaces/mdm";
+import { BootstrapPackageStatus, IMdmSolution } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
 export interface ISortOption {

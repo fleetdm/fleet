@@ -242,6 +242,11 @@ const DeviceUserPage = ({
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
 
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup.bootstrap_package_status,
+    details: host?.mdm.macos_setup.details,
+  };
+
   const toggleMacSettingsModal = useCallback(() => {
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
@@ -357,6 +362,7 @@ const DeviceUserPage = ({
             <HostSummaryCard
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
               hostMacSettings={host?.mdm.profiles ?? []}

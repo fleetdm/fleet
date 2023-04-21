@@ -1,7 +1,7 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { BootstrapPackageStatus } from "utilities/constants";
+import { BootstrapPackageStatus } from "interfaces/mdm";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";

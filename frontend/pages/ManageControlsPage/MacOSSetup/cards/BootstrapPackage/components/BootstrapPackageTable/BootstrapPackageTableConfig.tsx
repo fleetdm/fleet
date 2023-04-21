@@ -1,7 +1,9 @@
 import React from "react";
 
-import { IBootstrapPackageAggregate } from "interfaces/mdm";
-import { BootstrapPackageStatus } from "utilities/constants";
+import {
+  BootstrapPackageStatus,
+  IBootstrapPackageAggregate,
+} from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";

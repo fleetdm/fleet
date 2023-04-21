@@ -1,9 +1,7 @@
+import { BootstrapPackageStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
-import {
-  BootstrapPackageStatus,
-  DiskEncryptionStatus,
-} from "utilities/constants";
+import { DiskEncryptionStatus } from "utilities/constants";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;

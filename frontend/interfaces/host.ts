@@ -7,7 +7,11 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
-import { IMacSettings, MdmEnrollmentStatus } from "./mdm";
+import {
+  BootstrapPackageStatus,
+  IMacSettings,
+  MdmEnrollmentStatus,
+} from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -102,7 +106,7 @@ interface IMdmMacOsSettings {
 }
 
 interface IMdmMacOsSetup {
-  bootstrap_package_status: string;
+  bootstrap_package_status: BootstrapPackageStatus | "";
   details: string;
 }
 

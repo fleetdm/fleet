@@ -119,3 +119,9 @@ export interface IBootstrapPackageAggregate {
   pending: number;
   failed: number;
 }
+
+export enum BootstrapPackageStatus {
+  INSTALLED = "installed",
+  PENDING = "pending",
+  FAILED = "failed",
+}

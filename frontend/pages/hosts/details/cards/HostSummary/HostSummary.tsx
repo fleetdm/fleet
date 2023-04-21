@@ -22,8 +22,14 @@ interface IHostDiskEncryptionProps {
   tooltip?: string;
 }
 
+interface IBootstrapPackageData {
+  status?: string;
+  details?: string;
+}
+
 interface IHostSummaryProps {
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  bootstrapPackageData: IBootstrapPackageData;
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
@@ -41,6 +47,7 @@ interface IHostSummaryProps {
 
 const HostSummary = ({
   titleData,
+  bootstrapPackageData,
   diskEncryption,
   isPremiumTier,
   isOnlyObserver,
@@ -175,7 +182,12 @@ const HostSummary = ({
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
           hostMacSettings && ( //  2 - host has at least one setting (profile) enforced */}
-        {true && <p>bootstrap thingy</p>}
+        {/* {bootstrapPackageData.status && <p>bootstrap thingy</p>} */}
+        {true && (
+          <HostSummaryIndicator title="Bootstrap package">
+            <p>{bootstrapPackageData.status}</p>
+          </HostSummaryIndicator>
+        )}
 
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>

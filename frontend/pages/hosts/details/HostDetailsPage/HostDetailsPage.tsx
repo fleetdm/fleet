@@ -622,6 +622,11 @@ const HostDetailsPage = ({
     !isGlobalOrHostsTeamObserverPlus &&
     !isHostsTeamObserver;
 
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup.bootstrap_package_status,
+    details: host?.mdm.macos_setup.details,
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -650,6 +655,7 @@ const HostDetailsPage = ({
         <HostSummaryCard
           titleData={titleData}
           diskEncryption={hostDiskEncryption}
+          bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
