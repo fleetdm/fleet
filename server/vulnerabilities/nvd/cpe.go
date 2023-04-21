@@ -70,36 +70,34 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	path := filepath.Join(vulnPath, cpeDBFilename)
 
 	if cpeDBURL == "" {
-		cpePred := func(asset *github.ReleaseAsset) bool {
-			return cpeDBRegex.MatchString(asset.GetName())
-		}
-
-		release, asset, err := GetGithubNVDAsset(cpePred)
-		if err != nil {
-			return err
-		}
 		stat, err := os.Stat(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
 			// okay
 		case err != nil:
 			return err
+		case stat.ModTime().Truncate(24 * time.Hour).Equal(time.Now().Truncate(24 * time.Hour)):
+			// Vulnerability assets are published once per day - if the asset in question has a
+			// mod date of 'today', then we can assume that is already up to day so there's nothing
+			// else to do.
+			return nil
 		default:
-			if stat.ModTime().Truncate(24 * time.Hour).Equal(time.Now().Truncate(24 * time.Hour)) {
-				// Vulnerability assets are published once per day - if the asset in question has a
-				// mod time from today, then we can assume that is already up to day.
-				return nil
+			release, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
+				return cpeDBRegex.MatchString(asset.GetName())
+			})
+			if err != nil {
+				return err
 			}
 			if stat.ModTime().After(release.CreatedAt.Time) {
 				// file is newer than release, do nothing
 				return nil
 			}
+			if asset == nil {
+				return errors.New("failed to find cpe database in nvd release")
+			}
+			cpeDBURL = asset.GetBrowserDownloadURL()
 		}
 
-		if asset == nil {
-			return errors.New("failed to find cpe database in nvd release")
-		}
-		cpeDBURL = asset.GetBrowserDownloadURL()
 	}
 
 	u, err := url.Parse(cpeDBURL)
