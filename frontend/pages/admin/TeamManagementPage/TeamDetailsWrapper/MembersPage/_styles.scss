@@ -6,6 +6,10 @@
     margin: 0;
   }
 
+  &__api-only-user {
+    @include grey-badge;
+  }
+
   .data-table-block {
     .data-table__table {
       thead {

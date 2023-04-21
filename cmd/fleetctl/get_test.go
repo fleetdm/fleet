@@ -356,6 +356,16 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+---------+
 `
 
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
+
+	_, err := runAppNoChecks([]string{"get", "hosts", "--mdm"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "MDM features aren't turned on")
+
+	_, err = runAppNoChecks([]string{"get", "hosts", "--mdm-pending"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "MDM features aren't turned on")
+
 	jsonPrettify := func(t *testing.T, v string) string {
 		var i interface{}
 		err := json.Unmarshal([]byte(v), &i)
@@ -427,8 +437,113 @@ func TestGetHosts(t *testing.T) {
 			}
 		})
 	}
+}
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
+func TestGetHostsMDM(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
+	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)
+		hosts := []*fleet.Host{
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host",
+				Hostname:        "test_host",
+				Additional:      &additional,
+			},
+			{
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+				},
+				HostSoftware:    fleet.HostSoftware{},
+				DetailUpdatedAt: time.Time{},
+				LabelUpdatedAt:  time.Time{},
+				LastEnrolledAt:  time.Time{},
+				SeenTime:        time.Time{},
+				ComputerName:    "test_host2",
+				Hostname:        "test_host2",
+			},
+		}
+		return hosts, nil
+	}
+
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return make([]*fleet.Label, 0), nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return make([]*fleet.Pack, 0), nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		goldenFile string
+		wantErr    string
+	}{
+		{
+			name:    "get hosts --mdm --mdm-pending",
+			args:    []string{"get", "hosts", "--mdm", "--mdm-pending"},
+			wantErr: "cannot use --mdm and --mdm-pending together",
+		},
+		{
+			name:       "get hosts --mdm --json",
+			args:       []string{"get", "hosts", "--mdm", "--json"},
+			goldenFile: "expectedListHostsMDM.json",
+		},
+		{
+			name:       "get hosts --mdm-pending --yaml",
+			args:       []string{"get", "hosts", "--mdm-pending", "--yaml"},
+			goldenFile: "expectedListHostsYaml.yml",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := runAppNoChecks(tt.args)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.goldenFile != "" {
+				expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+				require.NoError(t, err)
+				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
+					// the output of --json is not a json array, but a list of
+					// newline-separated json objects. fix that for the assertion,
+					// turning it into a JSON array.
+					actual := "[" + strings.ReplaceAll(got.String(), "}\n{", "},{") + "]"
+					require.JSONEq(t, string(expected), actual)
+				} else {
+					require.YAMLEq(t, string(expected), got.String())
+				}
+			}
+		})
+	}
 }
 
 func TestGetConfig(t *testing.T) {
@@ -1092,7 +1207,11 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	// can only test when no MDM cert is provided, otherwise they would have to
 	// be valid Apple APNs and SCEP certs.
@@ -1229,7 +1348,6 @@ func TestGetCarveWithError(t *testing.T) {
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
 	cfg := config.TestConfig()
-	cfg.MDMApple.Enable = true
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
@@ -1291,7 +1409,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return []*fleet.Team{team1, team2}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
@@ -1313,9 +1431,188 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
+}
+
+func TestGetMDMCommandResults(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	rawXml := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+</dict>
+</plist>`
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		if len(uuids) == 0 {
+			return nil, nil
+		}
+		require.Len(t, uuids, 2)
+		return []*fleet.Host{
+			{ID: 1, UUID: uuids[0], Hostname: "host1"},
+			{ID: 2, UUID: uuids[1], Hostname: "host2"},
+		}, nil
+	}
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return "test", nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMAppleCommandResult{
+				{
+					DeviceID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+				{
+					DeviceID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "test",
+					Result:      []byte(rawXml),
+				},
+			}, nil
+		}
+	}
+
+	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Required flag "id" not set`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The command doesn't exist.`)
+
+	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `EOF`)
+
+	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+------+------+--------+----------+---------+
+| ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
++----+------+------+--------+----------+---------+
+`))
+
+	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
+|           |                      |      |              |          | <key>Command</key>     <dict>                     |
+|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
+|           |                      |      |              |          |         <key>RequestType</key>                    |
+|           |                      |      |              |          |    <string>ProfileList</string>                   |
+|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
+|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
+|           |                      |      |              |          | </plist>                                          |
++-----------+----------------------+------+--------------+----------+---------------------------------------------------+
+`))
+}
+
+func TestGetMDMCommands(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	var empty bool
+	var listErr error
+	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+		if empty || listErr != nil {
+			return nil, listErr
+		}
+		return []*fleet.MDMAppleCommand{
+			{
+				DeviceID:    "h1",
+				CommandUUID: "u1",
+				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
+				RequestType: "ProfileList",
+				Status:      "Acknowledged",
+				Hostname:    "host1",
+			},
+			{
+				DeviceID:    "h2",
+				CommandUUID: "u2",
+				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
+				RequestType: "ListApps",
+				Status:      "Acknowledged",
+				Hostname:    "host2",
+			},
+		}, nil
+	}
+
+	listErr = io.ErrUnexpectedEOF
+	_, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, io.ErrUnexpectedEOF.Error())
+
+	listErr = nil
+	empty = true
+	buf, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
+
+	empty = false
+	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), strings.TrimSpace(`
++----+----------------------+-------------+--------------+----------+
+| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
++----+----------------------+-------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
++----+----------------------+-------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
++----+----------------------+-------------+--------------+----------+
+`))
 }

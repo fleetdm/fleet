@@ -165,3 +165,17 @@ func TestDEPClient(t *testing.T) {
 		require.Equal(t, c.termsFlag, appCfg.MDM.AppleBMTermsExpired)
 	}
 }
+
+func TestMDMAppleBootstrapPackage(t *testing.T) {
+	bp := &fleet.MDMAppleBootstrapPackage{
+		Token: "abc-def",
+	}
+
+	url, err := bp.URL("http://example.com")
+	require.NoError(t, err)
+	require.Equal(t, "http://example.com/api/latest/fleet/mdm/apple/bootstrap?token=abc-def", url)
+
+	url, err = bp.URL(" http://example.com")
+	require.Empty(t, url)
+	require.Error(t, err)
+}

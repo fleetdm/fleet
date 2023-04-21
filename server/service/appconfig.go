@@ -13,11 +13,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -42,17 +42,11 @@ type appConfigResponseFields struct {
 	License *fleet.LicenseInfo `json:"license,omitempty"`
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
+	// Email is returned when the email backend is something other than SMTP, for example SES
+	Email *fleet.EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
-	// MDMFeatureFlagEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
-	//
-	// This is used only for UI development, for more details check
-	// https://github.com/fleetdm/fleet/issues/8751
-	//
-	// TODO: remove this flag once the MDM feature is ready for
-	// release.
-	MDMFeatureFlagEnabled bool  `json:"mdm_feature_flag_enabled,omitempty"`
-	Err                   error `json:"error,omitempty"`
+	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
+	Err            error `json:"error,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -79,7 +73,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if !ok {
 		return nil, errors.New("could not fetch user")
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +82,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 	loggingConfig, err := svc.LoggingConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	emailConfig, err := svc.EmailConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -143,14 +141,8 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Vulnerabilities: vulnConfig,
 			License:         license,
 			Logging:         loggingConfig,
+			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
-			// Undocumented feature flag for MDM, used only for UI
-			// development, for more details check
-			// https://github.com/fleetdm/fleet/issues/8751
-			//
-			// TODO: remove this flag once the MDM feature is ready
-			// for release.
-			MDMFeatureFlagEnabled: os.Getenv("FLEET_DEV_MDM_ENABLED") == "1",
 		},
 	}
 	return response, nil
@@ -160,7 +152,7 @@ func (svc *Service) SandboxEnabled() bool {
 	return svc.config.Server.SandboxEnabled
 }
 
-func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -172,24 +164,14 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 		return nil, err
 	}
 
-	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
-	}
-
-	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = fleet.MaskedPassword
-	}
-
-	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = fleet.MaskedPassword
-	}
+	ac.Obfuscate()
 
 	return ac, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Modify AppConfig
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
 	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
@@ -207,10 +189,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
+
 	loggingConfig, err := svc.LoggingConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -247,10 +228,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
 
 	oldSmtpSettings := appConfig.SMTPSettings
 	oldAgentOptions := ""
@@ -341,11 +320,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// ignore AppleBMTermsExpired and Enabled if provided in the modify
-	// payload we don't return an error in this case because it would
-	// prevent using the output of fleetctl get config as input to fleetctl
-	// apply or this endpoint.
+	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
+	// if provided in the modify payload we don't return an error in this case because it would
+	// prevent using the output of fleetctl get config as input to fleetctl apply or this endpoint.
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
+	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
@@ -356,7 +335,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, legacyUsedWarning
 		}
 		// must reload to get the unchanged app config
-		return svc.AppConfig(ctx)
+		return svc.AppConfigObfuscated(ctx)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -414,15 +393,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfig(ctx)
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	obfuscatedAppConfig.Obfuscate()
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
-	if obfuscatedConfig.AgentOptions != nil {
-		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	if obfuscatedAppConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.ds.NewActivity(
@@ -469,7 +449,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	return obfuscatedConfig, nil
+	return obfuscatedAppConfig, nil
 }
 
 func (svc *Service) validateMDM(
@@ -483,11 +463,10 @@ func (svc *Service) validateMDM(
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 
-	if !svc.config.MDMApple.Enable {
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-
-		if len(mdm.MacOSSettings.CustomSettings) != 0 {
+	// we want to use `oldMdm` here as this boolean is set by the fleet
+	// server at startup and can't be modified by the user
+	if !oldMdm.EnabledAndConfigured {
+		if len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -560,9 +539,9 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Apply enroll secret spec
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
 	Spec *fleet.EnrollSecretSpec `json:"spec"`
@@ -604,9 +583,9 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Get enroll secret spec
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {
 	Spec *fleet.EnrollSecretSpec `json:"spec"`
@@ -635,9 +614,9 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecre
 	return &fleet.EnrollSecretSpec{Secrets: secrets}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Version
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type versionResponse struct {
 	*version.Info
@@ -655,7 +634,7 @@ func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Version{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -663,9 +642,9 @@ func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
 	return &info, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Get Certificate Chain
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
 type getCertificateResponse struct {
 	CertificateChain []byte `json:"certificate_chain"`
@@ -684,7 +663,7 @@ func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.
 
 // Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
 func (svc *Service) CertificateChain(ctx context.Context) ([]byte, error) {
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}

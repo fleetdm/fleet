@@ -8,13 +8,13 @@ data "aws_iam_policy_document" "kms" {
     principals {
       type        = "AWS"
       identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
-    } 
+    }
     resources = ["*"]
-  } 
+  }
   statement {
-    actions = [ 
+    actions = [
       "kms:Encrypt*",
-      "kms:Decrypt*",     
+      "kms:Decrypt*",
       "kms:ReEncrypt*",
       "kms:GenerateDataKey*",
       "kms:Describe*",
@@ -25,8 +25,8 @@ data "aws_iam_policy_document" "kms" {
       identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
     }
   }
-}   
-      
+}
+
 resource "aws_kms_key" "logs" {
   policy              = data.aws_iam_policy_document.kms.json
   enable_key_rotation = true
@@ -40,13 +40,13 @@ resource "aws_kms_alias" "logs_alias" {
 module "s3_bucket_for_logs" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "3.6.0"
-    
+
   bucket = "${var.prefix}-alb-logs"
   acl    = "log-delivery-write"
 
   # Allow deletion of non-empty bucket
-  force_destroy = true 
-    
+  force_destroy = true
+
   attach_elb_log_delivery_policy        = true # Required for ALB logs
   attach_lb_log_delivery_policy         = true # Required for ALB/NLB logs
   attach_deny_insecure_transport_policy = true
@@ -56,18 +56,15 @@ module "s3_bucket_for_logs" {
   ignore_public_acls                    = true
   restrict_public_buckets               = true
   server_side_encryption_configuration = {
-    rule = {        
-      apply_server_side_encryption_by_default = {
-        kms_master_key_id = aws_kms_key.logs.arn
-        sse_algorithm     = "aws:kms"
-      }
+    rule = {
+       bucket_key_enabled = true
     }
-  } 
+  }
   lifecycle_rule = [
     {
       id      = "log"
       enabled = true
-  
+
       transition = [
         {
           days          = var.s3_transition_days

@@ -1,6 +1,6 @@
 # Fleet 3.13.0
 
-![Fleet 3.13.0](../website/assets/images/articles/fleet-3.13.0-cover-700x437@2x.jpg)
+![Fleet 3.13.0](../website/assets/images/articles/fleet-3.13.0-cover-1600x900@2x.jpg)
 
 Fleet 3.13 is now available on GitHub and Docker Hub! 3.13 introduces improved performance of the additional queries feature, improvements to the fleetctl preview experience, and more.
 

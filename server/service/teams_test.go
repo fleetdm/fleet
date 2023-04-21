@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -49,6 +51,16 @@ func TestTeamAuth(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+	ds.CleanupDiskEncryptionKeysOnTeamChangeFunc = func(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+		return nil
+	}
+
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		switch name {
 		case "team1":
@@ -356,4 +368,24 @@ func TestApplyTeamSpecs(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestApplyTeamSpecsErrorInTeamByName tests that an error in ds.TeamByName will
+// result in a proper error returned (instead of the authorization check missing error).
+func TestApplyTeamSpecsErrorInTeamByName(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, errors.New("unknown error")
+	}
+	authzctx := &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(ctx, authzctx)
+	err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	az, ok := authz_ctx.FromContext(ctx)
+	require.True(t, ok)
+	require.True(t, az.Checked())
 }

@@ -21,7 +21,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
 > TODO: dedupe between this section and the "Sale" issue template
 
@@ -41,8 +41,11 @@ This workflow outlines the process that sales and customer success can follow wh
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
-    - Prepare to review:
+    - Prepare to review the following from the Account Plan:
         - Details of the deal
         - Primary contact / their role
         - Desired use cases / desired outcomes
@@ -373,6 +376,11 @@ In the case of a prospect or customer request, we strive to adhere to the follow
 - Web chat: 1 hour response during working hours, 8 hours otherwise
 - Talk to an expert: prospects can schedule chats via our calendar tool
 - All other enquiries: 1-2 days
+
+#### Web chat on-call
+The web chat will be monitored by an on-call rotation. If you are unable to answer a technical/product question, ask the Solution Consultant (SC) in #sales. If the SC is unavailable, post in # help-engineering / #help-product accordingly.
+Transition to the next week on Friday night into Saturday (e.g. Carlos’s shift starts at 12am on 1/21 for the week of 1/23)
+Respond “in-thread” in Slack “_from-prospective-customers”. In-channel reminders for the next person starting their on-call shift are automated with notifications issued every Monday at the beginning of the day.
 
 Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
 

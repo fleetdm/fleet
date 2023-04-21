@@ -7,9 +7,9 @@
         </h2>
       </div>
       <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-5" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
-        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
         <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
-        <div purpose="pricing-tier-switch" :class="[!displaySecurityPricingMode ? 'it-selected' : '']"></div>
+        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
+        <div purpose="pricing-tier-switch" :class="[displaySecurityPricingMode ? 'security-selected' : '']"></div>
       </div>
       <h4 class="pb-4 mb-4 text-center" v-if="displaySecurityPricingMode">Always cross-platform, always secure. You will always have control over read/write privileges.</h4>
       <h4 class="pb-4 mb-4 text-center" v-else>You will always have control over your machines regardless of platform.</h4>

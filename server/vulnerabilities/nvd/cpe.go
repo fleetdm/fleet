@@ -297,6 +297,48 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	return "", nil
 }
 
+func consumeCPEBuffer(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	batch []fleet.SoftwareCPE,
+) error {
+	var toDelete []fleet.SoftwareCPE
+	var toUpsert []fleet.SoftwareCPE
+
+	for i := range batch {
+		// This could be because of a new translation rule or because we fixed a bug with the CPE
+		// detection process
+		if batch[i].CPE == "" {
+			toDelete = append(toDelete, batch[i])
+			continue
+		}
+		toUpsert = append(toUpsert, batch[i])
+	}
+
+	if len(toUpsert) != 0 {
+		upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)
+		if err != nil {
+			return err
+		}
+		if int(upserted) != len(toUpsert) {
+			level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+		}
+	}
+
+	if len(toDelete) != 0 {
+		deleted, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
+		if err != nil {
+			return err
+		}
+		if int(deleted) != len(toDelete) {
+			level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+		}
+	}
+
+	return nil
+}
+
 func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -306,9 +348,14 @@ func TranslateSoftwareToCPE(
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedSoftwareSources)
+	iterator, err := ds.AllSoftwareIterator(
+		ctx,
+		fleet.SoftwareIterQueryOptions{
+			ExcludedSources: oval.SupportedSoftwareSources,
+		},
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "all software iterator")
+		return ctxerr.Wrap(ctx, err, "software iterator")
 	}
 	defer iterator.Close()
 
@@ -326,6 +373,9 @@ func TranslateSoftwareToCPE(
 
 	reCache := newRegexpCache()
 
+	var buffer []fleet.SoftwareCPE
+	bufferMaxSize := 500
+
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
@@ -336,13 +386,25 @@ func TranslateSoftwareToCPE(
 			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
 			continue
 		}
-		if cpe == "" {
+		if cpe == software.GenerateCPE {
 			continue
 		}
-		err = ds.AddCPEForSoftware(ctx, *software, cpe)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting cpe")
+
+		buffer = append(buffer, fleet.SoftwareCPE{SoftwareID: software.ID, CPE: cpe})
+		if len(buffer) == bufferMaxSize {
+			if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting cpe")
+			}
+			buffer = nil
 		}
+	}
+
+	if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting cpe")
+	}
+
+	if err := iterator.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterator contains error at the end of iteration")
 	}
 
 	return nil

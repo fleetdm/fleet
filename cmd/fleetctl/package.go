@@ -175,6 +175,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_CONTENT"},
 				Destination: &opt.AppStoreConnectAPIKeyContent,
 			},
+			&cli.BoolFlag{
+				Name:        "use-system-configuration",
+				Usage:       "Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)",
+				EnvVars:     []string{"FLEETCTL_USE_SYSTEM_CONFIGURATION"},
+				Destination: &opt.UseSystemConfiguration,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -200,6 +206,10 @@ func packageCommand() *cli.Command {
 				if err != nil {
 					return fmt.Errorf("failed to read certificate %q: %w", opt.FleetCertificate, err)
 				}
+			}
+
+			if opt.UseSystemConfiguration && c.String("type") != "pkg" {
+				return errors.New("--use-system-configuration is only available for pkg installers")
 			}
 
 			var buildFunc func(packaging.Options) (string, error)

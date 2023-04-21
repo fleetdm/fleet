@@ -95,7 +95,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, err
 	}
 
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -150,7 +150,7 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#my-sql).
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ## What is duplicate enrollment and how do I fix it?
 
@@ -197,8 +197,12 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 
 - `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
 - `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
-- `/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
-- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to download an enrollment profile.
+- `/api/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
+- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to
+  download an enrollment profile.
+
+> The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
+> are not RESTful, and are not intended for use by API clients or browsers. 
 
 ## What is the minimum version of MySQL required by Fleet?
 

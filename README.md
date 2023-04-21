@@ -1,6 +1,6 @@
 <h1><img width="200" alt="Fleet logo, landscape, dark text, transparent background" src="https://user-images.githubusercontent.com/618009/103300491-9197e280-49c4-11eb-8677-6b41027be800.png"></h1>
 
-#### [Website](https://fleetdm.com/)  &nbsp;  [News](http://twitter.com/fleetctl) &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new)
+#### [Website](https://fleetdm.com/)  &nbsp;  [News](https://fleetdm.com/announcements) &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=)
 
 [![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
 
@@ -19,7 +19,7 @@ to learn how to add your device to Fleet and how to ask questions about your dev
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
 > 📖 In keeping with our value of openness, Fleet Device Management's company handbook is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
-> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the latest release from this repository (it'll work out of the box).
+> To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0).
 
 ## Documentation
 

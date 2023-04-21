@@ -49,11 +49,11 @@ The following is the subset of proposed engineering meetings. Each group is free
 
 ### Eng Together
 
-This is to promote cohesion across groups within the engineering team. Disseminate engineering-wide announcements. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-This includes all of engineering.
+Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -149,7 +149,6 @@ How to deploy a new release to dogfood:
 3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-6. Select **Run workflow**. **dogfood_mdm** should be selected under the **Use workflow from** field.
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 > 
@@ -267,7 +266,7 @@ At Fleet, we do postmortem meetings for every production incident, whether it's 
 
 ### Postmortem document
 
-Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data, allowing smooth run of the discussion. 
+Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate with some initial data to enable a productive conversation. 
 
 ### Postmortem meeting
 
@@ -380,7 +379,7 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 ### In this section
 
 - [Insert on duplicate update](#insert-on-duplicate-update)
-- [Host extra data and JOINs](#host-extra-data-and-joi-ns)
+- [Host extra data and JOINs](#host-extra-data-and-joins)
 - [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
 - [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
 - [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
@@ -772,10 +771,9 @@ For unreleased bugs in an active sprint, no bug report issue is created. Instead
 #### Bug States
 The lifecycle stages of a bug at Fleet are: 
 1. Inbox 
-2. Acknowledged 
-3. Reproduced 
-4. In engineering process
-5. Awaiting QA
+2. Reproduced 
+3. In engineering process
+4. Awaiting QA
 
 The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and board memberships. 
 
@@ -783,19 +781,17 @@ See [Bug states and filters](#bug-states-and-filters) at the end of this documen
 
 #### Inbox
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
-At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
+
+At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
+
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+
+Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state. If QA or the engineering manager feels the bug report may be expected behavior, or if clarity is required on the intended behavior, it is assigned to the group's product manager. 
 
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
-
-#### Acknowledging bugs
-If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
-
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
-
-Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
 #### Reproduced
 When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
@@ -858,23 +854,15 @@ Every week, the head of product is responsible for reviewing these two states to
 #### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+no%3Aassignee+).
-
-#### Acknowledged 
-QA has gone through the inbox and has accepted it as a bug to be reproduced. 
-
-QA assigns themselves to the bug, thereby acknowledging its receipt. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc).
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
 
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering. 
 
-Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, #mdm, #compliance), add the "product" label, and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+-assignee%3Axpkoala+sort%3Aupdated-asc+).
+Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, #mdm, #compliance), add the "product" label, and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
 #### Orphans 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
-
-#### Reproduced orphans 
-These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23g-cx+-label%3A%23g-mdm+).
 
 #### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).

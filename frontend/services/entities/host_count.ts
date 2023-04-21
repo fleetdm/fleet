@@ -8,11 +8,20 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
+import { DiskEncryptionStatus } from "utilities/constants";
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
   key: string;
   direction: string;
+}
+
+export interface IHostsCountResponse {
+  count: number;
+}
+
+export interface IHostsCountQueryKey extends IHostCountLoadOptions {
+  scope: "hosts_count";
 }
 
 export interface IHostCountLoadOptions {
@@ -33,10 +42,13 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export default {
-  load: (options: IHostCountLoadOptions | undefined) => {
+  load: (
+    options: IHostCountLoadOptions | undefined
+  ): Promise<IHostsCountResponse> => {
     const selectedLabels = options?.selectedLabels || [];
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse;
@@ -53,6 +65,7 @@ export default {
     const osId = options?.osId;
     const osName = options?.osName;
     const osVersion = options?.osVersion;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     const queryParams = {
       query: globalFilter,
@@ -69,6 +82,7 @@ export default {
         osName,
         osId,
         osVersion,
+        diskEncryptionStatus,
       }),
       label_id: label,
       status,

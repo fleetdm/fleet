@@ -232,14 +232,13 @@ func (svc *Service) Logout(ctx context.Context) error {
 
 	logging.WithLevel(ctx, level.Info)
 
-	// TODO: this should not return an error if the user wasn't logged in
 	return svc.DestroySession(ctx)
 }
 
 func (svc *Service) DestroySession(ctx context.Context) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return fleet.ErrNoContext
+		return fleet.NewAuthRequiredError(fleet.ErrNoContext.Error())
 	}
 
 	session, err := svc.ds.SessionByID(ctx, vc.SessionID())

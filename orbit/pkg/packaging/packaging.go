@@ -78,6 +78,10 @@ type Options struct {
 	AppStoreConnectAPIKeyIssuer string
 	// AppStoreConnectAPIKeyContent is the content of the App Store API Key
 	AppStoreConnectAPIKeyContent string
+	// UseSystemConfiguration tells fleetd to try to read FleetURL and
+	// EnrollSecret from a system configuration that's present on the host.
+	// Currently only macOS profiles are supported.
+	UseSystemConfiguration bool
 }
 
 func initializeTempDir() (string, error) {
@@ -192,9 +196,13 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}, nil
 }
 
+// writeSecret writes the orbit enroll secret to the designated file.
+//
+// This implementation is very similar to the one in orbit/cmd/orbit but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
 func writeSecret(opt Options, orbitRoot string) error {
-	// Enroll secret
-	path := filepath.Join(orbitRoot, "secret.txt")
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}

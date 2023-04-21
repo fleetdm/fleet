@@ -3,15 +3,16 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"net/url"
+	"io"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
@@ -27,7 +28,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, notFoundError{}
 	}
 
-	appCfg, err := svc.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,48 +148,76 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }
 
-func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error) {
-	// skipauth: No user context available yet to authorize against.
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	hashBuf := bytes.NewBuffer(nil)
+	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+		msg := "invalid package"
+		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
+			msg = err.Error()
+		}
+
+		return &fleet.BadRequestError{
+			Message:     msg,
+			InternalErr: err,
+		}
+	}
+
+	pkgBuf := bytes.NewBuffer(nil)
+	hash := sha256.New()
+	if _, err := io.Copy(hash, io.TeeReader(hashBuf, pkgBuf)); err != nil {
+		return err
+	}
+
+	bp := &fleet.MDMAppleBootstrapPackage{
+		TeamID: teamID,
+		Name:   name,
+		Token:  uuid.New().String(),
+		Sha256: hash.Sum(nil),
+		Bytes:  pkgBuf.Bytes(),
+	}
+	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	// skipauth: bootstrap packages are gated by token
 	svc.authz.SkipAuthorization(ctx)
 
-	okta := externalsvc.Okta{
-		BaseURL:      svc.config.MDM.OktaServerURL,
-		ClientID:     svc.config.MDM.OktaClientID,
-		ClientSecret: svc.config.MDM.OktaClientSecret,
-	}
-
-	if err := okta.ROPLogin(ctx, username, password); err != nil {
-		if errors.Is(err, externalsvc.ErrInvalidGrant) {
-			return nil, fleet.NewAuthFailedError(err.Error())
-		}
-		return nil, err
-	}
-
-	dict, err := apple_mdm.SaltedSHA512PBKDF2(password)
+	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return pkg, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	uuid := uuid.New().String()
-	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		SaltedSHA512PBKDF2Dictionary: dict,
-		UUID:                         uuid,
-		Username:                     username,
-	})
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, err
+	return meta, nil
+}
+
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
 	}
 
-	query := url.Values{"ref": []string{uuid}}
-	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL+"?"+query.Encode(),
-		svc.config.MDMApple.SCEP.Challenge,
-		svc.mdmPushCertTopic,
-	)
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
+	}
+
+	return nil
 }
