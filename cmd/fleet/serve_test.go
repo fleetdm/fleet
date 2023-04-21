@@ -487,12 +487,13 @@ func TestScanVulnerabilities(t *testing.T) {
 		}, nil
 	}
 
-	vulnPath := t.TempDir()
+	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
 	}
 
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
