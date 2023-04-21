@@ -19,6 +19,8 @@ var _ = require('@sailshq/lodash');
 
 module.exports = {
 
+  templatesDirectory: path.resolve(__dirname,'./templates'),
+
   /**
    * Scope:
    * ----------------------------------------------------
