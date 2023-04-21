@@ -848,7 +848,7 @@ type Datastore interface {
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
-	// and the status is "applied" (i.e. successfully removed).
+	// and the status is "verifying" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command

@@ -2251,7 +2251,7 @@ Returns the host information about the device that makes the request.
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }

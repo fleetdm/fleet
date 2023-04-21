@@ -886,12 +886,12 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
-	case fleet.MacOSSettingsStatusFailing:
+	case fleet.MacOSSettingsFailed:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
-	case fleet.MacOSSettingsStatusPending:
+	case fleet.MacOSSettingsPending:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
-	case fleet.MacOSSettingsStatusLatest:
-		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusLatest()
+	case fleet.MacOSSettingsVerifying:
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
 	}
 	if subquery != "" {
 		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
@@ -905,25 +905,22 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		return sql, params
 	}
 
-	newSQL := ` AND EXISTS (
-		SELECT 1
-		FROM host_mdm_apple_profiles hmap
-		WHERE %s)`
-
+	var subquery string
+	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
-	case fleet.MacOSDiskEncryptionStatusApplied:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionApplied)
-	case fleet.MacOSDiskEncryptionStatusActionRequired:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionActionRequired)
-	case fleet.MacOSDiskEncryptionStatusEnforcing:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionEnforcing)
-	case fleet.MacOSDiskEncryptionStatusFailed:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionFailed)
-	case fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionRemovingEnforcement)
+	case fleet.DiskEncryptionVerifying:
+		subquery, subqueryParams = subqueryDiskEncryptionVerifying()
+	case fleet.DiskEncryptionActionRequired:
+		subquery, subqueryParams = subqueryDiskEncryptionActionRequired()
+	case fleet.DiskEncryptionEnforcing:
+		subquery, subqueryParams = subqueryDiskEncryptionEnforcing()
+	case fleet.DiskEncryptionFailed:
+		subquery, subqueryParams = subqueryDiskEncryptionFailed()
+	case fleet.DiskEncryptionRemovingEnforcement:
+		subquery, subqueryParams = subqueryDiskEncryptionRemovingEnforcement()
 	}
 
-	return sql + newSQL, params
+	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
