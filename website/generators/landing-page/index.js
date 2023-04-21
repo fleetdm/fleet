@@ -19,8 +19,6 @@ var _ = require('@sailshq/lodash');
 
 module.exports = {
 
-  templatesDirectory: path.resolve(__dirname,'./templates'),
-
   /**
    * Scope:
    * ----------------------------------------------------
@@ -39,9 +37,9 @@ module.exports = {
   before: function (scope, exits) {
     if (!scope.args[0]) {
       return exits.error(
-        'Please specify the base name or path for the new page.\n'+
-        '(relative from the `views/pages/` folder;\n'+
-        ' e.g. `dashboard/activity-summary`)'
+        'Please specify the base name or path for the new landing page.\n'+
+        '(relative from the `views/pages/imagine/` folder;\n'+
+        ' e.g. `osquer-managmenet`)'
       );
     }
 
@@ -113,9 +111,7 @@ module.exports = {
     // ◊  (Now then…)
     scope.stem = stem;
     scope.newActionSlug = path.join(arrayOfParentSubFolders.join('/'), 'view-'+stem);
-    console.log(scope.newActionSlug);
-    scope.newActionRelPath = path.join('api/controllers/imagine/', scope.newActionSlug+'.js');
-    console.log(scope.newActionRelPath);
+    scope.newActionRelPath = path.join('api/controllers/', scope.newActionSlug+'.js');
     scope.newViewRelPath = path.join('views/pages/imagine/', scope.relPath+'.ejs');
     scope.newStylesheetRelPath = path.join('assets/styles/pages/imagine/', scope.relPath+'.less');
     scope.newPageScriptRelPath = path.join('assets/js/pages/imagine/', scope.relPath+'.page.js');
