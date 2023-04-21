@@ -161,7 +161,8 @@ const HostSummary = ({
         {titleData.platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings && ( //  2 - host has at least one setting (profile) enforced
+          hostMacSettings &&
+          hostMacSettings.length > 0 && ( //  2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="macOS settings">
               <MacSettingsIndicator
                 profiles={hostMacSettings}

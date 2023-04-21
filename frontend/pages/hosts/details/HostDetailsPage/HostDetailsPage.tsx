@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -554,8 +553,6 @@ const HostDetailsPage = ({
   if (isLoadingHost) {
     return <Spinner />;
   }
-
-  const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
@@ -657,7 +654,7 @@ const HostDetailsPage = ({
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
-          hostMacSettings={host?.mdm.profiles}
+          hostMacSettings={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -781,7 +778,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}

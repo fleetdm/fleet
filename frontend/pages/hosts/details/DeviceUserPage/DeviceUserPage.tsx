@@ -3,7 +3,6 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
@@ -282,8 +281,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const statusClassName = classnames("status", `status--${host?.status}`);
-
   const turnOnMdmButton = (
     <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
@@ -362,7 +359,7 @@ const DeviceUserPage = ({
               diskEncryption={hostDiskEncryption}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
-              hostMacSettings={host?.mdm.profiles}
+              hostMacSettings={host?.mdm.profiles ?? []}
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
@@ -430,7 +427,7 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}
