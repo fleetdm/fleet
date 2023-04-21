@@ -605,11 +605,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
 
 	ne.WithCustomMiddleware(
-		mdmConfiguredMiddleware.Verify(),
-		limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
-		POST("/api/_version_/fleet/mdm/apple/dep_login", mdmAppleDEPLoginEndpoint, mdmAppleDEPLoginRequest{})
-
-	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_device", desktopQuota),
 	).HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 

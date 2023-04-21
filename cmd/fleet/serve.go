@@ -505,6 +505,7 @@ the way that the Fleet server works.
 			// assume MDM is disabled until we verify that
 			// everything is properly configured below
 			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
@@ -520,6 +521,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize Apple BM DEP storage")
 				}
+				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
 			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
