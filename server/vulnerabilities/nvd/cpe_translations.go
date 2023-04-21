@@ -39,7 +39,6 @@ func DownloadCPETranslationsFromGithub(vulnPath string, cpeTranslationsURL strin
 	path := filepath.Join(vulnPath, cpeTranslationsFilename)
 
 	if cpeTranslationsURL == "" {
-
 		stat, err := os.Stat(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
@@ -50,23 +49,22 @@ func DownloadCPETranslationsFromGithub(vulnPath string, cpeTranslationsURL strin
 			// Vulnerability assets are published once per day - if the asset in question has a
 			// mod date of 'today', then we can assume that is already up to day.
 			return nil
-		default:
-			release, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
-				return cpeTranslationsFilename == asset.GetName()
-			})
-			if err != nil {
-				return err
-			}
-			if stat.ModTime().After(release.CreatedAt.Time) {
-				// file is newer than release, do nothing
-				return nil
-			}
-			if asset == nil {
-				return errors.New("failed to find cpe translations in nvd release")
-			}
-			cpeTranslationsURL = asset.GetBrowserDownloadURL()
 		}
 
+		release, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
+			return cpeTranslationsFilename == asset.GetName()
+		})
+		if err != nil {
+			return err
+		}
+		if asset == nil {
+			return errors.New("failed to find cpe translations in nvd release")
+		}
+		if stat != nil && stat.ModTime().After(release.CreatedAt.Time) {
+			// file is newer than release, do nothing
+			return nil
+		}
+		cpeTranslationsURL = asset.GetBrowserDownloadURL()
 	}
 
 	u, err := url.Parse(cpeTranslationsURL)

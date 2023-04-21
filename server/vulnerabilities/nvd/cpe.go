@@ -81,23 +81,23 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 			// mod date of 'today', then we can assume that is already up to day so there's nothing
 			// else to do.
 			return nil
-		default:
-			release, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
-				return cpeDBRegex.MatchString(asset.GetName())
-			})
-			if err != nil {
-				return err
-			}
-			if stat.ModTime().After(release.CreatedAt.Time) {
-				// file is newer than release, do nothing
-				return nil
-			}
-			if asset == nil {
-				return errors.New("failed to find cpe database in nvd release")
-			}
-			cpeDBURL = asset.GetBrowserDownloadURL()
 		}
 
+		rel, asset, err := GetGithubNVDAsset(func(asset *github.ReleaseAsset) bool {
+			return cpeDBRegex.MatchString(asset.GetName())
+		})
+		if err != nil {
+			return err
+		}
+		if asset == nil {
+			return errors.New("failed to find cpe database in nvd release")
+		}
+		if stat != nil && stat.ModTime().After(rel.CreatedAt.Time) {
+			// file is newer than release, do nothing
+			return nil
+		}
+
+		cpeDBURL = asset.GetBrowserDownloadURL()
 	}
 
 	u, err := url.Parse(cpeDBURL)
