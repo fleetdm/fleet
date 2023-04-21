@@ -130,7 +130,7 @@ module.exports = {
 
   after: function (scope, done){
     console.log();
-    console.log('Successfully generated:');
+    console.log('Successfully generated landing page:');
     console.log(' •-',scope.newViewRelPath);
     console.log(' •-',scope.newActionRelPath);
     console.log(' •-',scope.newStylesheetRelPath);
@@ -141,11 +141,9 @@ module.exports = {
     console.log('      Vue.js as its front-end framework.  (If you\'re unsure,');
     console.log('      head over to https://sailsjs.com/support)');
     console.log();
-    console.log(' (2)  You\'ll need to manually add a route for this new page\'s');
-    console.log('      action in your `config/routes.js` file; e.g.');
-    console.log('          \'GET /imagine/'+scope.relPath+'\': { action: \''+(
-      scope.newActionSlug.replace(/\\/g,'/')//« because Windows
-    )+'\' },');
+    console.log(' (2)  You\'ll need to manually add this route for the new page\'s');
+    console.log('      action in the `website/config/routes.js` file; e.g.');
+    console.log('\t\'GET /imagine/'+scope.relPath+'\': {\n\t\taction: \''+(scope.newActionSlug.replace(/\\/g,'/'))+'\',\n\t\tlocals: {\n\t\t\tpageTitleForMeta: \'TODO\',\n\t\t\tpageDescriptionForMeta: \'TODO\',\n\t\t}\n\t},');
     console.log();
     console.log(' (3)  You\'ll need to manually import the new LESS stylesheet');
     console.log('      from your `assets/styles/importer.less` file; e.g.');

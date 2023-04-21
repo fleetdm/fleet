@@ -123,6 +123,7 @@ module.exports.custom = {
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
+    'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
