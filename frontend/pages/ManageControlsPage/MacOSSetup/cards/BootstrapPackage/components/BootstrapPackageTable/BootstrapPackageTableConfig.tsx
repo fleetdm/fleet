@@ -90,7 +90,7 @@ const defaultTableHeaders: IDataColumn[] = [
           <ViewAllHostsLink
             className="view-hosts-link"
             queryParams={{
-              macos_setup_bootstrap_package: original.status.value,
+              bootstrap_package: original.status.value,
               team_id: original.teamId,
             }}
           />

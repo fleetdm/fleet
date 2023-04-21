@@ -390,7 +390,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() => handleClearFilter(["macos_setup_bootstrap_package"])}
+          onClear={() => handleClearFilter(["bootstrap_package"])}
         />
       </>
     );

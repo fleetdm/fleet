@@ -244,7 +244,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.macos_settings_disk_encryption;
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.macos_setup_bootstrap_package;
+    queryParams?.bootstrap_package;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -375,6 +375,7 @@ const ManageHostsPage = ({
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -412,6 +413,7 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -588,7 +590,7 @@ const ManageHostsPage = ({
         routeTemplate,
         routeParams,
         queryParams: Object.assign({}, queryParams, {
-          macos_setup_bootstrap_package: newStatus,
+          bootstrap_package: newStatus,
         }),
       })
     );
@@ -751,7 +753,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
-        newQueryParams.macos_setup_bootstrap_package = bootstrapPackageStatus;
+        newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }
       router.replace(
         getNextLocationPath({

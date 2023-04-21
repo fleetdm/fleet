@@ -8,7 +8,10 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { DiskEncryptionStatus } from "utilities/constants";
+import {
+  BootstrapPackageStatus,
+  DiskEncryptionStatus,
+} from "utilities/constants";
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
@@ -43,6 +46,7 @@ export interface IHostCountLoadOptions {
   osName?: string;
   osVersion?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export default {
@@ -66,6 +70,7 @@ export default {
     const osName = options?.osName;
     const osVersion = options?.osVersion;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
     const queryParams = {
       query: globalFilter,
@@ -83,6 +88,7 @@ export default {
         osId,
         osVersion,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
       }),
       label_id: label,
       status,

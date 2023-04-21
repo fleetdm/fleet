@@ -9,7 +9,10 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
-import { DiskEncryptionStatus } from "utilities/constants";
+import {
+  BootstrapPackageStatus,
+  DiskEncryptionStatus,
+} from "utilities/constants";
 import { ISoftware } from "interfaces/software";
 import { IMdmSolution } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
@@ -55,6 +58,7 @@ export interface ILoadHostsOptions {
   columns?: string;
   visibleColumns?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export interface IExportHostsOptions {
@@ -225,6 +229,7 @@ export default {
     selectedLabels,
     sortBy,
     diskEncryptionStatus,
+    bootstrapPackageStatus,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -254,6 +259,7 @@ export default {
         osName,
         osVersion,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
       }),
     };
 
