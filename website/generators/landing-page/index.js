@@ -41,7 +41,7 @@ module.exports = {
       return exits.error(
         'Please specify the base name or path for the new landing page.\n'+
         '(relative from the `views/pages/imagine/` folder;\n'+
-        ' e.g. `osquer-managmenet`)'
+        ' e.g. `osquery-managmenet`)'
       );
     }
 
@@ -74,8 +74,8 @@ module.exports = {
     // Make sure the relative path is not within "pages/", "views/", "controllers/",
     // "assets/", "js/", "styles/", or anything else like that.  If it is, it's probably
     // an accident.  And if it's not an accident, it's still super confusing.
-    if (scope.relPath.match(/^(pages\/|views\/|controllers\/|api\/|assets\/|js\/|styles\/)/i)) {
-      return exits.error('Please specify *just* the relative path for the new page, excluding prefixes like "pages/", "views/", or "controllers/".  Those will be attached for you automatically-- you just need to include the last bit; e.g. `dashboard/activity-summary` or  `internal/admin-activity-log`');
+    if (scope.relPath.match(/^(pages\/|views\/|controllers\/|api\/|assets\/|js\/|styles\/|imagine\/)/i)) {
+      return exits.error('Please specify *just* the name of the new page, excluding prefixes like "pages/", "views/", or "controllers/".  Those will be attached for you automatically-- you just need to include the last bit; e.g. `security-compliance` or  `vulnerability-management`');
     }
 
     // Gracefully ignore double-slashes.
@@ -137,16 +137,20 @@ module.exports = {
     console.log(' •-',scope.newPageScriptRelPath);
     console.log();
     console.log('A few reminders:');
-    console.log(' (1)  These files were generated assuming your Sails app is using');
-    console.log('      Vue.js as its front-end framework.  (If you\'re unsure,');
-    console.log('      head over to https://sailsjs.com/support)');
+    console.log(' (1)  These files were generated with lorem ipsum and ');
+    console.log('      placeholder images. You\'ll need to edit the .ejs');
+    console.log('      file to add the real content to the page.');
     console.log();
     console.log(' (2)  You\'ll need to manually add this route for the new page\'s');
-    console.log('      action in the `website/config/routes.js` file; e.g.');
+    console.log('      action in the "Imagine" section of the `website/config/routes.js` file.');
+    console.log('      Be sure to replace the TODOs with the page\'s real meta description and title.');
+    console.log();
     console.log('\t\'GET /imagine/'+scope.relPath+'\': {\n\t\taction: \''+(scope.newActionSlug.replace(/\\/g,'/'))+'\',\n\t\tlocals: {\n\t\t\tpageTitleForMeta: \'TODO\',\n\t\t\tpageDescriptionForMeta: \'TODO\',\n\t\t}\n\t},');
     console.log();
     console.log(' (3)  You\'ll need to manually import the new LESS stylesheet');
-    console.log('      from your `assets/styles/importer.less` file; e.g.');
+    console.log('      from your `assets/styles/importer.less` file; Add this line');
+    console.log('      to the same section as the other pages in the imagine folder:');
+    console.log();
     console.log('          @import \''+(
       path.join('pages/imagine/', scope.relPath+'.less').replace(/\\/g,'/')//« because Windows
     )+'\';');

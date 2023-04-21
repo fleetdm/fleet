@@ -3,30 +3,6 @@
 A `landing-page` generator for use with the Sails command-line interface.
 
 
-## Installation
-
-```sh
-$ npm install @eashaw/sails-generate-landing-page --save
-```
-
-Then merge the following into your `.sailsrc` file:
-
-```json
-{
-  "modules": {
-    "landing-page": "@eashaw/sails-generate-landing-page"
-  }
-}
-```
-
-> Note that instead of `"@eashaw/sails-generate-landing-page"`, you can also choose to provide the path to the generator locally (e.g. "./generators/landing-page").
-> This is useful if, for example, you have specific best practices for particular projects or teams within your organization, and you want to be able to check in generators to your code repository.
->
-> Certain generators are installed by default in Sails, but they can be overridden.  Other generators add support for generating entirely new kinds of things.
-> Check out [Concepts > Extending Sails > Generators](https://sailsjs.com/docs/concepts/extending-sails/generators) for information on installing generator overrides / custom generators and information on building your own generators.
-
-
-
 ## Usage
 
 ```bash
