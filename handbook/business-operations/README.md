@@ -860,7 +860,7 @@ To make a request of the business operations department, [create an issue using 
 
 ## Contract review
 
-**If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented further down in this handbook section.**
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented further down in this handbook section.
 
 **To get a contract reviewed:**
 
