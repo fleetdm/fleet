@@ -11,6 +11,7 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
+import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -67,7 +68,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import Icon from "components/Icon";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1252,16 +1253,19 @@ const ManageHostsPage = ({
       dropdownOptions[3].label = (
         <span>
           <span>Missing hosts</span>
-          <PremiumFeatureIconWithTooltip />
+          <Icon name="premium-feature" className="premium-feature-icon" />
         </span>
       );
     }
-
+    const statusDropdownClassnames = classNames(
+      `${baseClass}__status_dropdown`,
+      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
+    );
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
+          className={statusDropdownClassnames}
           options={dropdownOptions}
           searchable={false}
           onChange={handleStatusDropdownChange}
