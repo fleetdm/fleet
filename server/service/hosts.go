@@ -106,11 +106,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := fleet.HostResponseForHost(ctx, svc, host)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-
+		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{
@@ -1337,10 +1333,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 	hostResps := make([]*fleet.HostResponse, len(hosts))
 	for i, h := range hosts {
-		hr, err := fleet.HostResponseForHost(ctx, svc, h)
-		if err != nil {
-			return hostsReportResponse{Err: err}, nil
-		}
+		hr := fleet.HostResponseForHost(ctx, svc, h)
 		hostResps[i] = hr
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
