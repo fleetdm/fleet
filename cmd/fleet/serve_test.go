@@ -477,8 +477,8 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostVulnerabilitySummary, error) {
-		return []*fleet.HostVulnerabilitySummary{
+	ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+		return []fleet.HostVulnerabilitySummary{
 			{
 				ID:          1,
 				Hostname:    "1",
