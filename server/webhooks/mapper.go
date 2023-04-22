@@ -17,10 +17,11 @@ type VulnMapper interface {
 }
 
 type hostPayloadPart struct {
-	ID          uint   `json:"id"`
-	Hostname    string `json:"hostname"`
-	DisplayName string `json:"display_name"`
-	URL         string `json:"url"`
+	ID                     uint     `json:"id"`
+	Hostname               string   `json:"hostname"`
+	DisplayName            string   `json:"display_name"`
+	URL                    string   `json:"url"`
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty"`
 }
 
 type WebhookPayload struct {
@@ -48,12 +49,22 @@ func (m *Mapper) getHostPayloadPart(
 	for i, h := range hosts {
 		hostURL := *hostBaseURL
 		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
-		shortHosts[i] = &hostPayloadPart{
+		hostPayload := hostPayloadPart{
 			ID:          h.ID,
 			Hostname:    h.Hostname,
 			DisplayName: h.DisplayName,
 			URL:         hostURL.String(),
 		}
+
+		for _, p := range h.SoftwareInstalledPaths {
+			if p != "" {
+				hostPayload.SoftwareInstalledPaths = append(
+					hostPayload.SoftwareInstalledPaths,
+					p,
+				)
+			}
+		}
+		shortHosts[i] = &hostPayload
 	}
 	return shortHosts
 }
