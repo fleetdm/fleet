@@ -1262,34 +1262,58 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 }
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostVulnerabilitySummary, error) {
-	queryStmt := `
-    SELECT 
-      h.id,
-      h.hostname,
-      if(h.computer_name = '', h.hostname, h.computer_name) display_name
-    FROM
-      hosts h
-    INNER JOIN
-      host_software hs
-    ON
-      h.id = hs.host_id
-    WHERE
-      hs.software_id IN (?)
-	GROUP BY h.id, h.hostname
-    ORDER BY
-      h.id`
+	stmt := `
+		SELECT DISTINCT 
+			h.id,
+			h.hostname,
+			if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+			COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+				INNER JOIN host_software hs ON h.id = hs.host_id AND hs.software_id IN (?)
+				LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		ORDER BY h.id`
 
-	stmt, args, err := sqlx.In(queryStmt, softwareIDs)
+	stmt, args, err := sqlx.In(stmt, softwareIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.HostVulnerabilitySummary
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+
+	var qR []struct {
+		HostID                uint   `db:"id"`
+		HostName              string `db:"hostname"`
+		DisplayName           string `db:"display_name"`
+		SoftwareInstalledPath string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []*fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok && r.SoftwareInstalledPath != "" {
+			result[i].SoftwareInstalledPaths = append(
+				result[i].SoftwareInstalledPaths,
+				r.SoftwareInstalledPath,
+			)
+			continue
+		}
+
+		result = append(result, &fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		})
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
+// TODO JUAN: Remove this
 func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
 	query := `
 SELECT DISTINCT

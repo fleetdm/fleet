@@ -865,12 +865,12 @@ type AggregatedMacadminsData struct {
 }
 
 // HostVulnerabilitySummary type used with webhooks and third-party vulnerability automations.
-// Contains all pertinent host related info plus the installed paths of all affected software.
+// Contains all pertinent host info plus the installed paths of all affected software.
 type HostVulnerabilitySummary struct {
 	ID                     uint     `json:"id" db:"id"`
 	Hostname               string   `json:"hostname" db:"hostname"`
 	DisplayName            string   `json:"display_name" db:"display_name"`
-	SoftwareInstalledPaths []string `json:"software_installed_path,omitempty" db:"software_installed_path"`
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
 }
 
 type OSVersions struct {
