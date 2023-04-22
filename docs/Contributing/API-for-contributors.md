@@ -2247,6 +2247,10 @@ Returns the host information about the device that makes the request.
         "disk_encryption": null,
         "action_required": null
       },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
       "profiles": [
         {
           "profile_id": 999,
