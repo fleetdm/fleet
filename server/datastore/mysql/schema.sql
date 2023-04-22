@@ -242,6 +242,16 @@ CREATE TABLE `host_mdm` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `host_mdm_apple_bootstrap_packages` (
+  `host_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`host_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  CONSTRAINT `host_mdm_apple_bootstrap_packages_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_mdm_apple_profiles` (
   `profile_id` int(10) unsigned NOT NULL,
   `profile_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -492,6 +502,8 @@ CREATE TABLE `mdm_apple_bootstrap_packages` (
   `sha256` binary(32) NOT NULL,
   `bytes` longblob,
   `token` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`team_id`),
   UNIQUE KEY `idx_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
