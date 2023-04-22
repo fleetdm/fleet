@@ -1166,6 +1166,12 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		require.True(t, inserted)
 	}
 
+	s1Paths := make(map[string]string)
+	for _, s := range software1 {
+		s1Paths[s.ToUniqueStr()] = fmt.Sprintf("/some/path/%s", s.Name)
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths))
+
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 }
 
@@ -1275,6 +1281,7 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	// Invalid non-existing host id
 	hosts, err := ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{0})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
@@ -1284,30 +1291,30 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
 	require.NoError(t, err)
 
+	var fooRpm fleet.Software
 	var chrome3 fleet.Software
 	var barRpm fleet.Software
-
 	for _, s := range allSoftware {
-		if s.GenerateCPE == "cpe_foo_chrome_3" {
+		switch s.GenerateCPE {
+		case "cpe_foo_rpm":
+			fooRpm = s
+		case "cpe_foo_chrome_3":
 			chrome3 = s
-		}
-
-		if s.GenerateCPE == "cpe_bar_rpm" {
+		case "cpe_bar_rpm":
 			barRpm = s
 		}
 	}
-
 	require.NotZero(t, chrome3.ID)
 	require.NotZero(t, barRpm.ID)
 
 	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{chrome3.ID})
 	require.NoError(t, err)
-	require.Len(t, hosts, 2)
-	require.ElementsMatch(t, hosts, []*fleet.HostVulnerabilitySummary{
+	require.ElementsMatch(t, hosts, []fleet.HostVulnerabilitySummary{
 		{
-			ID:          1,
-			Hostname:    "host1",
-			DisplayName: "computer1",
+			ID:                     1,
+			Hostname:               "host1",
+			DisplayName:            "computer1",
+			SoftwareInstalledPaths: []string{"/some/path/foo.chrome"},
 		}, {
 			ID:          2,
 			Hostname:    "host2",
@@ -1317,15 +1324,22 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 
 	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{barRpm.ID})
 	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	require.Equal(t, hosts[0].Hostname, "host2")
+	require.ElementsMatch(t, hosts, []fleet.HostVulnerabilitySummary{
+		{
+			ID:          2,
+			Hostname:    "host2",
+			DisplayName: "host2",
+		},
+	})
 
 	// Duplicates should not be returned if cpes are found on the same host ie host2 should only appear once
-	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{chrome3.ID, barRpm.ID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{chrome3.ID, barRpm.ID, fooRpm.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
 	require.Equal(t, hosts[0].Hostname, "host1")
 	require.Equal(t, hosts[1].Hostname, "host2")
+	require.ElementsMatch(t, hosts[0].SoftwareInstalledPaths, []string{"/some/path/foo.rpm", "/some/path/foo.chrome"})
+	require.Empty(t, hosts[1].SoftwareInstalledPaths)
 }
 
 // testUpdateHostSoftwareUpdatesSoftware tests that uninstalling applications

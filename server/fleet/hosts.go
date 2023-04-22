@@ -873,6 +873,12 @@ type HostVulnerabilitySummary struct {
 	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
 }
 
+func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
+	if p != "" {
+		hvs.SoftwareInstalledPaths = append(hvs.SoftwareInstalledPaths, p)
+	}
+}
+
 type OSVersions struct {
 	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
 	OSVersions      []OSVersion `json:"os_versions"`

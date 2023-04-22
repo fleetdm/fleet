@@ -1261,7 +1261,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostVulnerabilitySummary, error) {
+func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	stmt := `
 		SELECT DISTINCT 
 			h.id,
@@ -1279,34 +1279,36 @@ func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwar
 	}
 
 	var qR []struct {
-		HostID                uint   `db:"id"`
-		HostName              string `db:"hostname"`
-		DisplayName           string `db:"display_name"`
-		SoftwareInstalledPath string `db:"software_installed_path"`
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
 	}
 
-	var result []*fleet.HostVulnerabilitySummary
+	fmt.Println(qR)
+
+	var result []fleet.HostVulnerabilitySummary
 	lookup := make(map[uint]int)
 
 	for _, r := range qR {
 		i, ok := lookup[r.HostID]
 
-		if ok && r.SoftwareInstalledPath != "" {
-			result[i].SoftwareInstalledPaths = append(
-				result[i].SoftwareInstalledPaths,
-				r.SoftwareInstalledPath,
-			)
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
 			continue
 		}
 
-		result = append(result, &fleet.HostVulnerabilitySummary{
+		mapped := fleet.HostVulnerabilitySummary{
 			ID:          r.HostID,
 			Hostname:    r.HostName,
 			DisplayName: r.DisplayName,
-		})
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
 		lookup[r.HostID] = len(result) - 1
 	}
 

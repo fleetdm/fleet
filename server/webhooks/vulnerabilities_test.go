@@ -81,7 +81,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	t.Run("trigger requests", func(t *testing.T) {
 		now := time.Now()
 
-		hosts := []*fleet.HostVulnerabilitySummary{
+		hosts := []fleet.HostVulnerabilitySummary{
 			{ID: 1, Hostname: "h1", DisplayName: "d1"},
 			{ID: 2, Hostname: "h2", DisplayName: "d2"},
 			{ID: 3, Hostname: "h3", DisplayName: "d3"},
@@ -105,7 +105,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			name  string
 			vulns []fleet.SoftwareVulnerability
 			meta  map[string]fleet.CVEMeta
-			hosts []*fleet.HostVulnerabilitySummary
+			hosts []fleet.HostVulnerabilitySummary
 			want  string
 		}{
 			{
@@ -178,7 +178,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				}))
 				defer srv.Close()
 
-				ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostVulnerabilitySummary, error) {
+				ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 					return c.hosts, nil
 				}
 
