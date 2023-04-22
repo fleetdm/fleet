@@ -2090,7 +2090,8 @@ Returns the information of the specified host.
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_path": "/usr/lib/some-path-1"
       },
       {
         "id": 1146,
@@ -2108,7 +2109,8 @@ Returns the information of the specified host.
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_path": "/usr/lib/some-path-2"
       }
     ],
     "id": 1,
@@ -2318,7 +2320,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
           "version": "0.8.0",
           "source": "python_packages",
           "generated_cpe": "",
-          "vulnerabilities": null
+          "vulnerabilities": null,
+          "installed_path": "/usr/lib/some_path/"
       }
     ],
     "id": 33,
