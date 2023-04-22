@@ -22,8 +22,8 @@ import (
 
 func TestZendeskRun(t *testing.T) {
 	ds := new(mock.Store)
-	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
+		return []*fleet.HostVulnerabilitySummary{
 			{
 				ID:       1,
 				Hostname: "test",

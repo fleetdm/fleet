@@ -18,8 +18,8 @@ import (
 
 func TestJiraFailer(t *testing.T) {
 	ds := new(mock.Store)
-	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{{ID: 1, Hostname: "test"}}, nil
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
+		return []*fleet.HostVulnerabilitySummary{{ID: 1, Hostname: "test"}}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
@@ -89,8 +89,8 @@ func TestJiraFailer(t *testing.T) {
 
 func TestZendeskFailer(t *testing.T) {
 	ds := new(mock.Store)
-	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		return []*fleet.HostShort{{ID: 1, Hostname: "test"}}, nil
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
+		return []*fleet.HostVulnerabilitySummary{{ID: 1, Hostname: "test"}}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Integrations: fleet.Integrations{

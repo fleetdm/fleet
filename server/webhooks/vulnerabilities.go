@@ -43,7 +43,7 @@ func TriggerVulnerabilitiesWebhook(
 	}
 
 	for cve, sIDs := range groups {
-		hosts, err := ds.HostsBySoftwareIDs(ctx, sIDs)
+		hosts, err := ds.HostVulnSummariesBySoftwareIDs(ctx, sIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get hosts by software ids")
 		}

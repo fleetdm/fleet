@@ -1252,7 +1252,7 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0001")
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
-	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+	require.ElementsMatch(t, hosts, []*fleet.HostVulnerabilitySummary{
 		{
 			ID:          1,
 			Hostname:    "host1",
@@ -1274,7 +1274,7 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	hosts, err := ds.HostsBySoftwareIDs(ctx, []uint{0})
+	hosts, err := ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{0})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
 
@@ -1299,10 +1299,10 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.NotZero(t, chrome3.ID)
 	require.NotZero(t, barRpm.ID)
 
-	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{chrome3.ID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{chrome3.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
-	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+	require.ElementsMatch(t, hosts, []*fleet.HostVulnerabilitySummary{
 		{
 			ID:          1,
 			Hostname:    "host1",
@@ -1314,13 +1314,13 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barRpm.ID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{barRpm.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, hosts[0].Hostname, "host2")
 
 	// Duplicates should not be returned if cpes are found on the same host ie host2 should only appear once
-	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{chrome3.ID, barRpm.ID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{chrome3.ID, barRpm.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
 	require.Equal(t, hosts[0].Hostname, "host1")
@@ -1427,15 +1427,15 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(expectedSoftware, software)
 
-	hosts, err := ds.HostsBySoftwareIDs(ctx, []uint{bazSoftwareID})
+	hosts, err := ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{bazSoftwareID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, hosts[0].ID, h1.ID)
 
-	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barSoftwareID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{barSoftwareID})
 	require.NoError(t, err)
 	require.Empty(t, hosts)
-	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{baz2SoftwareID})
+	hosts, err = ds.HostVulnSummariesBySoftwareIDs(ctx, []uint{baz2SoftwareID})
 	require.NoError(t, err)
 	require.Empty(t, hosts)
 

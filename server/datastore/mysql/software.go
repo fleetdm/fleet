@@ -1261,9 +1261,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-// HostsBySoftwareIDs returns a list of all hosts that have at least one of the specified Software
-// installed. It returns a minimal represention of matching hosts.
-func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostVulnerabilitySummary, error) {
 	queryStmt := `
     SELECT 
       h.id,
@@ -1285,14 +1283,14 @@ func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.HostShort
+	var hosts []*fleet.HostVulnerabilitySummary
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
 	return hosts, nil
 }
 
-func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
 	query := `
 SELECT DISTINCT
     	(h.id),
@@ -1308,7 +1306,7 @@ ORDER BY
     h.id
 `
 
-	var hosts []*fleet.HostShort
+	var hosts []*fleet.HostVulnerabilitySummary
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, cve); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}

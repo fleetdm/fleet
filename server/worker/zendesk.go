@@ -97,7 +97,7 @@ type zendeskVulnTplArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
-	Hosts    []*fleet.HostShort
+	Hosts    []*fleet.HostVulnerabilitySummary
 
 	IsPremium bool
 
