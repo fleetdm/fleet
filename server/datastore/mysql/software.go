@@ -111,7 +111,8 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
-// getHostSoftwareInstalledPaths returns all SoftwareInstalledPaths for the given hostID grouped by 'grouper'
+// getHostSoftwareInstalledPaths returns all SoftwareInstalledPaths for the given hostID grouped by
+// 'grouper'.
 func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
@@ -840,10 +841,10 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return err
 	}
 
-	host.Software = make([]fleet.SoftwareWithInstalledPath, 0, len(software))
+	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
 	for _, s := range software {
 		iPath := installedPaths[fmt.Sprint(s.ID)]
-		host.Software = append(host.Software, fleet.SoftwareWithInstalledPath{
+		host.Software = append(host.Software, fleet.HostSoftwareEntry{
 			Software:      s,
 			InstalledPath: iPath.InstalledPath,
 		})
@@ -1287,8 +1288,6 @@ func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwar
 	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
 	}
-
-	fmt.Println(qR)
 
 	var result []fleet.HostVulnerabilitySummary
 	lookup := make(map[uint]int)

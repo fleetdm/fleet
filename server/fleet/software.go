@@ -82,7 +82,8 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 	return "software_inventory"
 }
 
-type SoftwareWithInstalledPath struct {
+type HostSoftwareEntry struct {
+	// Software details
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
@@ -92,7 +93,7 @@ type SoftwareWithInstalledPath struct {
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []SoftwareWithInstalledPath `json:"software,omitempty" csv:"-"`
+	Software []HostSoftwareEntry `json:"software,omitempty" csv:"-"`
 
 	// SoftwareUpdatedAt is the time that the host software was last updated
 	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`

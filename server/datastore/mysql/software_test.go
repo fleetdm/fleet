@@ -65,7 +65,6 @@ func TestSoftware(t *testing.T) {
 }
 
 func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
-	t.Skip("TODO Fix this")
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
@@ -80,19 +79,29 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},
 	}
 
+	getHostSoftware := func(h *fleet.Host) []fleet.Software {
+		var software []fleet.Software
+		for _, s := range h.Software {
+			software = append(software, s.Software)
+		}
+		return software
+	}
+
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
+	host1Software := getHostSoftware(host1)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
-	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
+	assert.Equal(t, host1Software[0], *soft1ByID)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
+	host2Software := getHostSoftware(host2)
+	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
@@ -105,10 +114,12 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
+	host1Software = getHostSoftware(host1)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
+	host2Software = getHostSoftware(host2)
+	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -116,9 +127,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
-
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
+	host1Software = getHostSoftware(host1)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
 	software2 = []fleet.Software{
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
@@ -128,7 +139,8 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
+	host2Software = getHostSoftware(host2)
+	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software2 = []fleet.Software{
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
@@ -138,7 +150,8 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
-	test.ElementsMatchSkipIDAndHostCount(t, software2, host2.HostSoftware.Software)
+	host2Software = getHostSoftware(host2)
+	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 }
 
 func testSoftwareCPE(t *testing.T, ds *Datastore) {
@@ -1474,7 +1487,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	lastYear := now.Add(-365 * 24 * time.Hour)
 
 	// sort software slice by last opened at timestamp
-	genSortFn := func(sl []fleet.SoftwareWithInstalledPath) func(l, r int) bool {
+	genSortFn := func(sl []fleet.HostSoftwareEntry) func(l, r int) bool {
 		return func(l, r int) bool {
 			lsw, rsw := sl[l], sl[r]
 			lts, rts := lsw.LastOpenedAt, rsw.LastOpenedAt
@@ -1979,13 +1992,13 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
+	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.HostSoftwareEntry) bool {
 		return c.Name == "foo" && c.Version == "0.0.1" && c.Source == "chrome_extensions"
 	})
-	foo_app_v2 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
+	foo_app_v2 := slices.IndexFunc(host.Software, func(c fleet.HostSoftwareEntry) bool {
 		return c.Name == "foo" && c.Version == "v0.0.2" && c.Source == "apps"
 	})
-	bar_v3 := slices.IndexFunc(host.Software, func(c fleet.SoftwareWithInstalledPath) bool {
+	bar_v3 := slices.IndexFunc(host.Software, func(c fleet.HostSoftwareEntry) bool {
 		return c.Name == "bar" && c.Version == "0.0.3" && c.Source == "deb_packages"
 	})
 

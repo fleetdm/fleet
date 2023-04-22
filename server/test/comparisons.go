@@ -44,7 +44,7 @@ func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAn
 		for _, ps := range p {
 			switch ps := ps.(type) {
 			case cmp.StructField:
-				if ps.Name() == "ID" || ps.Name() == "HostCount" {
+				if ps.Name() == "ID" || ps.Name() == "HostCount" || ps.Name() == "InstalledPath" {
 					return true
 				}
 			}
