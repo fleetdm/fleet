@@ -1314,28 +1314,54 @@ func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwar
 	return result, nil
 }
 
-// TODO JUAN: Remove this
-func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostVulnerabilitySummary, error) {
-	query := `
-SELECT DISTINCT
-    	(h.id),
-    	h.hostname,
-    	if(h.computer_name = '', h.hostname, h.computer_name) display_name
-FROM
-    hosts h
-    INNER JOIN host_software hs ON h.id = hs.host_id
-    INNER JOIN software_cve scv ON scv.software_id = hs.software_id
-WHERE
-    scv.cve = ?
-ORDER BY
-    h.id
-`
+// ** DEPRECATED **
+func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
+	stmt := `
+		SELECT DISTINCT
+				(h.id),
+				h.hostname,
+				if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+				COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+			INNER JOIN host_software hs ON h.id = hs.host_id
+			INNER JOIN software_cve scv ON scv.software_id = hs.software_id
+			LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		WHERE scv.cve = ?
+		ORDER BY h.id`
 
-	var hosts []*fleet.HostVulnerabilitySummary
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, cve); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
+	var qR []struct {
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, cve); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
+			continue
+		}
+
+		mapped := fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {

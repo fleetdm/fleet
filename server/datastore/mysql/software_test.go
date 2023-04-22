@@ -1272,11 +1272,14 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0001")
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
-	require.ElementsMatch(t, hosts, []*fleet.HostVulnerabilitySummary{
+	require.ElementsMatch(t, hosts, []fleet.HostVulnerabilitySummary{
 		{
 			ID:          1,
 			Hostname:    "host1",
 			DisplayName: "computer1",
+			SoftwareInstalledPaths: []string{
+				"/some/path/foo.chrome",
+			},
 		}, {
 			ID:          2,
 			Hostname:    "host2",

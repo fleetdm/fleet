@@ -48,11 +48,12 @@ type failingPolicyArgs struct {
 // vulnArgs are the args common to all integrations that can process
 // vulnerabilities.
 type vulnArgs struct {
-	CVE              string     `json:"cve,omitempty"`
-	EPSSProbability  *float64   `json:"epss_probability,omitempty"`   // Premium feature only
-	CVSSScore        *float64   `json:"cvss_score,omitempty"`         // Premium feature only
-	CISAKnownExploit *bool      `json:"cisa_known_exploit,omitempty"` // Premium feature only
-	CVEPublished     *time.Time `json:"cve_published,omitempty"`      // Premium feature only
+	CVE                 string     `json:"cve,omitempty"`
+	AffectedSoftwareIDs []uint     `json:"affected_software,omitempty"`
+	EPSSProbability     *float64   `json:"epss_probability,omitempty"`   // Premium feature only
+	CVSSScore           *float64   `json:"cvss_score,omitempty"`         // Premium feature only
+	CISAKnownExploit    *bool      `json:"cisa_known_exploit,omitempty"` // Premium feature only
+	CVEPublished        *time.Time `json:"cve_published,omitempty"`      // Premium feature only
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
