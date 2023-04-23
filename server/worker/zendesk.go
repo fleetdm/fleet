@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -266,6 +267,9 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	vargs := args.Vulnerability
+	if vargs == nil {
+		return errors.New("invalid job args")
+	}
 
 	var hosts []fleet.HostVulnerabilitySummary
 	var err error
