@@ -111,7 +111,7 @@ const PolicyPage = ({
     if (policyTeamId !== teamIdForApi) {
       setPolicyTeamId(teamIdForApi || 0);
     }
-  }, [isRouteOk, teamIdForApi, policyTeamId]); // setPolicyTeamId will cause infinite loop
+  }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
 
   useEffect(() => {
     // cleanup when component unmounts
