@@ -491,7 +491,7 @@ func (svc *Service) validateMDM(
 		}
 
 		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
-			invalid.Append("macos_settings.enable_disk_encryption",
+			invalid.Append("macos_setup.macos_setup_assistant",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
