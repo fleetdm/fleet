@@ -2614,6 +2614,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package")
 	// successfully upload a package
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	// check the activity log
+	s.lastActivityMatches(
+		fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
+		`{"package_name": "pkg.pkg", "team_id": null, "team_name": null}`,
+		0,
+	)
 
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
@@ -2638,6 +2644,13 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	// delete package
 	var deleteResp deleteBootstrapPackageResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusOK, &deleteResp)
+	// check the activity log
+	s.lastActivityMatches(
+		fleet.ActivityTypeDeletedBootstrapPackage{}.ActivityName(),
+		`{"package_name": "pkg.pkg", "team_id": null, "team_name": null}`,
+		0,
+	)
+
 	metadataResp = bootstrapPackageMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request

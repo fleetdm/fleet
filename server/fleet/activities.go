@@ -845,6 +845,50 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
 }`
 }
 
+type ActivityTypeAddedBootstrapPackage struct {
+	PackageName string  `json:"package_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
+	return "added_bootstrap_package"
+}
+
+func (a ActivityTypeAddedBootstrapPackage) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new bootstrap package to a team (or no team).`,
+		`This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+  "package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedBootstrapPackage struct {
+	PackageName string  `json:"package_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedBootstrapPackage) ActivityName() string {
+	return "deleted_bootstrap_package"
+}
+
+func (a ActivityTypeDeletedBootstrapPackage) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a bootstrap package from a team (or no team).`,
+		`This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+  "package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
 func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
