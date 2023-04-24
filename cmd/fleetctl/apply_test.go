@@ -261,6 +261,14 @@ func writeTmpYml(t *testing.T, contents string) string {
 	return tmpFile.Name()
 }
 
+func writeTmpJSON(t *testing.T, v any) string {
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.json")
+	require.NoError(t, err)
+	err = json.NewEncoder(tmpFile).Encode(v)
+	require.NoError(t, err)
+	return tmpFile.Name()
+}
+
 func TestApplyAppConfig(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
@@ -1065,6 +1073,9 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	// create a macos setup json file (content not important)
+	macSetupFile := writeTmpJSON(t, map[string]any{})
+
 	setupDS := func(ds *mock.Store) {
 		// labels
 		ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
@@ -1909,6 +1920,32 @@ spec:
         enable_disk_encryption: false
 `,
 			wantOutput: `[+] applied 1 teams`,
+		},
+		{
+			desc: "team config mac setup assistant",
+			spec: fmt.Sprintf(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_setup:
+        macos_setup_assistant: %s
+`, macSetupFile),
+			wantErr: `MDM features aren't turned on.`,
+		},
+		{
+			desc: "app config macos setup assistant",
+			spec: fmt.Sprintf(`
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      macos_setup_assistant: %s
+`, macSetupFile),
+			wantErr: `MDM features aren't turned on.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
