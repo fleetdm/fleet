@@ -331,7 +331,7 @@ func (c *Client) ApplyGroup(
 					return fmt.Errorf("applying fleet config: %w", err)
 				}
 				if !opts.DryRun {
-					if err := c.uploadMacOSSetupAssistant(content, nil); err != nil {
+					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
 						return err
 					}
 				}
@@ -426,7 +426,7 @@ func (c *Client) ApplyGroup(
 					}
 				}
 				if b, ok := tmMacSetupAssistants[tm.Name]; ok {
-					if err := c.uploadMacOSSetupAssistant(b, &tm.ID); err != nil {
+					if err := c.uploadMacOSSetupAssistant(b, &tm.ID, tmMacSetup[tm.Name].MacOSSetupAssistant.Value); err != nil {
 						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tm.Name, err)
 					}
 				}

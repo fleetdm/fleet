@@ -217,7 +217,12 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint) error {
-	// TODO(mna): implement
-	panic("unimplemented")
+func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
+	verb, path := "POST", "/api/latest/fleet/mdm/apple/enrollment_profile"
+	request := createMDMAppleSetupAssistantRequest{
+		TeamID:            teamID,
+		Name:              name,
+		EnrollmentProfile: json.RawMessage(data),
+	}
+	return c.authenticatedRequest(request, verb, path, nil)
 }
