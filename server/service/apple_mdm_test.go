@@ -2316,8 +2316,8 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 		{"global observer team", test.UserObserver, ptr.Uint(1), true, true},
 		{"global observer+ no team", test.UserObserverPlus, nil, true, true},
 		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
-		{"global gitops no team", test.UserGitOps, nil, true, true},
-		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, true},
+		{"global gitops no team", test.UserGitOps, nil, true, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
 		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
 		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
 		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true},
@@ -2331,7 +2331,7 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true},
 		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
 		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
-		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, true},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
 		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
 	}
 

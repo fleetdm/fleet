@@ -1418,9 +1418,9 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Settings, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Settings, action: read, allow: false},
 
-		{user: test.UserGitOps, object: globalSettings, action: write, allow: false},
+		{user: test.UserGitOps, object: globalSettings, action: write, allow: true},
 		{user: test.UserGitOps, object: globalSettings, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Settings, action: write, allow: false},
+		{user: test.UserGitOps, object: team1Settings, action: write, allow: true},
 		{user: test.UserGitOps, object: team1Settings, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalSettings, action: write, allow: false},
@@ -1465,7 +1465,7 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalSettings, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team1Settings, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: write, allow: false},
