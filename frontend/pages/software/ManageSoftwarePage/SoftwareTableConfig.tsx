@@ -238,15 +238,11 @@ const generateTableHeaders = (
     {
       title: "Hosts",
       Header: (cellProps: IHeaderProps): JSX.Element => (
-<<<<<<< HEAD
         <HeaderCell
           value={cellProps.column.title}
           disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
-=======
-        <HeaderCell value={cellProps.column.title} disableSortBy={false} />
->>>>>>> f4120194b (Progress towards url params for hosts/id/software)
       ),
       disableSortBy: false,
       accessor: "hosts_count",

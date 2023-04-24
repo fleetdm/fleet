@@ -65,7 +65,6 @@ interface IDataTableProps {
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
-  defaultPageIndex?: number;
 }
 
 interface IHeaderGroup extends HeaderGroup {

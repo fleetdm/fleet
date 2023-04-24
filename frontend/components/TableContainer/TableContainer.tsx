@@ -455,7 +455,6 @@ const TableContainer = ({
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
                 setExportRows={setExportRows}
-                defaultPageIndex={pageIndex}
               />
             </div>
           </>
