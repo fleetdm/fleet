@@ -35,6 +35,7 @@ interface ITableContainerProps {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
+  defaultPageIndex?: number;
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
@@ -100,6 +101,7 @@ const TableContainer = ({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  defaultPageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   inputPlaceHolder = "Search",
@@ -152,7 +154,7 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
+  const [pageIndex, setPageIndex] = useState(defaultPageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const prevPageIndex = useRef(0);
@@ -422,6 +424,7 @@ const TableContainer = ({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
+                defaultPageIndex={defaultPageIndex}
                 primarySelectActionButtonVariant={
                   primarySelectActionButtonVariant
                 }
