@@ -755,7 +755,7 @@ CREATE TABLE `nano_users` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
-/*!50001 CREATE VIEW `nano_view_queue` AS SELECT
+/*!50001 CREATE VIEW `nano_view_queue` AS SELECT 
  1 AS `id`,
  1 AS `created_at`,
  1 AS `active`,
