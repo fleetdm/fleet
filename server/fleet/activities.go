@@ -868,9 +868,9 @@ func (a ActivityTypeAddedBootstrapPackage) Documentation() (activity, details, d
 }
 
 type ActivityTypeDeletedBootstrapPackage struct {
-	PackageName string  `json:"package_name"`
-	TeamID      *uint   `json:"team_id"`
-	TeamName    *string `json:"team_name"`
+	BootstrapPackageName string  `json:"bootstrap_package_name"`
+	TeamID               *uint   `json:"team_id"`
+	TeamName             *string `json:"team_name"`
 }
 
 func (a ActivityTypeDeletedBootstrapPackage) ActivityName() string {
