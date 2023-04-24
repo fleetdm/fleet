@@ -218,7 +218,7 @@ func TestHostSearchLike(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
