@@ -40,9 +40,14 @@ locals {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
+    FLEET_LOGGING_TRACING_ENABLED              = "true"
+    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+    ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    ELASTIC_APM_SERVICE_NAME                   = "dogfood"
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
