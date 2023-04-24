@@ -844,6 +844,17 @@ None.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
     }
   },
   "agent_options": {
@@ -1122,7 +1133,7 @@ Modifies the Fleet's configuration with the supplied information.
       "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
-      "idp_name": "",
+      "idp_name": ""
     }
   },
   "agent_options": {

@@ -528,10 +528,8 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if existing.EntityID == "" {
 			invalid.Append("entity_id", "required")
 		}
-	} else {
-		if len(incoming.EntityID) < 5 {
-			invalid.Append("entity_id", "must be 5 or more characters")
-		}
+	} else if len(incoming.EntityID) < 5 {
+		invalid.Append("entity_id", "must be 5 or more characters")
 	}
 	if incoming.IDPName == "" {
 		if existing.IDPName == "" {
