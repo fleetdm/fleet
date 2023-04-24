@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 
@@ -251,6 +252,22 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+
+	var m map[string]any
+	if err := json.Unmarshal(asst.Profile, &m); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
+	}
+
+	deniedFields := map[string]string{
+		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
+	}
+	for k, msg := range deniedFields {
+		if _, ok := m[k]; ok {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
+		}
+	}
+
 	return svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 }
 

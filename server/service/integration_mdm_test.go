@@ -3009,6 +3009,36 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.Equal(t, "team2", getResp.Name)
 	require.JSONEq(t, tmProf, string(getResp.Profile))
 
+	// try to set the configuration_web_url key
+	tmProf = `{"configuration_web_url": "https://example.com"}`
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team3",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include configuration_web_url.`)
+
+	// try to set the await_device_configured
+	tmProf = `{"await_device_configured": true}`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team4",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
+
+	// try to set a non-object json value
+	tmProf = `true`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team5",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusInternalServerError) // TODO: that should be a 4xx error, see #4406
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `cannot unmarshal bool into Go value of type map[string]interface`)
+
 	// delete the no-team
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent)
 

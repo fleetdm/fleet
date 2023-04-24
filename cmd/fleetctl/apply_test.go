@@ -1072,6 +1072,34 @@ spec:
 	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
 }
 
+func TestApplyMacosSetupAssistant(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	name := writeTmpYml(t, queriesSpec)
+
+	assert.Equal(t, "[+] applied 1 queries\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// TODO(mna):
+	// - test with fleet free, appconfig and team
+	// - test with global config, invalid file, not json, invalid json
+	// - test with team, invalid file, not json, invalid json
+	// - get appconfig, team, returns empty
+	// - apply valid appconfig dry run, team dry run, did not call upload/create setup assistant
+	// - get appconfig, team, returns empty
+	// - apply valid appconfig, team for real, did call upload/create setup assistant
+	// - get appconfig, team, returns proper values
+	// - apply empty assistant for appconfig, team in dry run, did not call delete setup assistant
+	// - get appconfig, team, returns existing values
+	// - apply empty assistant for appconfig, team for real, did call delete setup assistant
+	// - get appconfig, team, returns empty
+	// - apply with json that includes configuration_web_url, fails with expected message
+	// - apply with json that includes await_device_configured, fails with expected message
+	// - get appconfig, team, returns empty
+}
+
 func TestApplySpecs(t *testing.T) {
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
