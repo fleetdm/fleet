@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v.24.0
 
     # We trust own version of mk-ca-bundle.pl and its output, but as an extra check
     # we compare with the cacert.pem served by https://curl.se/ca/cacert.pem (this

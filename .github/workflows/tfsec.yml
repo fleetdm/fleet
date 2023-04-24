@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Clone repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b 
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab 
 
       - name: tfsec
         uses: tfsec/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608 

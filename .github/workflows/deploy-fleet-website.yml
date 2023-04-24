@@ -34,7 +34,7 @@ jobs:
         node-version: [14.x]
 
     steps:
-    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     # Configure our access credentials for the Heroku CLI
     - uses: akhileshns/heroku-deploy@79ef2ae4ff9b897010907016b268fd0f88561820 # v3.6.8

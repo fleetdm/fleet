@@ -68,7 +68,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     - name: Start tunnel
       env:
@@ -156,7 +156,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     - name: Build Fleetctl
       run: make fleetctl
@@ -195,7 +195,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     - name: Build desktop.app.tar.gz and osqueryd.app.tar.gz
       run: |
@@ -238,7 +238,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     - name: Download macos pre-built apps
       id: download
@@ -297,7 +297,7 @@ jobs:
     steps:
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v2
 
     - name: Download pkg
       id: download
