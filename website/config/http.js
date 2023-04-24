@@ -29,16 +29,24 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // order: [
-    //   'cookieParser',
-    //   'session',
-    //   'bodyParser',
-    //   'compress',
-    //   'poweredBy',
-    //   'router',
-    //   'www',
-    //   'favicon',
-    // ],
+    order: [
+      'cookieParser',
+      'session',
+      'bodyParser',
+      'compress',
+      'hsts',
+      'poweredBy',
+      'router',
+      'www',
+      'favicon',
+    ],
+
+
+    // Set the HTTP Strict-Transport-Security (HSTS) header on all responses. « See https://github.com/fleetdm/confidential/issues/2505 for more info.
+    hsts: function (req, res, next) {
+      res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains;');
+      next();
+    },
 
 
     /***************************************************************************
