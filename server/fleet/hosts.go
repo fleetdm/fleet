@@ -69,6 +69,34 @@ func (s MacOSSettingsStatus) IsValid() bool {
 	}
 }
 
+// MDMBootstrapPackageStatus defines the possible statuses of the host's MDM bootstrap package,
+// which is derived from the status of the MDM command to install the bootstrap package.
+//
+// See https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+type MDMBootstrapPackageStatus string
+
+const (
+	// MDMBootstrapPackageInstalled means the bootstrap package has been installed on the host. It
+	// corresponds to InstallEnterpriseApplicationResponse.Status "Acknowledged".
+	MDMBootstrapPackageInstalled = MDMBootstrapPackageStatus("installed")
+	// MDMBootstrapPackageFailed means the bootstrap package failed to install on the host. It
+	// corresponds to InstallEnterpriseApplicationResponse.Status "Error".
+	MDMBootstrapPackageFailed = MDMBootstrapPackageStatus("failed")
+	// MDMBootstrapPackagePending means the bootstrap package is pending installation on the host.
+	// It applies if no InstallEnterpriseApplicationResponse has been received or if the response is
+	// anything other than InstallEnterpriseApplicationResponse.Status "Acknowledged" or "Error".
+	MDMBootstrapPackagePending = MDMBootstrapPackageStatus("pending")
+)
+
+func (s MDMBootstrapPackageStatus) IsValid() bool {
+	switch s {
+	case MDMBootstrapPackageInstalled, MDMBootstrapPackagePending, MDMBootstrapPackageFailed:
+		return true
+	default:
+		return false
+	}
+}
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //
@@ -113,6 +141,9 @@ type HostListOptions struct {
 	// MDM profile.
 	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
+	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
+	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
+
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
 	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
@@ -130,6 +161,7 @@ type HostListOptions struct {
 	LowDiskSpaceFilter *int
 }
 
+// TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() &&
 		h.DeviceMapping == false &&
@@ -143,6 +175,9 @@ func (h HostListOptions) Empty() bool {
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
+		h.MacOSSettingsFilter == "" &&
+		h.MacOSSettingsDiskEncryptionFilter == "" &&
+		h.MDMBootstrapPackageFilter == nil &&
 		h.MDMIDFilter == nil &&
 		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
@@ -286,6 +321,12 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+
+	// MacOSSetup indicates macOS-specific MDM setup for the host, such
+	// as the status of the bootstrap package.
+	//
+	// It is not filled in by all host-returning datastore methods.
+	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -330,6 +371,12 @@ func (s ActionRequiredState) addrOf() *ActionRequiredState {
 type MDMHostMacOSSettings struct {
 	DiskEncryption *DiskEncryptionStatus `json:"disk_encryption" csv:"-"`
 	ActionRequired *ActionRequiredState  `json:"action_required" csv:"-"`
+}
+
+type HostMDMMacOSSetup struct {
+	BootstrapPackageStatus MDMBootstrapPackageStatus `db:"bootstrap_package_status" json:"bootstrap_package_status" csv:"-"`
+	Result                 []byte                    `db:"result" json:"-" csv:"-"`
+	Detail                 string                    `db:"-" json:"detail" csv:"-"`
 }
 
 // DetermineDiskEncryptionStatus determines the disk encryption status for the

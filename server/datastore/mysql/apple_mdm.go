@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -1512,7 +1513,7 @@ func subqueryHostsMacOSSetttingsStatusVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	var args []interface{}
 	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
 	args = append(args, subqueryFailedArgs...)
@@ -1548,7 +1549,7 @@ WHERE
 
 	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, teamFilter)
 
-	var res fleet.MDMAppleHostsProfilesSummary
+	var res fleet.MDMAppleConfigProfilesSummary
 	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, args...)
 	if err != nil {
 		return nil, err
@@ -1797,8 +1798,80 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
+func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	stmt := `
+          SELECT
+              COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
+              COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
+              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+          FROM
+              hosts h
+          LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
+              hmabp.host_uuid = h.uuid
+          LEFT JOIN nano_command_results ncr ON
+              ncr.command_uuid  = hmabp.command_uuid
+          JOIN host_mdm hm ON
+              hm.host_id = h.id
+          WHERE
+              hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ?`
+
+	var bp fleet.MDMAppleBootstrapPackageSummary
+	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
+	}
+	return &bp, nil
+}
+
+func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?) 
+        ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
+	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
+	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	stmt := `
+SELECT
+    CASE 
+        WHEN ncr.status = 'Acknowledged' THEN ?
+        WHEN ncr.status = 'Error' THEN ?
+        ELSE ? 
+    END AS bootstrap_package_status,
+    COALESCE(ncr.result, '') AS result
+FROM
+    hosts h
+JOIN host_mdm_apple_bootstrap_packages hmabp ON
+    hmabp.host_uuid = h.uuid
+LEFT JOIN nano_command_results ncr ON
+    ncr.command_uuid = hmabp.command_uuid
+JOIN host_mdm hm ON
+    hm.host_id = h.id
+WHERE
+    h.id = ? AND hm.installed_from_dep = 1`
+
+	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
+
+	var dest fleet.HostMDMMacOSSetup
+	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMMacOSSetup").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+	}
+
+	if dest.BootstrapPackageStatus == fleet.MDMBootstrapPackageFailed {
+		decoded, err := mdm.DecodeCommandResults(dest.Result)
+		if err != nil {
+			dest.Detail = "Unable to decode command result"
+		} else {
+			dest.Detail = apple_mdm.FmtErrorChain(decoded.ErrorChain)
+		}
+	}
+	return &dest, nil
+}
+
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-	stmt := "SELECT team_id, name, sha256, token FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
+	stmt := "SELECT team_id, name, sha256, token, created_at, updated_at FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
 		if err == sql.ErrNoRows {

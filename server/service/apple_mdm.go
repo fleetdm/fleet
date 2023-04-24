@@ -698,7 +698,7 @@ type getMDMAppleProfilesSummaryRequest struct {
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
-	fleet.MDMAppleHostsProfilesSummary
+	fleet.MDMAppleConfigProfilesSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -720,7 +720,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 	return &res, nil
 }
 
-func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1897,8 +1897,8 @@ type bootstrapPackageMetadataRequest struct {
 }
 
 type bootstrapPackageMetadataResponse struct {
-	Err      error                           `json:"error,omitempty"`
-	Metadata *fleet.MDMAppleBootstrapPackage `json:"metadata,omitempty"`
+	Err                             error `json:"error,omitempty"`
+	*fleet.MDMAppleBootstrapPackage `json:",omitempty"`
 }
 
 func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
@@ -1909,7 +1909,7 @@ func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, 
 	if err != nil {
 		return bootstrapPackageMetadataResponse{Err: err}, nil
 	}
-	return bootstrapPackageMetadataResponse{Metadata: meta}, nil
+	return bootstrapPackageMetadataResponse{MDMAppleBootstrapPackage: meta}, nil
 }
 
 func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -1948,6 +1948,38 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID u
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get aggregated summary about a team's bootstrap package
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleBootstrapPackageSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleBootstrapPackageSummaryResponse struct {
+	fleet.MDMAppleBootstrapPackageSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleBootstrapPackageSummaryResponse) error() error { return r.Err }
+
+func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleBootstrapPackageSummaryRequest)
+	summary, err := svc.GetMDMAppleBootstrapPackageSummary(ctx, req.TeamID)
+	if err != nil {
+		return getMDMAppleBootstrapPackageSummaryResponse{Err: err}, nil
+	}
+	return getMDMAppleBootstrapPackageSummaryResponse{MDMAppleBootstrapPackageSummary: *summary}, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return &fleet.MDMAppleBootstrapPackageSummary{}, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2061,6 +2093,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			if err != nil {
 				return err
 			}
+			err = svc.ds.RecordHostBootstrapPackage(r.Context, cmdUUID, r.ID)
+			if err != nil {
+				return err
+			}
 			svc.logger.Log("info", "sent command to install bootstrap package", "host_uuid", r.ID)
 		}
 	}
@@ -2152,7 +2188,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        svc.fmtErrorChain(res.ErrorChain),
+			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
 	case "RemoveProfile":
@@ -2160,23 +2196,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        svc.fmtErrorChain(res.ErrorChain),
+			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeRemove,
 		})
 	}
 	return nil, nil
-}
-
-func (svc *MDMAppleCheckinAndCommandService) fmtErrorChain(chain []mdm.ErrorChain) string {
-	var sb strings.Builder
-	for _, mdmErr := range chain {
-		desc := mdmErr.USEnglishDescription
-		if desc == "" {
-			desc = mdmErr.LocalizedDescription
-		}
-		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
-	}
-	return sb.String()
 }
 
 // ensureFleetdConfig ensures there's a fleetd configuration profile in
