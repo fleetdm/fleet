@@ -49,6 +49,8 @@ const statusMessages: IStatusMessages = {
     "There was an error with single sign-on. Please contact your Fleet administrator.",
 };
 
+const baseClass = "login-page";
+
 const LoginPage = ({ router, location }: ILoginPageProps) => {
   const {
     availableTeams,
@@ -193,7 +195,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   }, [redirectLocation]);
 
   if (isLoadingSSOSettings) {
-    return <Spinner />;
+    return <Spinner className={`${baseClass}__loading-spinner`} />;
   }
 
   return (
