@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -313,7 +314,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("invalid mdm enrollment status %s", enrollmentStatus)))
 	}
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
@@ -339,6 +340,17 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+	}
+
+	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
+	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
+		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+		hopt.MDMBootstrapPackageFilter = &bpf
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid bootstrap_package status %s", mdmBootstrapPackageStatus)
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")

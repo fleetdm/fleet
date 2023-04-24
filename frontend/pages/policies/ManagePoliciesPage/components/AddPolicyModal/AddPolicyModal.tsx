@@ -48,13 +48,17 @@ const AddPolicyModal = ({
     setLastEditedQueryCritical(selectedPolicy.critical || false);
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
-    router.push(PATHS.NEW_POLICY);
+    router.push(
+      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+    );
   };
 
   const onCreateYourOwnPolicyClick = useCallback(() => {
     setPolicyTeamId(teamId);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
-    router.push(PATHS.NEW_POLICY);
+    router.push(
+      !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
+    );
   }, [router, setLastEditedQueryBody, setPolicyTeamId, teamId]);
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {

@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -1424,61 +1425,130 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
-	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
+func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = ?`
+	args := []interface{}{fleet.MDMAppleDeliveryFailed}
+
+	return sql, args
+}
+
+func subqueryHostsMacOSSettingsStatusPending() (string, []interface{}) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND (hmap.status IS NULL
+                    OR hmap.status = ?
+                    OR(hmap.profile_identifier = ?
+                        AND hmap.status = ?
+                        AND hmap.operation_type = ?
+                        AND NOT EXISTS (
+                            SELECT
+                                1 FROM host_disk_encryption_keys hdek
+                            WHERE
+                                h.id = hdek.host_id
+                                AND hdek.decryptable = 1)))
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_apple_profiles hmap2
+                    WHERE
+                        h.uuid = hmap2.host_uuid
+                        AND hmap2.status = ?)`
+	args := []interface{}{
+		fleet.MDMAppleDeliveryPending,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryFailed,
+	}
+	return sql, args
+}
+
+func subqueryHostsMacOSSetttingsStatusLatest() (string, []interface{}) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = ?
+                AND(hmap.profile_identifier != ?
+                    OR EXISTS (
+                        SELECT
+                            1 FROM host_disk_encryption_keys hdek
+                        WHERE
+                            h.id = hdek.host_id
+                            AND hdek.decryptable = 1))
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_apple_profiles hmap2
+                    WHERE
+                        h.uuid = hmap2.host_uuid
+                        AND (hmap2.status IS NULL
+                            OR hmap2.status != ?
+                            OR(hmap2.profile_identifier = ?
+                                AND hmap2.status = ?
+                                AND hmap2.operation_type = ?
+                                AND NOT EXISTS (
+                                    SELECT
+                                        1 FROM host_disk_encryption_keys hdek
+                                    WHERE
+                                        h.id = hdek.host_id
+                                        AND hdek.decryptable = 1))))`
+	args := []interface{}{
+		fleet.MDMAppleDeliveryApplied,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryApplied,
+		fleet.MDMAppleOperationTypeInstall,
+	}
+	return sql, args
+}
+
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+	var args []interface{}
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	args = append(args, subqueryFailedArgs...)
+	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
+	args = append(args, subqueryPendingArgs...)
+	subqueryLatest, subqueryLatestArgs := subqueryHostsMacOSSetttingsStatusLatest()
+	args = append(args, subqueryLatestArgs...)
+
 	sqlFmt := `
 SELECT
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.status = 'failed') THEN
-			1
-		END) AS failed,
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND (hmap.status = 'pending' OR hmap.status IS NULL))
-			AND NOT EXISTS (
-				SELECT
-					1 FROM host_mdm_apple_profiles hmap
-				WHERE
-					h.uuid = hmap.host_uuid
-					AND hmap.status = 'failed') THEN
-			1
-		END) AS pending,
-	count(
-		CASE WHEN EXISTS (
-			SELECT
-				1 FROM host_mdm_apple_profiles hmap
-			WHERE
-				h.uuid = hmap.host_uuid
-				AND hmap.status = 'applied')
-			AND NOT EXISTS (
-				SELECT
-					1 FROM host_mdm_apple_profiles hmap
-				WHERE
-					h.uuid = hmap.host_uuid
-					AND (hmap.status IS NULL OR hmap.status != 'applied')) THEN
-			1
-		END) AS applied
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS failed,
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS pending, 
+    COUNT(
+        CASE WHEN EXISTS (%s) 
+            THEN 1 
+        END) AS applied
 FROM
-	hosts h
+    hosts h
 WHERE
-	%s`
+    %s`
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	var res fleet.MDMAppleHostsProfilesSummary
-	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryLatest, teamFilter)
+
+	var res fleet.MDMAppleConfigProfilesSummary
+	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1540,7 +1610,7 @@ const SQLDiskEncryptionRemovingEnforcement = `h.uuid = hmap.host_uuid
 
 func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	sqlFmt := `
-	SELECT
+SELECT
 	COUNT(
 		CASE WHEN EXISTS (
 			SELECT
@@ -1674,8 +1744,80 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
+func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	stmt := `
+          SELECT
+              COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
+              COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
+              COUNT(IF(ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'), 1, NULL)) AS pending
+          FROM
+              hosts h
+          LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON
+              hmabp.host_uuid = h.uuid
+          LEFT JOIN nano_command_results ncr ON
+              ncr.command_uuid  = hmabp.command_uuid
+          JOIN host_mdm hm ON
+              hm.host_id = h.id
+          WHERE
+              hm.installed_from_dep = 1 AND COALESCE(h.team_id, 0) = ?`
+
+	var bp fleet.MDMAppleBootstrapPackageSummary
+	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package summary")
+	}
+	return &bp, nil
+}
+
+func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?) 
+        ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
+	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
+	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
+}
+
+func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	stmt := `
+SELECT
+    CASE 
+        WHEN ncr.status = 'Acknowledged' THEN ?
+        WHEN ncr.status = 'Error' THEN ?
+        ELSE ? 
+    END AS bootstrap_package_status,
+    COALESCE(ncr.result, '') AS result
+FROM
+    hosts h
+JOIN host_mdm_apple_bootstrap_packages hmabp ON
+    hmabp.host_uuid = h.uuid
+LEFT JOIN nano_command_results ncr ON
+    ncr.command_uuid = hmabp.command_uuid
+JOIN host_mdm hm ON
+    hm.host_id = h.id
+WHERE
+    h.id = ? AND hm.installed_from_dep = 1`
+
+	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
+
+	var dest fleet.HostMDMMacOSSetup
+	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMMacOSSetup").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+	}
+
+	if dest.BootstrapPackageStatus == fleet.MDMBootstrapPackageFailed {
+		decoded, err := mdm.DecodeCommandResults(dest.Result)
+		if err != nil {
+			dest.Detail = "Unable to decode command result"
+		} else {
+			dest.Detail = apple_mdm.FmtErrorChain(decoded.ErrorChain)
+		}
+	}
+	return &dest, nil
+}
+
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-	stmt := "SELECT team_id, name, sha256, token FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
+	stmt := "SELECT team_id, name, sha256, token, created_at, updated_at FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader, &bp, stmt, teamID); err != nil {
 		if err == sql.ErrNoRows {

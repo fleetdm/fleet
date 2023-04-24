@@ -59,7 +59,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"go.elastic.co/apm/module/apmhttp"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
 	"go.opentelemetry.io/otel"
@@ -505,6 +504,7 @@ the way that the Fleet server works.
 			// assume MDM is disabled until we verify that
 			// everything is properly configured below
 			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
@@ -520,6 +520,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize Apple BM DEP storage")
 				}
+				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
 			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
@@ -895,11 +896,7 @@ the way that the Fleet server works.
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
-			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-				handler = launcher.Handler(apmhttp.Wrap(rootMux))
-			} else {
-				handler = launcher.Handler(rootMux)
-			}
+			handler = launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {

@@ -533,7 +533,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 		return nil, nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
@@ -722,6 +722,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
 
@@ -1087,6 +1090,12 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 
+	ds.RecordHostBootstrapPackageFunc = func(ctx context.Context, commandUUID string, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		require.NotEmpty(t, commandUUID)
+		return nil
+	}
+
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.TokenUpdate{
@@ -1099,6 +1108,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.AppConfigFuncInvoked)
+	require.True(t, ds.RecordHostBootstrapPackageFuncInvoked)
 	require.Equal(t, 2, installEnterpriseApplicationCalls)
 }
 
