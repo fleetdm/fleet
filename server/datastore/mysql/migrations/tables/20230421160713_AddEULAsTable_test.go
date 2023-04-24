@@ -12,7 +12,7 @@ func TestUp_20230421160713(t *testing.T) {
 
 	insertStmt := `
           INSERT INTO eulas (token, name, bytes)
-	  VALUES (?, ?)
+	  VALUES (?, ?, ?)
 	`
 
 	selectStmt := `

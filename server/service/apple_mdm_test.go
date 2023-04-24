@@ -157,6 +157,18 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
+	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+		return nil
+	}
+	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context) error {
+		return nil
+	}
 
 	return svc, ctx, ds
 }

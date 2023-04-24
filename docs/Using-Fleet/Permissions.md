@@ -78,6 +78,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
+| Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |           |            | ✅     |         |
 
 \*Applies only to Fleet Premium
 
