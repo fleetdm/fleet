@@ -59,9 +59,9 @@ Affected hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
-	{{ range $path := .SoftwareInstalledPaths }}
-	** {{ $path }}
-	{{ end }}
+{{ range $path := .SoftwareInstalledPaths }}
+** {{ $path }}
+{{ end }}
 {{ end }}
 
 View the affected software and more affected hosts:
