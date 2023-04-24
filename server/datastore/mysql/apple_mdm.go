@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -1522,16 +1523,16 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	sqlFmt := `
 SELECT
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS failed,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
-        END) AS pending, 
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS pending,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS applied
 FROM
     hosts h
@@ -1743,8 +1744,6 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 	return &bp, nil
 }
 
-// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
-// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
 	stmt := `
           SELECT
@@ -1770,23 +1769,21 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
 }
 
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
-	stmt := "INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)"
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
 	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
 }
 
-// TODO(Sarah): Use constants to map ncr.status to bootstrap package status according to Apple
-// specs. https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
-	// TODO(Sarah): Is ncr.result the correct column to use here? I don't see where error details are stored.
 	stmt := `
 SELECT
-    CASE 
-        WHEN ncr.status = 'Acknowledged' THEN 'installed'
-        WHEN ncr.status = 'Error' THEN 'failed'
-        ELSE 'pending' 
+    CASE
+        WHEN ncr.status = 'Acknowledged' THEN ?
+        WHEN ncr.status = 'Error' THEN ?
+        ELSE ?
     END AS bootstrap_package_status,
-    COALESCE(ncr.result, '') AS detail
+    COALESCE(ncr.result, '') AS result
 FROM
     hosts h
 JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -1798,12 +1795,23 @@ JOIN host_mdm hm ON
 WHERE
     h.id = ? AND hm.installed_from_dep = 1`
 
+	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
+
 	var dest fleet.HostMDMMacOSSetup
-	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, hostID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &dest, stmt, args...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostMDMMacOSSetup").WithID(hostID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+	}
+
+	if dest.BootstrapPackageStatus == fleet.MDMBootstrapPackageFailed {
+		decoded, err := mdm.DecodeCommandResults(dest.Result)
+		if err != nil {
+			dest.Detail = "Unable to decode command result"
+		} else {
+			dest.Detail = apple_mdm.FmtErrorChain(decoded.ErrorChain)
+		}
 	}
 	return &dest, nil
 }

@@ -2188,7 +2188,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        svc.fmtErrorChain(res.ErrorChain),
+			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
 	case "RemoveProfile":
@@ -2196,23 +2196,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        svc.fmtErrorChain(res.ErrorChain),
+			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeRemove,
 		})
 	}
 	return nil, nil
-}
-
-func (svc *MDMAppleCheckinAndCommandService) fmtErrorChain(chain []mdm.ErrorChain) string {
-	var sb strings.Builder
-	for _, mdmErr := range chain {
-		desc := mdmErr.USEnglishDescription
-		if desc == "" {
-			desc = mdmErr.LocalizedDescription
-		}
-		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
-	}
-	return sb.String()
 }
 
 // ensureFleetdConfig ensures there's a fleetd configuration profile in

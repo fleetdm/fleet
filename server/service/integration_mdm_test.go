@@ -33,7 +33,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -75,7 +74,6 @@ type integrationMDMTestSuite struct {
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
 	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
-	oktaMock             *externalsvc.MockOktaServer
 	mdmStorage           *mysql.NanoMDMStorage
 }
 
@@ -93,13 +91,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
-	oktaMock := externalsvc.RunMockOktaServer(s.T())
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
 	fleetCfg.Osquery.EnrollCooldown = 0
-	fleetCfg.MDM.OktaServerURL = oktaMock.Srv.URL
-	fleetCfg.MDM.OktaClientID = oktaMock.ClientID
-	fleetCfg.MDM.OktaClientSecret = oktaMock.ClientSecret()
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(s.T(), err)
@@ -172,7 +166,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depStorage = depStorage
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
-	s.oktaMock = oktaMock
 	s.mdmStorage = mdmStorage
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1960,54 +1953,6 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	require.Equal(t, h.ID, got.ID)
 }
 
-func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
-	t := s.T()
-
-	params := func(u, p string) []byte {
-		j, err := json.Marshal(&mdmAppleDEPLoginRequest{
-			Username: u,
-			Password: p,
-		})
-		require.NoError(t, err)
-		return j
-	}
-
-	// invalid user/pass combination returns an unauthorized
-	// error
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, "bad"),
-		http.StatusUnauthorized,
-	)
-
-	// invalid clientID/clientSecret returns a server error
-	oldSecret := s.oktaMock.ClientSecret()
-	s.oktaMock.SetClientSecret("new-secret")
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, s.oktaMock.UserPassword),
-		http.StatusInternalServerError,
-	)
-	s.oktaMock.SetClientSecret(oldSecret)
-
-	// valid user/pass authenticates the user and creates a new
-	// entry in `mdm_idp_accounts`
-	s.DoRawNoAuth(
-		"POST",
-		"/api/latest/fleet/mdm/apple/dep_login",
-		params(s.oktaMock.Username, s.oktaMock.UserPassword),
-		http.StatusOK,
-	)
-	var uuid string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &uuid,
-			`SELECT uuid FROM mdm_idp_accounts WHERE username = ?`, s.oktaMock.Username)
-	})
-	require.NotEmpty(t, uuid)
-}
-
 func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
 	t := s.T()
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
@@ -2853,6 +2798,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
+	mockErrorChain := []mdm.ErrorChain{
+		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
+	}
+
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
 		d.device.mdmEnroll(s)
@@ -2872,7 +2821,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 					cmd = d.device.acknowledge(cmd.CommandUUID)
 					continue
 				case "Error":
-					cmd = d.device.err(cmd.CommandUUID, "")
+					cmd = d.device.err(cmd.CommandUUID, mockErrorChain)
 					continue
 				case "Offline":
 					// host is offline, can't process any more commands
@@ -2900,12 +2849,24 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		require.NotNil(t, hostResp.Host)
 		require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
 		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		if expectedStatus == fleet.MDMBootstrapPackageFailed {
+			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
+		} else {
+			require.Empty(t, hostResp.Host.MDM.MacOSSetup.Detail)
+		}
+		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 
 		var hostByIdentifierResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
 		require.NotNil(t, hostByIdentifierResp.Host)
 		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
 		require.Equal(t, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		if expectedStatus == fleet.MDMBootstrapPackageFailed {
+			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
+		} else {
+			require.Empty(t, hostResp.Host.MDM.MacOSSetup.Detail)
+		}
+		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 	}
 
 	checkHostAPIs := func(t *testing.T, status fleet.MDMBootstrapPackageStatus, teamID *uint) {
@@ -3184,13 +3145,14 @@ func (d *device) acknowledge(cmdUUID string) *micromdm.CommandPayload {
 	return d.sendAndDecodeCommandResponse(payload)
 }
 
-func (d *device) err(cmdUUID string, msg string) *micromdm.CommandPayload {
+func (d *device) err(cmdUUID string, errChain []mdm.ErrorChain) *micromdm.CommandPayload {
 	payload := map[string]any{
 		"Status":       "Error",
 		"Topic":        "com.apple.mgmt.External." + d.uuid,
 		"UDID":         d.uuid,
 		"EnrollmentID": "testenrollmentid-" + d.uuid,
 		"CommandUUID":  cmdUUID,
+		"ErrorChain":   errChain,
 	}
 	return d.sendAndDecodeCommandResponse(payload)
 }

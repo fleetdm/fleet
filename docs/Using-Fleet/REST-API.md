@@ -921,6 +921,7 @@ None.
   },
   "mdm": {
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "apple_bm_default_team": "",
     "macos_updates": {
@@ -1106,6 +1107,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -4015,7 +4017,7 @@ Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM
 assigned to a team. Note that in this example the form data specifies `team_id` in addition to
 `package`.
 
-`POST /api/v1/fleet/mdm/apple/bootstrap`
+`POST /api/v1/fleet/mdm/apple/profiles`
 
 ##### Request headers
 

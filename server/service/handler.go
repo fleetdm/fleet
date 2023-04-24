@@ -35,6 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	"go.elastic.co/apm/module/apmgorilla/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
@@ -137,8 +138,12 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
-		r.Use(otmiddleware.Middleware("fleet"))
+	if config.Logging.TracingEnabled {
+		if config.Logging.TracingType == "opentelemetry" {
+			r.Use(otmiddleware.Middleware("fleet"))
+		} else {
+			apmgorilla.Instrument(r)
+		}
 	}
 
 	r.Use(publicIP)
@@ -603,11 +608,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
-
-	ne.WithCustomMiddleware(
-		mdmConfiguredMiddleware.Verify(),
-		limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
-		POST("/api/_version_/fleet/mdm/apple/dep_login", mdmAppleDEPLoginEndpoint, mdmAppleDEPLoginRequest{})
 
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_device", desktopQuota),

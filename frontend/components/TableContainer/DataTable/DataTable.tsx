@@ -46,6 +46,7 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  defaultPageIndex?: number;
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
@@ -87,6 +88,7 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
+  defaultPageIndex,
   primarySelectActionButtonIcon,
   primarySelectActionButtonVariant,
   onPrimarySelectActionClick,
@@ -147,6 +149,7 @@ const DataTable = ({
         sortBy: useMemo(() => {
           return [{ id: sortHeader, desc: sortDirection === "desc" }];
         }, [sortHeader, sortDirection]),
+        pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,
       disableSortRemove: true,

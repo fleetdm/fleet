@@ -409,7 +409,7 @@ type MDMAppleBootstrapPackageSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed includes each host that has reported an error for the MDM command to install the
 	// bootstrap package.
-	Failed uint `json:"failing" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
