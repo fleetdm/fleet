@@ -12,6 +12,7 @@ interface IFilterPillProps {
   onClear: () => void;
   icon?: string;
   tooltipDescription?: string | ReactNode;
+  premiumFeatureTooltipDelayHide?: number;
   className?: string;
   isSandboxMode?: boolean;
   sandboxPremiumOnlyIcon?: boolean;
@@ -23,6 +24,7 @@ const FilterPill = ({
   label,
   icon,
   tooltipDescription,
+  premiumFeatureTooltipDelayHide,
   className,
   onClear,
   isSandboxMode = false,
@@ -33,7 +35,6 @@ const FilterPill = ({
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
 
-  console.log("tooltipDescription: ", tooltipDescription);
   return (
     <div
       className={baseClasses}
@@ -49,7 +50,7 @@ const FilterPill = ({
             {isSandboxMode && sandboxPremiumOnlyIcon && (
               <PremiumFeatureIconWithTooltip
                 tooltipPositionOverrides={{ leftAdj: 120, topAdj: -3 }}
-                tooltipDelayHide={500}
+                tooltipDelayHide={premiumFeatureTooltipDelayHide}
               />
             )}
             <span
