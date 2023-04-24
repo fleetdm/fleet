@@ -16,7 +16,7 @@ func TestUp_20230421160713(t *testing.T) {
 	`
 
 	selectStmt := `
-	  SELECT token, bytes 
+	  SELECT name, bytes, token
 	  FROM eulas
 	  WHERE token = ?
 	`
@@ -36,7 +36,7 @@ func TestUp_20230421160713(t *testing.T) {
 		bytes []byte
 	)
 
-	err = db.QueryRow(selectStmt, 1).Scan(&name, &bytes, &token)
+	err = db.QueryRow(selectStmt, "ABC-DEF").Scan(&name, &bytes, &token)
 	require.NoError(t, err)
 	require.Equal(t, "ABC-DEF", token)
 	require.Equal(t, "eula.pdf", name)

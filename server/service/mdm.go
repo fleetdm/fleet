@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -265,7 +266,7 @@ func createMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fl
 	return createMDMAppleEULAResponse{}, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file multipart.File) error {
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
