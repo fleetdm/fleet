@@ -3540,11 +3540,11 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
-- [Download a bootstrap package](#download-a-bootstrap-package)
-- [Upload an EULA file](#upload-a-eula-file)
-- [Get metadata about an EULA file](#get-metadata-about-a-eula-file)
-- [Delete an EULA file](#delete-a-eula-file)
-- [Download an EULA file](#download-a-eula-file)
+- [Download a bootstrap package](#download-an-bootstrap-package)
+- [Upload an EULA file](#upload-an-eula-file)
+- [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
+- [Delete an EULA file](#delete-an-eula-file)
+- [Download an EULA file](#download-an-eula-file)
 
 ### Add custom macOS setting (configuration profile)
 
@@ -4234,7 +4234,7 @@ Get information about the EULA file that was uploaded to Fleet. If no EULA was p
 
 In the response above:
 
-- `token` is the value you can use to [download an EULA](#download-an-eula)
+- `token` is the value you can use to [download an EULA](#download-an-eula-file)
 
 ### Delete an EULA file
 
