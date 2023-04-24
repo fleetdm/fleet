@@ -370,10 +370,10 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Checksum          []byte
 }
 
-// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
 // profiles. Each host may be counted in only one of three mutually-exclusive categories:
 // Failed, Pending, or Latest.
-type MDMAppleHostsProfilesSummary struct {
+type MDMAppleConfigProfilesSummary struct {
 	// Latest includes each host that has successfully applied all of the profiles currently
 	// applicable to the host. If any of the profiles are pending or failed for the host, the host
 	// is not counted as latest.
@@ -395,6 +395,21 @@ type MDMAppleFileVaultSummary struct {
 	Enforcing           uint `json:"enforcing" db:"enforcing"`
 	Failed              uint `json:"failed" db:"failed"`
 	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
+}
+
+// MDMAppleBootstrapPackageSummary reports the number of hosts that are targeted to install the
+// MDM bootstrap package. Each host may be counted in only one of three mutually-exclusive categories:
+// Failed, Pending, or Installed.
+type MDMAppleBootstrapPackageSummary struct {
+	// Installed includes each host that has acknowledged the MDM command to install the bootstrap
+	// package.
+	Installed uint `json:"installed" db:"installed"`
+	// Pending includes each host that has not acknowledged the MDM command to install the bootstrap
+	// package or reported an error for such command.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has reported an error for the MDM command to install the
+	// bootstrap package.
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
