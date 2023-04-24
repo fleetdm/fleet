@@ -12,7 +12,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
-import { IActionButtonProps } from "./DataTable/ActionButton";
+import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
   pageIndex: number;

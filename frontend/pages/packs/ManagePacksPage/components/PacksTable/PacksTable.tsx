@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-table";
