@@ -53,7 +53,7 @@ import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 
 import PATHS from "router/paths";
 
-import AppProvider from "context/app";
+import AppProvider, { AppContext } from "context/app";
 import RoutingProvider from "context/routing";
 
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
@@ -64,7 +64,9 @@ import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintai
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
+import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
+const isSandboxMode = { AppContext };
 interface IAppWrapperProps {
   children: JSX.Element;
 }
@@ -102,17 +104,21 @@ const routes = (
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to={"/dashboard"} />
+          <IndexRedirect to="/dashboard" />
           <Route path="dashboard" component={DashboardPage}>
             <Route path="linux" component={DashboardPage} />
             <Route path="mac" component={DashboardPage} />
             <Route path="windows" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect to={"organization"} />
+            <IndexRedirect
+              to={isSandboxMode ? "integrations" : "organization"}
+            />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="organization" component={OrgSettingsPage} />
+                <Route component={ExcludeInSandboxRoutes}>
+                  <Route path="organization" component={OrgSettingsPage} />
+                </Route>
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
@@ -122,7 +128,9 @@ const routes = (
                   path="integrations/:section"
                   component={AdminIntegrationsPage}
                 />
-                <Route path="users" component={AdminUserManagementPage} />
+                <Route component={ExcludeInSandboxRoutes}>
+                  <Route path="users" component={AdminUserManagementPage} />
+                </Route>
                 <Route component={PremiumRoutes}>
                   <Route path="teams" component={AdminTeamManagementPage} />
                 </Route>
@@ -137,12 +145,12 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to={"new"} />
+            <IndexRedirect to="new" />
             <Route path=":label_id" component={LabelPage} />
             <Route path="new" component={LabelPage} />
           </Route>
           <Route path="hosts">
-            <IndexRedirect to={"manage"} />
+            <IndexRedirect to="manage" />
             <Route path="manage" component={ManageHostsPage} />
             <Route path="manage/labels/:label_id" component={ManageHostsPage} />
             <Route path="manage/:active_label" component={ManageHostsPage} />
@@ -155,7 +163,7 @@ const routes = (
               component={ManageHostsPage}
             />
 
-            <IndexRedirect to={":host_id"} />
+            <IndexRedirect to=":host_id" />
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
@@ -166,7 +174,7 @@ const routes = (
           </Route>
 
           <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to={"mac-os-updates"} />
+            <IndexRedirect to="mac-os-updates" />
             <Route component={ManageControlsPage}>
               <Route path="mac-os-updates" component={MacOSUpdates} />
               <Route path="mac-settings" component={MacOSSettings} />
@@ -175,13 +183,13 @@ const routes = (
           </Route>
 
           <Route path="software">
-            <IndexRedirect to={"manage"} />
+            <IndexRedirect to="manage" />
             <Route path="manage" component={ManageSoftwarePage} />
             <Route path=":software_id" component={SoftwareDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
-              <IndexRedirect to={"manage"} />
+              <IndexRedirect to="manage" />
               <Route path="manage" component={ManagePacksPage} />
               <Route path="new" component={PackComposerPage} />
               <Route path=":id">
@@ -192,14 +200,14 @@ const routes = (
           </Route>
           <Route component={AuthAnyMaintainerAnyAdminRoutes}>
             <Route path="schedule">
-              <IndexRedirect to={"manage"} />
+              <IndexRedirect to="manage" />
               <Route path="manage" component={ManageSchedulePage} />
               <Redirect from="manage/teams" to="manage" />
               <Redirect from="manage/teams/:team_id" to="manage" />
             </Route>
           </Route>
           <Route path="queries">
-            <IndexRedirect to={"manage"} />
+            <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
               <Route path="new" component={QueryPage} />
@@ -207,7 +215,7 @@ const routes = (
             <Route path=":id" component={QueryPage} />
           </Route>
           <Route path="policies">
-            <IndexRedirect to={"manage"} />
+            <IndexRedirect to="manage" />
             <Route path="manage" component={ManagePoliciesPage} />
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="new" component={PolicyPage} />
