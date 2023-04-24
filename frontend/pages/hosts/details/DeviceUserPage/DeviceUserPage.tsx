@@ -42,6 +42,7 @@ import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import MacSettingsModal from "../MacSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 
 const baseClass = "device-user";
 
@@ -78,6 +79,9 @@ const DeviceUserPage = ({
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -245,6 +249,7 @@ const DeviceUserPage = ({
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup.bootstrap_package_status,
     details: host?.mdm.macos_setup.details,
+    name: "package.pkg", // TODO: get from API
   };
 
   const toggleMacSettingsModal = useCallback(() => {
@@ -435,6 +440,13 @@ const DeviceUserPage = ({
           <MacSettingsModal
             hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
+          />
+        )}
+        {showBootstrapPackageModal && bootstrapPackageData.details && (
+          <BootstrapPackageModal
+            packageName={bootstrapPackageData.name} // TODO: get this data from API
+            details={bootstrapPackageData.details}
+            onClose={() => setShowBootstrapPackageModal(false)}
           />
         )}
       </div>

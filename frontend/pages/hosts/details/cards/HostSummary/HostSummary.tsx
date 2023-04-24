@@ -9,11 +9,12 @@ import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
-import { IMacSettings } from "interfaces/mdm";
+import { BootstrapPackageStatus, IMacSettings } from "interfaces/mdm";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
+import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 const baseClass = "host-summary";
 
@@ -23,18 +24,19 @@ interface IHostDiskEncryptionProps {
 }
 
 interface IBootstrapPackageData {
-  status?: string;
+  status?: BootstrapPackageStatus | "";
   details?: string;
 }
 
 interface IHostSummaryProps {
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
-  bootstrapPackageData: IBootstrapPackageData;
+  bootstrapPackageData?: IBootstrapPackageData;
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
+  toggleBootstrapPackageModal?: () => void;
   hostMacSettings?: IMacSettings;
   mdmName?: string;
   showRefetchSpinner: boolean;
@@ -53,6 +55,7 @@ const HostSummary = ({
   isOnlyObserver,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
+  toggleBootstrapPackageModal,
   hostMacSettings,
   mdmName,
   showRefetchSpinner,
@@ -178,14 +181,12 @@ const HostSummary = ({
             </HostSummaryIndicator>
           )}
 
-        {/* {titleData.platform === "darwin" &&
-          isPremiumTier &&
-          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings && ( //  2 - host has at least one setting (profile) enforced */}
-        {/* {bootstrapPackageData.status && <p>bootstrap thingy</p>} */}
-        {true && (
+        {bootstrapPackageData?.status && (
           <HostSummaryIndicator title="Bootstrap package">
-            <p>{bootstrapPackageData.status}</p>
+            <BootstrapPackageIndicator
+              status={bootstrapPackageData.status}
+              onClick={toggleBootstrapPackageModal}
+            />
           </HostSummaryIndicator>
         )}
 

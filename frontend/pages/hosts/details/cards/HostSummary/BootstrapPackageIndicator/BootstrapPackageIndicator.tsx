@@ -24,13 +24,11 @@ const STATUS_DISPLAY_OPTIONS = {
 
 interface IBootstrapPackageIndicatorProps {
   status: BootstrapPackageStatus;
-  details: string;
-  onClick: (details: string) => void;
+  onClick?: () => void;
 }
 
 const BootstrapPackageIndicator = ({
   status,
-  details,
   onClick,
 }: IBootstrapPackageIndicatorProps) => {
   const displayData = STATUS_DISPLAY_OPTIONS[status];
@@ -39,13 +37,17 @@ const BootstrapPackageIndicator = ({
     <div className={baseClass}>
       <Icon name={displayData.iconName} />
       <span>
-        <Button
-          onClick={onClick}
-          variant="text-link"
-          className={`${baseClass}__button`}
-        >
-          {displayData.displayText}
-        </Button>
+        {status !== BootstrapPackageStatus.FAILED ? (
+          <>{displayData.displayText}</>
+        ) : (
+          <Button
+            onClick={onClick}
+            variant="text-link"
+            className={`${baseClass}__button`}
+          >
+            {displayData.displayText}
+          </Button>
+        )}
       </span>
     </div>
   );

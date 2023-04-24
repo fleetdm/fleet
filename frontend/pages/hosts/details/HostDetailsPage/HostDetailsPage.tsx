@@ -40,6 +40,7 @@ import {
   wrapFleetHelper,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import { BootstrapPackageStatus } from "interfaces/mdm";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -63,6 +64,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
+import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 
 const baseClass = "host-details";
 
@@ -133,6 +135,9 @@ const HostDetailsPage = ({
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -395,6 +400,10 @@ const HostDetailsPage = ({
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
 
+  const toggleBootstrapPackageModal = useCallback(() => {
+    setShowBootstrapPackageModal(!showBootstrapPackageModal);
+  }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -625,6 +634,7 @@ const HostDetailsPage = ({
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup.bootstrap_package_status,
     details: host?.mdm.macos_setup.details,
+    name: "package.pkg", // TODO: get from API
   };
 
   return (
@@ -660,6 +670,7 @@ const HostDetailsPage = ({
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
+          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMacSettings={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
@@ -795,6 +806,13 @@ const HostDetailsPage = ({
           <DiskEncryptionKeyModal
             hostId={host.id}
             onCancel={() => setShowDiskEncryptionModal(false)}
+          />
+        )}
+        {showBootstrapPackageModal && bootstrapPackageData.details && (
+          <BootstrapPackageModal
+            packageName={bootstrapPackageData.name} // TODO: get this data from API
+            details={bootstrapPackageData.details}
+            onClose={() => setShowBootstrapPackageModal(false)}
           />
         )}
       </div>
