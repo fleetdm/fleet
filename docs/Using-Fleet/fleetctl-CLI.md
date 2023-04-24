@@ -286,7 +286,7 @@ Running a command with no context will use the default profile.
 
 ## MDM commands
 
-With fleetctl, you can run MDM commands to take some action on your macOS hosts, like restart the host, remotely. Learn how [here](./mdm-commands.md). 
+With fleetctl, you can run MDM commands to take some action on your macOS hosts, like restart the host, remotely. Learn how [here](./MDM-commands.md). 
 
 ## File carving
 
