@@ -28,6 +28,7 @@ type EnterpriseOverrides struct {
 	// overrides.
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {

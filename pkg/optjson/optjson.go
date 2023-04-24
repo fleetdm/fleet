@@ -39,7 +39,8 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	s.Valid = false
 
 	if bytes.Equal(data, []byte("null")) {
-		// The key was set to null
+		// The key was set to null, blank the value
+		s.Value = ""
 		return nil
 	}
 

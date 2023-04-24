@@ -394,9 +394,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
 		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
-		// clear macos setup assistant for no team
-		if err := svc.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		// clear macos setup assistant for no team - note that we cannot call
+		// svc.DeleteMDMAppleSetupAssistant here as it would call the (non-premium)
+		// current service implementation. We have to go through the Enterprise
+		// extensions.
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
 		}
 	}
 

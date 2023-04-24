@@ -316,12 +316,12 @@ func (c *Client) ApplyGroup(
 			if macosSetup.BootstrapPackage != "" {
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage)
 				if err != nil {
-					return err
+					return fmt.Errorf("applying fleet config: %w", err)
 				}
 
 				if !opts.DryRun {
 					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
-						return err
+						return fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
@@ -332,7 +332,7 @@ func (c *Client) ApplyGroup(
 				}
 				if !opts.DryRun {
 					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
-						return err
+						return fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
