@@ -47,11 +47,28 @@ Whether you have to download or generate a package depends on what you want to d
 
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
+Apple requires that your package is a distribution package. Verify that the package is a distribution package:
+
+1. Run the following commands to expand you package and look at the files in the expanded folder:
+
+```bash
+$ pkgutil --expand package.pkg expanded-package
+$ ls expanded-package
+```
+
+If your package is a distribution package should see a `Distribution` file.
+
+2. If you don't see a `Distribution` file, run the following command to convert your package into a distribution package.
+
+```bash
+$ productbuild --package package.pkg distrbution-package.pkg
+```
+
 Make sure your package is a `.pkg` file.
 
 ### Step 2: sign the package
 
-To sign the package we need a valid Developer ID Installer certificate.
+To sign the package we need a valid Developer ID Installer certificate:
 
 1. Login to your [Apple Developer account](https://developer.apple.com/account).
 2. Follow Apple's instructions to create a Developer ID Installer certificate [here](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
@@ -63,7 +80,7 @@ Confirm that certificate is installed on your Mac by opening the **Keychain Acce
 3. Run the following command in the **Terminal** application to sign your package with your Developer ID certificate:
 
 ```bash
-productsign --sign "Developer ID Installer: Your name (Serial number)" /path/to/package.pkg /path/to/signed-package.pkg
+$ productsign --sign "Developer ID Installer: Your name (Serial number)" /path/to/package.pkg /path/to/signed-package.pkg
 ```
 
 You might be prompted to enter the password for your local account.
@@ -71,7 +88,7 @@ You might be prompted to enter the password for your local account.
 Confirm that your package is signed by running the following command:
 
 ```bash
-pkgutil --check-signature /path/to/signed-package.pkg
+$ pkgutil --check-signature /path/to/signed-package.pkg
 ```
 
 In the output you should see that package has a "signed" status.
