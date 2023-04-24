@@ -685,12 +685,19 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMAppleGetEULABytes returns the contents of the EULA that matches the given token.
-	MDMAppleGetEULABytes(ctx context.Context, token string) ([]byte, error)
+	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// the given token.
+	//
+	// A token is required as the means of authentication for this resource
+	// since it can be publicly accessed with anyone with a valid token.
+	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	// MDMAppleGetEULABytes returns metadata about the EULA file that can
+	// be used by clients to display information.
+	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
 	// MDMAppleCreateEULA adds a new EULA file.
 	MDMAppleCreateEULA(ctx context.Context, name string, file io.Reader) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMAppleDeleteEULA(ctx context.Context, token string) error
+	MDMAppleDeleteEULA(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

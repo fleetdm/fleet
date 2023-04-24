@@ -478,8 +478,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdm.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 
 	mdm.POST("/api/_version_/fleet/mdm/apple/setup/eula", createMDMAppleEULAEndpoint, createMDMAppleEULARequest{})
-	mdm.GET("/api/_version_/fleet/mdm/apple/setup/eula/{token}", getMDMAppleEULAEndpoint, getMDMAppleEULARequest{})
-	mdm.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMAppleEULAEndpoint, deleteMDMAppleEULARequest{})
+	mdm.GET("/api/_version_/fleet/mdm/apple/setup/eula", getMDMAppleEULAEndpoint, getMDMAppleEULARequest{})
+	mdm.DELETE("/api/_version_/fleet/mdm/apple/setup/eula", deleteMDMAppleEULAEndpoint, deleteMDMAppleEULARequest{})
+	mdm.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMAppleEULAMetadataEndpoint, getMDMAppleEULAMetadataRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM

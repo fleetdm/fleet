@@ -193,6 +193,14 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
+
+		// check EULA routes
+		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewBuffer([]byte{}))
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleDeleteEULA(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
 	// Only global admins can access the endpoints.
@@ -215,6 +223,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	require.NoError(t, err)
+	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.

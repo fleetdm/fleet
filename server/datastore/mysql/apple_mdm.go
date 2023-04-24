@@ -1895,3 +1895,58 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err
 }
+
+func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	stmt := "SELECT name, created_at, token FROM eulas LIMIT 1"
+	var eula fleet.MDMAppleEULA
+	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA metadata")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
+	var eula fleet.MDMAppleEULA
+	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt, token); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA bytes")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	stmt := `
+          INSERT INTO eulas (name, bytes, token)
+	  VALUES (?, ?, ?)
+	`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMAppleEULA", eula.Token))
+		}
+		return ctxerr.Wrap(ctx, err, "create EULA")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context) error {
+	stmt := "DELETE FROM eulas LIMIT 1"
+	res, err := ds.writer.ExecContext(ctx, stmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete bootstrap package")
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+	}
+	return nil
+}

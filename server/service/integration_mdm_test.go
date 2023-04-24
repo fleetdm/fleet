@@ -2934,6 +2934,47 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, &team.ID)
 }
 
+func (s *integrationMDMTestSuite) TestEULA() {
+	t := s.T()
+	pdfBytes := []byte("pdf-contents")
+	pdfName := "eula.pdf"
+
+	// trying to get metadata about an EULA that hasn't been uploaded yet is an error
+	metadataResp := getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+
+	// admin is able to upload a new EULA
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+
+	// get EULA metadata
+	metadataResp = getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusOK, &metadataResp)
+	require.NotEmpty(t, metadataResp.MDMAppleEULA.Token)
+	require.NotEmpty(t, metadataResp.MDMAppleEULA.CreatedAt)
+	require.Equal(t, pdfName, metadataResp.MDMAppleEULA.Name)
+
+	// download EULA
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula?token=%s", metadataResp.MDMAppleEULA.Token), nil, http.StatusOK)
+	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
+	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	respBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, pdfBytes, respBytes)
+
+	// try to download EULA with a bad token
+	var downloadResp downloadBootstrapPackageResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula?token=bad"), nil, http.StatusNotFound, &downloadResp)
+
+	// delete EULA
+	var deleteResp deleteMDMAppleEULAResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/setup/eula", nil, http.StatusOK, &deleteResp)
+	metadataResp = getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+	// trying to delete again is a bad request
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/setup/eula", nil, http.StatusNotFound, &deleteResp)
+
+}
+
 // only asserts the profile identifier, status and operation (per host)
 func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()
@@ -3046,6 +3087,37 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	}
 
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/bootstrap", b.Bytes(), expectedStatus, headers)
+
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
+}
+
+func (s *integrationMDMTestSuite) uploadEULA(
+	eula *fleet.MDMAppleEULA,
+	expectedStatus int,
+	wantErr string,
+) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the eula field
+	fw, err := w.CreateFormFile("eula", eula.Name)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
+	require.NoError(t, err)
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/setup/eula", b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
