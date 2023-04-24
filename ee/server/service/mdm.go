@@ -251,7 +251,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID u
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{PackageName: meta.Name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
