@@ -44,6 +44,7 @@ const DEFAULT_HOST_MOCK: IHost = {
     macos_setup: {
       bootstrap_package_status: "",
       details: "",
+      bootstrap_package_name: "",
     },
   },
   public_ip: "",

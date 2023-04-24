@@ -2848,6 +2848,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 		require.NotNil(t, hostResp.Host)
 		require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
+		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageName, "pkg.pkg")
 		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
 		if expectedStatus == fleet.MDMBootstrapPackageFailed {
 			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))

@@ -2267,7 +2267,8 @@ Returns the information of the specified host.
       },
       "macos_setup": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "profiles": [
         {

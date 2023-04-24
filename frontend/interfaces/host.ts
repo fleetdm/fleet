@@ -108,6 +108,7 @@ interface IMdmMacOsSettings {
 interface IMdmMacOsSetup {
   bootstrap_package_status: BootstrapPackageStatus | "";
   details: string;
+  bootstrap_package_name: string;
 }
 
 export interface IHostMdmData {

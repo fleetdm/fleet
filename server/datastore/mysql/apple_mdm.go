@@ -1783,7 +1783,8 @@ SELECT
         WHEN ncr.status = 'Error' THEN ?
         ELSE ?
     END AS bootstrap_package_status,
-    COALESCE(ncr.result, '') AS result
+    COALESCE(ncr.result, '') AS result,
+		mabs.name AS bootstrap_package_name
 FROM
     hosts h
 JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -1792,6 +1793,8 @@ LEFT JOIN nano_command_results ncr ON
     ncr.command_uuid = hmabp.command_uuid
 JOIN host_mdm hm ON
     hm.host_id = h.id
+JOIN mdm_apple_bootstrap_packages mabs ON
+		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
     h.id = ? AND hm.installed_from_dep = 1`
 

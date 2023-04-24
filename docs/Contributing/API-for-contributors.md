@@ -2249,7 +2249,8 @@ Returns the host information about the device that makes the request.
       },
       "macos_setup": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "profiles": [
         {

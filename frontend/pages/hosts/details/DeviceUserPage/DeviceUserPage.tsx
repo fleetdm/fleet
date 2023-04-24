@@ -249,7 +249,7 @@ const DeviceUserPage = ({
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup.bootstrap_package_status,
     details: host?.mdm.macos_setup.details,
-    name: "package.pkg", // TODO: get from API
+    name: host?.mdm.macos_setup.bootstrap_package_name,
   };
 
   const toggleMacSettingsModal = useCallback(() => {
@@ -442,13 +442,15 @@ const DeviceUserPage = ({
             onClose={toggleMacSettingsModal}
           />
         )}
-        {showBootstrapPackageModal && bootstrapPackageData.details && (
-          <BootstrapPackageModal
-            packageName={bootstrapPackageData.name} // TODO: get this data from API
-            details={bootstrapPackageData.details}
-            onClose={() => setShowBootstrapPackageModal(false)}
-          />
-        )}
+        {showBootstrapPackageModal &&
+          bootstrapPackageData.details &&
+          bootstrapPackageData.name && (
+            <BootstrapPackageModal
+              packageName={bootstrapPackageData.name}
+              details={bootstrapPackageData.details}
+              onClose={() => setShowBootstrapPackageModal(false)}
+            />
+          )}
       </div>
     );
   };

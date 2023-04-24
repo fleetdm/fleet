@@ -28,6 +28,7 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   macos_setup: {
     bootstrap_package_status: "",
     details: "",
+    bootstrap_package_name: "",
   },
 };
 
