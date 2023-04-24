@@ -308,6 +308,56 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.package_name;
+    return (
+      <>
+        {" "}
+        added a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.package_name;
+    return (
+      <>
+        {" "}
+        deleted a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -390,6 +440,12 @@ const getDetail = (
     }
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+    }
+    case ActivityType.AddedBootstrapPackage: {
+      return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.DeletedBootstrapPackage: {
+      return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

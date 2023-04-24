@@ -420,4 +420,86 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
+
+  it("renders a 'added_bootstrap_package' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedBootstrapPackage,
+      details: { package_name: "foo.pkg", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(") for macOS hosts that automatically enroll to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("automatically enroll to no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedBootstrapPackage,
+      details: { package_name: "foo.pkg", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(") for macOS hosts that automatically enroll to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("automatically enroll to no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'added_bootstrap_package' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedBootstrapPackage,
+      details: { package_name: "foo.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        ") for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_bootstrap_package' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedBootstrapPackage,
+      details: { package_name: "foo.pkg" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted a bootstrap package (", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        ") for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
 });

@@ -846,9 +846,9 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
-	PackageName string  `json:"package_name"`
-	TeamID      *uint   `json:"team_id"`
-	TeamName    *string `json:"team_name"`
+	BootstrapPackageName string  `json:"bootstrap_package_name"`
+	TeamID               *uint   `json:"team_id"`
+	TeamName             *string `json:"team_name"`
 }
 
 func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
@@ -861,7 +861,7 @@ func (a ActivityTypeAddedBootstrapPackage) Documentation() (activity, details, d
 - "package_name": Name of the package.
 - "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
 - "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
-  "package_name": "bootstrap-package.pkg",
+  "bootstrap_package_name": "bootstrap-package.pkg",
   "team_id": 123,
   "team_name": "Workstations"
 }`

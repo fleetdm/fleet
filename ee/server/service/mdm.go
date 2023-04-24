@@ -195,7 +195,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedBootstrapPackage{PackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for upload bootstrap package")
 	}
 
