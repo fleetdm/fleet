@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"mime/multipart"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -247,12 +248,29 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.Reader) error {
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f multipart.File) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	bytes, err := io.ReadAll(file)
+	if err := file.CheckPDF(f); err != nil {
+		if errors.Is(err, file.ErrInvalidType) {
+			return &fleet.BadRequestError{
+				Message:     err.Error(),
+				InternalErr: err,
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking pdf")
+	}
+
+	// ensure we read the file from the start
+	_, err := f.Seek(0, io.SeekStart)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "seeking start of PDF file")
+	}
+
+	bytes, err := io.ReadAll(f)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
@@ -264,7 +282,7 @@ func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io
 	}
 
 	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
-		return ctxerr.Wrap(ctx, err, "creating EULA")
+		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
 	return nil
@@ -278,12 +296,12 @@ func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fl
 	return svc.ds.MDMAppleGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMAppleDeleteEULA(ctx context.Context) error {
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	if err := svc.ds.MDMAppleDeleteEULA(ctx); err != nil {
+	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 

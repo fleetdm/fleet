@@ -896,7 +896,7 @@ type Datastore interface {
 	// MDMAppleInsertEULA inserts a new EULA in the database
 	MDMAppleInsertEULA(ctx context.Context, eula *MDMAppleEULA) error
 	// MDMAppleDeleteEULA deletes the EULA file from the database
-	MDMAppleDeleteEULA(ctx context.Context) error
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
 }
 
 const (

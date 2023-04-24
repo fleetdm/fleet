@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -695,9 +696,9 @@ type Service interface {
 	// be used by clients to display information.
 	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
 	// MDMAppleCreateEULA adds a new EULA file.
-	MDMAppleCreateEULA(ctx context.Context, name string, file io.Reader) error
+	MDMAppleCreateEULA(ctx context.Context, name string, file multipart.File) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMAppleDeleteEULA(ctx context.Context) error
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

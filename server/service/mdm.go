@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -266,7 +265,7 @@ func createMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fl
 	return createMDMAppleEULAResponse{}, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.Reader) error {
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file multipart.File) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -279,7 +278,7 @@ func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleEULARequest struct {
-	Token string `query:"token"`
+	Token string `url:"token"`
 }
 
 type getMDMAppleEULAResponse struct {
@@ -359,7 +358,9 @@ func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppl
 // DELETE /mdm/apple/setup/eula
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteMDMAppleEULARequest struct{}
+type deleteMDMAppleEULARequest struct {
+	Token string `url:"token"`
+}
 
 type deleteMDMAppleEULAResponse struct {
 	Err error `json:"error,omitempty"`
@@ -368,13 +369,14 @@ type deleteMDMAppleEULAResponse struct {
 func (r deleteMDMAppleEULAResponse) error() error { return r.Err }
 
 func deleteMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	if err := svc.MDMAppleDeleteEULA(ctx); err != nil {
+	req := request.(*deleteMDMAppleEULARequest)
+	if err := svc.MDMAppleDeleteEULA(ctx, req.Token); err != nil {
 		return deleteMDMAppleEULAResponse{Err: err}, nil
 	}
 	return deleteMDMAppleEULAResponse{}, nil
 }
 
-func (svc *Service) MDMAppleDeleteEULA(ctx context.Context) error {
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

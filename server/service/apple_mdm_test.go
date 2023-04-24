@@ -166,7 +166,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
 		return nil
 	}
-	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context) error {
+	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
 		return nil
 	}
 
@@ -209,9 +209,9 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		// check EULA routes
 		_, err = svc.MDMAppleGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewBuffer([]byte{}))
+		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", nil)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleDeleteEULA(ctx)
+		err = svc.MDMAppleDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 

@@ -1897,6 +1897,8 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	// Currently, there can only be one EULA in the database, so we pick
+	// the first entry we find.
 	stmt := "SELECT name, created_at, token FROM eulas LIMIT 1"
 	var eula fleet.MDMAppleEULA
 	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt); err != nil {
@@ -1921,12 +1923,28 @@ func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*f
 }
 
 func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	// check if we already have an EULA in the database. This is a bit odd,
+	// at the moment we only allow one global EULA, but I haven't find a
+	// good way to enforce this check at the database level.
+	_, err := ds.MDMAppleGetEULAMetadata(ctx)
+
+	// if we didn't get any errors, the EULA exists, return an alreadyExists error
+	if err == nil {
+		return alreadyExists("MDMAppleEULA", "")
+	}
+
+	// if we got any error that's not a "not found", return that error
+	// before moving forward
+	if !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "checking if EULA already exists")
+	}
+
 	stmt := `
           INSERT INTO eulas (name, bytes, token)
 	  VALUES (?, ?, ?)
 	`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	_, err = ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
 	if err != nil {
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMAppleEULA", eula.Token))
@@ -1937,11 +1955,11 @@ func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppl
 	return nil
 }
 
-func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context) error {
-	stmt := "DELETE FROM eulas LIMIT 1"
-	res, err := ds.writer.ExecContext(ctx, stmt)
+func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	stmt := "DELETE FROM eulas WHERE token = ?"
+	res, err := ds.writer.ExecContext(ctx, stmt, token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete bootstrap package")
+		return ctxerr.Wrap(ctx, err, "delete EULA")
 	}
 
 	deleted, _ := res.RowsAffected()

@@ -608,7 +608,7 @@ type MDMAppleGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MD
 
 type MDMAppleInsertEULAFunc func(ctx context.Context, eula *fleet.MDMAppleEULA) error
 
-type MDMAppleDeleteEULAFunc func(ctx context.Context) error
+type MDMAppleDeleteEULAFunc func(ctx context.Context, token string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3577,9 +3577,9 @@ func (s *DataStore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMApple
 	return s.MDMAppleInsertEULAFunc(ctx, eula)
 }
 
-func (s *DataStore) MDMAppleDeleteEULA(ctx context.Context) error {
+func (s *DataStore) MDMAppleDeleteEULA(ctx context.Context, token string) error {
 	s.mu.Lock()
 	s.MDMAppleDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleDeleteEULAFunc(ctx)
+	return s.MDMAppleDeleteEULAFunc(ctx, token)
 }

@@ -2936,12 +2936,15 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 func (s *integrationMDMTestSuite) TestEULA() {
 	t := s.T()
-	pdfBytes := []byte("pdf-contents")
+	pdfBytes := []byte("%PDF-1.pdf-contents")
 	pdfName := "eula.pdf"
 
 	// trying to get metadata about an EULA that hasn't been uploaded yet is an error
 	metadataResp := getMDMAppleEULAMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+
+	// trying to upload a file that is not a PDF fails
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "")
 
 	// admin is able to upload a new EULA
 	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
@@ -2952,9 +2955,10 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	require.NotEmpty(t, metadataResp.MDMAppleEULA.Token)
 	require.NotEmpty(t, metadataResp.MDMAppleEULA.CreatedAt)
 	require.Equal(t, pdfName, metadataResp.MDMAppleEULA.Name)
+	eulaToken := metadataResp.Token
 
 	// download EULA
-	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula?token=%s", metadataResp.MDMAppleEULA.Token), nil, http.StatusOK)
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err := io.ReadAll(resp.Body)
@@ -2963,15 +2967,18 @@ func (s *integrationMDMTestSuite) TestEULA() {
 
 	// try to download EULA with a bad token
 	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula?token=bad"), nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
+
+	// trying to upload any EULA without deleting the previous one first results in an error
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
 
 	// delete EULA
 	var deleteResp deleteMDMAppleEULAResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/setup/eula", nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
 	metadataResp = getMDMAppleEULAMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
-	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/setup/eula", nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 
 }
 
