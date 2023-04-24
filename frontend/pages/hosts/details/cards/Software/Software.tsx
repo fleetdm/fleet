@@ -51,6 +51,7 @@ interface ISoftwareTableProps {
   };
   routeTemplate?: string;
   hostId: number;
+  pathname: string;
 }
 
 interface IRowProps extends Row {
@@ -73,9 +74,10 @@ const SoftwareTable = ({
   queryParams,
   routeTemplate,
   hostId,
+  pathname,
 }: ISoftwareTableProps): JSX.Element => {
   console.log("Software.tsx queryParams", queryParams);
-  const { isSandboxMode } = useContext(AppContext);
+  const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
 
   const initialQuery = (() => {
     let query = "";
@@ -238,7 +240,13 @@ const SoftwareTable = ({
     software,
   ]);
   const tableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(deviceUser, router),
+    () =>
+      generateSoftwareTableHeaders({
+        deviceUser,
+        router,
+        setFilteredSoftwarePath,
+        pathname,
+      }),
     [deviceUser, router]
   );
 

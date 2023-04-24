@@ -729,6 +729,7 @@ const HostDetailsPage = ({
                 queryParams={queryParams}
                 routeTemplate={routeTemplate}
                 hostId={host?.id || 0}
+                pathname={location.pathname}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard

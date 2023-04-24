@@ -400,6 +400,7 @@ const DeviceUserPage = ({
                     software={hostSoftware}
                     deviceUser
                     hostId={host?.id || 0}
+                    pathname={location.pathname}
                   />
                 </TabPanel>
                 {isPremiumTier && (
