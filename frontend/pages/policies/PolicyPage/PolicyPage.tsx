@@ -111,20 +111,15 @@ const PolicyPage = ({
     if (policyTeamId !== teamIdForApi) {
       setPolicyTeamId(teamIdForApi || 0);
     }
-  }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
-
-  useEffect(() => {
-    if (lastEditedQueryBody === "") {
-      setLastEditedQueryBody(DEFAULT_POLICY.query);
-    }
-  }, []);
+  }, [isRouteOk, teamIdForApi, policyTeamId]); // setPolicyTeamId will cause infinite loop
 
   useEffect(() => {
     // cleanup when component unmounts
-    return () => {
-      setLastEditedQueryCritical(false);
-      setLastEditedQueryPlatform(null);
-    };
+    if (lastEditedQueryBody === "") {
+      setLastEditedQueryBody(DEFAULT_POLICY.query);
+    }
+    setLastEditedQueryCritical(false);
+    setLastEditedQueryPlatform(null);
   }, []);
 
   const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
