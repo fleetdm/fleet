@@ -1,25 +1,17 @@
 import React from "react";
 
 import { IHostUser } from "interfaces/host_users";
-import TableContainer from "components/TableContainer";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 
-interface ISearchQueryData {
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
-  pageSize: number;
-  pageIndex: number;
-}
-
 interface IUsersProps {
   users: IHostUser[];
   usersState: { username: string }[];
   isLoading: boolean;
-  onUsersTableSearchChange: (queryData: ISearchQueryData) => void;
+  onUsersTableSearchChange: (queryData: ITableQueryData) => void;
   hostUsersEnabled?: boolean;
 }
 

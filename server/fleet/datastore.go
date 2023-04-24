@@ -857,7 +857,7 @@ type Datastore interface {
 	// GetMDMAppleHostsProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
@@ -875,6 +875,16 @@ type Datastore interface {
 	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of
+	// the status of the bootstrap package for hosts in a team.
+	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackageSummary, error)
+
+	// RecordHostBootstrapPackage records a command used to install a
+	// bootstrap package in a host.
+	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+
+	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
+	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 }
 
 const (

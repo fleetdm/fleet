@@ -12,9 +12,11 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/micromdm/nanomdm/mdm"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -140,4 +142,16 @@ func secureRandInt(min, max int64) (int, error) {
 		}
 	}
 	return random, nil
+}
+
+func FmtErrorChain(chain []mdm.ErrorChain) string {
+	var sb strings.Builder
+	for _, mdmErr := range chain {
+		desc := mdmErr.USEnglishDescription
+		if desc == "" {
+			desc = mdmErr.LocalizedDescription
+		}
+		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
+	}
+	return sb.String()
 }

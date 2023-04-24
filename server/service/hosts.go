@@ -144,9 +144,12 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
+	// TODO(Sarah): Are we missing any other filters here?
 	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
+		// the bootstrap package filter is premium-only
+		opt.MDMBootstrapPackageFilter = nil
 	}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
@@ -829,6 +832,19 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 	host.MDM.Profiles = &profiles
+
+	var macOSSetup *fleet.HostMDMMacOSSetup
+	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
+		macOSSetup, err = svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)
+		if err != nil {
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm macos setup")
+			}
+			// TODO(Sarah): What should we do for not found? Should we return an empty struct or nil?
+			macOSSetup = &fleet.HostMDMMacOSSetup{}
+		}
+	}
+	host.MDM.MacOSSetup = macOSSetup
 
 	return &fleet.HostDetail{
 		Host:      *host,
