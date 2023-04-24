@@ -28,8 +28,9 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
-variable "fleet_sentry_dsn" {
-}
+variable "fleet_sentry_dsn" {}
+variable "elastic_url" {}
+variable "elastic_token" {}
 
 data "aws_caller_identity" "current" {}
 
