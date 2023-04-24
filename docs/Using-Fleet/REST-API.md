@@ -4173,7 +4173,7 @@ The summary can optionally be filtered by team id.
 
 _Available in Fleet Premium_
 
-Upload a EULA that will be shown during the DEP flow.
+Upload an EULA that will be shown during the DEP flow.
 
 `POST /api/v1/fleet/mdm/apple/setup/eula`
 
@@ -4242,11 +4242,17 @@ _Available in Fleet Premium_
 
 Delete an EULA file.
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula`
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/{token}`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| token | string | path  | **Required** The token of the EULA file. |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula`
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
@@ -4258,17 +4264,17 @@ _Available in Fleet Premium_
 
 Download an EULA file
 
-`GET /api/v1/fleet/mdm/apple/setup/eula?token={token}`
+`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
 
 #### Parameters
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| token | string | query | **Required** The token of the EULA file. |
+| token | string | path  | **Required** The token of the EULA file. |
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/setup/eula?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
+`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
