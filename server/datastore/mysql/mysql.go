@@ -1033,6 +1033,8 @@ func isChildForeignKeyError(err error) bool {
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
 }
 
+type PatternReplacer func(string) string
+
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
 	m = strings.Replace(m, "_", "\\_", -1)
@@ -1040,15 +1042,24 @@ func likePattern(m string) string {
 	return "%" + m + "%"
 }
 
+// noneReplacer doesn't manipulate
+func noneReplacer(m string) string {
+	return "%" + m + "%"
+}
+
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
 //
 // The input columns must be sanitized if they are provided by the user.
 func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, match, likePattern, columns...)
+}
+
+func searchLikePattern(sql string, params []interface{}, match string, replacer PatternReplacer, columns ...string) (string, []interface{}) {
 	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
 
-	pattern := likePattern(match)
+	pattern := replacer(match)
 	ors := make([]string, 0, len(columns))
 	for _, column := range columns {
 		ors = append(ors, column+" LIKE ?")
@@ -1070,18 +1081,33 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 // the presence of @, which is arguably the most important check
 // in this.
 var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
+var nonascii = regexp.MustCompile("[^[:ascii:]]")
 
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
+	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
 	// special-case for hosts: if match looks like an email address, add searching
 	// in host_emails table as an option, in addition to the provided columns.
 	if rxLooseEmail.MatchString(match) {
+		matchesEmail = true
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args
+	return base, args, matchesEmail
+}
+
+func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, match, noneReplacer, columns...)
+}
+
+func hasNonASCIIRegex(s string) bool {
+	return nonascii.MatchString(s)
+}
+
+func replaceMatchAny(s string) string {
+	return nonascii.ReplaceAllString(s, "_")
 }
 
 func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
