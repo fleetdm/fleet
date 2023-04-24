@@ -43,7 +43,8 @@ POST https://server.com/example
       {
         "id": 1,
         "hostname": "macbook-1",
-        "url": "https://fleet.example.com/hosts/1"
+        "url": "https://fleet.example.com/hosts/1",
+        "software_installed_paths": ["/usr/lib/some-path"],
       },
       {
         "id": 2,
