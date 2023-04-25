@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -974,6 +975,10 @@ func IsNotFound(err error) bool {
 	var nfe NotFoundError
 	if errors.As(err, &nfe) {
 		return nfe.IsNotFound()
+	}
+	// consider sql.ErrNoRows as not found too
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
 	}
 	return false
 }
