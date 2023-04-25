@@ -1,5 +1,5 @@
 #<%= stem %> {
 
-@import 'basic-landing-page.less';
+  @import 'basic-landing-page.less';
 
 }
