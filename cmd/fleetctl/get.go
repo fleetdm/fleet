@@ -328,7 +328,10 @@ func getQueriesCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				ok, err := userIsObserver(me)
+				if me == nil {
+					return errors.New("/api/latest/fleet/me returned an empty user")
+				}
+				ok, err := userIsObserver(*me)
 				if err != nil {
 					return err
 				}
@@ -392,15 +395,19 @@ func getQueriesCommand() *cli.Command {
 	}
 }
 
+var errUserNoRoles = errors.New("user does not have roles")
+
 // userIsObserver returns whether the user is a global/team observer/observer+.
 // In the case of user belonging to multiple teams, a user is considered observer
 // if it is observer of all teams.
-func userIsObserver(user *fleet.User) (bool, error) {
+//
+// Returns errUserNoRoles if the user does not have any roles.
+func userIsObserver(user fleet.User) (bool, error) {
 	if user.GlobalRole != nil {
 		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus, nil
 	} // Team user
 	if len(user.Teams) == 0 {
-		return false, errors.New("user does not have roles")
+		return false, errUserNoRoles
 	}
 	for _, team := range user.Teams {
 		if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {

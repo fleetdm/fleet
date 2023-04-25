@@ -1173,6 +1173,66 @@ spec:
 		})
 	}
 
+	// Test with a user that is observer of a team, but maintainer of another team (should not filter the queries).
+	setCurrentUserSession(&fleet.User{
+		ID:         4,
+		Name:       "Not observer of all teams",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "omt2@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	})
+
+	expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+| query3 | some desc 3 | select 3; |
++--------+-------------+-----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 3
+  name: query3
+  query: select 3;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+
 	// No queries are returned if none is observer_can_run.
 	setCurrentUserSession(&fleet.User{
 		ID:         2,
@@ -1221,7 +1281,7 @@ spec:
 			},
 		}, nil
 	}
-	const expected = `+--------+-------------+-----------+
+	expected = `+--------+-------------+-----------+
 |  NAME  | DESCRIPTION |   QUERY   |
 +--------+-------------+-----------+
 | query1 | some desc   | select 1; |
@@ -1794,4 +1854,81 @@ func TestGetMDMCommands(t *testing.T) {
 | u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
 +----+----------------------+-------------+--------------+----------+
 `))
+}
+
+func TestUserIsObserver(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		user        fleet.User
+		expectedVal bool
+		expectedErr error
+	}{
+		{
+			name:        "user without roles",
+			user:        fleet.User{},
+			expectedErr: errUserNoRoles,
+		},
+		{
+			name:        "global observer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			expectedVal: true,
+		},
+		{
+			name:        "global observer+",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			expectedVal: true,
+		},
+		{
+			name:        "global maintainer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			expectedVal: false,
+		},
+		{
+			name: "team observer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team observer+",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserverPlus},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+		{
+			name: "team observer and maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := userIsObserver(tc.user)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedVal, actual)
+		})
+	}
 }
