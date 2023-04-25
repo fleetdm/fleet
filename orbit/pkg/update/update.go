@@ -5,6 +5,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -60,6 +61,13 @@ type Options struct {
 	LocalStore client.LocalStore
 	// Targets holds the targets the Updater keeps track of.
 	Targets Targets
+	// ServerCertificate is the TLS certificate CA to use for certificate verification.
+	//
+	// If not set, then the OS CA certificate store is used.
+	ServerCertificate string
+	// ClientCertificate is the client TLS certificate to use to authenticate
+	// to th update server.
+	ClientCertificate *tls.Certificate
 }
 
 // Targets is a map of target name and its tracking information.
@@ -108,9 +116,27 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	tlsConfig := &tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
-	}))
+	}
+
+	if opt.ServerCertificate != "" {
+		certs, err := os.ReadFile(opt.ServerCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("reading root CA: %w", err)
+		}
+		rootCAPool := x509.NewCertPool()
+		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
+			return nil, errors.New("failed to add certificates to root CA pool")
+		}
+		tlsConfig.RootCAs = rootCAPool
+	}
+
+	if opt.ClientCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
+	}
+
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
 
 	remoteOpt := &client.HTTPRemoteOptions{
 		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleetcrt"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -69,14 +71,24 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Usage:   "Path to server certificate chain",
+			Usage:   "Path to the Fleet server certificate chain",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+		},
+		&cli.StringFlag{
+			Name:    "fleet-desktop-alternative-browser-host",
+			Usage:   "Alternative host:port to use for Fleet Desktop in the browser (this may be required when using TLS client authentication in the Fleet server)",
+			EnvVars: []string{"ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST"},
 		},
 		&cli.StringFlag{
 			Name:    "update-url",
 			Usage:   "URL for update server",
 			Value:   "https://tuf.fleetctl.com",
 			EnvVars: []string{"ORBIT_UPDATE_URL"},
+		},
+		&cli.StringFlag{
+			Name:    "update-tls-certificate",
+			Usage:   "Path to the update server TLS certificate chain",
+			EnvVars: []string{"ORBIT_UPDATE_TLS_CERTIFICATE"},
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret",
@@ -148,7 +160,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "use-system-configuration",
-			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)",
+			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
 			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
 		},
@@ -212,6 +224,10 @@ func main() {
 
 		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
 			return errors.New("insecure and fleet-certificate may not be specified together")
+		}
+
+		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
+			return errors.New("insecure and update-tls-certificate may not be specified together")
 		}
 
 		if c.String("enroll-secret-path") != "" {
@@ -303,6 +319,7 @@ func main() {
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
+		opt.ServerCertificate = c.String("update-tls-certificate")
 
 		var (
 			osquerydPath string
@@ -326,6 +343,17 @@ func main() {
 				Interval: softwareUpdatedKickstartInterval,
 			})
 			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		}
+
+		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
+		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
+		updateClientCrt, err := fleetcrt.LoadCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading update client certificate: %w", err)
+		}
+		if updateClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to the update server.")
+			opt.ClientCertificate = &updateClientCrt.Crt
 		}
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -554,12 +582,30 @@ func main() {
 
 		}
 
+		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
+		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
+		fleetClientCrt, err := fleetcrt.LoadCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading fleet client certificate: %w", err)
+		}
+
+		var fleetClientCertificate *tls.Certificate
+		if fleetClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
+			fleetClientCertificate = &fleetClientCrt.Crt
+			options = append(options, osquery.WithFlags([]string{
+				"--tls_client_cert", fleetClientCertPath,
+				"--tls_client_key", fleetClientKeyPath,
+			}))
+		}
+
 		orbitClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
+			fleetClientCertificate,
 			orbitHostInfo,
 		)
 		if err != nil {
@@ -660,7 +706,13 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
-			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
+			deviceClient, err := service.NewDeviceClient(
+				fleetURL,
+				c.Bool("insecure"),
+				c.String("fleet-certificate"),
+				fleetClientCertificate,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
 			if err != nil {
 				return fmt.Errorf("initializing client: %w", err)
 			}
@@ -768,6 +820,7 @@ func main() {
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
+			fleetClientCertificate,
 			orbitHostInfo,
 		)
 		if err != nil {
@@ -789,7 +842,24 @@ func main() {
 		)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), trw)
+			var (
+				rawClientCrt []byte
+				rawClientKey []byte
+			)
+			if fleetClientCrt != nil {
+				rawClientCrt = fleetClientCrt.RawCrt
+				rawClientKey = fleetClientCrt.RawKey
+			}
+			desktopRunner := newDesktopRunner(
+				desktopPath,
+				fleetURL,
+				c.String("fleet-certificate"),
+				c.Bool("insecure"),
+				trw,
+				rawClientCrt,
+				rawClientKey,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
 			g.Add(desktopRunner.actor())
 		}
 
@@ -822,25 +892,51 @@ func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
+// desktopRunner runs the Fleet Desktop application.
 type desktopRunner struct {
-	desktopPath   string
-	fleetURL      string
-	trw           *token.ReadWriter
-	fleetRootCA   string
-	insecure      bool
-	interruptCh   chan struct{} // closed when interrupt is triggered
-	executeDoneCh chan struct{} // closed when execute returns
+	// desktopPath is the path to the desktop executable.
+	desktopPath string
+	// fleetURL is the URL of the Fleet server.
+	fleetURL string
+	// trw is the Fleet Desktop token reader and writer (implements token rotation).
+	trw *token.ReadWriter
+	// fleetRootCA is the path to a certificate to use for server TLS verification.
+	fleetRootCA string
+	// insecure disables all TLS verification.
+	insecure bool
+	// fleetClientCrt is the raw TLS client certificate (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientCrt []byte
+	// fleetClientKey is the raw TLS client private key (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientKey []byte
+	// fleetAlternativeBrowserHost is an alternative host:port to use for
+	// the browser URLs in Fleet Desktop.
+	fleetAlternativeBrowserHost string
+	// interruptCh is closed when interrupt is triggered.
+	interruptCh chan struct{} //
+	// executeDoneCh is closed when execute returns.
+	executeDoneCh chan struct{}
 }
 
-func newDesktopRunner(desktopPath, fleetURL, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
+func newDesktopRunner(
+	desktopPath, fleetURL, fleetRootCA string,
+	insecure bool,
+	trw *token.ReadWriter,
+	fleetClientCrt []byte, fleetClientKey []byte,
+	fleetAlternativeBrowserHost string,
+) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:   desktopPath,
-		fleetURL:      fleetURL,
-		trw:           trw,
-		fleetRootCA:   fleetRootCA,
-		insecure:      insecure,
-		interruptCh:   make(chan struct{}),
-		executeDoneCh: make(chan struct{}),
+		desktopPath:                 desktopPath,
+		fleetURL:                    fleetURL,
+		trw:                         trw,
+		fleetRootCA:                 fleetRootCA,
+		insecure:                    insecure,
+		fleetClientCrt:              fleetClientCrt,
+		fleetClientKey:              fleetClientKey,
+		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
+		interruptCh:                 make(chan struct{}),
+		executeDoneCh:               make(chan struct{}),
 	}
 }
 
@@ -881,9 +977,15 @@ func (d *desktopRunner) execute() error {
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
+
 		// TODO(roperzh): this env var is keept only for backwards compatibility,
 		// we should remove it once we think is safe
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
+
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
+
+		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))

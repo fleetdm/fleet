@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -41,6 +42,15 @@ func BuildMSI(opt Options) (string, error) {
 
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.WindowsTargets
+	updateOpt.ServerCertificate = opt.UpdateTLSServerCertificate
+
+	if opt.UpdateTLSClientCertificate != "" {
+		updateClientCrt, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey)
+		if err != nil {
+			return "", fmt.Errorf("error loading update client certificate and key: %w", err)
+		}
+		updateOpt.ClientCertificate = &updateClientCrt
+	}
 
 	if opt.Desktop {
 		updateOpt.Targets["desktop"] = update.DesktopWindowsTarget
@@ -82,8 +92,26 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.FleetCertificate != "" {
-		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return "", fmt.Errorf("write fleet certificate: %w", err)
+		if err := writeFleetServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet server certificate: %w", err)
+		}
+	}
+
+	if opt.FleetTLSClientCertificate != "" {
+		if err := writeFleetClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet client certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSServerCertificate != "" {
+		if err := writeUpdateServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update server certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSClientCertificate != "" {
+		if err := writeUpdateClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update client certificate: %w", err)
 		}
 	}
 
