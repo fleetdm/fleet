@@ -847,8 +847,15 @@ None.
       "deadline": "2022-01-01"
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile.mobileconfig"],
-      "enable_disk_encryption": false
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
     },
     "macos_setup": {
       "bootstrap_package": "",
@@ -1123,8 +1130,15 @@ Modifies the Fleet's configuration with the supplied information.
       "deadline": "2022-01-01"
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile.mobileconfig"],
-      "enable_disk_encryption": false
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
     },
     "macos_setup": {
       "bootstrap_package": "",
