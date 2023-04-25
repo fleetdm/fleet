@@ -13,7 +13,7 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
-  // Bypass the `is-logged-in` policy for experimens, such as temporary landing pages.
+  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
   'imagine/*': true,
 
   // Bypass the `is-logged-in` policy for:
