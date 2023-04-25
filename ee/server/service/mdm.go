@@ -314,5 +314,35 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID)
+
+	// must read the existing setup assistant first to detect if it did delete
+	// and to get the name of the deleted assistant.
+	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get previous setup assistant")
+	}
+
+	if err := svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete setup assistant")
+	}
+
+	if prevAsst != nil {
+		var teamName *string
+		if teamID != nil {
+			tm, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team")
+			}
+			teamName = &tm.Name
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
+			TeamID:   teamID,
+			TeamName: teamName,
+			Name:     prevAsst.Name,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for deleted macos setup assistant")
+		}
+	}
+
+	return nil
 }
