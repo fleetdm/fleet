@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -587,6 +588,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						MinimumVersion: "10.15.0",
 						Deadline:       "2025-10-01",
 					},
+					MacOSSetup: fleet.MacOSSetup{
+						BootstrapPackage:    "bootstrap",
+						MacOSSetupAssistant: optjson.SetString("assistant"),
+					},
 				},
 			},
 		})
@@ -598,6 +603,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			MacOSUpdates: fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0",
 				Deadline:       "2025-10-01",
+			},
+			MacOSSetup: fleet.MacOSSetup{
+				BootstrapPackage:    "bootstrap",
+				MacOSSetupAssistant: optjson.SetString("assistant"),
 			},
 		}, mdm)
 	})

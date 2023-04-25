@@ -2939,6 +2939,134 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, &team.ID)
 }
 
+func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
+	ctx := context.Background()
+	t := s.T()
+
+	// get for no team returns 404
+	var getResp getMDMAppleSetupAssistantResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp)
+	// get for non-existing team returns 404
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp, "team_id", "123")
+
+	// create a setup assistant for no team
+	noTeamProf := `{"x": 1}`
+	var createResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &createResp)
+	noTeamAsst := createResp.MDMAppleSetupAssistant
+	require.Nil(t, noTeamAsst.TeamID)
+	require.NotZero(t, noTeamAsst.UploadedAt)
+	require.Equal(t, "no-team", noTeamAsst.Name)
+	require.JSONEq(t, noTeamProf, string(noTeamAsst.Profile))
+
+	// create a team and a setup assistant for that team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	tmProf := `{"y": 1}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team1",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	tmAsst := createResp.MDMAppleSetupAssistant
+	require.NotNil(t, tmAsst.TeamID)
+	require.Equal(t, tm.ID, *tmAsst.TeamID)
+	require.NotZero(t, tmAsst.UploadedAt)
+	require.Equal(t, "team1", tmAsst.Name)
+	require.JSONEq(t, tmProf, string(tmAsst.Profile))
+
+	// update no-team
+	noTeamProf = `{"x": 2}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team2",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &createResp)
+
+	// update team
+	tmProf = `{"y": 2}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team2",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+
+	// get no team
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusOK, &getResp)
+	require.Nil(t, getResp.TeamID)
+	require.NotZero(t, getResp.UploadedAt)
+	require.Equal(t, "no-team2", getResp.Name)
+	require.JSONEq(t, noTeamProf, string(getResp.Profile))
+
+	// get team
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusOK, &getResp, "team_id", fmt.Sprint(tm.ID))
+	require.NotNil(t, getResp.TeamID)
+	require.Equal(t, tm.ID, *getResp.TeamID)
+	require.NotZero(t, getResp.UploadedAt)
+	require.Equal(t, "team2", getResp.Name)
+	require.JSONEq(t, tmProf, string(getResp.Profile))
+
+	// try to set the configuration_web_url key
+	tmProf = `{"configuration_web_url": "https://example.com"}`
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team3",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include configuration_web_url.`)
+
+	// try to set the await_device_configured
+	tmProf = `{"await_device_configured": true}`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team4",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
+
+	// try to set the url
+	tmProf = `{"url": "https://example.com"}`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team5",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
+
+	// try to set a non-object json value
+	tmProf = `true`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team6",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusInternalServerError) // TODO: that should be a 4xx error, see #4406
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `cannot unmarshal bool into Go value of type map[string]interface`)
+
+	// delete the no-team
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent)
+
+	// get for no team returns 404
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp)
+
+	// delete the team (not the assistant), this also deletes the assistant
+	err = s.ds.DeleteTeam(ctx, tm.ID)
+	require.NoError(t, err)
+
+	// get for team returns 404
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp, "team_id", fmt.Sprint(tm.ID))
+}
+
 // only asserts the profile identifier, status and operation (per host)
 func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()

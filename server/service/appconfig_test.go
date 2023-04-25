@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -774,6 +775,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
+			expectedMDM: fleet.MDM{MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
 		}, {
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
@@ -795,14 +797,14 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
 		}, {
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
 		},
 	}
 
