@@ -73,6 +73,7 @@ interface IHostsFilterBlockProps {
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isSandboxMode?: boolean;
 }
 
 /**
@@ -108,6 +109,7 @@ const HostsFilterBlock = ({
   onChangeMacSettingsFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isSandboxMode = false,
 }: IHostsFilterBlockProps) => {
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
@@ -348,7 +350,10 @@ const HostsFilterBlock = ({
       <FilterPill
         label="Low disk space"
         tooltipDescription={TooltipDescription}
+        premiumFeatureTooltipDelayHide={1000}
         onClear={() => handleClearFilter(["low_disk_space"])}
+        isSandboxMode={isSandboxMode}
+        sandboxPremiumOnlyIcon
       />
     );
   };

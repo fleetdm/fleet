@@ -11,6 +11,7 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
+import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -67,6 +68,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
+import Icon from "components/Icon";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1240,12 +1242,31 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
+    // Add the "Premium Feature Icon" to the "Missing hosts" dropdown option in Sandbox mode
+    const dropdownOptions: {
+      disabled: boolean;
+      label: string | JSX.Element;
+      value: string;
+      helpText: string;
+    }[] = HOST_SELECT_STATUSES.slice();
+    if (isSandboxMode) {
+      dropdownOptions[3].label = (
+        <span>
+          <span>Missing hosts</span>
+          <Icon name="premium-feature" className="premium-feature-icon" />
+        </span>
+      );
+    }
+    const statusDropdownClassnames = classNames(
+      `${baseClass}__status_dropdown`,
+      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
+    );
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          options={HOST_SELECT_STATUSES}
+          className={statusDropdownClassnames}
+          options={dropdownOptions}
           searchable={false}
           onChange={handleStatusDropdownChange}
         />
@@ -1520,6 +1541,7 @@ const ManageHostsPage = ({
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
+            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}
