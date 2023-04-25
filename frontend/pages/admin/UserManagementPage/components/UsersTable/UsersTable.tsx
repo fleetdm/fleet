@@ -17,9 +17,9 @@ import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
-import Modal from "components/Modal";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
