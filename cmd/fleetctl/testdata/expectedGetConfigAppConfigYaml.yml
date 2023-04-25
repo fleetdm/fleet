@@ -15,6 +15,7 @@ spec:
     zendesk: null
   mdm:
     apple_bm_terms_expired: false
+    apple_bm_enabled_and_configured: false
     enabled_and_configured: false
     apple_bm_default_team: ""
     macos_updates:
@@ -25,6 +26,13 @@ spec:
       enable_disk_encryption: false
     macos_setup:
       bootstrap_package: ""
+      macos_setup_assistant:
+    end_user_authentication:
+      idp_name: ""
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: ""
+      entity_id: ""
   org_info:
     org_logo_url: ""
     org_name: ""

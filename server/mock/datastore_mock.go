@@ -582,7 +582,7 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
+type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
@@ -595,6 +595,18 @@ type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) e
 type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
 
 type GetMDMAppleBootstrapPackageBytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error)
+
+type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error)
+
+type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
+
+type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
+
+type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
+
+type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
+
+type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1466,6 +1478,24 @@ type DataStore struct {
 
 	GetMDMAppleBootstrapPackageBytesFunc        GetMDMAppleBootstrapPackageBytesFunc
 	GetMDMAppleBootstrapPackageBytesFuncInvoked bool
+
+	GetMDMAppleBootstrapPackageSummaryFunc        GetMDMAppleBootstrapPackageSummaryFunc
+	GetMDMAppleBootstrapPackageSummaryFuncInvoked bool
+
+	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
+	RecordHostBootstrapPackageFuncInvoked bool
+
+	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
+	GetHostMDMMacOSSetupFuncInvoked bool
+
+	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
+	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
+
+	GetMDMAppleSetupAssistantFunc        GetMDMAppleSetupAssistantFunc
+	GetMDMAppleSetupAssistantFuncInvoked bool
+
+	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
+	DeleteMDMAppleSetupAssistantFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3451,7 +3481,7 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
@@ -3498,4 +3528,46 @@ func (s *DataStore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	s.GetMDMAppleBootstrapPackageBytesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleBootstrapPackageBytesFunc(ctx, token)
+}
+
+func (s *DataStore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAppleBootstrapPackageSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleBootstrapPackageSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
+	s.mu.Lock()
+	s.RecordHostBootstrapPackageFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+	s.mu.Lock()
+	s.GetHostMDMMacOSSetupFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	s.mu.Lock()
+	s.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateMDMAppleSetupAssistantFunc(ctx, asst)
+}
+
+func (s *DataStore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	s.mu.Lock()
+	s.GetMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
 }

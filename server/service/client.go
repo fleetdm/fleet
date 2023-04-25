@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -297,7 +298,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.AppConfig != nil {
 		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
-			files := resolveMacOSCustomSettingsPaths(baseDir, macosCustomSettings)
+			files := resolveApplyRelativePaths(baseDir, macosCustomSettings)
 
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
@@ -315,12 +316,23 @@ func (c *Client) ApplyGroup(
 			if macosSetup.BootstrapPackage != "" {
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage)
 				if err != nil {
-					return err
+					return fmt.Errorf("applying fleet config: %w", err)
 				}
 
 				if !opts.DryRun {
 					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
-						return err
+						return fmt.Errorf("applying fleet config: %w", err)
+					}
+				}
+			}
+			if macosSetup.MacOSSetupAssistant.Value != "" {
+				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				if !opts.DryRun {
+					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
@@ -353,7 +365,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][][]byte, len(tmMacSettings))
 		for k, paths := range tmMacSettings {
-			files := resolveMacOSCustomSettingsPaths(baseDir, paths)
+			files := resolveApplyRelativePaths(baseDir, paths)
 			fileContents := make([][]byte, len(files))
 			for i, f := range files {
 				b, err := os.ReadFile(f)
@@ -367,13 +379,21 @@ func (c *Client) ApplyGroup(
 
 		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
+		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
 			if setup.BootstrapPackage != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage)
 				if err != nil {
-					return err
+					return fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
+			}
+			if setup.MacOSSetupAssistant.Value != "" {
+				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				tmMacSetupAssistants[k] = b
 			}
 		}
 
@@ -390,10 +410,10 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if len(tmBootstrapPackages) > 0 && !opts.DryRun {
-			// TODO: we need to chat an define on a better way to do
-			// this, maybe make the endpoints support both id/name? have
-			// separate endpoints?
+		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
+			// TODO: we need to chat an define on a better way to do this, maybe make
+			// the endpoints support both id/name? have separate endpoints? Or make
+			// the apply team spec endpoint return team ids?
 			tms, err := c.ListTeams("")
 			if err != nil {
 				return err
@@ -403,6 +423,11 @@ func (c *Client) ApplyGroup(
 				if bp, ok := tmBootstrapPackages[tm.Name]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tm.ID); err != nil {
 						return fmt.Errorf("uploading bootstrap package for team %q: %w", tm.Name, err)
+					}
+				}
+				if b, ok := tmMacSetupAssistants[tm.Name]; ok {
+					if err := c.uploadMacOSSetupAssistant(b, &tm.ID, tmMacSetup[tm.Name].MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tm.Name, err)
 					}
 				}
 			}
@@ -440,18 +465,22 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	if !ok || mos == nil {
 		return nil
 	}
-	bp := ""
-	rbp, ok := mos["bootstrap_package"]
-	if ok {
-		bp = rbp.(string)
-	}
+	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
+	msa, _ := mos["macos_setup_assistant"].(string)
 	return &fleet.MacOSSetup{
-		BootstrapPackage: bp,
+		BootstrapPackage:    bp,
+		MacOSSetupAssistant: optjson.SetString(msa),
 	}
-
 }
 
-func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
+func resolveApplyRelativePath(baseDir, path string) string {
+	return resolveApplyRelativePaths(baseDir, []string{path})[0]
+}
+
+// resolves the paths to an absolute path relative to the baseDir, which should
+// be the path of the YAML file where the relative paths were specified. If the
+// path is already absolute, it is left untouched.
+func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	if baseDir == "" {
 		return paths
 	}
