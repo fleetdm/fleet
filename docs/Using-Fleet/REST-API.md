@@ -3937,7 +3937,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commands?per_page=5
+`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
 
 ##### Default response
 
