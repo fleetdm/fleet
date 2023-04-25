@@ -114,12 +114,17 @@ const PolicyPage = ({
   }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
 
   useEffect(() => {
-    // cleanup when component unmounts
     if (lastEditedQueryBody === "") {
       setLastEditedQueryBody(DEFAULT_POLICY.query);
     }
-    setLastEditedQueryCritical(false);
-    setLastEditedQueryPlatform(null);
+  }, []);
+
+  useEffect(() => {
+    // cleanup when component unmounts
+    return () => {
+      setLastEditedQueryCritical(false);
+      setLastEditedQueryPlatform(null);
+    };
   }, []);
 
   const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
