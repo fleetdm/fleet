@@ -3029,11 +3029,21 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
 
+	// try to set the url
+	tmProf = `{"url": "https://example.com"}`
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team5",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
+
 	// try to set a non-object json value
 	tmProf = `true`
 	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
-		Name:              "team5",
+		Name:              "team6",
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusInternalServerError) // TODO: that should be a 4xx error, see #4406
 	errMsg = extractServerErrorText(res.Body)
