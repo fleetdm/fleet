@@ -1,13 +1,13 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
-import { IMacSettings } from "interfaces/mdm";
+import { IHostMacMdmProfile } from "interfaces/mdm";
 
 import tableHeaders from "./MacSettingsTableConfig";
 
 const baseClass = "macsettings-table";
 
 interface IMacSettingsTableProps {
-  hostMacSettings?: IMacSettings;
+  hostMacSettings?: IHostMacMdmProfile[];
 }
 
 const MacSettingsTable = ({ hostMacSettings }: IMacSettingsTableProps) => {

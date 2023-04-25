@@ -74,18 +74,15 @@ export enum MdmProfileStatus {
   FAILED = "failed",
 }
 
-export type MacMdmProfileStatus = "applied" | "pending" | "failed";
 export type MacMdmProfileOperationType = "remove" | "install";
 
 export interface IHostMacMdmProfile {
   profile_id: number;
   name: string;
   operation_type: MacMdmProfileOperationType;
-  status: MacMdmProfileStatus;
+  status: MdmProfileStatus;
   detail: string;
 }
-export type IMacSettings = IHostMacMdmProfile[];
-export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
 export interface IFileVaultSummaryResponse {
   verifying: number;
