@@ -78,6 +78,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
+| View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
+| Edit/upload MDM macOS setup assistant\*                                                                                                    |          |           | ✅          | ✅     | ✅     |
 
 \*Applies only to Fleet Premium
 
@@ -130,6 +132,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
+| View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
+| Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          | ✅           |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

@@ -713,7 +713,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
 	}
 
-	res.Latest = ps.Latest
+	res.Verifying = ps.Verifying
 	res.Failed = ps.Failed
 	res.Pending = ps.Pending
 
@@ -1983,6 +1983,107 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Create or update an MDM Apple Setup Assistant
+////////////////////////////////////////////////////////////////////////////////
+
+type createMDMAppleSetupAssistantRequest struct {
+	TeamID            *uint           `json:"team_id"`
+	Name              string          `json:"name"`
+	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
+}
+
+type createMDMAppleSetupAssistantResponse struct {
+	fleet.MDMAppleSetupAssistant
+	Err error `json:"error,omitempty"`
+}
+
+func (r createMDMAppleSetupAssistantResponse) error() error { return r.Err }
+
+func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*createMDMAppleSetupAssistantRequest)
+	asst, err := svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+		TeamID:  req.TeamID,
+		Name:    req.Name,
+		Profile: req.EnrollmentProfile,
+	})
+	if err != nil {
+		return createMDMAppleSetupAssistantResponse{Err: err}, nil
+	}
+	return createMDMAppleSetupAssistantResponse{MDMAppleSetupAssistant: *asst}, nil
+}
+
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get the MDM Apple Setup Assistant
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleSetupAssistantRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleSetupAssistantResponse struct {
+	fleet.MDMAppleSetupAssistant
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleSetupAssistantResponse) error() error { return r.Err }
+
+func getMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleSetupAssistantRequest)
+	asst, err := svc.GetMDMAppleSetupAssistant(ctx, req.TeamID)
+	if err != nil {
+		return getMDMAppleSetupAssistantResponse{Err: err}, nil
+	}
+	return getMDMAppleSetupAssistantResponse{MDMAppleSetupAssistant: *asst}, nil
+}
+
+func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete an MDM Apple Setup Assistant
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMAppleSetupAssistantRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type deleteMDMAppleSetupAssistantResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleSetupAssistantResponse) error() error { return r.Err }
+func (r deleteMDMAppleSetupAssistantResponse) Status() int  { return http.StatusNoContent }
+
+func deleteMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMAppleSetupAssistantRequest)
+	if err := svc.DeleteMDMAppleSetupAssistant(ctx, req.TeamID); err != nil {
+		return deleteMDMAppleSetupAssistantResponse{Err: err}, nil
+	}
+	return deleteMDMAppleSetupAssistantResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2210,7 +2311,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 // profile with the global enroll secret if the team doesn't have any enroll
 // secrets.
 //
-// This profile will be applied to all hosts in the team (or "no team",) but it
+// This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
 func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {

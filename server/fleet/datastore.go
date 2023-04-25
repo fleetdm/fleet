@@ -848,7 +848,7 @@ type Datastore interface {
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
-	// and the status is "applied" (i.e. successfully removed).
+	// and the status is "verifying" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
@@ -885,6 +885,13 @@ type Datastore interface {
 
 	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
+
+	// Create or update the MDM Apple Setup Assistant for a team or no team.
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
+	// Get the MDM Apple Setup Assistant for the provided team or no team.
+	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// Delete the MDM Apple Setup Assistant for the provided team or no team.
+	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 }
 
 const (

@@ -27,7 +27,8 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-import ActionButton, { IActionButtonProps } from "./ActionButton";
+import ActionButton from "./ActionButton";
+import { IActionButtonProps } from "./ActionButton/ActionButton";
 
 const baseClass = "data-table-block";
 

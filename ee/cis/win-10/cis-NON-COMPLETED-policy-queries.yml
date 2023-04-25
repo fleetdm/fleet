@@ -322,6 +322,29 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.
+    All removable data drives that are not BitLocker-protected will be mounted as read-only. If the drive is protected by BitLocker, it will be mounted with read and write access.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query:
+  # TODO Able to set the GPO however,
+  # The HKEY RDVDenyWriteAccess is not showing up in the registry after modification
+  # Very odd as the rest of the section was perfectly fine
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = );
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Audit Account Lockout' is set to include 'Failure'
   platforms: win10
   platform: windows
