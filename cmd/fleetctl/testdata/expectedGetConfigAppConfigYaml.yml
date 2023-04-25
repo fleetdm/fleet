@@ -26,6 +26,13 @@ spec:
       enable_disk_encryption: false
     macos_setup:
       bootstrap_package: ""
+      macos_setup_assistant:
+    end_user_authentication:
+      idp_name: ""
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: ""
+      entity_id: ""
   org_info:
     org_logo_url: ""
     org_name: ""

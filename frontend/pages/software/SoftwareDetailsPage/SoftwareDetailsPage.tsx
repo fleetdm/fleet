@@ -31,7 +31,12 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { isPremiumTier, isSandboxMode, currentTeam } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isSandboxMode,
+    currentTeam,
+    filteredSoftwarePath,
+  } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
 
@@ -70,18 +75,21 @@ const SoftwareDetailsPage = ({
     return <Spinner />;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToSoftwarePath = () => {
+    if (filteredSoftwarePath) {
+      return filteredSoftwarePath;
+    }
+    return currentTeam && currentTeam?.id > APP_CONTEXT_NO_TEAM_ID
+      ? `${PATHS.MANAGE_SOFTWARE}?team_id=${currentTeam?.id}`
+      : PATHS.MANAGE_SOFTWARE;
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink
-            text="Back to software"
-            path={
-              currentTeam && currentTeam?.id > APP_CONTEXT_NO_TEAM_ID
-                ? `${PATHS.MANAGE_SOFTWARE}?team_id=${currentTeam?.id}`
-                : PATHS.MANAGE_SOFTWARE
-            }
-          />
+          <BackLink text="Back to software" path={backToSoftwarePath()} />
         </div>
         <div className="header title">
           <div className="title__inner">

@@ -36,7 +36,7 @@ import {
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "utilities/constants";
-import { ITableQueryData } from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
