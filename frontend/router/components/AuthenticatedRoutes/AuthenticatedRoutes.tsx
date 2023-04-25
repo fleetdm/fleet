@@ -6,6 +6,8 @@ import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import useDeepEffect from "hooks/useDeepEffect";
 import { authToken } from "utilities/local";
+import { useErrorHandler } from "react-error-boundary";
+import permissions from "utilities/permissions";
 
 interface IAppProps {
   children: JSX.Element;
@@ -23,6 +25,8 @@ export const AuthenticatedRoutes = ({
 
   const { setRedirectLocation } = useContext(RoutingContext);
   const { currentUser, config, isSandboxMode } = useContext(AppContext);
+
+  const handlePageError = useErrorHandler();
 
   const redirectToLogin = () => {
     const { LOGIN } = paths;
@@ -88,6 +92,10 @@ export const AuthenticatedRoutes = ({
 
     if (currentUser?.api_only) {
       return redirectToApiUserOnly();
+    }
+
+    if (currentUser && permissions.isNoAccess(currentUser)) {
+      return handlePageError({ status: 403 });
     }
   }, [currentUser]);
 
