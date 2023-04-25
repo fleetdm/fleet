@@ -1,7 +1,8 @@
 import React from "react";
 
 import { IHostUser } from "interfaces/host_users";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
