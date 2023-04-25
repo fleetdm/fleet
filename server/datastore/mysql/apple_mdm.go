@@ -2022,3 +2022,72 @@ func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context, token string) error
 	}
 	return nil
 }
+
+func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	const stmt = `
+		INSERT INTO
+			mdm_apple_setup_assistants (team_id, global_or_team_id, name, profile)
+		VALUES
+			(?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			profile = VALUES(profile)
+`
+	var globalOrTmID uint
+	if asst.TeamID != nil {
+		globalOrTmID = *asst.TeamID
+	}
+	_, err := ds.writer.ExecContext(ctx, stmt, asst.TeamID, globalOrTmID, asst.Name, asst.Profile)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "upsert mdm apple setup assistant")
+	}
+
+	// reload to return the proper timestamp and id
+	return ds.getMDMAppleSetupAssistant(ctx, ds.writer, asst.TeamID)
+}
+
+func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	return ds.getMDMAppleSetupAssistant(ctx, ds.reader, teamID)
+}
+
+func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.QueryerContext, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	const stmt = `
+	SELECT
+		id,
+		team_id,
+		name,
+		profile,
+		updated_at as uploaded_at
+	FROM
+		mdm_apple_setup_assistants
+	WHERE global_or_team_id = ?`
+
+	var asst fleet.MDMAppleSetupAssistant
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	if err := sqlx.GetContext(ctx, q, &asst, stmt, globalOrTmID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple setup assistant")
+	}
+	return &asst, nil
+}
+
+func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	const stmt = `
+		DELETE FROM mdm_apple_setup_assistants
+		WHERE global_or_team_id = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	_, err := ds.writer.ExecContext(ctx, stmt, globalOrTmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete mdm apple setup assistant")
+	}
+	return nil
+}

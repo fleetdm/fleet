@@ -610,6 +610,12 @@ type MDMAppleInsertEULAFunc func(ctx context.Context, eula *fleet.MDMAppleEULA) 
 
 type MDMAppleDeleteEULAFunc func(ctx context.Context, token string) error
 
+type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
+
+type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
+
+type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1501,6 +1507,15 @@ type DataStore struct {
 
 	MDMAppleDeleteEULAFunc        MDMAppleDeleteEULAFunc
 	MDMAppleDeleteEULAFuncInvoked bool
+
+	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
+	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
+
+	GetMDMAppleSetupAssistantFunc        GetMDMAppleSetupAssistantFunc
+	GetMDMAppleSetupAssistantFuncInvoked bool
+
+	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
+	DeleteMDMAppleSetupAssistantFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3582,4 +3597,25 @@ func (s *DataStore) MDMAppleDeleteEULA(ctx context.Context, token string) error 
 	s.MDMAppleDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDeleteEULAFunc(ctx, token)
+}
+
+func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	s.mu.Lock()
+	s.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateMDMAppleSetupAssistantFunc(ctx, asst)
+}
+
+func (s *DataStore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	s.mu.Lock()
+	s.GetMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
 }

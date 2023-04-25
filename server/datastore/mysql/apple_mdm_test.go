@@ -5,6 +5,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"testing"
@@ -54,6 +55,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
 		{"TestListMDMAppleCommands", testListMDMAppleCommands},
 		{"TestMDMAppleEULA", testMDMAppleEULA},
+		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 	}
 
 	for _, c := range cases {
@@ -3256,5 +3258,88 @@ func testMDMAppleEULA(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+}
+
+func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// get non-existing
+	_, err := ds.GetMDMAppleSetupAssistant(ctx, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// create for no team
+	noTeamAsst, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{Name: "test", Profile: json.RawMessage("{}")})
+	require.NoError(t, err)
+	require.NotZero(t, noTeamAsst.ID)
+	require.NotZero(t, noTeamAsst.UploadedAt)
+	require.Nil(t, noTeamAsst.TeamID)
+	require.Equal(t, "test", noTeamAsst.Name)
+	require.Equal(t, "{}", string(noTeamAsst.Profile))
+
+	// get for no team returns the same data
+	getAsst, err := ds.GetMDMAppleSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, noTeamAsst, getAsst)
+
+	// create for non-existing team fails
+	_, err = ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: ptr.Uint(123), Name: "test", Profile: json.RawMessage("{}")})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "foreign key constraint fails")
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tm"})
+	require.NoError(t, err)
+
+	// create for existing team
+	tmAsst, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test", Profile: json.RawMessage("{}")})
+	require.NoError(t, err)
+	require.NotZero(t, tmAsst.ID)
+	require.NotZero(t, tmAsst.UploadedAt)
+	require.NotNil(t, tmAsst.TeamID)
+	require.Equal(t, tm.ID, *tmAsst.TeamID)
+	require.Equal(t, "test", tmAsst.Name)
+	require.Equal(t, "{}", string(tmAsst.Profile))
+
+	// get for team returns the same data
+	getAsst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, tmAsst, getAsst)
+
+	// upsert team
+	tmAsst2, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst2.ID, tmAsst.ID)
+	require.False(t, tmAsst2.UploadedAt.Before(tmAsst.UploadedAt)) // after or equal
+	require.Equal(t, tmAsst.TeamID, tmAsst2.TeamID)
+	require.Equal(t, "test2", tmAsst2.Name)
+	require.JSONEq(t, `{"x": 2}`, string(tmAsst2.Profile))
+
+	// upsert no team
+	noTeamAsst2, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{Name: "test3", Profile: json.RawMessage(`{"x": 3}`)})
+	require.NoError(t, err)
+	require.Equal(t, noTeamAsst2.ID, noTeamAsst.ID)
+	require.False(t, noTeamAsst2.UploadedAt.Before(noTeamAsst.UploadedAt)) // after or equal
+	require.Nil(t, noTeamAsst2.TeamID)
+	require.Equal(t, "test3", noTeamAsst2.Name)
+	require.JSONEq(t, `{"x": 3}`, string(noTeamAsst2.Profile))
+
+	// delete no team
+	err = ds.DeleteMDMAppleSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+
+	// delete the team, which will cascade delete the setup assistant
+	err = ds.DeleteTeam(ctx, tm.ID)
+	require.NoError(t, err)
+
+	// get the team assistant
+	_, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// delete the team assistant, no error if it doesn't exist
+	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm.ID)
 	require.NoError(t, err)
 }

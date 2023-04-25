@@ -28,6 +28,7 @@ type EnterpriseOverrides struct {
 	// overrides.
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -698,6 +699,13 @@ type Service interface {
 	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
 	// MDMAppleDelete EULA removes an EULA entry.
 	MDMAppleDeleteEULA(ctx context.Context, token string) error
+
+	// Create or update the MDM Apple Setup Assistant for a team or no team.
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
+	// Get the MDM Apple Setup Assistant for the provided team or no team.
+	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// Delete the MDM Apple Setup Assistant for the provided team or no team.
+	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

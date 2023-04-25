@@ -437,7 +437,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
-	// please remember to update `service.mdmAppleConfigurationRequiredEndpoints`
+	// NOTE: remember to update `service.mdmAppleConfigurationRequiredEndpoints`
 	// when you add an endpoint that's behind the mdmConfiguredMiddleware.
 	mdmConfiguredMiddleware := mdmconfigured.NewAppleMiddleware(svc)
 	mdm := ue.WithCustomMiddleware(mdmConfiguredMiddleware.Verify())
@@ -450,6 +450,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdm.GET("/api/_version_/fleet/mdm/apple/profiles/{profile_id:[0-9]+}", getMDMAppleConfigProfileEndpoint, getMDMAppleConfigProfileRequest{})
 	mdm.DELETE("/api/_version_/fleet/mdm/apple/profiles/{profile_id:[0-9]+}", deleteMDMAppleConfigProfileEndpoint, deleteMDMAppleConfigProfileRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryEndpoint, getMDMAppleProfilesSummaryRequest{})
+	mdm.POST("/api/_version_/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantEndpoint, createMDMAppleSetupAssistantRequest{})
+	mdm.GET("/api/_version_/fleet/mdm/apple/enrollment_profile", getMDMAppleSetupAssistantEndpoint, getMDMAppleSetupAssistantRequest{})
+	mdm.DELETE("/api/_version_/fleet/mdm/apple/enrollment_profile", deleteMDMAppleSetupAssistantEndpoint, deleteMDMAppleSetupAssistantRequest{})
 
 	// TODO: are those undocumented endpoints still needed? I think they were only used
 	// by 'fleetctl apple-mdm' sub-commands.

@@ -392,6 +392,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
+		// clear macos setup assistant for no team - note that we cannot call
+		// svc.DeleteMDMAppleSetupAssistant here as it would call the (non-premium)
+		// current service implementation. We have to go through the Enterprise
+		// extensions.
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
+		}
+	}
+
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -462,6 +473,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
+	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -474,6 +488,11 @@ func (svc *Service) validateMDM(
 		if mdm.MacOSSettings.EnableDiskEncryption {
 			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
+			invalid.Append("macos_setup.macos_setup_assistant",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
 
