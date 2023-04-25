@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230419082126, Down_20230419082126)
+	MigrationClient.AddMigration(Up_20230425082126, Down_20230425082126)
 }
 
-func Up_20230419082126(tx *sql.Tx) error {
+func Up_20230425082126(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 -- macos setup assistant stores at most 1 profile per team/no team
 CREATE TABLE mdm_apple_setup_assistants (
@@ -36,6 +36,6 @@ CREATE TABLE mdm_apple_setup_assistants (
 	return nil
 }
 
-func Down_20230419082126(tx *sql.Tx) error {
+func Down_20230425082126(tx *sql.Tx) error {
 	return nil
 }
