@@ -285,3 +285,9 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 	return svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID)
 }
+
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+	// TODO: fetch and use the real URL
+	enrollmentProfileURL := ""
+	return svc.InitiateSSO(ctx, enrollmentProfileURL, "/api/v1/fleet/mdm/apple/sso/callback")
+}

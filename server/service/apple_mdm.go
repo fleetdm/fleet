@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -2081,6 +2083,99 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/sso
+////////////////////////////////////////////////////////////////////////////////
+
+type initiateMDMAppleSSORequest struct{}
+
+type initiateMDMAppleSSOResponse struct {
+	URL string `json:"url,omitempty"`
+	Err error  `json:"error,omitempty"`
+}
+
+func (r initiateMDMAppleSSOResponse) error() error { return r.Err }
+
+func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
+	if err != nil {
+		return initiateMDMAppleSSOResponse{Err: err}, nil
+	}
+
+	return initiateMDMAppleSSOResponse{URL: idpProviderURL}, nil
+}
+
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/sso/callback
+////////////////////////////////////////////////////////////////////////////////
+
+type callbackMDMAppleSSORequest struct{}
+
+func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseForm()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}, "decode sso callback")
+	}
+	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode SAMLResponse",
+			InternalErr: err,
+		}, "decoding sso callback")
+	}
+	return authResponse, nil
+}
+
+type callbackMDMAppleSSOResponse struct {
+	content string
+	Err     error `json:"error,omitempty"`
+}
+
+func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
+
+// If html is present we return a web page
+func (r callbackMDMAppleSSOResponse) html() string { return r.content }
+
+func makeCallbackMDMAppleSSOEndpoint(urlPrefix string) handlerFunc {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+		auth := request.(fleet.Auth)
+		redirectURL, err := svc.InitSSOCallback(ctx, auth, "/api/v1/fleet/mdm/apple/sso/callback")
+		if err != nil {
+			return nil, err
+		}
+		var resp callbackMDMAppleSSOResponse
+		tmpl, err := template.New("").Parse(`
+			<html>
+				<script type='text/javascript'>
+					console.log({{ .RedirectURL }})
+					window.location = {{ .RedirectURL }};
+				</script>
+				<body>Enrolling..</body>
+			</html>`)
+		if err != nil {
+			return nil, err
+		}
+		var writer bytes.Buffer
+		err = tmpl.Execute(&writer, map[string]string{"RedirectURL": redirectURL})
+		if err != nil {
+			return nil, err
+		}
+		resp.content = writer.String()
+		return resp, nil
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
