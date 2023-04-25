@@ -248,7 +248,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 }
 
 func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -296,7 +296,7 @@ func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fl
 }
 
 func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
