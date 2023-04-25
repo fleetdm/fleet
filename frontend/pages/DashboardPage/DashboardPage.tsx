@@ -45,6 +45,7 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import SandboxGate from "components/Sandbox/SandboxGate";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -546,24 +547,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM)",
-    titleDetail: mdmTitleDetail,
-    showTitle: !isMacAdminsFetching,
-    description: (
-      <p>MDM is used to change settings and install software on your hosts.</p>
-    ),
-    children: (
-      <Mdm
-        isFetching={isMdmFetching}
-        error={errorMdm}
-        mdmStatusData={mdmStatusData}
-        mdmSolutions={mdmSolutions}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        selectedTeamId={currentTeamId}
-      />
-    ),
-  });
+  const MDMCard = (
+    <SandboxGate>
+      {useInfoCard({
+        title: "Mobile device management (MDM)",
+        titleDetail: mdmTitleDetail,
+        showTitle: !isMacAdminsFetching,
+        description: (
+          <p>
+            MDM is used to change settings and install software on your hosts.
+          </p>
+        ),
+        children: (
+          <Mdm
+            isFetching={isMdmFetching}
+            error={errorMdm}
+            mdmStatusData={mdmStatusData}
+            mdmSolutions={mdmSolutions}
+            selectedPlatformLabelId={selectedPlatformLabelId}
+            selectedTeamId={currentTeamId}
+          />
+        ),
+      })}
+    </SandboxGate>
+  );
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
