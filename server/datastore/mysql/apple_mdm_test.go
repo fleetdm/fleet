@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMDMAppleConfigProfile(t *testing.T) {
+func TestMDMApple(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -53,6 +53,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
 		{"TestListMDMAppleCommands", testListMDMAppleCommands},
+		{"TestMDMAppleEULA", testMDMAppleEULA},
 	}
 
 	for _, c := range cases {
@@ -3215,4 +3216,45 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			TeamID:      &tm1.ID,
 		},
 	})
+}
+
+func testMDMAppleEULA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	eula := &fleet.MDMAppleEULA{
+		Token: uuid.New().String(),
+		Name:  "eula.pdf",
+		Bytes: []byte("contents"),
+	}
+
+	err := ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.ErrorAs(t, err, &ae)
+
+	gotEULA, err := ds.MDMAppleGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotEULA.CreatedAt)
+	require.Equal(t, eula.Token, gotEULA.Token)
+	require.Equal(t, eula.Name, gotEULA.Name)
+
+	gotEULABytes, err := ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.NoError(t, err)
+	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
+	require.Equal(t, eula.Name, gotEULABytes.Name)
+
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.NoError(t, err)
+
+	var nfe fleet.NotFoundError
+	_, err = ds.MDMAppleGetEULAMetadata(ctx)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
 }
