@@ -344,7 +344,6 @@ const ManageHostsPage = ({
     select: (data) => data.os_versions,
   });
 
-  console.log("ManageHostPage.tsx page", page);
   const {
     data: hostsData,
     error: errorHosts,

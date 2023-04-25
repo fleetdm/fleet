@@ -5,7 +5,6 @@ import React, {
   useMemo,
   useState,
 } from "react";
-// import { useDebouncedCallback } from "use-debounce";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
@@ -133,15 +132,15 @@ const SoftwareTable = ({
   // const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
   const filterVuln = initialVulnFilter;
   const page = initialPage; // Never set page in component as url is source of truth
-  // const [sortDirection, setSortDirection] = useState<
-  //   "asc" | "desc" | undefined
-  // >(initialSortDirection);
-  // const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  const sortDirection = initialSortDirection;
-  const sortHeader = initialSortHeader;
+  const [sortDirection, setSortDirection] = useState<
+    "asc" | "desc" | undefined
+  >(initialSortDirection);
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  // const sortDirection = initialSortDirection;
+  // const sortHeader = initialSortHeader;
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  console.log("filterVuln", filterVuln);
+
   useEffect(() => {
     // if (queryParams?.vulnerable !== (filterVuln ? "true" : "false")) {
     //   setFilterVuln(queryParams?.vulnerable === "true");
@@ -149,6 +148,7 @@ const SoftwareTable = ({
     setSearchString(queryParams?.query || "");
   }, [queryParams]);
 
+  // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
       setTableQueryData({ ...newTableQuery });
@@ -161,14 +161,14 @@ const SoftwareTable = ({
       } = newTableQuery;
 
       searchString !== newSearchQuery && setSearchString(newSearchQuery);
-      // sortDirection !== newSortDirection &&
-      //   setSortDirection(
-      //     newSortDirection === "asc" || newSortDirection === "desc"
-      //       ? newSortDirection
-      //       : DEFAULT_SORT_DIRECTION
-      //   );
+      sortDirection !== newSortDirection &&
+        setSortDirection(
+          newSortDirection === "asc" || newSortDirection === "desc"
+            ? newSortDirection
+            : DEFAULT_SORT_DIRECTION
+        );
 
-      // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+      sortHeader !== newSortHeader && setSortHeader(newSortHeader);
 
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
@@ -199,13 +199,13 @@ const SoftwareTable = ({
       routeTemplate,
     ]
   );
-  console.log("filterVuln", filterVuln);
+
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
       console.log("onClientSidePaginationChange filterVuln", filterVuln);
       console.log("onClientSidePaginationChange pageIndex", pageIndex);
       console.log("onClientSidePaginationChange queryParams", queryParams);
-      // debugger;
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
         routeTemplate,
@@ -247,7 +247,7 @@ const SoftwareTable = ({
         setFilteredSoftwarePath,
         pathname,
       }),
-    [deviceUser, router]
+    [deviceUser, router, pathname]
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {

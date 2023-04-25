@@ -137,6 +137,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
+    // goToPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -221,10 +222,6 @@ const DataTable = ({
   );
 
   const { sortBy, selectedRowIds, pageIndex } = tableState;
-
-  // useEffect(() => {
-  //   onClientSidePaginationChange?.(pageIndex);
-  // }, [pageIndex]);
 
   console.log("tableState.pageIndex", pageIndex);
 

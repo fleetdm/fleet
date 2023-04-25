@@ -35,7 +35,6 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
-import { ITableQueryData } from "components/TableContainer";
 
 import {
   normalizeEmptyValues,
@@ -120,6 +119,7 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
+  console.log("HostDetailsPage.tsx route", route);
   console.log("HostDetailsPage.tsx location", location);
   console.log("HostDetailsPage.tsx queryParams", queryParams);
 
@@ -167,6 +167,7 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -352,6 +353,11 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString, host?.users]);
+
+  // Used for back to software pathname
+  useEffect(() => {
+    setPathname(location.pathname + location.search);
+  }, [location]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -729,7 +735,7 @@ const HostDetailsPage = ({
                 queryParams={queryParams}
                 routeTemplate={routeTemplate}
                 hostId={host?.id || 0}
-                pathname={location.pathname}
+                pathname={pathname}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
