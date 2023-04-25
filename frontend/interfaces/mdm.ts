@@ -68,6 +68,12 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
+export enum MdmProfileStatus {
+  VERIFYING = "verifying",
+  PENDING = "pending",
+  FAILED = "failed",
+}
+
 export type MacMdmProfileStatus = "applied" | "pending" | "failed";
 export type MacMdmProfileOperationType = "remove" | "install";
 
@@ -80,12 +86,6 @@ export interface IHostMacMdmProfile {
 }
 export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
-
-export interface IAggregateMacSettingsStatus {
-  latest: number;
-  pending: number;
-  failing: number;
-}
 
 export interface IDiskEncryptionStatusAggregate {
   applied: number;

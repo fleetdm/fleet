@@ -384,7 +384,7 @@ type MDMAppleConfigProfilesSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed includes each host that has failed to apply one or more of the profiles currently
 	// applicable to the host.
-	Failed uint `json:"failing" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
