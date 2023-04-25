@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -2140,42 +2139,45 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type callbackMDMAppleSSOResponse struct {
-	content string
-	Err     error `json:"error,omitempty"`
+	Err error `json:"error,omitempty"`
+
+	// used in hijackRender for the response
+	profile []byte
 }
 
 func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
 
-// If html is present we return a web page
-func (r callbackMDMAppleSSOResponse) html() string { return r.content }
+func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 
-func makeCallbackMDMAppleSSOEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-		auth := request.(fleet.Auth)
-		redirectURL, err := svc.InitSSOCallback(ctx, auth, "/api/v1/fleet/mdm/apple/sso/callback")
-		if err != nil {
-			return nil, err
-		}
-		var resp callbackMDMAppleSSOResponse
-		tmpl, err := template.New("").Parse(`
-			<html>
-				<script type='text/javascript'>
-					console.log({{ .RedirectURL }})
-					window.location = {{ .RedirectURL }};
-				</script>
-				<body>Enrolling..</body>
-			</html>`)
-		if err != nil {
-			return nil, err
-		}
-		var writer bytes.Buffer
-		err = tmpl.Execute(&writer, map[string]string{"RedirectURL": redirectURL})
-		if err != nil {
-			return nil, err
-		}
-		resp.content = writer.String()
-		return resp, nil
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided.
+	if n, err := w.Write(r.profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
 	}
+}
+
+func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	auth := request.(fleet.Auth)
+
+	// validate that the SSO response is valid
+	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth, "/api/v1/fleet/mdm/sso/callback")
+	if err != nil {
+		return callbackMDMAppleSSOResponse{Err: err}, nil
+
+	}
+	return callbackMDMAppleSSOResponse{profile: profile}, nil
+}
+
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth, suffix string) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

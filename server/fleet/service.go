@@ -161,6 +161,9 @@ type Service interface {
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid
 	InitSSOCallback(ctx context.Context, auth Auth, suffix string) (string, error)
+
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth, suffix string) ([]byte, error)
+
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
 	GetSSOUser(ctx context.Context, auth Auth) (*User, error)

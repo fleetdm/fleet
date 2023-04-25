@@ -6,15 +6,19 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
 )
@@ -287,7 +291,98 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 }
 
 func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
-	// TODO: fetch and use the real URL
-	enrollmentProfileURL := ""
-	return svc.InitiateSSO(ctx, enrollmentProfileURL, "/api/v1/fleet/mdm/apple/sso/callback")
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+
+	// For now, until we get to #10999, we assume that SSO is disabled if
+	// no settings are provided.
+	if settings == (fleet.SSOProviderSettings{}) {
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+	}
+
+	metadata, err := sso.GetMetadata(&settings)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+	}
+
+	serverURL := appConfig.ServerSettings.ServerURL
+	authSettings := sso.Settings{
+		Metadata:                    metadata,
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/mdm/apple/sso",
+		SessionStore:                svc.ssoSessionStore,
+		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
+	}
+
+	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+	}
+
+	return idpURL, nil
+
+}
+
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth, suffix string) ([]byte, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+	}
+
+	session, err := svc.ssoSessionStore.Get(auth.RequestID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sso request invalid")
+	}
+	// Remove session to so that is can't be reused before it expires.
+	err = svc.ssoSessionStore.Expire(auth.RequestID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "remove sso request")
+	}
+	var metadata *sso.Metadata
+	if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal metadata")
+	}
+
+	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+		appConfig.SSOSettings.EntityID,
+		appConfig.ServerSettings.ServerURL,
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback", // ACS
+	))
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
+	}
+	// make sure the response hasn't been tampered with
+	auth, err = validator.ValidateSignature(auth)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signature validation failed")
+	}
+	// make sure the response isn't stale
+	err = validator.ValidateResponse(auth)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "response validation failed")
+	}
+
+	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDM.AppleSCEPChallenge,
+		svc.mdmPushCertTopic,
+	)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/storage"
 )
@@ -23,6 +24,7 @@ type Service struct {
 	depStorage        storage.AllStorage
 	mdmAppleCommander fleet.MDMAppleCommandIssuer
 	mdmPushCertTopic  string
+	ssoSessionStore   sso.SessionStore
 }
 
 func NewService(
@@ -35,6 +37,7 @@ func NewService(
 	depStorage storage.AllStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	mdmPushCertTopic string,
+	sso sso.SessionStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -51,6 +54,7 @@ func NewService(
 		depStorage:        depStorage,
 		mdmAppleCommander: mdmAppleCommander,
 		mdmPushCertTopic:  mdmPushCertTopic,
+		ssoSessionStore:   sso,
 	}
 
 	// Override methods that can't be easily overriden via

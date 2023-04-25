@@ -607,6 +607,7 @@ the way that the Fleet server works.
 					depStorage,
 					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					mdmPushCertTopic,
+					ssoSessionStore,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

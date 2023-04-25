@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -298,10 +297,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL, callbackURL st
 
 	if !appConfig.SSOSettings.EnableSSO {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
+		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	metadata, err := svc.getMetadata(appConfig)
+	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
 	}
@@ -461,7 +460,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth, suffix
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
-		metadata, err = svc.getMetadata(appConfig)
+		metadata, err = sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "get sso metadata")
 		}
@@ -601,26 +600,6 @@ func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Sessio
 		return nil, ctxerr.Wrap(ctx, err, "creating new session")
 	}
 	return session, nil
-}
-
-func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {
-	if config.SSOSettings.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.SSOSettings.MetadataURL)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
-	}
-
-	if config.SSOSettings.Metadata != "" {
-		metadata, err := sso.ParseMetadata(config.SSOSettings.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
-	}
-
-	return nil, fmt.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
