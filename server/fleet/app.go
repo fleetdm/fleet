@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 )
 
@@ -253,7 +254,8 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage string `json:"bootstrap_package"`
+	BootstrapPackage    string         `json:"bootstrap_package"`
+	MacOSSetupAssistant optjson.String `json:"macos_setup_assistant"`
 }
 
 // MDMEndUserAuthentication contains settings related to end user authentication

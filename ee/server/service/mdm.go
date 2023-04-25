@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 
@@ -220,4 +221,67 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID u
 	}
 
 	return nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionRead); err != nil {
+		return &fleet.MDMAppleBootstrapPackageSummary{}, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, tmID)
+		if err != nil {
+			return &fleet.MDMAppleBootstrapPackageSummary{}, err
+		}
+	}
+
+	summary, err := svc.ds.GetMDMAppleBootstrapPackageSummary(ctx, tmID)
+	if err != nil {
+		return &fleet.MDMAppleBootstrapPackageSummary{}, ctxerr.Wrap(ctx, err, "getting bootstrap package summary")
+	}
+
+	return summary, nil
+}
+
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(asst.Profile, &m); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
+	}
+
+	deniedFields := map[string]string{
+		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
+		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+	}
+	for k, msg := range deniedFields {
+		if _, ok := m[k]; ok {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
+		}
+	}
+
+	return svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
+}
+
+func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+}
+
+func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	return svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID)
 }

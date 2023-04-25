@@ -319,7 +319,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
 	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsStatusFailing, fleet.MacOSSettingsStatusPending, fleet.MacOSSettingsStatusLatest:
+	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying:
 		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
@@ -328,18 +328,29 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	}
 
 	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
-	switch fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
+	switch fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
 	case
-		fleet.MacOSDiskEncryptionStatusApplied,
-		fleet.MacOSDiskEncryptionStatusActionRequired,
-		fleet.MacOSDiskEncryptionStatusEnforcing,
-		fleet.MacOSDiskEncryptionStatusFailed,
-		fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
-		hopt.MacOSSettingsDiskEncryptionFilter = fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
+		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionActionRequired,
+		fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed,
+		fleet.DiskEncryptionRemovingEnforcement:
+		hopt.MacOSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
 	case "":
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+	}
+
+	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
+	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
+		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
+		hopt.MDMBootstrapPackageFilter = &bpf
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid bootstrap_package status %s", mdmBootstrapPackageStatus)
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")

@@ -190,8 +190,13 @@ const generateTableHeaders = (
   const softwareTableHeaders = [
     {
       title: "Name",
-      Header: "Name",
-      disableSortBy: true,
+      Header: (cellProps: IHeaderProps): JSX.Element => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
@@ -235,6 +240,7 @@ const generateTableHeaders = (
       Header: (cellProps: IHeaderProps): JSX.Element => (
         <HeaderCell
           value={cellProps.column.title}
+          disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),

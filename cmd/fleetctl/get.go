@@ -1239,9 +1239,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New("The command doesn't exist. Please provide a valid command ID.")
-					// TODO(mna): once fleetctl get mdm-commands is implemented, reintroduce this section at the end of the message:
-					//   To see a list of commands that were run, run `fleetct get mdm-commands`.
+					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}
 
 				var sce kithttp.StatusCoder

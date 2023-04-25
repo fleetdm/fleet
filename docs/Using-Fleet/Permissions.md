@@ -20,16 +20,20 @@ They can also run queries configured with the `observer_can_run` flag set to `tr
 
 ### Observer+
 
+`Applies only to Fleet Premium`
+
 Observer+ is an Observer with the added ability to run *any* query.
 
 ### GitOps
+
+`Applies only to Fleet Premium`
 
 GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations.
 GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## User permissions
 
-| **Action**                                                                                                                                 | Observer | Observer+ | Maintainer | Admin | GitOps |
+| **Action**                                                                                                                                 | Observer | Observer+ *| Maintainer | Admin | GitOps *|
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------- | ---------- | ----- | ------ |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅        | ✅         | ✅          | ✅     |        |
 | View all hosts                                                                                                                             | ✅        | ✅         | ✅          | ✅     |        |
@@ -74,6 +78,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
+| View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
+| Edit/upload MDM macOS setup assistant\*                                                                                                    |          |           | ✅          | ✅     | ✅     |
 
 \*Applies only to Fleet Premium
 
@@ -126,6 +132,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
+| View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
+| Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          | ✅           |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -533,7 +534,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 		return nil, nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
@@ -683,7 +684,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 
 	expected := []fleet.HostMDMAppleProfile{
 		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
 		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
 	}
 	expectedByProfileID := make(map[uint]fleet.HostMDMAppleProfile)
@@ -722,6 +723,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
 
@@ -1087,6 +1091,12 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 
+	ds.RecordHostBootstrapPackageFunc = func(ctx context.Context, commandUUID string, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		require.NotEmpty(t, commandUUID)
+		return nil
+	}
+
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.TokenUpdate{
@@ -1099,6 +1109,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.AppConfigFuncInvoked)
+	require.True(t, ds.RecordHostBootstrapPackageFuncInvoked)
 	require.Equal(t, 2, installEnterpriseApplicationCalls)
 }
 
@@ -1165,7 +1176,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "InstallProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
@@ -1175,7 +1186,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "RemoveProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
@@ -2267,6 +2278,82 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
+}
+
+func TestMDMAppleSetupAssistant(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return &fleet.MDMAppleSetupAssistant{}, nil
+	}
+	ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+		return asst, nil
+	}
+	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		teamID          *uint
+		shouldFailRead  bool
+		shouldFailWrite bool
+	}{
+		{"no role no team", test.UserNoRoles, nil, true, true},
+		{"no role team", test.UserNoRoles, ptr.Uint(1), true, true},
+		{"global admin no team", test.UserAdmin, nil, false, false},
+		{"global admin team", test.UserAdmin, ptr.Uint(1), false, false},
+		{"global maintainer no team", test.UserMaintainer, nil, false, false},
+		{"global maintainer team", test.UserMaintainer, ptr.Uint(1), false, false},
+		{"global observer no team", test.UserObserver, nil, true, true},
+		{"global observer team", test.UserObserver, ptr.Uint(1), true, true},
+		{"global observer+ no team", test.UserObserverPlus, nil, true, true},
+		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
+		{"global gitops no team", test.UserGitOps, nil, true, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
+		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
+		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
+		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true},
+		{"team maintainer no team", test.UserTeamMaintainerTeam1, nil, true, true},
+		{"team maintainer team", test.UserTeamMaintainerTeam1, ptr.Uint(1), false, false},
+		{"team maintainer other team", test.UserTeamMaintainerTeam2, ptr.Uint(1), true, true},
+		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true},
+		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), true, true},
+		{"team observer other team", test.UserTeamObserverTeam2, ptr.Uint(1), true, true},
+		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true},
+		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true},
+		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
+		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
+		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+				Name:    "test",
+				Profile: json.RawMessage("{}"),
+				TeamID:  tt.teamID,
+			})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.DeleteMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
 }
 
 func mobileconfigForTest(name, identifier string) []byte {
