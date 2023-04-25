@@ -3642,3 +3642,74 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 
 	s.token = s.getCachedUserToken(email, password)
 }
+
+func (s *integrationMDMTestSuite) TestMDMAppleSSO() {
+	t := s.T()
+
+	// MDM SSO fields are empty by default
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	// set the SSO fields
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "https://localhost:8080",
+				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		      }
+		}
+	}`), http.StatusOK, &acResp)
+	wantSettings := fleet.SSOProviderSettings{
+		EntityID:    "https://localhost:8080",
+		IssuerURI:   "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+		IDPName:     "SimpleSAML",
+		MetadataURL: "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+	}
+	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	// patch without specifying the mdm sso settings fields and an unrelated
+	// field, should not remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": {"enable_disk_encryption": true} }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	// patch with explicitly empty mdm sso settings fields, would remove
+	// them but this is a dry-run
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+		      }
+		}
+	}`), http.StatusOK, &acResp, "dry_run", "true")
+	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	// patch with explicitly empty mdm sso settings fields, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+		      }
+		}
+	}`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+}
