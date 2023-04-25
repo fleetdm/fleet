@@ -1082,12 +1082,17 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
 		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
+		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
 		teamsByName := map[string]*fleet.Team{
-			"tm1": {ID: 1, Name: "tm1"},
+			"tm1": tm1,
+		}
+		teamsByID := map[uint]*fleet.Team{
+			tm1.ID: tm1,
 		}
 		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return nil
 		}
+
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
@@ -1100,10 +1105,20 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 		tmID := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			tmID++
-			clone := *team
 			team.ID = uint(tmID)
+			clone := *team
 			teamsByName[team.Name] = &clone
+			teamsByID[team.ID] = &clone
 			return team, nil
+		}
+
+		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			tm, ok := teamsByID[id]
+			if !ok {
+				return nil, sql.ErrNoRows
+			}
+			clone := *tm
+			return &clone, nil
 		}
 
 		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -1140,6 +1155,7 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			teamsByName[team.Name] = team
+			teamsByID[team.ID] = team
 			return team, nil
 		}
 

@@ -2962,6 +2962,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.NotZero(t, noTeamAsst.UploadedAt)
 	require.Equal(t, "no-team", noTeamAsst.Name)
 	require.JSONEq(t, noTeamProf, string(noTeamAsst.Profile))
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team", "team_id": null, "team_name": null}`, 0)
 
 	// create a team and a setup assistant for that team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -2981,6 +2983,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.NotZero(t, tmAsst.UploadedAt)
 	require.Equal(t, "team1", tmAsst.Name)
 	require.JSONEq(t, tmProf, string(tmAsst.Profile))
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 
 	// update no-team
 	noTeamProf = `{"x": 2}`
@@ -2989,6 +2993,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Name:              "no-team2",
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// update team
 	tmProf = `{"y": 2}`
@@ -2997,6 +3003,44 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Name:              "team2",
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusOK, &createResp)
+	lastChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+
+	// sleep a second so the uploaded-at timestamp would change if there were
+	// changes, then update again no team/team but without any change, doesn't
+	// create a changed activity.
+	time.Sleep(time.Second)
+
+	// no change to no-team
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team2",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &createResp)
+	// the last activity is that of the team (i.e. no new activity was created for no-team)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+
+	// no change to team
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team2",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+
+	// update team with only a setup assistant JSON change, should detect it
+	// and create a new activity (name is the same)
+	tmProf = `{"y": 3}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team2",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	latestChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+	require.Greater(t, latestChangedActID, lastChangedActID)
 
 	// get no team
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusOK, &getResp)
