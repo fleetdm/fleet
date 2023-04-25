@@ -57,6 +57,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+
+	ActivityTypeAddedBootstrapPackage{},
+	ActivityTypeDeletedBootstrapPackage{},
 }
 
 type ActivityDetails interface {

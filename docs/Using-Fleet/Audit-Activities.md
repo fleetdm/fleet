@@ -693,6 +693,44 @@ This activity contains the following fields:
 }
 ```
 
+### Type `added_bootstrap_package`
+
+Generated when a user adds a new bootstrap package to a team (or no team).
+
+This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "bootstrap_package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `deleted_bootstrap_package`
+
+Generated when a user deletes a bootstrap package from a team (or no team).
+
+This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">
