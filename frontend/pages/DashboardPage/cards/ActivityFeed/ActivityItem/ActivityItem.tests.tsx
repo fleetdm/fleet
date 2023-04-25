@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, getDefaultNormalizer } from "@testing-library/react";
 
 import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
@@ -419,5 +419,73 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'changed_macos_setup_assistant' type activity for no team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ChangedMacOSSetupAssistant,
+      details: { name: "dep-profile.json" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'changed_macos_setup_assistant' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ChangedMacOSSetupAssistant,
+      details: { name: "dep-profile.json", team_name: "Workstations" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_macos_setup_assistant' type activity for no team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMacOSSetupAssistant,
+      details: { name: "dep-profile.json" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_macos_setup_assistant' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMacOSSetupAssistant,
+      details: { name: "dep-profile.json", team_name: "Workstations" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+        );
+      })
+    ).toBeInTheDocument();
   });
 });
