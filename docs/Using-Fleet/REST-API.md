@@ -841,9 +841,25 @@ None.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1116,6 +1132,17 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1778,11 +1805,11 @@ the `software` table.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1934,10 +1961,10 @@ Response payload with the `munki_issue_id` filter provided:
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -2273,7 +2300,7 @@ Returns the information of the specified host.
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }
@@ -2470,7 +2497,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }
@@ -3019,7 +3046,7 @@ requested by a web browser.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
@@ -3407,9 +3434,9 @@ Returns a list of the hosts that belong to the specified label.
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
@@ -3534,6 +3561,9 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
+- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
+- [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
@@ -3778,7 +3808,7 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 
 ```json
 {
-  "applied": 123,
+  "verifying": 123,
   "action_required": 123,
   "enforcing": 123,
   "failed": 123,
@@ -3814,8 +3844,8 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ```json
 {
-  "latest": 123,
-  "failing": 123,
+  "verifying": 123,
+  "failed": 123,
   "pending": 123
 }
 ```
@@ -3923,6 +3953,98 @@ This endpoint returns the list of custom MDM commands that have been executed.
   ]
 }
 ```
+
+### Set custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Sets the custom MDM setup enrollment profile for a team or no team.
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                   |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------     |
+| team_id                   | integer | json  | The team id this custom enrollment profile applies to, or no team if omitted. |
+| name                      | string  | json  | The filename of the uploaded custom enrollment profile.                       |
+| enrollment_profile        | object  | json  | The custom enrollment profile's json, as documented in https://developer.apple.com/documentation/devicemanagement/profile. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Get custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the custom MDM setup enrollment profile for a team or no team.
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to return the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Delete custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to delete the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 204`
 
 ### Get Apple Push Notification service (APNs)
 
@@ -4133,7 +4255,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Get a summary of bootstrap package status 
+### Get a summary of bootstrap package status
 
 _Available in Fleet Premium_
 
@@ -6113,9 +6235,17 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
@@ -6287,8 +6417,12 @@ _Available in Fleet Premium_
         "deadline": "2022-01-01"
       },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
