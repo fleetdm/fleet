@@ -338,7 +338,7 @@ spec:
   # Very odd as the rest of the section was perfectly fine
   # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = );
   purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14, CIS_not_compelted
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
