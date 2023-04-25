@@ -49,7 +49,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
 import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
 

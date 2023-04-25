@@ -558,14 +558,18 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	d.mdmEnroll(s)
 
 	// make sure the host gets a request to install fleetd
+	var fleetdCmd *micromdm.CommandPayload
 	cmd := d.idle()
-	require.NotNil(t, cmd)
-	require.NotNil(t, cmd.Command)
-	require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-	require.NotNil(t, cmd.Command.InstallEnterpriseApplication)
-	// TODO: this seems flaky?
-	// require.NotNil(t, cmd.Command.InstallEnterpriseApplication.ManifestURL)
-	// require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
+			cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
+			strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+			fleetdCmd = cmd
+		}
+		cmd = d.acknowledge(cmd.CommandUUID)
+	}
+	require.NotNil(t, fleetdCmd)
+	require.NotNil(t, fleetdCmd.Command)
 
 	// only one shows up as pending
 	listHostsRes = listHostsResponse{}
