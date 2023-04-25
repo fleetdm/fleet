@@ -2,7 +2,6 @@
  * Module dependencies
  */
 
-var util = require('util');
 var path = require('path');
 var _ = require('@sailshq/lodash');
 // var generateFile = require('./node_modules/sails-generate/builtins/file');
@@ -86,7 +85,6 @@ module.exports = {
 
     // Make sure all parent sub-folders are kebab-cased and don't contain any
     // uppercase or non-alphanumeric characters (except dashes are ok, of course).
-    var parentSubFoldersString = path.dirname(scope.relPath);
     var arrayOfParentSubFolders = ['imagine'];
 
     // Tease out the "stem".
