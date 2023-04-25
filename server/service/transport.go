@@ -319,7 +319,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
 	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsStatusFailing, fleet.MacOSSettingsStatusPending, fleet.MacOSSettingsStatusLatest:
+	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying:
 		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
@@ -328,14 +328,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	}
 
 	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
-	switch fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
+	switch fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
 	case
-		fleet.MacOSDiskEncryptionStatusApplied,
-		fleet.MacOSDiskEncryptionStatusActionRequired,
-		fleet.MacOSDiskEncryptionStatusEnforcing,
-		fleet.MacOSDiskEncryptionStatusFailed,
-		fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
-		hopt.MacOSSettingsDiskEncryptionFilter = fleet.MacOSDiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
+		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionActionRequired,
+		fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed,
+		fleet.DiskEncryptionRemovingEnforcement:
+		hopt.MacOSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus)
 	case "":
 		// No error when unset
 	default:
