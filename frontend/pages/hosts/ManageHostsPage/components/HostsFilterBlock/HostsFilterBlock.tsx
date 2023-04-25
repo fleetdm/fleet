@@ -10,8 +10,6 @@ import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
-
-// TODO: should this be in interfaces hosts?
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
 import {
@@ -265,7 +263,6 @@ const HostsFilterBlock = ({
     if (!mdmEnrollmentStatus) return null;
 
     const label = `MDM status: ${
-      // TODO: move MDM_ENROLLMENT_STATUS to util file
       invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
     }`;
 
