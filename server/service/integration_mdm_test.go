@@ -3066,6 +3066,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include configuration_web_url.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set the await_device_configured
 	tmProf = `{"await_device_configured": true}`
@@ -3076,6 +3078,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set the url
 	tmProf = `{"url": "https://example.com"}`
@@ -3086,6 +3090,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set a non-object json value
 	tmProf = `true`
@@ -3096,9 +3102,13 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusInternalServerError) // TODO: that should be a 4xx error, see #4406
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `cannot unmarshal bool into Go value of type map[string]interface`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
-	// delete the no-team
+	// delete the no-team setup assistant
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent)
+	latestChangedActID = s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// get for no team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp)
@@ -3109,6 +3119,32 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	// get for team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp, "team_id", fmt.Sprint(tm.ID))
+
+	// no deleted activity was created for the team as the whole team was deleted
+	// (a deleted team activity would exist if that was done via the API and not
+	// directly with the datastore)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, latestChangedActID)
+
+	// create another team and a setup assistant for that team
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name() + "2",
+		Description: "desc2",
+	})
+	require.NoError(t, err)
+	tm2Prof := `{"z": 1}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm2.ID,
+		Name:              "teamB",
+		EnrollmentProfile: json.RawMessage(tm2Prof),
+	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
+
+	// delete that team's setup assistant
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
 }
 
 // only asserts the profile identifier, status and operation (per host)
