@@ -563,6 +563,29 @@ Once you have the above follow these steps:
     
   > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
 
+#### How can I create a new landing page?
+
+The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
+
+To generate a new page, you'll need: 
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+    
+    > Note: If this is your first time running the website locally, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+
+2. Call the `landing-page` generator by running `node ./node_modules/sails/bin/sails generate landing-page [page-name]`, replacing `[page-name]` with the kebab-cased name (words seperated by dashes `-`) of your page.
+
+3. After the files have been generated, you'll need to manually update the website's routes and stylesheet importer. To do this, copy and paste the generated route for the new page to the "Imagine" section of `website/config/routes.js`, and copy and paste the generated import statement `website/assets/styles/importer.less`
+
+4. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
+
+5. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
+
+
 #### How to export images for the website
 In Figma:
 1. Select the layers you want to export.
