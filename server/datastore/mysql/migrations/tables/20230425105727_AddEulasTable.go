@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230421160713, Down_20230421160713)
+	MigrationClient.AddMigration(Up_20230425105727, Down_20230425105727)
 }
 
-func Up_20230421160713(tx *sql.Tx) error {
+func Up_20230425105727(tx *sql.Tx) error {
 	_, err := tx.Exec(`
           CREATE TABLE eulas (
             token        varchar(36),
@@ -26,6 +26,6 @@ func Up_20230421160713(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230421160713(tx *sql.Tx) error {
+func Down_20230425105727(tx *sql.Tx) error {
 	return nil
 }
