@@ -827,7 +827,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
-			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
+			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}, MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
 		}, {
 			name:        "ssoAllFields",
 			licenseTier: "premium",
@@ -843,7 +843,9 @@ func TestMDMAppleConfig(t *testing.T) {
 				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
-			}}},
+			}},
+				MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
