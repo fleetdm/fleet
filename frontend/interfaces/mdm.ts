@@ -87,12 +87,20 @@ export interface IHostMacMdmProfile {
 export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
-export interface IDiskEncryptionStatusAggregate {
-  applied: number;
+export interface IFileVaultSummaryResponse {
+  verifying: number;
   action_required: number;
   enforcing: number;
   failed: number;
   removing_enforcement: number;
+}
+
+export enum FileVaultProfileStatus {
+  VERIFYING = "verifying",
+  ACTION_REQUIRED = "action_required",
+  ENFORCING = "enforcing",
+  FAILED = "failed",
+  REMOVING_ENFORCEMENT = "removing_enforcement",
 }
 
 // TODO: update when we have API

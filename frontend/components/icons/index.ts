@@ -37,10 +37,11 @@ import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 
 // Status Icons
-import Error from "./Error";
 import Success from "./Success";
 import SuccessPartial from "./SuccessPartial";
 import Pending from "./Pending";
+import PendingPartial from "./PendingPartial";
+import Error from "./Error";
 
 import Clipboard from "./Clipboard";
 import Eye from "./Eye";
@@ -81,10 +82,11 @@ export const ICON_MAP = {
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
-  pending: Pending,
   trash: TrashCan,
   success: Success,
   "success-partial": SuccessPartial,
+  pending: Pending,
+  "pending-partial": PendingPartial,
   error: Error,
   darwin: Apple,
   macOS: Apple,

@@ -27,7 +27,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: MdmProfileStatus.PENDING,
     text: "Pending",
-    iconName: "pending",
+    iconName: "pending-partial",
     tooltipText:
       "Hosts that haven’t applied the latest settings because they are asleep, disconnected from the internet, or require action.",
   },

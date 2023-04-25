@@ -6,14 +6,17 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
+import {
+  FileVaultProfileStatus,
+  IMdmSolution,
+  MDM_ENROLLMENT_STATUS,
+} from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
 import {
-  DiskEncryptionStatus,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -58,14 +61,16 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: DiskEncryptionStatus;
+    diskEncryptionStatus?: FileVaultProfileStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
+  onChangeDiskEncryptionStatusFilter: (
+    response: FileVaultProfileStatus
+  ) => void;
   onChangeMacSettingsFilter: (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => void;
