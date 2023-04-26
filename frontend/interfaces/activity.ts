@@ -39,6 +39,8 @@ export enum ActivityType {
   EditedMacOSProfile = "edited_macos_profile",
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
+  DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
 }
 export interface IActivity {
   created_at: string;
@@ -75,4 +77,5 @@ export interface IActivityDetails {
   deadline?: string;
   profile_name?: string;
   profile_identifier?: string;
+  name?: string;
 }
