@@ -910,8 +910,12 @@ type HostDiskEncryptionKey struct {
 	DecryptedValue  string    `json:"key" db:"-"`
 }
 
+// HostSoftwareInstalledPath represents where in the file system a software on a host was installed
 type HostSoftwareInstalledPath struct {
-	HostID        uint   `db:"host_id"`
-	SoftwareID    uint   `db:"software_id"`
+	// HostID is the id of the host where the software in question is installed
+	HostID uint `db:"host_id"`
+	// SoftwareID is the id of the software
+	SoftwareID uint `db:"software_id"`
+	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
 }
