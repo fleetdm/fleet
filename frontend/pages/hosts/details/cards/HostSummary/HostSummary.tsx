@@ -11,6 +11,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 import { IHostMacMdmProfile } from "interfaces/mdm";
 import getHostStatusTooltipText from "pages/hosts/helpers";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
@@ -99,7 +100,9 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Issues</span>
+      <span className="info-flex__header">
+        {isSandboxMode && <PremiumFeatureIconWithTooltip />}Issues
+      </span>
       <span className="info-flex__data">
         <span
           className="host-issue tooltip tooltip__tooltip-icon"
@@ -241,7 +244,7 @@ const HostSummary = ({
   );
 
   return (
-    <>
+    <div className={baseClass}>
       <div className="header title">
         <div className="title__inner">
           <div className="display-name-container">
@@ -263,7 +266,7 @@ const HostSummary = ({
       <div className="section title">
         <div className="title__inner">{renderSummary()}</div>
       </div>
-    </>
+    </div>
   );
 };
 

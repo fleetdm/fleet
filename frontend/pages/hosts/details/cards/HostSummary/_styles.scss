@@ -1,0 +1,13 @@
+.host-summary {
+  .info-flex {
+    &__header {
+      display: flex;
+      align-items: center;
+      .premium-icon-tip {
+        position: absolute;
+        top: 256px;
+        left: 148px;
+      }
+    }
+  }
+}
