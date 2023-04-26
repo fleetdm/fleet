@@ -38,7 +38,7 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
           {/* <PremiumFeatureIconWithTooltip /> */}
         </span>
       ) : (
-        "missing hosts"
+        "Missing hosts"
       ),
       value: "missing",
       helpText: "Hosts that have been offline for 30 days or more.",
