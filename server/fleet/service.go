@@ -152,17 +152,22 @@ type Service interface {
 	// InitiateSSO is used to initiate an SSO session and returns a URL that can be used in a redirect to the IDP.
 	// Arguments: redirectURL is the URL of the protected resource that the user was trying to access when they were
 	// prompted to log in.
-	InitiateSSO(ctx context.Context, redirectURL string, callbackURL string) (string, error)
+	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
-	// InitiateMDMAppleSSO is a wrapper around InitiateSSO that performs
-	// MDM operations before initiating the callback.
+	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
+	// different from InitiateSSO because it receives a different
+	// configuration and only supports a subset of the features (eg: we
+	// don't want to allow IdP initiated authentications)
 	InitiateMDMAppleSSO(ctx context.Context) (string, error)
 
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid
-	InitSSOCallback(ctx context.Context, auth Auth, suffix string) (string, error)
+	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
 
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth, suffix string) ([]byte, error)
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid, then responds with an enrollment profile.
+	// TODO: add support for EULAs too
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO

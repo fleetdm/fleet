@@ -145,6 +145,17 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 		return ctxerr.Wrap(ctx, err, "generating enroll URL")
 	}
 
+	// Override url with Fleet's enroll path (publicly accessible address).
+	depProfile.URL = enrollURL
+
+	// If the profile doesn't have a configuration_web_url, use Fleet's
+	// enrollURL, otherwise the request for the enrollment profile is
+	// submitted as a POST instead of GET.
+	//	if depProfile.ConfigurationWebURL == "" {
+	//		depProfile.ConfigurationWebURL = enrollURL
+	//	}
+	depProfile.ConfigurationWebURL = "https://roperzh-fleet.ngrok.io/mdm/sso"
+
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling provided profile")
@@ -170,16 +181,6 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 // registerProfileInDEPServe is in charge of registering the enrollment profile
 // in Apple's servers via the DEP API, so it can be used for assignment.
 func (d *DEPService) registerProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
-	// Override url with Fleet's enroll path (publicly accessible address).
-	depProfile.URL = enrollURL
-
-	// If the profile doesn't have a configuration_web_url, use Fleet's
-	// enrollURL, otherwise the request for the enrollment profile is
-	// submitted as a POST instead of GET.
-	if depProfile.ConfigurationWebURL == "" {
-		depProfile.ConfigurationWebURL = enrollURL
-	}
-
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	res, err := depClient.DefineProfile(context.Background(), DEPName, depProfile)
 	if err != nil {

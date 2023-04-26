@@ -333,7 +333,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth, suffix string) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -359,24 +359,16 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal metadata")
 	}
 
-	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+	err = sso.ValidateAudiences(
+		*metadata,
+		auth,
 		appConfig.SSOSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback", // ACS
-	))
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+	)
 
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
-	}
-	// make sure the response hasn't been tampered with
-	auth, err = validator.ValidateSignature(auth)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "signature validation failed")
-	}
-	// make sure the response isn't stale
-	err = validator.ValidateResponse(auth)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "response validation failed")
+		return nil, ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
 	return apple_mdm.GenerateEnrollmentProfileMobileconfig(

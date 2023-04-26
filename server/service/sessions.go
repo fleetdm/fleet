@@ -271,7 +271,7 @@ func (r initiateSSOResponse) error() error { return r.Err }
 
 func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*initiateSSORequest)
-	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL, "/api/v1/fleet/sso/callback")
+	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
 		return initiateSSOResponse{Err: err}, nil
 	}
@@ -283,7 +283,7 @@ func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 // provider to make a request to to proceed with the authentication via that
 // external service, and stores ephemeral session state to validate the
 // callback from the identity provider to finalize the SSO flow.
-func (svc *Service) InitiateSSO(ctx context.Context, redirectURL, callbackURL string) (string, error) {
+func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -309,7 +309,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL, callbackURL st
 	settings := sso.Settings{
 		Metadata: metadata,
 		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + callbackURL,
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
 	}
@@ -424,7 +424,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 }
 
 func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fleet.SSOSession, error) {
-	redirectURL, err := svc.InitSSOCallback(ctx, auth, "/api/v1/fleet/sso/callback")
+	redirectURL, err := svc.InitSSOCallback(ctx, auth)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fl
 	return svc.LoginSSOUser(ctx, user, redirectURL)
 }
 
-func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth, suffix string) (string, error) {
+func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -482,23 +482,15 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth, suffix
 	}
 
 	// Validate response
-	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+	err = sso.ValidateAudiences(
+		*metadata,
+		auth,
 		appConfig.SSOSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+suffix, // ACS
-	))
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "create validator from metadata")
-	}
-	// make sure the response hasn't been tampered with
-	auth, err = validator.ValidateSignature(auth)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "signature validation failed")
-	}
-	// make sure the response isn't stale
-	err = validator.ValidateResponse(auth)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "response validation failed")
+		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
 	return redirectURL, nil

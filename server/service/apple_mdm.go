@@ -2164,7 +2164,7 @@ func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	auth := request.(fleet.Auth)
 
 	// validate that the SSO response is valid
-	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth, "/api/v1/fleet/mdm/sso/callback")
+	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	if err != nil {
 		return callbackMDMAppleSSOResponse{Err: err}, nil
 
@@ -2172,7 +2172,7 @@ func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	return callbackMDMAppleSSOResponse{profile: profile}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth, suffix string) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)

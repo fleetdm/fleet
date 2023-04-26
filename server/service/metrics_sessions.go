@@ -18,13 +18,13 @@ func (mw metricsMiddleware) SSOSettings(ctx context.Context) (settings *fleet.Se
 	return
 }
 
-func (mw metricsMiddleware) InitiateSSO(ctx context.Context, relayValue string, callbackURL string) (idpURL string, err error) {
+func (mw metricsMiddleware) InitiateSSO(ctx context.Context, relayValue string) (idpURL string, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "InitiateSSO", "error", fmt.Sprint(err != nil)}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	idpURL, err = mw.Service.InitiateSSO(ctx, relayValue, callbackURL)
+	idpURL, err = mw.Service.InitiateSSO(ctx, relayValue)
 	return
 }
 
