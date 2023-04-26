@@ -129,6 +129,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
 			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true}, // TODO: confirm?
 		},
 	}, team.Config.MDM)
 

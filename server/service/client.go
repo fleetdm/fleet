@@ -313,8 +313,8 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
-			if macosSetup.BootstrapPackage != "" {
-				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage)
+			if macosSetup.BootstrapPackage.Value != "" {
+				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
 					return fmt.Errorf("applying fleet config: %w", err)
 				}
@@ -381,8 +381,8 @@ func (c *Client) ApplyGroup(
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
-			if setup.BootstrapPackage != "" {
-				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage)
+			if setup.BootstrapPackage.Value != "" {
+				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
 					return fmt.Errorf("applying teams: %w", err)
 				}
@@ -468,7 +468,7 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
 	msa, _ := mos["macos_setup_assistant"].(string)
 	return &fleet.MacOSSetup{
-		BootstrapPackage:    bp,
+		BootstrapPackage:    optjson.SetString(bp),
 		MacOSSetupAssistant: optjson.SetString(msa),
 	}
 }

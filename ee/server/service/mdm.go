@@ -212,12 +212,17 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
