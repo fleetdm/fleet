@@ -3298,6 +3298,39 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.1
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Other System Events' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on other system events. Events for this subcategory include:
+    -  5024 : The Windows Firewall Service has started successfully.
+    -  5025 : The Windows Firewall Service has been stopped.
+    -  5027 : The Windows Firewall Service was unable to retrieve the security policy from the local storage. The service will continue enforcing the current policy.
+    -  5028 : The Windows Firewall Service was unable to parse the new security policy. The service will continue with currently enforced policy.
+    -  5029: The Windows Firewall Service failed to initialize the driver. The service will continue to enforce the current policy.
+    -  5030: The Windows Firewall Service failed to start.
+    -  5032: Windows Firewall was unable to notify the user that it blocked an application from accepting incoming connections on the network.
+    -  5033 : The Windows Firewall Driver has started successfully.
+    -  5034 : The Windows Firewall Driver has been stopped.
+    -  5035 : The Windows Firewall Driver failed to start.
+    -  5037 : The Windows Firewall Driver detected critical runtime error. Terminating.
+    -  5058: Key file operation.
+    -  5059: Key migration operation.
+    The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Other System Events'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditOtherSystemEvents</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.2
+  contributors: sharon-fdm
 
 
 
