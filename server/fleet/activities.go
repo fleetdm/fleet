@@ -55,6 +55,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedMacosProfile{},
 	ActivityTypeEditedMacosProfile{},
 
+	ActivityTypeChangedMacosSetupAssistant{},
+	ActivityTypeDeletedMacosSetupAssistant{},
+
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 }
@@ -802,6 +805,50 @@ func (a ActivityTypeEditedMacosProfile) Documentation() (activity, details, deta
 		`This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeChangedMacosSetupAssistant struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeChangedMacosSetupAssistant) ActivityName() string {
+	return "changed_macos_setup_assistant"
+}
+
+func (a ActivityTypeChangedMacosSetupAssistant) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sets the macOS setup assistant for a team (or no team).`,
+		`This activity contains the following fields:
+- "name": Name of the macOS setup assistant file.
+- "team_id": The ID of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applies to, null if it applies to devices that are not in a team.`, `{
+  "name": "dep_profile.json",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedMacosSetupAssistant struct {
+	Name     string  `json:"name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
+	return "deleted_macos_setup_assistant"
+}
+
+func (a ActivityTypeDeletedMacosSetupAssistant) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes the macOS setup assistant for a team (or no team).`,
+		`This activity contains the following fields:
+- "name": Name of the deleted macOS setup assistant file.
+- "team_id": The ID of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applied to, null if it applied to devices that are not in a team.`, `{
+  "name": "dep_profile.json",
   "team_id": 123,
   "team_name": "Workstations"
 }`

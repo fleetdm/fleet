@@ -10,6 +10,7 @@ import (
 	"io"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -342,7 +343,37 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		}
 	}
 
-	return svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
+	// must read the existing setup assistant first to detect if it did change
+	// (so that the changed activity is not created if the same assistant was
+	// uploaded).
+	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
+	}
+	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
+	}
+
+	// if the name is the same and the content did not change, uploaded at will stay the same
+	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		var teamName *string
+		if newAsst.TeamID != nil {
+			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get team")
+			}
+			teamName = &tm.Name
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
+			TeamID:   newAsst.TeamID,
+			TeamName: teamName,
+			Name:     newAsst.Name,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
+		}
+	}
+	return newAsst, nil
 }
 
 func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -356,5 +387,35 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID)
+
+	// must read the existing setup assistant first to detect if it did delete
+	// and to get the name of the deleted assistant.
+	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get previous setup assistant")
+	}
+
+	if err := svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete setup assistant")
+	}
+
+	if prevAsst != nil {
+		var teamName *string
+		if teamID != nil {
+			tm, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team")
+			}
+			teamName = &tm.Name
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
+			TeamID:   teamID,
+			TeamName: teamName,
+			Name:     prevAsst.Name,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for deleted macos setup assistant")
+		}
+	}
+
+	return nil
 }
