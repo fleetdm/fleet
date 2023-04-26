@@ -17,7 +17,8 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
 import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
 
@@ -199,10 +200,6 @@ const SoftwareTable = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
-    console.log(
-      "handleVulnFilterDropdownChange: isFilterVulnerable",
-      isFilterVulnerable
-    );
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),

@@ -54,7 +54,7 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -137,7 +137,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
-    // goToPage,
+    // gotoPage,
     nextPage,
     previousPage,
     setPageSize,
