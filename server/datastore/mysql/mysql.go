@@ -1033,7 +1033,7 @@ func isChildForeignKeyError(err error) bool {
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
 }
 
-type PatternReplacer func(string) string
+type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
@@ -1054,7 +1054,7 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 	return searchLikePattern(sql, params, match, likePattern, columns...)
 }
 
-func searchLikePattern(sql string, params []interface{}, match string, replacer PatternReplacer, columns ...string) (string, []interface{}) {
+func searchLikePattern(sql string, params []interface{}, match string, replacer patternReplacer, columns ...string) (string, []interface{}) {
 	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}

@@ -1637,8 +1637,6 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 		"Molly❜s MacbookPro",
 		"Alex's MacbookPro",
 	}
-	hostsMap := make(map[uint]*fleet.Host, len(hostnames))
-	hostsList := make([]*fleet.Host, len(hostnames))
 	hostIDs := make([]uint, len(hostnames))
 	for i, name := range hostnames {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1652,13 +1650,8 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 			Hostname:        name,
 		})
 		require.NoError(t, err)
-		hostsMap[h.ID] = h
-		hostsList[i] = h
 		hostIDs[i] = h.ID
 	}
-	sort.Slice(hostsList, func(i, j int) bool {
-		return hostsList[i].ID < hostsList[j].ID
-	})
 	// hosts are returned in ORDER BY host.id DESC
 	sort.Slice(hostIDs, func(i, j int) bool {
 		return hostIDs[i] > hostIDs[j]
@@ -1677,7 +1670,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 		name    string
 		args    args
 		want    []uint
-		wantErr assert.ErrorAssertionFunc
+		wantErr require.ErrorAssertionFunc
 	}{
 		{
 			name: "empty match criteria should match everything",
@@ -1688,7 +1681,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       nil,
 			},
 			want:    hostIDs,
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 		{
 			name: "searching for host with regular apostrophe should return just that result",
@@ -1699,7 +1692,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       nil,
 			},
 			want:    []uint{2}, // hosts.id autoincrement starts at 1
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 		{
 			name: "excluding the host you are searching for should return an empty set",
@@ -1710,7 +1703,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       []uint{2},
 			},
 			want:    []uint{},
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 		{
 			name: "searching for non-ascii characters should use wildcard searching",
@@ -1721,7 +1714,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       []uint{},
 			},
 			want:    []uint{5, 4, 3, 2, 1}, // all Molly_s endpoints should return
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 		{
 			name: "searching for criteria that doesn't match anything should yield empty results",
@@ -1732,7 +1725,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       []uint{},
 			},
 			want:    []uint{},
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 		{
 			name: "searching for criteria that doesn't match anything should yield empty results, omitting id that isn't in the potential result set shouldn't effect result",
@@ -1743,21 +1736,19 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 				omit:       []uint{1},
 			},
 			want:    []uint{},
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit...)
-			if !tt.wantErr(t, err, fmt.Sprintf("SearchHosts(%v, %v, %v, %v)", tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit)) {
-				return
-			}
+			tt.wantErr(t, err)
 			resultHostIDs := make([]uint, len(got))
 			for i, h := range got {
 				resultHostIDs[i] = h.ID
 			}
-			assert.Equalf(t, tt.want, resultHostIDs, "SearchHosts(%v, %v, %v, %v)", tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit)
+			assert.Equalf(t, tt.want, resultHostIDs, "SearchHosts(_, _, %v, %v)", tt.args.matchQuery, tt.args.omit)
 		})
 	}
 }
