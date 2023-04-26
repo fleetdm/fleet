@@ -25,7 +25,7 @@ spec:
       custom_settings:
       enable_disk_encryption: false
     macos_setup:
-      bootstrap_package: ""
+      bootstrap_package:
       macos_setup_assistant:
     end_user_authentication:
       idp_name: ""

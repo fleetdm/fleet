@@ -2266,6 +2266,9 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id}, nil
+	}
 
 	testCases := []struct {
 		name            string

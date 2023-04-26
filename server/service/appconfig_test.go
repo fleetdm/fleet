@@ -799,7 +799,9 @@ func TestMDMAppleConfig(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
-			expectedMDM: fleet.MDM{MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
@@ -821,14 +823,20 @@ func TestMDMAppleConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:          "ssoFree",
 			licenseTier:   "free",
@@ -841,7 +849,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
-			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}, MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
+				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "ssoAllFields",
 			licenseTier: "premium",
@@ -852,13 +863,14 @@ func TestMDMAppleConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
-				MetadataURL: "http://isser.metadata.com",
-				IDPName:     "onelogin",
-			}},
-				MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IssuerURI:   "http://issuer.idp.com",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoShortEntityID",

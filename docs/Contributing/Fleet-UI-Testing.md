@@ -287,6 +287,8 @@ Our E2E layer tests all the systems of the software (frontend and backend) toget
 ensure the application works as intended. We have partnered with QA Wolf to cover these flows, and
 the E2E tests are written and maintained by them.
 
+The code is deployed and tested once daily on the testing instance. However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
+
 
 ### Tooling
 

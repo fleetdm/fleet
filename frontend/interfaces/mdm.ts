@@ -68,31 +68,36 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export type MacMdmProfileStatus = "applied" | "pending" | "failed";
+export enum MdmProfileStatus {
+  VERIFYING = "verifying",
+  PENDING = "pending",
+  FAILED = "failed",
+}
+
 export type MacMdmProfileOperationType = "remove" | "install";
 
 export interface IHostMacMdmProfile {
   profile_id: number;
   name: string;
   operation_type: MacMdmProfileOperationType;
-  status: MacMdmProfileStatus;
+  status: MdmProfileStatus;
   detail: string;
 }
-export type IMacSettings = IHostMacMdmProfile[];
-export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
-export interface IAggregateMacSettingsStatus {
-  latest: number;
-  pending: number;
-  failing: number;
-}
-
-export interface IDiskEncryptionStatusAggregate {
-  applied: number;
+export interface IFileVaultSummaryResponse {
+  verifying: number;
   action_required: number;
   enforcing: number;
   failed: number;
   removing_enforcement: number;
+}
+
+export enum FileVaultProfileStatus {
+  VERIFYING = "verifying",
+  ACTION_REQUIRED = "action_required",
+  ENFORCING = "enforcing",
+  FAILED = "failed",
+  REMOVING_ENFORCEMENT = "removing_enforcement",
 }
 
 // TODO: update when we have API

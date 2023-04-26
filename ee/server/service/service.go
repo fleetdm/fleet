@@ -70,6 +70,7 @@ func NewService(
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
 		MDMAppleSyncDEPPRofile:            eeservice.MDMAppleSyncDEPPRofile,
+		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 	})
 
 	return eeservice, nil

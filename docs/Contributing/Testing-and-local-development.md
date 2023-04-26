@@ -172,6 +172,8 @@ The code is deployed and tested once daily on the testing instance.
 QA Wolf manages any issues found from these tests and will raise github issues. Engineers should not
 have to worry about working with E2E testing code or raising issues themselves.
 
+However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
+
 For Fleet employees, if you would like access to the QA Wolf platform you can reach out in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) slack channel.
 
 ### Preparation

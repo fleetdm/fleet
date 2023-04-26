@@ -30,6 +30,7 @@ type EnterpriseOverrides struct {
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -695,7 +696,7 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
