@@ -59,12 +59,13 @@ type MDMAppleDeliveryStatus string
 //     the timestamps, e.g. time since created_at, if we added them to
 //     host_mdm_apple_profiles).
 //
-//   - applied: the MDM command successfully applied the profile. This is a
-//     terminal state.
+//   - verifying: the MDM command was successfully applied, but Fleet has not
+//     independently verified the status. This is an intermediate state,
+//     it may transition to failed, pending, or NULL.
 //
 //   - pending: the cron job that executes the MDM commands to apply profiles
 //     is processing this host, and the MDM command may even be enqueued. This
-//     is a temporary state, it may transition to failed, applied or NULL.
+//     is a temporary state, it may transition to failed, verifying, or NULL.
 //
 //   - NULL: the status set for profiles that need to be applied to a host
 //     (installed or removed), e.g. because the profile just got added to the
@@ -80,15 +81,15 @@ type MDMAppleDeliveryStatus string
 //     (filterHostsByMacOSSettingsStatus), a NULL status is equivalent to a
 //     Pending status.
 var (
-	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
-	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
-	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
+	MDMAppleDeliveryFailed    MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryVerifying MDMAppleDeliveryStatus = "verifying"
+	MDMAppleDeliveryPending   MDMAppleDeliveryStatus = "pending"
 )
 
 func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
 	switch cmdStatus {
 	case MDMAppleStatusAcknowledged:
-		return &MDMAppleDeliveryApplied
+		return &MDMAppleDeliveryVerifying
 	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
 		return &MDMAppleDeliveryFailed
 	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
@@ -370,31 +371,46 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Checksum          []byte
 }
 
-// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
 // profiles. Each host may be counted in only one of three mutually-exclusive categories:
-// Failed, Pending, or Latest.
-type MDMAppleHostsProfilesSummary struct {
-	// Latest includes each host that has successfully applied all of the profiles currently
+// Failed, Pending, or Verifying.
+type MDMAppleConfigProfilesSummary struct {
+	// Verifying includes each host that has successfully applied all of the profiles currently
 	// applicable to the host. If any of the profiles are pending or failed for the host, the host
-	// is not counted as latest.
-	Latest uint `json:"latest" db:"applied"`
+	// is not counted as verifying.
+	Verifying uint `json:"verifying" db:"verifying"`
 	// Pending includes each host that has not yet applied one or more of the profiles currently
 	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
 	Pending uint `json:"pending" db:"pending"`
 	// Failed includes each host that has failed to apply one or more of the profiles currently
 	// applicable to the host.
-	Failed uint `json:"failing" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
 // encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
-// Applied, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+// Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
 type MDMAppleFileVaultSummary struct {
-	Applied             uint `json:"applied" db:"applied"`
+	Verifying           uint `json:"verifying" db:"verifying"`
 	ActionRequired      uint `json:"action_required" db:"action_required"`
 	Enforcing           uint `json:"enforcing" db:"enforcing"`
 	Failed              uint `json:"failed" db:"failed"`
 	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
+}
+
+// MDMAppleBootstrapPackageSummary reports the number of hosts that are targeted to install the
+// MDM bootstrap package. Each host may be counted in only one of three mutually-exclusive categories:
+// Failed, Pending, or Installed.
+type MDMAppleBootstrapPackageSummary struct {
+	// Installed includes each host that has acknowledged the MDM command to install the bootstrap
+	// package.
+	Installed uint `json:"installed" db:"installed"`
+	// Pending includes each host that has not acknowledged the MDM command to install the bootstrap
+	// package or reported an error for such command.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has reported an error for the MDM command to install the
+	// bootstrap package.
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
@@ -465,4 +481,19 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+}
+
+// MDMAppleSetupAssistant represents the setup assistant set for a given team
+// or no team.
+type MDMAppleSetupAssistant struct {
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (a MDMAppleSetupAssistant) AuthzType() string {
+	return "mdm_apple_setup_assistant"
 }

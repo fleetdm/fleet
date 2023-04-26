@@ -1,44 +1,44 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { DiskEncryptionStatus } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { FileVaultProfileStatus } from "interfaces/mdm";
 
 const baseClass = "disk-encryption-status-filter";
 
 const DISK_ENCRYPTION_STATUS_OPTIONS: IDropdownOption[] = [
   {
     disabled: false,
-    label: "Applied",
-    value: DiskEncryptionStatus.APPLIED,
+    label: "Verifying",
+    value: FileVaultProfileStatus.VERIFYING,
   },
   {
     disabled: false,
     label: "Action required",
-    value: DiskEncryptionStatus.ACTION_REQUIRED,
+    value: FileVaultProfileStatus.ACTION_REQUIRED,
   },
   {
     disabled: false,
     label: "Enforcing",
-    value: DiskEncryptionStatus.ENFORCING,
+    value: FileVaultProfileStatus.ENFORCING,
   },
   {
     disabled: false,
     label: "Failed",
-    value: DiskEncryptionStatus.FAILED,
+    value: FileVaultProfileStatus.FAILED,
   },
   {
     disabled: false,
     label: "Removing enforcement",
-    value: DiskEncryptionStatus.REMOVING_ENFORCEMENT,
+    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
   },
 ];
 
 interface IDiskEncryptionStatusFilterProps {
-  diskEncryptionStatus: DiskEncryptionStatus;
-  onChange: (value: DiskEncryptionStatus) => void;
+  diskEncryptionStatus: FileVaultProfileStatus;
+  onChange: (value: FileVaultProfileStatus) => void;
 }
 
 const DiskEncryptionStatusFilter = ({

@@ -16,7 +16,6 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
-import Pending from "./Pending";
 import PremiumFeature from "./PremiumFeature";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
@@ -37,8 +36,12 @@ import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 
-import Error from "./Error";
+// Status Icons
 import Success from "./Success";
+import SuccessPartial from "./SuccessPartial";
+import Pending from "./Pending";
+import PendingPartial from "./PendingPartial";
+import Error from "./Error";
 
 import Clipboard from "./Clipboard";
 import Eye from "./Eye";
@@ -79,9 +82,11 @@ export const ICON_MAP = {
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
-  pending: Pending,
   trash: TrashCan,
   success: Success,
+  "success-partial": SuccessPartial,
+  pending: Pending,
+  "pending-partial": PendingPartial,
   error: Error,
   darwin: Apple,
   macOS: Apple,

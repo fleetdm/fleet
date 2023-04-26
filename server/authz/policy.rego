@@ -708,6 +708,42 @@ allow {
 }
 
 ##
+# MDM Apple Setup Assistant
+##
+
+# Global admins and maintainers can read and write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Global gitops can write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read and write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team gitops can write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+##
 # Cron schedules
 ##
 

@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -49,7 +53,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint) (*fleet.MDMAppleBootst
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
 	err := c.authenticatedRequest(request, verb, path, &responseBody)
-	return responseBody.Metadata, err
+	return responseBody.MDMAppleBootstrapPackage, err
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {
@@ -154,13 +158,16 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 	}
 
 	// try to extract the name from a header
-	filename := "bootstrap-package.pkg"
+	var filename string
 	cdh, ok := resp.Header["Content-Disposition"]
 	if ok && len(cdh) > 0 {
 		_, params, err := mime.ParseMediaType(cdh[0])
 		if err == nil {
 			filename = params["filename"]
 		}
+	}
+	if filename == "" {
+		filename = "bootstrap-package.pkg"
 	}
 
 	// get checksums
@@ -187,4 +194,35 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 		Bytes:  pkgBuf.Bytes(),
 		Sha256: hash.Sum(nil),
 	}, nil
+}
+
+func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
+	if err := c.CheckMDMEnabled(); err != nil {
+		return nil, err
+	}
+
+	if strings.ToLower(filepath.Ext(fileName)) != ".json" {
+		return nil, errors.New("Couldn’t edit macos_setup_assistant. The file should be a .json file.")
+	}
+
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	var raw json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, fmt.Errorf("Couldn’t edit macos_setup_assistant. The file should include valid JSON: %w", err)
+	}
+
+	return b, nil
+}
+
+func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
+	verb, path := "POST", "/api/latest/fleet/mdm/apple/enrollment_profile"
+	request := createMDMAppleSetupAssistantRequest{
+		TeamID:            teamID,
+		Name:              name,
+		EnrollmentProfile: json.RawMessage(data),
+	}
+	return c.authenticatedRequest(request, verb, path, nil)
 }
