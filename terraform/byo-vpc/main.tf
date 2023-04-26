@@ -4,6 +4,7 @@ module "byo-db" {
   fleet_config = merge(var.fleet_config, {
     database = {
       address             = module.rds.cluster_endpoint
+      rr_address          = module.rds.cluster_reader_endpoint
       database            = "fleet"
       user                = "fleet"
       password_secret_arn = module.secrets-manager-1.secret_arns["${var.rds_config.name}-database-password"]

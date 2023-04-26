@@ -1,6 +1,6 @@
+import { FileVaultProfileStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
-import { DiskEncryptionStatus } from "utilities/constants";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -24,7 +24,7 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
 }
 
 const reduceQueryParams = (
