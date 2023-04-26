@@ -227,32 +227,37 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
+	var ptrTeamID *uint
 	var ptrTeamName *string
-	var ptrTeamId *uint
-	if teamID >= 1 {
-		tm, err := svc.teamByIDOrName(ctx, &teamID, nil)
+	if tmID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &tmID, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get team name for delete bootstrap package activity details")
 		}
+		ptrTeamID = &tm.ID
 		ptrTeamName = &tm.Name
-		ptrTeamId = &teamID
 	}
 
-	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
