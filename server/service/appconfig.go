@@ -403,6 +403,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings != appConfig.MDM.EndUserAuthentication.SSOProviderSettings {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
+		}
+
+	}
+
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {

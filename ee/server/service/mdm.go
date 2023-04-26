@@ -19,6 +19,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -305,7 +306,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	// For now, until we get to #10999, we assume that SSO is disabled if
 	// no settings are provided.
-	if settings == (fleet.SSOProviderSettings{}) {
+	if settings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
@@ -367,4 +368,42 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
+}
+
+func (svc *Service) MDMAppleSyncDEPPRofile(ctx context.Context) error {
+	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing profiles")
+	}
+
+	// Grab the first automatic enrollment profile we find, the current
+	// behavior is that the last enrollment profile that was uploaded is
+	// the one assigned to newly enrolled devices.
+	//
+	// TODO: this will change after #10995 where there can be a DEP profile
+	// per team.
+	var depProf *fleet.MDMAppleEnrollmentProfile
+	for _, prof := range profiles {
+		if prof.Type == "automatic" {
+			depProf = prof
+			break
+		}
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	enrollURL, err := apple_mdm.EnrollURL(depProf.Token, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var jsonProf *godep.Profile
+	if err := json.Unmarshal(*depProf.DEPProfile, &jsonProf); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, jsonProf, enrollURL)
 }

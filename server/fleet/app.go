@@ -49,6 +49,10 @@ type SSOProviderSettings struct {
 	IDPName string `json:"idp_name"`
 }
 
+func (s SSOProviderSettings) IsEmpty() bool {
+	return s == (SSOProviderSettings{})
+}
+
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
 	SSOProviderSettings
