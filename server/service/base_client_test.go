@@ -2,11 +2,15 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
@@ -189,4 +193,46 @@ func TestServerCapabilities(t *testing.T) {
 	}, bc.serverCapabilities)
 	require.True(t, bc.GetServerCapabilities().Has(testCapability))
 	require.True(t, bc.GetServerCapabilities().Has(fleet.Capability("test_capability")))
+}
+
+func TestClientCertificateAuth(t *testing.T) {
+	httpRequestReceived := false
+
+	clientCAs, err := certificate.LoadPEM(filepath.Join("testdata", "client-ca.crt"))
+	require.NoError(t, err)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpRequestReceived = true
+	}))
+	ts.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:  clientCAs,
+	}
+
+	ts.StartTLS()
+	t.Cleanup(func() {
+		ts.Close()
+	})
+
+	// Try connecting without setting TLS client certificates.
+	bc, err := newBaseClient(ts.URL, true, "", "", nil, fleet.CapabilityMap{})
+	require.NoError(t, err)
+	request, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = bc.http.Do(request)
+	require.Error(t, err)
+	require.False(t, httpRequestReceived)
+
+	// Now try connecting by setting the correct TLS client certificates.
+	clientCrt, err := certificate.LoadClientCertificateFromFiles(filepath.Join("testdata", "client.crt"), filepath.Join("testdata", "client.key"))
+	require.NoError(t, err)
+	require.NotNil(t, clientCrt)
+	bc, err = newBaseClient(ts.URL, true, "", "", &clientCrt.Crt, fleet.CapabilityMap{})
+	require.NoError(t, err)
+	request, err = http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = bc.http.Do(request)
+	require.NoError(t, err)
+	require.True(t, httpRequestReceived)
 }

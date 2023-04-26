@@ -346,7 +346,7 @@ func main() {
 
 		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
 		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
-		updateClientCrt, err := certificate.LoadCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+		updateClientCrt, err := certificate.LoadClientCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
 		if err != nil {
 			return fmt.Errorf("error loading update client certificate: %w", err)
 		}
@@ -583,7 +583,7 @@ func main() {
 
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
 		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := certificate.LoadCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
 		if err != nil {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}

@@ -128,10 +128,10 @@ type Certificate struct {
 	RawKey []byte
 }
 
-// LoadCertificateFromFiles loads a TLS certificate from PEM cert and key file paths.
+// LoadClientCertificateFromFiles loads a TLS client certificate from PEM cert and key file paths.
 //
 // Returns (nil, nil) if both files do not exist.
-func LoadCertificateFromFiles(crtPath, keyPath string) (*Certificate, error) {
+func LoadClientCertificateFromFiles(crtPath, keyPath string) (*Certificate, error) {
 	checkFileExists := func(filePath string) (bool, error) {
 		switch s, err := os.Stat(filePath); {
 		case err == nil:
@@ -141,6 +141,15 @@ func LoadCertificateFromFiles(crtPath, keyPath string) (*Certificate, error) {
 		default:
 			return false, err
 		}
+	}
+
+	if (crtPath != "") != (keyPath != "") {
+		return nil, fmt.Errorf(
+			"both crt path and key path must be set: crt=%t, key=%t", crtPath != "", keyPath != "",
+		)
+	}
+	if crtPath == "" {
+		return nil, nil
 	}
 
 	crtExists, err := checkFileExists(crtPath)
@@ -170,7 +179,7 @@ func LoadCertificateFromFiles(crtPath, keyPath string) (*Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	crt, err := parseFullCertificate(crtBytes, keyBytes)
+	crt, err := parseFullClientCertificate(crtBytes, keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -182,10 +191,10 @@ func LoadCertificateFromFiles(crtPath, keyPath string) (*Certificate, error) {
 	}, nil
 }
 
-// LoadCertificate loads a certificate from the given PEM cert and key strings.
+// LoadClientCertificate loads a client certificate from the given PEM cert and key strings.
 //
 // Returns (nil, nil) if both values are empty.
-func LoadCertificate(crt, key string) (*tls.Certificate, error) {
+func LoadClientCertificate(crt, key string) (*tls.Certificate, error) {
 	if (crt != "") != (key != "") {
 		return nil, fmt.Errorf(
 			"both crt and key must be set: crt=%t, key=%t", crt != "", key != "",
@@ -195,7 +204,7 @@ func LoadCertificate(crt, key string) (*tls.Certificate, error) {
 		return nil, nil
 	}
 
-	cert, err := parseFullCertificate([]byte(crt), []byte(key))
+	cert, err := parseFullClientCertificate([]byte(crt), []byte(key))
 	if err != nil {
 		return nil, err
 	}
@@ -203,13 +212,19 @@ func LoadCertificate(crt, key string) (*tls.Certificate, error) {
 	return &cert, nil
 }
 
-func parseFullCertificate(crt, key []byte) (tls.Certificate, error) {
+func parseFullClientCertificate(crt, key []byte) (tls.Certificate, error) {
 	cert, err := tls.X509KeyPair(crt, key)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
 	// tls.X509KeyPair does not store the parsed certificate leaf.
 	// To reduce per-handshake processing, we parse it here.
+	//
+	// From Adam Langley:
+	//	The Leaf member is only needed for clients doing client-authentication.
+	//	This is rare compared to the common case of loading certificates for serving.
+	// 	In the latter case, the parsed form isn't needed because the server just sends
+	// 	the blob to the client and doesn't generally care what's in it.
 	parsedLeaf, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("parse leaf certificate: %w", err)

@@ -74,7 +74,7 @@ func main() {
 
 	fleetTLSClientCertificate := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE")
 	fleetTLSClientKey := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY")
-	fleetClientCrt, err := certificate.LoadCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
+	fleetClientCrt, err := certificate.LoadClientCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
 	if err != nil {
 		log.Fatal().Err(err).Msg("load fleet tls client certificate")
 	}

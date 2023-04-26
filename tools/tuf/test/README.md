@@ -36,7 +36,7 @@ USE_FLEET_SERVER_CERTIFICATE=1 \
 ./tools/tuf/test/main.sh
 ```
 
-> Separate `*_FLEET_URL` and `*_TUF_URL` variables are define for each package type to support different setups.
+> Separate `*_FLEET_URL` and `*_TUF_URL` variables are defined for each package type to support different setups.
 
 # Add new updates
 
