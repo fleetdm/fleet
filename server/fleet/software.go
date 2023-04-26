@@ -9,6 +9,7 @@ import (
 const (
 	SoftwareVendorMaxLength    = 114
 	SoftwareVendorMaxLengthFmt = "%.111s..."
+	SoftwareFieldSeparator     = "\u0000"
 )
 
 type Vulnerabilities []CVE
@@ -68,7 +69,7 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
-	return strings.Join(ss, "\u0000")
+	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

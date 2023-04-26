@@ -2342,58 +2342,23 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		require.ElementsMatch(t, actualInstalledPaths, expectedInstalledPaths)
 	})
 
-	t.Run("nothing stored in the DB", func(t *testing.T) {
-		reported := make(map[string]string)
+	t.Run("nothing stored in the DB but something reported", func(t *testing.T) {
+		reported := make(map[string]struct{})
 		for _, s := range software {
-			reported[s.ToUniqueStr()] = fmt.Sprintf("/some/path/%d", s.ID)
+			reported[fmt.Sprintf("/some/path/%d%s%s", s.ID, fleet.SoftwareFieldSeparator, s.ToUniqueStr())] = struct{}{}
 		}
 
-		// If there are no host_software_installed_paths entries then the
-		// 'InstalledPath' prop will be ""
 		stored := make(map[string]fleet.HostSoftwareInstalledPath)
-		for _, s := range software {
-			stored[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
-				HostID:        host.ID,
-				SoftwareID:    s.ID,
-				InstalledPath: "",
-			}
-		}
-
-		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
-		require.NoError(t, err)
-
-		require.Empty(t, toD)
-
-		require.Len(t, toI, len(reported))
-		for i := range software {
-			require.Equal(t, toI[i].HostID, host.ID)
-		}
-		var actualSoftwareIDs []uint
-		for _, v := range toI {
-			actualSoftwareIDs = append(actualSoftwareIDs, v.SoftwareID)
-		}
-		var expectedSoftwareIds []uint
-		for _, v := range software {
-			expectedSoftwareIds = append(expectedSoftwareIds, v.ID)
-		}
-		require.ElementsMatch(t, actualSoftwareIDs, expectedSoftwareIds)
-
-		var actualInstalledPaths []string
-		for _, v := range toI {
-			actualInstalledPaths = append(actualInstalledPaths, v.InstalledPath)
-		}
-		var expectedInstalledPaths []string
-		for _, v := range software {
-			expectedInstalledPaths = append(expectedInstalledPaths, fmt.Sprintf("/some/path/%d", v.ID))
-		}
-		require.ElementsMatch(t, actualInstalledPaths, expectedInstalledPaths)
+		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
+		// This should raise an error because everything reported should be stored already
+		require.Error(t, err)
 	})
 
 	t.Run("we have some deltas", func(t *testing.T) {
-		reported := make(map[string]string)
-		reported[software[0].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[0].ID)
-		reported[software[1].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[1].ID+1)
-		reported[software[2].ToUniqueStr()] = fmt.Sprintf("/some/path/%d", software[2].ID)
+		reported := make(map[string]struct{})
+		reported[fmt.Sprintf("/some/path/%d%s%s", software[0].ID, fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
+		reported[fmt.Sprintf("/some/path/%d%s%s", software[2].ID, fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
 
 		stored := make(map[string]fleet.HostSoftwareInstalledPath)
 		stored[software[0].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
@@ -2409,7 +2374,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		stored[software[2].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
 			HostID:        host.ID,
 			SoftwareID:    software[2].ID,
-			InstalledPath: "",
+			InstalledPath: fmt.Sprintf("/some/path/%d", software[2].ID+1),
 		}
 		stored[software[3].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
 			HostID:        host.ID,
@@ -2420,13 +2385,13 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
 		require.NoError(t, err)
 
-		require.Len(t, toD, 2)
+		require.Len(t, toD, 3)
 		for i := range toD {
 			require.Equal(t, toD[i].HostID, host.ID)
 		}
 		require.ElementsMatch(t,
-			[]uint{toD[0].SoftwareID, toD[1].SoftwareID},
-			[]uint{software[1].ID, software[3].ID},
+			[]uint{toD[0].SoftwareID, toD[1].SoftwareID, toD[2].SoftwareID},
+			[]uint{software[1].ID, software[2].ID, software[3].ID},
 		)
 
 		require.Len(t, toI, 2)

@@ -1109,7 +1109,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
-	sPaths := make(map[string]string)
+	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
 		name := row["name"]
@@ -1174,7 +1174,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" {
-			sPaths[s.ToUniqueStr()] = installedPath
+			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			sPaths[key] = struct{}{}
 		}
 	}
 

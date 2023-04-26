@@ -622,9 +622,9 @@ type Datastore interface {
 
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
 	// 'reported', either inserts or deletes the corresponding entries in the
-	// 'host_software_installed_paths' table. 'reported' is a map of software.ToUniqueStr() ->
-	// installed path build from osquery query results.
-	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]string) error
+	// 'host_software_installed_paths' table. 'reported' is a set of
+	// 'software.ToUniqueStr()--installed_path' strings.
+	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}) error
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error

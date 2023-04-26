@@ -35,7 +35,7 @@ func truncateString(str string, length int) string {
 }
 
 func uniqueStringToSoftware(s string) fleet.Software {
-	parts := strings.Split(s, "\u0000")
+	parts := strings.Split(s, fleet.SoftwareFieldSeparator)
 
 	// Release, Vendor and Arch fields were added on a migration,
 	// If one of them is defined, then they are included in the string.
@@ -79,7 +79,7 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
-	reported map[string]string,
+	reported map[string]struct{},
 ) error {
 	stored, err := ds.getHostSoftwareWithInstalledPaths(ctx, hostID)
 	if err != nil {
@@ -155,22 +155,24 @@ func (ds *Datastore) getHostSoftwareWithInstalledPaths(
 
 func hostSoftwareInstalledPathsDelta(
 	hostID uint,
-	reported map[string]string,
+	reported map[string]struct{},
 	stored map[string]fleet.HostSoftwareInstalledPath,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
 	toDelete []fleet.HostSoftwareInstalledPath,
 	err error,
 ) {
+	// Anything stored but not reported should be deleted
 	for unqStr, entry := range stored {
-		_, ok := reported[unqStr]
-		// Anything not reported should be deleted
-		if !ok {
+		key := fmt.Sprintf("%s%s%s", entry.InstalledPath, fleet.SoftwareFieldSeparator, unqStr)
+		if _, ok := reported[key]; !ok {
 			toDelete = append(toDelete, entry)
 		}
 	}
 
-	for unqStr, sPath := range reported {
+	for key := range reported {
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 2)
+		sPath, unqStr := parts[0], parts[1]
 		entry, ok := stored[unqStr]
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table
@@ -185,17 +187,12 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		if entry.InstalledPath == "" || entry.InstalledPath != sPath {
+		if entry.InstalledPath != sPath {
 			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
 				HostID:        hostID,
 				SoftwareID:    entry.SoftwareID,
 				InstalledPath: sPath,
 			})
-		}
-
-		if entry.InstalledPath != "" {
-			// Remove 'old' entry
-			toDelete = append(toDelete, entry)
 		}
 	}
 
