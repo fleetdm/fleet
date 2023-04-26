@@ -161,11 +161,11 @@ func hostSoftwareInstalledPathsDelta(
 	toDelete []fleet.HostSoftwareInstalledPath,
 	err error,
 ) {
-	// If nothing is reported by osquery we want the state of the DB to reflect that ... so we
-	// should remove all host_software_installed_paths rows.
-	if len(reported) == 0 {
-		for _, v := range stored {
-			toDelete = append(toDelete, v)
+	for unqStr, entry := range stored {
+		_, ok := reported[unqStr]
+		// Anything not reported should be deleted
+		if !ok {
+			toDelete = append(toDelete, entry)
 		}
 	}
 

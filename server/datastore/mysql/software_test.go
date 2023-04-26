@@ -2243,6 +2243,12 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			Version: "0.0.3",
 			Source:  "chrome_extensions",
 		},
+		{
+			ID:      5,
+			Name:    "zib",
+			Version: "0.0.4",
+			Source:  "chrome_extensions",
+		},
 	}
 
 	t.Run("empty args", func(t *testing.T) {
@@ -2364,13 +2370,23 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			SoftwareID:    software[2].ID,
 			InstalledPath: "",
 		}
+		stored[software[3].ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
+			HostID:        host.ID,
+			SoftwareID:    software[3].ID,
+			InstalledPath: fmt.Sprintf("/some/path/%d", software[3].ID),
+		}
 
 		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored)
 		require.NoError(t, err)
 
-		require.Len(t, toD, 1)
-		require.Equal(t, toD[0].HostID, host.ID)
-		require.Equal(t, toD[0].SoftwareID, software[1].ID)
+		require.Len(t, toD, 2)
+		for i := range toD {
+			require.Equal(t, toD[i].HostID, host.ID)
+		}
+		require.ElementsMatch(t,
+			[]uint{toD[0].SoftwareID, toD[1].SoftwareID},
+			[]uint{software[1].ID, software[3].ID},
+		)
 
 		require.Len(t, toI, 2)
 		for i := range toI {
