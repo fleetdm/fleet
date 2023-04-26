@@ -1,8 +1,6 @@
 import React, { useCallback } from "react";
-import { kebabCase, uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
-import CustomLink from "components/CustomLink";
+import { kebabCase } from "lodash";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
@@ -83,55 +81,16 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   if (isHidden(hideButton)) {
     return null;
   }
-  if (indicatePremiumFeature) {
-    const tipId = uniqueId();
-    return (
-      <span className="disabled-premium-action">
-        <span data-tip data-for={tipId}>
-          <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-            <Button disabled variant={variant}>
-              <>
-                {iconPosition === "left" && iconLink && (
-                  <img alt={`${name} icon`} src={iconLink} />
-                )}
-                {buttonText}
-                {iconPosition !== "left" && iconLink && (
-                  <img alt={`${name} icon`} src={iconLink} />
-                )}
-              </>
-            </Button>
-          </div>
-        </span>
-        <ReactTooltip
-          place="top"
-          type="dark"
-          effect="solid"
-          id={tipId}
-          backgroundColor={COLORS["tooltip-bg"]}
-          delayUpdate={500}
-          delayHide={500}
-          overridePosition={(pos: { left: number; top: number }) => {
-            return {
-              left: pos.left,
-              top: pos.top + 10,
-            };
-          }}
-        >
-          {`This is a Fleet Premium feature. `}
-          <CustomLink
-            url="https://fleetdm.com/upgrade"
-            text="Learn more"
-            newTab
-            multiline={false}
-            iconColor="core-fleet-white"
-          />
-        </ReactTooltip>
-      </span>
-    );
-  }
   return (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
+      {indicatePremiumFeature && (
+        <PremiumFeatureIconWithTooltip tooltipDelayHide={500} />
+      )}
+      <Button
+        disabled={indicatePremiumFeature}
+        onClick={() => onButtonClick(targetIds)}
+        variant={variant}
+      >
         <>
           {iconPosition === "left" && iconLink && (
             <img alt={`${name} icon`} src={iconLink} />

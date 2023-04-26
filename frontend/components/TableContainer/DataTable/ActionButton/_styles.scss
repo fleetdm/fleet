@@ -23,12 +23,9 @@
     }
   }
 
-  __react_component_tooltip {
-    font-size: $x-small;
-    font-weight: normal;
-
-    a {
-      color: $core-white;
-    }
+  .premium-icon-tip {
+    position: relative;
+    top: 3px;
+    padding-right: $pad-xsmall;
   }
 }
