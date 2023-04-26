@@ -67,7 +67,7 @@ interface IManageSoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
-      page?: number;
+      page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
@@ -98,7 +98,7 @@ interface IRowProps extends Row {
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 401;
 
 const baseClass = "manage-software-page";
 
@@ -176,7 +176,7 @@ const ManageSoftwarePage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page;
+      page = parseInt(queryParams.page, 10);
     }
 
     return page;
@@ -209,7 +209,7 @@ const ManageSoftwarePage = ({
 
   useEffect(() => {
     setFilterVuln(location?.query?.vulnerable === "true" || false);
-    setPage(location?.query?.page || 0);
+    setPage(location?.query?.page ? parseInt(location?.query?.page, 10) : 0);
     setSearchQuery(location?.query?.query || "");
     // TODO: handle invalid values for params
   }, [location]);
@@ -566,8 +566,7 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !isAnyTeamSelected &&
-    !page &&
+    page === 0 &&
     !software?.software &&
     software?.counts_updated_at === null;
 
