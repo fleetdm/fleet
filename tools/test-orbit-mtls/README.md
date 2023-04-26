@@ -45,6 +45,11 @@ graph LR;
     desktop_browser -- "My Device URL (TLS)" --> fleet_server;
 
     orbit -- TUF TLS --> nginx;
+
+    subgraph fleetctl[fleetctl package command]
+        update_client_certificate_fleetctl[update_client.crt<br>update_client.key];
+    end
+    fleetctl -- TUF TLS --> nginx;
 ```
 
 The nginx proxy is configured to authenticate all TLS requests with the provided `client_ca.crt`.
