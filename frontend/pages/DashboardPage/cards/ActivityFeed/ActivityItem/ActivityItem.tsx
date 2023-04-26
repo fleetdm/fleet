@@ -40,6 +40,29 @@ const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
   );
 };
 
+const getMacOSSetupAssistantMessage = (
+  action: "added" | "deleted",
+  name?: string,
+  teamName?: string | null
+) => {
+  const suffix = teamName ? (
+    <>
+      {" "}
+      that automatically enroll to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>that automatically enroll to no team</>
+  );
+
+  return (
+    <>
+      {" "}
+      changed the macOS Setup Assistant ({action} <b>{name}</b>) for hosts{" "}
+      {suffix}.
+    </>
+  );
+};
+
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
     activity: IActivity,
@@ -293,6 +316,20 @@ const TAGGED_TEMPLATES = {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
   },
+  changedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "added",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
+  deletedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "deleted",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -305,6 +342,56 @@ const TAGGED_TEMPLATES = {
     ) : (
       <>
         {activityType} <b>{entityName}</b>.
+      </>
+    );
+  },
+  addedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.package_name;
+    return (
+      <>
+        {" "}
+        added a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.package_name;
+    return (
+      <>
+        {" "}
+        deleted a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
       </>
     );
   },
@@ -390,6 +477,18 @@ const getDetail = (
     }
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+    }
+    case ActivityType.AddedBootstrapPackage: {
+      return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.DeletedBootstrapPackage: {
+      return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.ChangedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.DeletedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.deletedMacOSSetupAssistant(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

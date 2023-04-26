@@ -58,15 +58,15 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
 - **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
-- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
+- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers. Be present.
 
 ### 🟠 Ownership
 It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
-- **Take responsibility.** Follow through on commitments. Own up to mistakes. Loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
-- **No one is coming.** Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints). Take initiative.
-- **Think bigger.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals. Think long-term.
+- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially merge requests, Slack, and emails.
+- **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, just fix it.  Follow through on commitments quickly.
+- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#strategy) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.

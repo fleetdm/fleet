@@ -49,10 +49,10 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { FileVaultProfileStatus } from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
-  DiskEncryptionStatus,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
@@ -246,7 +246,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
-  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+  const diskEncryptionStatus: FileVaultProfileStatus | undefined =
     queryParams?.macos_settings_disk_encryption;
 
   // ========= routeParams
@@ -563,7 +563,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeDiskEncryptionStatusFilter = (
-    newStatus: DiskEncryptionStatus
+    newStatus: FileVaultProfileStatus
   ) => {
     handleResetPageIndex();
 
