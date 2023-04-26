@@ -157,13 +157,10 @@ func hostSoftwareInstalledPathsDelta(
 	reported map[string]string,
 	stored map[string]fleet.HostSoftwareInstalledPath,
 ) (
-	[]fleet.HostSoftwareInstalledPath,
-	[]fleet.HostSoftwareInstalledPath,
-	error,
+	toInsert []fleet.HostSoftwareInstalledPath,
+	toDelete []fleet.HostSoftwareInstalledPath,
+	err error,
 ) {
-	var toInsert []fleet.HostSoftwareInstalledPath
-	var toDelete []fleet.HostSoftwareInstalledPath
-
 	// If nothing is reported by osquery we want the state of the DB to reflect that ... so we
 	// should remove all host_software_installed_paths rows.
 	if len(reported) == 0 {
@@ -177,7 +174,8 @@ func hostSoftwareInstalledPathsDelta(
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table.
 		if !ok {
-			return nil, nil, fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
+			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
+			return
 		}
 
 		if entry.InstalledPath == sPath {
@@ -199,7 +197,7 @@ func hostSoftwareInstalledPathsDelta(
 		}
 	}
 
-	return toInsert, toDelete, nil
+	return
 }
 
 func deleteHostSoftwareInstalledPaths(
