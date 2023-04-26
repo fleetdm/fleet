@@ -9,3 +9,9 @@ output "fleet_extra_environment_variables" {
     FLEET_OSQUERY_RESULT_LOG_PLUGIN    = "firehose"
   }
 }
+
+output "fleet_extra_iam_policies" {
+  value = [
+    aws_iam_policy.fleet-assume-role.arn
+  ]
+}

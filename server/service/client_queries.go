@@ -24,11 +24,11 @@ func (c *Client) GetQuery(name string) (*fleet.QuerySpec, error) {
 }
 
 // GetQueries retrieves the list of all Queries.
-func (c *Client) GetQueries() ([]*fleet.QuerySpec, error) {
-	verb, path := "GET", "/api/latest/fleet/spec/queries"
-	var responseBody getQuerySpecsResponse
+func (c *Client) GetQueries() ([]fleet.Query, error) {
+	verb, path := "GET", "/api/latest/fleet/queries"
+	var responseBody listQueriesResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.Specs, err
+	return responseBody.Queries, err
 }
 
 // DeleteQuery deletes the query with the matching name.

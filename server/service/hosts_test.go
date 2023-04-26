@@ -109,7 +109,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 		name       string
 		rawDecrypt *int
 		fvProf     *fleet.HostMDMAppleProfile
-		wantState  fleet.DiskEncryptionState
+		wantState  fleet.DiskEncryptionStatus
 		wantAction fleet.ActionRequiredState
 		wantStatus *fleet.MDMAppleDeliveryStatus
 	}{
@@ -121,7 +121,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
@@ -134,7 +134,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
@@ -147,7 +147,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
@@ -160,12 +160,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
-			fleet.DiskEncryptionApplied,
+			fleet.DiskEncryptionVerifying,
 			"",
-			&fleet.MDMAppleDeliveryApplied,
+			&fleet.MDMAppleDeliveryVerifying,
 		},
 		{
 			"pending install, decryptable",
@@ -277,12 +277,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			"",
 			"",
-			&fleet.MDMAppleDeliveryApplied,
+			&fleet.MDMAppleDeliveryVerifying,
 		},
 	}
 	for _, c := range cases {

@@ -79,6 +79,7 @@
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,
+			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,
 			"apple_bm_default_team": "",
 			"macos_updates": {
@@ -90,7 +91,15 @@
 				"enable_disk_encryption": false
 			},
 			"macos_setup": {
-				"bootstrap_package": ""
+				"bootstrap_package": "",
+				"macos_setup_assistant": null
+			},
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"metadata": "",
+				"metadata_url": "",
+				"idp_name": ""
 			}
 		}
 	}

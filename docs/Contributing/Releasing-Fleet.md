@@ -93,7 +93,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 
 5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
 
-6. In the #g-cx Slack channel, notify the @infrastructure-oncall of the release. This way, the @infrastructure-oncall individual can deploy the new version.
+6. In the #g-infra Slack channel, notify the @infrastructure-oncall of the release. This way, the @infrastructure-oncall individual can deploy the new version.
 
 7. Announce the release in the #general channel. 
 
