@@ -232,7 +232,7 @@ func packageCommand() *cli.Command {
 			if (opt.FleetTLSClientCertificate != "") != (opt.FleetTLSClientKey != "") {
 				return errors.New("must specify both fleet-tls-client-certificate and fleet-tls-client-key")
 			}
-			if c.String("fleet-tls-client-key") != "" {
+			if opt.FleetTLSClientKey != "" {
 				if _, err := tls.LoadX509KeyPair(opt.FleetTLSClientCertificate, opt.FleetTLSClientKey); err != nil {
 					return fmt.Errorf("error loading fleet client certificate and key: %w", err)
 				}
@@ -242,7 +242,7 @@ func packageCommand() *cli.Command {
 			if (opt.UpdateTLSClientCertificate != "") != (opt.UpdateTLSClientKey != "") {
 				return errors.New("must specify both update-tls-client-certificate and update-tls-client-key")
 			}
-			if c.String("update-tls-client-key") != "" {
+			if opt.UpdateTLSClientKey != "" {
 				if _, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey); err != nil {
 					return fmt.Errorf("error loading update client certificate and key: %w", err)
 				}

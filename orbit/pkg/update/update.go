@@ -5,7 +5,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
@@ -61,12 +61,13 @@ type Options struct {
 	LocalStore client.LocalStore
 	// Targets holds the targets the Updater keeps track of.
 	Targets Targets
-	// ServerCertificate is the TLS certificate CA to use for certificate verification.
+	// ServerCertificatePath is the TLS certificate CA file path to use for certificate
+	// verification.
 	//
 	// If not set, then the OS CA certificate store is used.
-	ServerCertificate string
+	ServerCertificatePath string
 	// ClientCertificate is the client TLS certificate to use to authenticate
-	// to th update server.
+	// to the update server.
 	ClientCertificate *tls.Certificate
 }
 
@@ -120,16 +121,12 @@ func NewUpdater(opt Options) (*Updater, error) {
 		InsecureSkipVerify: opt.InsecureTransport,
 	}
 
-	if opt.ServerCertificate != "" {
-		certs, err := os.ReadFile(opt.ServerCertificate)
+	if opt.ServerCertificatePath != "" {
+		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
 		if err != nil {
-			return nil, fmt.Errorf("reading root CA: %w", err)
+			return nil, fmt.Errorf("loading server root CA: %w", err)
 		}
-		rootCAPool := x509.NewCertPool()
-		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
-			return nil, errors.New("failed to add certificates to root CA pool")
-		}
-		tlsConfig.RootCAs = rootCAPool
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	if opt.ClientCertificate != nil {

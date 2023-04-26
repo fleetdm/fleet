@@ -272,7 +272,7 @@ If the `logger_path` configuration is set to `filesystem`, Orbit will store osqu
 
 #### Orbit mTLS support
 
-Orbit supports using TLS client certificates for authentication to the Fleet server and ([TUF](https://theupdateframework.io/)) server.
+Orbit supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
 
 When generating the packages, use the following flags:
 ```sh

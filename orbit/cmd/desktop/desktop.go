@@ -11,7 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
-	"github.com/fleetdm/fleet/v4/pkg/fleetcrt"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
@@ -74,7 +74,7 @@ func main() {
 
 	fleetTLSClientCertificate := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE")
 	fleetTLSClientKey := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY")
-	fleetClientCrt, err := fleetcrt.LoadCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
+	fleetClientCrt, err := certificate.LoadCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
 	if err != nil {
 		log.Fatal().Err(err).Msg("load fleet tls client certificate")
 	}

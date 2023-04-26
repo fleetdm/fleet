@@ -55,7 +55,7 @@ func BuildPkg(opt Options) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.ServerURL = opt.UpdateURL
 	updateOpt.Targets = update.DarwinTargets
-	updateOpt.ServerCertificate = opt.UpdateTLSServerCertificate
+	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
 		updateClientCrt, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey)

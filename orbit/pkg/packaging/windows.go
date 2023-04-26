@@ -42,7 +42,7 @@ func BuildMSI(opt Options) (string, error) {
 
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.WindowsTargets
-	updateOpt.ServerCertificate = opt.UpdateTLSServerCertificate
+	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
 		updateClientCrt, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey)

@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/fleetcrt"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -319,7 +318,7 @@ func main() {
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
-		opt.ServerCertificate = c.String("update-tls-certificate")
+		opt.ServerCertificatePath = c.String("update-tls-certificate")
 
 		var (
 			osquerydPath string
@@ -347,7 +346,7 @@ func main() {
 
 		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
 		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
-		updateClientCrt, err := fleetcrt.LoadCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+		updateClientCrt, err := certificate.LoadCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
 		if err != nil {
 			return fmt.Errorf("error loading update client certificate: %w", err)
 		}
@@ -584,7 +583,7 @@ func main() {
 
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
 		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := fleetcrt.LoadCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		fleetClientCrt, err := certificate.LoadCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
 		if err != nil {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}
