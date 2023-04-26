@@ -6,6 +6,7 @@ import mdmAPI from "services/entities/mdm";
 
 import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
+import { IMdmSSOReponse } from "interfaces/mdm";
 
 const baseClass = "mdm-apple-sso-page";
 
@@ -18,15 +19,15 @@ const SSOError = () => {
 };
 
 const DEPSSOLoginPage = () => {
-  const { error } = useQuery<string | void, AxiosError>(
+  const { error } = useQuery<void, AxiosError, IMdmSSOReponse>(
     ["dep_sso"],
-    () =>
-      mdmAPI.initiateMDMAppleSSO().then(({ url }) => {
-        window.location.href = url;
-      }),
+    () => mdmAPI.initiateMDMAppleSSO(),
     {
       retry: false,
       refetchOnWindowFocus: false,
+      onSuccess: ({ url }) => {
+        window.location.href = url;
+      },
     }
   );
 
