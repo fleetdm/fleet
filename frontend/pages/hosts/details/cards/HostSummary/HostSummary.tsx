@@ -101,7 +101,7 @@ const HostSummary = ({
   const renderIssues = () => (
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">
-        {isSandboxMode && <PremiumFeatureIconWithTooltip />}Issues
+        Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}
       </span>
       <span className="info-flex__data">
         <span

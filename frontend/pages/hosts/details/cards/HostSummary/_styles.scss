@@ -3,10 +3,11 @@
     &__header {
       display: flex;
       align-items: center;
+      gap: $pad-xxsmall;
+      max-height: 20px;
       .premium-icon-tip {
-        position: absolute;
-        top: 256px;
-        left: 148px;
+        position: relative;
+        top: 3px;
       }
     }
   }
