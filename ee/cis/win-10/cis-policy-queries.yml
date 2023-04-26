@@ -3230,6 +3230,56 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.4
   contributors: sharon-fdm
+
+
+
+
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Sensitive Privilege Use' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user account or service uses a sensitive privilege. A sensitive privilege includes the following user rights:
+      -  Act as part of the operating system
+      -  Back up files and directories
+      -  Create a token object
+      -  Debug programs
+      -  Enable computer and user accounts to be trusted for delegation
+      -  Generate security audits
+      -  Impersonate a client after authentication
+      -  Load and unload device drivers
+      -  Manage auditing and security log
+      -  Modify firmware environment values
+      -  Replace a process-level token
+      -  Restore files and directories
+      -  Take ownership of files or other objects
+      Auditing this subcategory will create a high volume of events. Events for this subcategory include:
+      -  4672: Special privileges assigned to new logon.
+      -  4673: A privileged service was called.
+      -  4674: An operation was attempted on a privileged object.
+      The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Privilege Use\Audit Sensitive Privilege Use'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.8.1
+  contributors: sharon-fdm
+
+
+
+
+
+
+
+
 ---
 apiVersion: v1
 kind: policy
