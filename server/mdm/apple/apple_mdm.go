@@ -176,6 +176,14 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 	}
 
 	depProfile.URL = enrollURL
+
+	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+	// flow, otherwise use Fleet's enroll URL.
+	//
+	// Even though the DEP profile supports an `url` attribute, we should
+	// always still set configuration_web_url, otherwise the request method
+	// coming from Apple changes from GET to POST, and we want to preserve
+	// backwards compatibility.
 	if appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
 		depProfile.ConfigurationWebURL = enrollURL
 	} else {

@@ -319,7 +319,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	serverURL := appConfig.ServerSettings.ServerURL
 	authSettings := sso.Settings{
 		Metadata:                    metadata,
-		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/mdm/apple/sso",
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
 	}
@@ -388,6 +388,10 @@ func (svc *Service) MDMAppleSyncDEPPRofile(ctx context.Context) error {
 			depProf = prof
 			break
 		}
+	}
+
+	if depProf == nil {
+		return svc.depService.CreateDefaultProfile(ctx)
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)

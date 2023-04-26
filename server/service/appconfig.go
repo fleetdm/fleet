@@ -407,7 +407,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
-
 	}
 
 	// retrieve new app config with obfuscated secrets

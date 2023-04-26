@@ -17,8 +17,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -768,8 +770,20 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 func TestMDMAppleConfig(t *testing.T) {
 	ds := new(mock.Store)
+	depStorage := new(nanodep_mock.Storage)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "xyz"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
 
 	const licenseErr = "missing or invalid license"
 	const notFoundErr = "not found"
@@ -894,7 +908,7 @@ func TestMDMAppleConfig(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}, DEPStorage: depStorage})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -916,6 +930,24 @@ func TestMDMAppleConfig(t *testing.T) {
 					return &fleet.Team{}, nil
 				}
 				return nil, errors.New(notFoundErr)
+			}
+			ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+				return []*fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+
+			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+				return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+			}
+
+			depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+				return &nanodep_client.OAuth1Tokens{}, nil
+			}
+
+			depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+				return nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)

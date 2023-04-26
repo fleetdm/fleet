@@ -2044,7 +2044,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/apple/sso
+// POST /mdm/sso
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateMDMAppleSSORequest struct{}
@@ -2074,7 +2074,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/apple/sso/callback
+// POST /mdm/sso/callback
 ////////////////////////////////////////////////////////////////////////////////
 
 type callbackMDMAppleSSORequest struct{}
@@ -2109,6 +2109,8 @@ func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
 func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
