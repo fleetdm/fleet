@@ -2962,6 +2962,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.NotZero(t, noTeamAsst.UploadedAt)
 	require.Equal(t, "no-team", noTeamAsst.Name)
 	require.JSONEq(t, noTeamProf, string(noTeamAsst.Profile))
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team", "team_id": null, "team_name": null}`, 0)
 
 	// create a team and a setup assistant for that team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -2981,6 +2983,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.NotZero(t, tmAsst.UploadedAt)
 	require.Equal(t, "team1", tmAsst.Name)
 	require.JSONEq(t, tmProf, string(tmAsst.Profile))
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
 
 	// update no-team
 	noTeamProf = `{"x": 2}`
@@ -2989,6 +2993,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Name:              "no-team2",
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// update team
 	tmProf = `{"y": 2}`
@@ -2997,6 +3003,44 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		Name:              "team2",
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusOK, &createResp)
+	lastChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+
+	// sleep a second so the uploaded-at timestamp would change if there were
+	// changes, then update again no team/team but without any change, doesn't
+	// create a changed activity.
+	time.Sleep(time.Second)
+
+	// no change to no-team
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team2",
+		EnrollmentProfile: json.RawMessage(noTeamProf),
+	}, http.StatusOK, &createResp)
+	// the last activity is that of the team (i.e. no new activity was created for no-team)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+
+	// no change to team
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team2",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+
+	// update team with only a setup assistant JSON change, should detect it
+	// and create a new activity (name is the same)
+	tmProf = `{"y": 3}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team2",
+		EnrollmentProfile: json.RawMessage(tmProf),
+	}, http.StatusOK, &createResp)
+	latestChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+	require.Greater(t, latestChangedActID, lastChangedActID)
 
 	// get no team
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusOK, &getResp)
@@ -3022,6 +3066,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include configuration_web_url.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set the await_device_configured
 	tmProf = `{"await_device_configured": true}`
@@ -3032,6 +3078,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set the url
 	tmProf = `{"url": "https://example.com"}`
@@ -3042,6 +3090,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set a non-object json value
 	tmProf = `true`
@@ -3052,9 +3102,13 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusInternalServerError) // TODO: that should be a 4xx error, see #4406
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `cannot unmarshal bool into Go value of type map[string]interface`)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
-	// delete the no-team
+	// delete the no-team setup assistant
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent)
+	latestChangedActID = s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
 
 	// get for no team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp)
@@ -3065,6 +3119,32 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 
 	// get for team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNotFound, &getResp, "team_id", fmt.Sprint(tm.ID))
+
+	// no deleted activity was created for the team as the whole team was deleted
+	// (a deleted team activity would exist if that was done via the API and not
+	// directly with the datastore)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		`{"name": "no-team2", "team_id": null, "team_name": null}`, latestChangedActID)
+
+	// create another team and a setup assistant for that team
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name() + "2",
+		Description: "desc2",
+	})
+	require.NoError(t, err)
+	tm2Prof := `{"z": 1}`
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm2.ID,
+		Name:              "teamB",
+		EnrollmentProfile: json.RawMessage(tm2Prof),
+	}, http.StatusOK, &createResp)
+	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
+
+	// delete that team's setup assistant
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", nil, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
 }
 
 // only asserts the profile identifier, status and operation (per host)
