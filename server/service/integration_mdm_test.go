@@ -3661,7 +3661,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 	s.token = s.getCachedUserToken(email, password)
 }
 
-func (s *integrationMDMTestSuite) TestMDMAppleSSO() {
+func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
 	var lastSubmittedProfile *godep.Profile
