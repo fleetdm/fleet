@@ -81,7 +81,7 @@ const HostsSummary = ({
       case "windows":
         return renderWindowsCount(teamId);
       case "linux":
-        return renderLinuxCount();
+        return renderLinuxCount(teamId);
       default:
         return (
           <>
