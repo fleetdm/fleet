@@ -344,7 +344,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	metadata, err := svc.ssoSessionStore.Validate(auth.RequestID())
+	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
 	}

@@ -32,9 +32,9 @@ type Session struct {
 // a reasonable amount of time, it automatically expires and is removed.
 type SessionStore interface {
 	create(requestID, originalURL, metadata string, lifetimeSecs uint) error
-	Get(requestID string) (*Session, error)
-	Expire(requestID string) error
-	Validate(requestID string) (*Session, *Metadata, error)
+	get(requestID string) (*Session, error)
+	expire(requestID string) error
+	Fullfill(requestID string) (*Session, *Metadata, error)
 }
 
 // NewSessionStore creates a SessionStore
@@ -62,7 +62,7 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 	return err
 }
 
-func (s *store) Get(requestID string) (*Session, error) {
+func (s *store) get(requestID string) (*Session, error) {
 	// not reading from a replica here as this gets called in close succession
 	// in the auth flow, with initiate SSO writing and callback SSO having to
 	// read that write.
@@ -87,21 +87,21 @@ func (s *store) Get(requestID string) (*Session, error) {
 
 var ErrSessionNotFound = errors.New("session not found")
 
-func (s *store) Expire(requestID string) error {
+func (s *store) expire(requestID string) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 	_, err := conn.Do("DEL", requestID)
 	return err
 }
 
-func (s *store) Validate(requestID string) (*Session, *Metadata, error) {
-	session, err := s.Get(requestID)
+func (s *store) Fullfill(requestID string) (*Session, *Metadata, error) {
+	session, err := s.get(requestID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("sso request invalid: %w", err)
 	}
 
 	// Remove session to so that is can't be reused before it expires.
-	err = s.Expire(requestID)
+	err = s.expire(requestID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("remove sso request: %w", err)
 	}

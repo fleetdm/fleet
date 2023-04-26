@@ -466,7 +466,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		redirectURL = "/"
 	} else {
 		var session *sso.Session
-		session, metadata, err = svc.ssoSessionStore.Validate(auth.RequestID())
+		session, metadata, err = svc.ssoSessionStore.Fullfill(auth.RequestID())
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validate request in session")
 		}
