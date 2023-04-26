@@ -1,7 +1,7 @@
 .action-button {
   display: flex;
   align-items: center;
-  
+
   img {
     position: relative;
   }
@@ -20,6 +20,15 @@
     img {
       top: -1px;
       left: 1px;
+    }
+  }
+
+  __react_component_tooltip {
+    font-size: $x-small;
+    font-weight: normal;
+
+    a {
+      color: $core-white;
     }
   }
 }
