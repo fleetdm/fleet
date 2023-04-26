@@ -223,8 +223,6 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds, pageIndex } = tableState;
 
-  console.log("tableState.pageIndex", pageIndex);
-
   useEffect(() => {
     if (tableFilters) {
       const filtersToSet = tableFilters;

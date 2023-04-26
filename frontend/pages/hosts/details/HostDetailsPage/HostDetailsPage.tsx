@@ -119,9 +119,6 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
-  console.log("HostDetailsPage.tsx route", route);
-  console.log("HostDetailsPage.tsx location", location);
-  console.log("HostDetailsPage.tsx queryParams", queryParams);
 
   const {
     config,
@@ -141,6 +138,7 @@ const HostDetailsPage = ({
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);

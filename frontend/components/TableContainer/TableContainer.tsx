@@ -68,7 +68,7 @@ interface ITableContainerProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results

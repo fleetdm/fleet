@@ -75,84 +75,58 @@ const SoftwareTable = ({
   hostId,
   pathname,
 }: ISoftwareTableProps): JSX.Element => {
-  console.log("Software.tsx queryParams", queryParams);
   const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
 
-  const initialQuery = (() => {
+  const initialSearchQuery = (() => {
     let query = "";
-
     if (queryParams && queryParams.query) {
       query = queryParams.query;
     }
-
     return query;
   })();
 
   const initialSortHeader = (() => {
     let sortHeader = "name";
-
     if (queryParams && queryParams.order_key) {
       sortHeader = queryParams.order_key;
     }
-
     return sortHeader;
   })();
 
   const initialSortDirection = ((): "asc" | "desc" | undefined => {
     let sortDirection = "asc";
-
     if (queryParams && queryParams.order_direction) {
       sortDirection = queryParams.order_direction;
     }
-
     return sortDirection as "asc" | "desc" | undefined;
   })();
 
   const initialVulnFilter = (() => {
     let isFilteredByVulnerabilities = false;
-    console.log("initialVulnFilter queryParams", queryParams);
     if (queryParams && queryParams.vulnerable === "true") {
       isFilteredByVulnerabilities = true;
     }
-
     return isFilteredByVulnerabilities;
   })();
 
   const initialPage = (() => {
     let page = 0;
-
     if (queryParams && queryParams.page) {
       page = parseInt(queryParams?.page, 10) || 0;
     }
-
     return page;
   })();
 
-  const [searchString, setSearchString] = useState(initialQuery);
-  // const [filterVuln, setFilterVuln] = useState(initialVulnFilter);
+  // Never set as state as URL is source of truth
+  const searchQuery = initialSearchQuery;
   const filterVuln = initialVulnFilter;
-  const page = initialPage; // Never set page in component as url is source of truth
-  const [sortDirection, setSortDirection] = useState<
-    "asc" | "desc" | undefined
-  >(initialSortDirection);
-  const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  // const sortDirection = initialSortDirection;
-  // const sortHeader = initialSortHeader;
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-
-  useEffect(() => {
-    // if (queryParams?.vulnerable !== (filterVuln ? "true" : "false")) {
-    //   setFilterVuln(queryParams?.vulnerable === "true");
-    // }
-    setSearchString(queryParams?.query || "");
-  }, [queryParams]);
+  const page = initialPage;
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
 
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      setTableQueryData({ ...newTableQuery });
-      console.log("newTablequery", newTableQuery);
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
@@ -160,52 +134,39 @@ const SoftwareTable = ({
         sortHeader: newSortHeader,
       } = newTableQuery;
 
-      searchString !== newSearchQuery && setSearchString(newSearchQuery);
-      sortDirection !== newSortDirection &&
-        setSortDirection(
-          newSortDirection === "asc" || newSortDirection === "desc"
-            ? newSortDirection
-            : DEFAULT_SORT_DIRECTION
-        );
-
-      sortHeader !== newSortHeader && setSortHeader(newSortHeader);
-
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
+
       if (!isEmpty(newSearchQuery)) {
         newQueryParams.query = newSearchQuery;
       }
-      newQueryParams.page = newPageIndex;
+
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
-      newQueryParams.vulnerable = filterVuln ? "true" : "false"; // must grab from source of truth
-      console.log("newQueryParams", newQueryParams);
+      newQueryParams.vulnerable = filterVuln ? "true" : "false"; // must set from URL
+      newQueryParams.page = newPageIndex;
+      // Reset page number to 0 for new filters
+      if (
+        newSortDirection !== sortDirection ||
+        newSortHeader !== sortHeader ||
+        newSearchQuery !== searchQuery
+      ) {
+        newQueryParams.page = 0;
+      }
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
         routeTemplate,
         queryParams: newQueryParams,
       });
-      console.log("locationPath", locationPath);
+
       router?.replace(locationPath);
     },
-    [
-      tableQueryData,
-      sortHeader,
-      sortDirection,
-      searchString,
-      filterVuln,
-      router,
-      routeTemplate,
-    ]
+    [sortHeader, sortDirection, searchQuery, filterVuln, router, routeTemplate]
   );
 
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
-      console.log("onClientSidePaginationChange filterVuln", filterVuln);
-      console.log("onClientSidePaginationChange pageIndex", pageIndex);
-      console.log("onClientSidePaginationChange queryParams", queryParams);
-
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.HOST_SOFTWARE(hostId),
         routeTemplate,
@@ -213,28 +174,15 @@ const SoftwareTable = ({
           ...queryParams,
           page: pageIndex,
           vulnerable: filterVuln ? "true" : "false",
-          query: searchString,
+          query: searchQuery,
           order_direction: sortDirection,
           order_key: sortHeader,
         },
       });
       router?.replace(locationPath);
     },
-    [filterVuln, searchString, sortDirection, sortHeader] // Dependencies required for correct variable state
+    [filterVuln, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  // const handleResetPageIndex = () => {
-  //   setTableQueryData(
-  //     (prevState) =>
-  //       ({
-  //         ...prevState,
-  //         pageIndex: 0,
-  //         vulnerable: filterVuln ? "true" : "false",
-  //       } as ITableQueryData)
-  //   );
-  //   setResetPageIndex(true);
-  // };
 
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
@@ -251,7 +199,6 @@ const SoftwareTable = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
-    // handleResetPageIndex();
     console.log(
       "handleVulnFilterDropdownChange: isFilterVulnerable",
       isFilterVulnerable
@@ -315,14 +262,14 @@ const SoftwareTable = ({
                 columns={tableHeaders}
                 data={tableSoftware || []}
                 filters={{
-                  global: searchString,
+                  global: searchQuery,
                   vulnerabilities: filterVuln,
                 }}
                 isLoading={isLoading}
                 defaultSortHeader={sortHeader || DEFAULT_SORT_DIRECTION}
                 defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
                 defaultPageIndex={page}
-                defaultSearchQuery={searchString}
+                defaultSearchQuery={searchQuery}
                 inputPlaceHolder={
                   "Search software by name or vulnerabilities ( CVEs)"
                 }
@@ -331,13 +278,12 @@ const SoftwareTable = ({
                 emptyComponent={() => (
                   <EmptySoftwareTable
                     isFilterVulnerable={filterVuln}
-                    isSearching={searchString !== ""}
+                    isSearching={searchQuery !== ""}
                     isSandboxMode={isSandboxMode}
                   />
                 )}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
-                resetPageIndex={resetPageIndex}
                 searchable
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination

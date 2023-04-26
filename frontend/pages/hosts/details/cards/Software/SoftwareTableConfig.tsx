@@ -172,7 +172,6 @@ export const generateSoftwareTableHeaders = ({
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
           setFilteredSoftwarePath(pathname);
-          console.log("setFilteredSoftwarePath pathname", pathname);
           router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
         };
 
