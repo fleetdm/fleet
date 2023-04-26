@@ -662,10 +662,10 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if macOSSetup.MacOSSetupAssistant.Set {
+	if macOSSetup.MacOSSetupAssistant.Set || macOSSetup.BootstrapPackage.Set {
 		if !defaults.MDM.EnabledAndConfigured {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.macos_setup_assistant",
-				`Couldn't update macos_setup.macos_setup_assistant because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 
@@ -742,12 +742,17 @@ func (svc *Service) editTeamFromSpec(
 	newMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set || spec.MDM.MacOSSetup.BootstrapPackage.Set {
 		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.macos_setup_assistant",
-				`Couldn't update macos_setup.macos_setup_assistant because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
-		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
+		if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+			team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
+		}
+		if spec.MDM.MacOSSetup.BootstrapPackage.Set {
+			team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
+		}
 	}
 
 	if len(secrets) > 0 {
@@ -792,6 +797,15 @@ func (svc *Service) editTeamFromSpec(
 		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
 		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
 			return ctxerr.Wrapf(ctx, err, "clear macos setup assistant for team %d", team.ID)
+		}
+	}
+
+	// if the bootstrap package was cleared, remove it for that team
+	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
+		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
+		oldMacOSSetup.BootstrapPackage.Value != "" {
+		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
 		}
 	}
 
