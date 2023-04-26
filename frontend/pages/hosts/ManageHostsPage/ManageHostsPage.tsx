@@ -60,9 +60,10 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";

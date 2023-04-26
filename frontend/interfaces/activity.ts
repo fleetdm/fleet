@@ -41,6 +41,8 @@ export enum ActivityType {
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
+  ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
+  DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
 }
 export interface IActivity {
   created_at: string;
@@ -78,4 +80,5 @@ export interface IActivityDetails {
   profile_name?: string;
   profile_identifier?: string;
   package_name?: string;
+  name?: string;
 }

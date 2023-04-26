@@ -659,6 +659,44 @@ This activity contains the following fields:
 }
 ```
 
+### Type `changed_macos_setup_assistant`
+
+Generated when a user sets the macOS setup assistant for a team (or no team).
+
+This activity contains the following fields:
+- "name": Name of the macOS setup assistant file.
+- "team_id": The ID of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "name": "dep_profile.json",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `deleted_macos_setup_assistant`
+
+Generated when a user deletes the macOS setup assistant for a team (or no team).
+
+This activity contains the following fields:
+- "name": Name of the deleted macOS setup assistant file.
+- "team_id": The ID of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "name": "dep_profile.json",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ### Type `enabled_macos_disk_encryption`
 
 Generated when a user turns on macOS disk encryption for a team (or no team).
