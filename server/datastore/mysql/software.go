@@ -80,7 +80,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	hostID uint,
 	reported map[string]string,
 ) error {
-	stored, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
+	stored, err := ds.getHostSoftwareWithInstalledPaths(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
-func (ds *Datastore) getHostSoftwareInstalledPaths(
+func (ds *Datastore) getHostSoftwareWithInstalledPaths(
 	ctx context.Context,
 	hostID uint,
 ) (

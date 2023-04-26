@@ -2175,7 +2175,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	// No software entries
-	actual, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err := ds.getHostSoftwareWithInstalledPaths(ctx, host.ID)
 	require.Empty(t, actual)
 	require.NoError(t, err)
 
@@ -2187,7 +2187,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 	// No installed_path entries
-	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err = ds.getHostSoftwareWithInstalledPaths(ctx, host.ID)
 	require.NoError(t, err)
 	require.Len(t, actual, len(host.Software))
 	for _, s := range host.Software {
@@ -2202,7 +2202,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	_, err = ds.writer.ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
-	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+	actual, err = ds.getHostSoftwareWithInstalledPaths(ctx, host.ID)
 	require.Len(t, actual, len(host.Software))
 	require.NoError(t, err)
 
