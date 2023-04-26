@@ -1,17 +1,20 @@
 import React from "react";
 
-import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
-import { DiskEncryptionStatus } from "utilities/constants";
+import {
+  FileVaultProfileStatus,
+  IFileVaultSummaryResponse,
+} from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 interface IStatusCellValue {
   displayName: string;
-  statusName: "success" | "pending" | "error";
-  value: DiskEncryptionStatus;
+  statusName: IndicatorStatus;
+  value: FileVaultProfileStatus;
   tooltip?: string | JSX.Element;
 }
 
@@ -100,7 +103,7 @@ const defaultTableHeaders: IDataColumn[] = [
   },
 ];
 
-type StatusNames = keyof IDiskEncryptionStatusAggregate;
+type StatusNames = keyof IFileVaultSummaryResponse;
 
 type StatusEntry = [StatusNames, number];
 
@@ -108,17 +111,17 @@ export const generateTableHeaders = (): IDataColumn[] => {
   return defaultTableHeaders;
 };
 
-const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
-  applied: {
-    displayName: "Applied",
-    statusName: "success",
-    value: DiskEncryptionStatus.APPLIED,
-    tooltip: "Disk encryption on and key stored in Fleet.",
+const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
+  verifying: {
+    displayName: "Verifying",
+    statusName: "successPartial",
+    value: FileVaultProfileStatus.VERIFYING,
+    tooltip: "Disk encryption on and key stored in Fleet. Fleet will verify.",
   },
   action_required: {
     displayName: "Action required (pending)",
-    statusName: "pending",
-    value: DiskEncryptionStatus.ACTION_REQUIRED,
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.ACTION_REQUIRED,
     tooltip: (
       <>
         Ask the end user to follow <b>Disk encryption</b> instructions on their{" "}
@@ -128,25 +131,25 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
   enforcing: {
     displayName: "Enforcing (pending)",
-    statusName: "pending",
-    value: DiskEncryptionStatus.ENFORCING,
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.ENFORCING,
     tooltip: "Setting will be enforced when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
     statusName: "error",
-    value: DiskEncryptionStatus.FAILED,
+    value: FileVaultProfileStatus.FAILED,
   },
   removing_enforcement: {
     displayName: "Removing enforcement (pending)",
-    statusName: "pending",
-    value: DiskEncryptionStatus.REMOVING_ENFORCEMENT,
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
     tooltip: "Enforcement will be removed when the hosts come online.",
   },
 };
 
 export const generateTableData = (
-  data?: IDiskEncryptionStatusAggregate,
+  data?: IFileVaultSummaryResponse,
   currentTeamId?: number
 ) => {
   if (!data) return [];

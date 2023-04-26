@@ -1,3 +1,5 @@
+import { MdmProfileStatus } from "interfaces/mdm";
+
 export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "display_name";
@@ -41,17 +43,17 @@ export const HOST_SELECT_STATUSES = [
 export const MAC_SETTINGS_FILTER_OPTIONS = [
   {
     disabled: false,
-    label: "Latest",
-    value: "latest",
+    label: "Verifying",
+    value: MdmProfileStatus.VERIFYING,
   },
   {
     disabled: false,
     label: "Pending",
-    value: "pending",
+    value: MdmProfileStatus.PENDING,
   },
   {
     disabled: false,
-    label: "Failing",
-    value: "failing",
+    label: "Failed",
+    value: MdmProfileStatus.FAILED,
   },
 ];
