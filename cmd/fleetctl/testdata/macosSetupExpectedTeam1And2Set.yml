@@ -11,7 +11,7 @@ spec:
         custom_settings: null
         enable_disk_encryption: false
       macos_setup:
-        bootstrap_package: ""
+        bootstrap_package: %s
         macos_setup_assistant: %s
       macos_updates:
         deadline: ""
@@ -30,7 +30,7 @@ spec:
         custom_settings: null
         enable_disk_encryption: false
       macos_setup:
-        bootstrap_package: ""
+        bootstrap_package: %s
         macos_setup_assistant: %s
       macos_updates:
         deadline: ""
