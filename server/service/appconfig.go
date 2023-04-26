@@ -410,7 +410,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
+			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
 		}
 	}
 
