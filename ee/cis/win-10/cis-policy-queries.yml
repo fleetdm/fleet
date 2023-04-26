@@ -3348,7 +3348,7 @@ spec:
     The recommended state for this setting is to include: 'Success'.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security State Change'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecurityStateChange</LocURI></Target></Item></Get></SyncBody>" 
@@ -3373,7 +3373,7 @@ spec:
     The recommended state for this setting is to include: Success.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security System Extension'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecuritySystemExtension</LocURI></Target></Item></Get></SyncBody>" 
@@ -3381,14 +3381,36 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.4
   contributors: sharon-fdm
-
-
-
-
-
-
-
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit System Integrity' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on violations of integrity of the security subsystem. Events for this subcategory include:
+    -  4612 : Internal resources allocated for the queuing of audit messages have been exhausted, leading to the loss of some audits.
+    -  4615 : Invalid use of LPC port.
+    -  4618 : A monitored security event pattern has occurred.
+    -  4816 : RPC detected an integrity violation while decrypting an incoming message.
+    -  5038 : Code integrity determined that the image hash of a file is not valid. The file could be corrupt due to unauthorized modification or the invalid hash could indicate a potential disk device error.
+    -  5056: A cryptographic self test was performed.
+    -  5057: A cryptographic primitive operation failed.
+    -  5060: Verification operation failed.
+    -  5061: Cryptographic operation.
+    -  5062: A kernel-mode cryptographic self test was performed.
+    The recommended state for this setting is: Success and Failure.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit System Integrity'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSystemIntegrity</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.5
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
