@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
+import { IFileVaultSummaryResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
@@ -24,9 +24,9 @@ const DEFAULT_SORT_DIRECTION = "asc";
 
 const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   const { data, error } = useQuery<
-    IDiskEncryptionStatusAggregate,
+    IFileVaultSummaryResponse,
     Error,
-    IDiskEncryptionStatusAggregate
+    IFileVaultSummaryResponse
   >(
     ["disk-encryption-summary", currentTeamId],
     () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
