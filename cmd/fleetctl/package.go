@@ -52,12 +52,12 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "fleet-tls-client-certificate",
-				Usage:       "Path to a TLS client certificate to use when connecting to the Fleet server",
+				Usage:       "Path to a TLS client certificate to use when connecting to the Fleet server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 				Destination: &opt.FleetTLSClientCertificate,
 			},
 			&cli.StringFlag{
 				Name:        "fleet-tls-client-key",
-				Usage:       "Path to a TLS client private key to use when connecting to the Fleet server",
+				Usage:       "Path to a TLS client private key to use when connecting to the Fleet server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 				Destination: &opt.FleetTLSClientKey,
 			},
 			&cli.StringFlag{
@@ -138,12 +138,12 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "update-tls-client-certificate",
-				Usage:       "Path to a TLS client certificate to use when connecting to the update server",
+				Usage:       "Path to a TLS client certificate to use when connecting to the update server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 				Destination: &opt.UpdateTLSClientCertificate,
 			},
 			&cli.StringFlag{
 				Name:        "update-tls-client-key",
-				Usage:       "Path to a TLS client private key to use when connecting to the update server",
+				Usage:       "Path to a TLS client private key to use when connecting to the update server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 				Destination: &opt.UpdateTLSClientKey,
 			},
 			&cli.StringFlag{
