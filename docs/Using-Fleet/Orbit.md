@@ -275,6 +275,8 @@ If the `logger_path` configuration is set to `filesystem`, Orbit will store osqu
 Orbit supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
 This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.
 
+> The mTLS feature requires Orbit to be version v1.10.0 or greater and `fleetctl` v4.31.0 or greater.
+
 When generating the packages, use the following flags:
 ```sh
 fleetctl package \
