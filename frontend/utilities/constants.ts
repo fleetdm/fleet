@@ -10,14 +10,6 @@ export enum PolicyResponse {
   FAILING = "failing",
 }
 
-export enum DiskEncryptionStatus {
-  APPLIED = "applied",
-  ACTION_REQUIRED = "action_required",
-  ENFORCING = "enforcing",
-  FAILED = "failed",
-  REMOVING_ENFORCEMENT = "removing_enforcement",
-}
-
 export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
 

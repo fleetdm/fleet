@@ -60,6 +60,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+
+	ActivityTypeAddedBootstrapPackage{},
+	ActivityTypeDeletedBootstrapPackage{},
 }
 
 type ActivityDetails interface {
@@ -887,6 +890,50 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
 		`This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
 - "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeAddedBootstrapPackage struct {
+	BootstrapPackageName string  `json:"bootstrap_package_name"`
+	TeamID               *uint   `json:"team_id"`
+	TeamName             *string `json:"team_name"`
+}
+
+func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
+	return "added_bootstrap_package"
+}
+
+func (a ActivityTypeAddedBootstrapPackage) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new bootstrap package to a team (or no team).`,
+		`This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+  "bootstrap_package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedBootstrapPackage struct {
+	BootstrapPackageName string  `json:"bootstrap_package_name"`
+	TeamID               *uint   `json:"team_id"`
+	TeamName             *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedBootstrapPackage) ActivityName() string {
+	return "deleted_bootstrap_package"
+}
+
+func (a ActivityTypeDeletedBootstrapPackage) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a bootstrap package from a team (or no team).`,
+		`This activity contains the following fields:
+- "package_name": Name of the package.
+- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
+  "package_name": "bootstrap-package.pkg",
   "team_id": 123,
   "team_name": "Workstations"
 }`

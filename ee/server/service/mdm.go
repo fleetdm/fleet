@@ -155,6 +155,17 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
+	var ptrTeamName *string
+	var ptrTeamId *uint
+	if teamID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for upload bootstrap package activity details")
+		}
+		ptrTeamName = &tm.Name
+		ptrTeamId = &teamID
+	}
+
 	hashBuf := bytes.NewBuffer(nil)
 	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
 		msg := "invalid package"
@@ -183,6 +194,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp); err != nil {
 		return err
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for upload bootstrap package")
 	}
 
 	return nil
@@ -222,8 +237,26 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return err
 	}
 
+	var tmName string
+	if tmID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &tmID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for delete bootstrap package activity details")
+		}
+		tmName = tm.Name
+	}
+
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
 	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: &tmID, TeamName: &tmName}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
 	return nil

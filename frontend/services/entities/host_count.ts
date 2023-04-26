@@ -2,13 +2,14 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { HostStatus } from "interfaces/host";
+import { FileVaultProfileStatus } from "interfaces/mdm";
 import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { DiskEncryptionStatus } from "utilities/constants";
+
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
@@ -42,7 +43,7 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
 }
 
 export default {
