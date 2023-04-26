@@ -27,6 +27,7 @@ interface IHostSummaryProps {
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
@@ -45,6 +46,7 @@ const HostSummary = ({
   titleData,
   diskEncryption,
   isPremiumTier,
+  isSandboxMode = false,
   isOnlyObserver,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
@@ -154,7 +156,7 @@ const HostSummary = ({
           />
         </div>
 
-        {titleData.issues?.total_issues_count > 0 &&
+        {(titleData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
           renderIssues()}
 
