@@ -1348,23 +1348,23 @@ spec:
 	t.Run("get and apply roundtrip", func(t *testing.T) {
 		ds := setupServer(t, true)
 
-		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupAssistantExpectedAppConfigEmpty.yml"))
+		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigEmpty.yml"))
 		require.NoError(t, err)
 		expectedEmptyAppCfg := string(b)
 
-		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupAssistantExpectedAppConfigSet.yml"))
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
 		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
 
-		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupAssistantExpectedTeam1Empty.yml"))
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
 		expectedEmptyTm1 := string(b)
 
-		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupAssistantExpectedTeam1And2Empty.yml"))
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
 		expectedEmptyTm1And2 := string(b)
 
-		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupAssistantExpectedTeam1And2Set.yml"))
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
 		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup)
 
