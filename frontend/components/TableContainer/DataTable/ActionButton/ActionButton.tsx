@@ -117,7 +117,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
             };
           }}
         >
-          {`Transfer is a Fleet Premium feature. `}
+          {`This is a Fleet Premium feature. `}
           <CustomLink
             url="https://fleetdm.com/upgrade"
             text="Learn more"
