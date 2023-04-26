@@ -172,7 +172,8 @@ func hostSoftwareInstalledPathsDelta(
 	for unqStr, sPath := range reported {
 		entry, ok := stored[unqStr]
 
-		// Shouldn't be possible ... everything 'reported' should be in the the software table.
+		// Shouldn't be possible ... everything 'reported' should be in the the software table
+		// because this should be executing after 'ds.UpdateHostSoftware'
 		if !ok {
 			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
 			return
