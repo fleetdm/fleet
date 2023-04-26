@@ -1178,7 +1178,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		}
 	}
 
-	if err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+	if _, err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
 

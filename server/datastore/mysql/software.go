@@ -66,13 +66,14 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	return result
 }
 
-// UpdateHostSoftware updates the software list of a host.
-// The update consists of deleting existing entries that are not in the given `software`
-// slice, updating existing entries and inserting new entries.
-func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	var result *fleet.UpdateHostSoftwareDBResult
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		r, err := applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+		result = r
+		return err
 	})
+	return result, err
 }
 
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
@@ -326,69 +327,82 @@ WHERE
 	return softwares, nil
 }
 
+// applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
+// was inserted and what was deleted
 func applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
 	software []fleet.Software,
 	minLastOpenedAtDiff time.Duration,
-) error {
+) (*fleet.UpdateHostSoftwareDBResult, error) {
+	r := &fleet.UpdateHostSoftwareDBResult{}
+
 	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading current software for host")
+		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
+	r.WasCurrInstalled = currentSoftware
 
 	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
-		return nil
+		return nil, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
 	incoming := softwareSliceToMap(software)
 
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
+	deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	if err != nil {
+		return nil, err
 	}
+	r.Deleted = deleted
 
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
-		return err
+	inserted, err := insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	if err != nil {
+		return nil, err
 	}
+	r.Inserted = inserted
 
 	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return r, nil
 }
 
 // delete host_software that is in current map, but not in incoming map.
+// returns the deleted software on the host
 func deleteUninstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExecerContext,
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-) error {
-	var deletesHostSoftware []uint
+) ([]fleet.Software, error) {
+	var deletesHostSoftwareIDs []uint
+	var deletedSoftware []fleet.Software
+
 	for currentKey, curSw := range currentMap {
 		if _, ok := incomingMap[currentKey]; !ok {
-			deletesHostSoftware = append(deletesHostSoftware, curSw.ID)
+			deletedSoftware = append(deletedSoftware, curSw)
+			deletesHostSoftwareIDs = append(deletesHostSoftwareIDs, curSw.ID)
 		}
 	}
-	if len(deletesHostSoftware) == 0 {
-		return nil
+	if len(deletesHostSoftwareIDs) == 0 {
+		return nil, nil
 	}
 
 	stmt := `DELETE FROM host_software WHERE host_id = ? AND software_id IN (?);`
-	stmt, args, err := sqlx.In(stmt, hostID, deletesHostSoftware)
+	stmt, args, err := sqlx.In(stmt, hostID, deletesHostSoftwareIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build delete host software query")
+		return nil, ctxerr.Wrap(ctx, err, "build delete host software query")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host software")
+		return nil, ctxerr.Wrap(ctx, err, "delete host software")
 	}
 
 	// Cleanup the software table when no more hosts have the deleted host_software
@@ -400,15 +414,15 @@ func deleteUninstalledHostSoftwareDB(
 	NOT EXISTS (
 		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
 	)`
-	stmt, args, err = sqlx.In(stmt, deletesHostSoftware)
+	stmt, args, err = sqlx.In(stmt, deletesHostSoftwareIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build delete software query")
+		return nil, ctxerr.Wrap(ctx, err, "build delete software query")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software")
+		return nil, ctxerr.Wrap(ctx, err, "delete software")
 	}
 
-	return nil
+	return deletedSoftware, nil
 }
 
 func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
@@ -458,14 +472,16 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 }
 
 // insert host_software that is in incoming map, but not in current map.
+// returns the inserted software on the host
 func insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-) error {
+) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
+	var insertedSoftware []fleet.Software
 
 	incomingOrdered := make([]string, 0, len(incomingMap))
 	for s := range incomingMap {
@@ -475,12 +491,16 @@ func insertNewInstalledHostSoftwareDB(
 
 	for _, s := range incomingOrdered {
 		if _, ok := currentMap[s]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
+			swToInsert := uniqueStringToSoftware(s)
+			id, err := getOrGenerateSoftwareIdDB(ctx, tx, swToInsert)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			sw := incomingMap[s]
 			insertsHostSoftware = append(insertsHostSoftware, hostID, id, sw.LastOpenedAt)
+
+			swToInsert.ID = id
+			insertedSoftware = append(insertedSoftware, swToInsert)
 		}
 	}
 
@@ -488,11 +508,11 @@ func insertNewInstalledHostSoftwareDB(
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host software")
+			return nil, ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
 
-	return nil
+	return insertedSoftware, nil
 }
 
 // update host_software when incoming software has a significantly more recent

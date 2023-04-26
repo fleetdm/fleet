@@ -122,3 +122,15 @@ type SoftwareIterQueryOptions struct {
 func (siqo SoftwareIterQueryOptions) IsValid() bool {
 	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
 }
+
+// UpdateHostSoftwareDBResult stores the 'result' of calling 'ds.UpdateHostSoftware' for a host,
+// contains the software installed on the host pre-mutations all the mutations performed: what was
+// inserted and what was deleted.
+type UpdateHostSoftwareDBResult struct {
+	// What software was installed on the host before performing any mutations
+	WasCurrInstalled []Software
+	// What software was deleted
+	Deleted []Software
+	// What software was inserted
+	Inserted []Software
+}

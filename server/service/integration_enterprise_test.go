@@ -2632,7 +2632,8 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(ctx, host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
 	bar := host.Software[0]
