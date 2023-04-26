@@ -1,12 +1,9 @@
-import React, { useEffect } from "react";
+import React from "react";
 import PATHS from "router/paths";
 
-import { ILabelSummary } from "interfaces/label";
+import DataError from "components/DataError";
 import { ISelectedPlatform } from "interfaces/platform";
 
-import { buildQueryStringFromParams } from "utilities/url";
-
-import DataError from "components/DataError";
 import SummaryTile from "./SummaryTile";
 
 const baseClass = "hosts-summary";
@@ -20,9 +17,6 @@ interface IHostSummaryProps {
   showHostsUI: boolean;
   errorHosts: boolean;
   selectedPlatform?: ISelectedPlatform;
-  selectedPlatformLabelId?: number;
-  labels?: ILabelSummary[];
-  setActionURL?: (url: string) => void;
 }
 
 const HostsSummary = ({
@@ -34,80 +28,66 @@ const HostsSummary = ({
   showHostsUI,
   errorHosts,
   selectedPlatform,
-  selectedPlatformLabelId,
-  labels,
-  setActionURL,
 }: IHostSummaryProps): JSX.Element => {
-  // build the manage hosts URL
-  useEffect(() => {
-    if (labels) {
-      const queryParams = {
-        team_id: currentTeamId, // TODO: confirm
-      };
-
-      const queryString = buildQueryStringFromParams(queryParams);
-      const endpoint = selectedPlatformLabelId
-        ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
-        : PATHS.MANAGE_HOSTS;
-      const path = `${endpoint}?${queryString}`;
-
-      setActionURL && setActionURL(path);
-    }
-  }, [labels, selectedPlatformLabelId, currentTeamId]);
-
   // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
   if (showHostsUI) {
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
 
-  const renderMacCount = () => (
+  const renderMacCount = (teamId?: number) => (
     <SummaryTile
       iconName="darwin-purple"
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="macOS hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(7)}
+      path={PATHS.MANAGE_HOSTS_LABEL(7).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderWindowsCount = () => (
+  const renderWindowsCount = (teamId?: number) => (
     <SummaryTile
       iconName="windows-blue"
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="Windows hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(10)}
+      path={PATHS.MANAGE_HOSTS_LABEL(10).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderLinuxCount = () => (
+  const renderLinuxCount = (teamId?: number) => (
     <SummaryTile
       iconName="linux-green"
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="Linux hosts"
-      path={PATHS.MANAGE_HOSTS_LABEL(12)}
+      path={PATHS.MANAGE_HOSTS_LABEL(12).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
     />
   );
 
-  const renderCounts = () => {
+  const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":
-        return renderMacCount();
+        return renderMacCount(teamId);
       case "windows":
-        return renderWindowsCount();
+        return renderWindowsCount(teamId);
       case "linux":
         return renderLinuxCount();
       default:
         return (
           <>
-            {renderMacCount()}
-            {renderWindowsCount()}
-            {renderLinuxCount()}
+            {renderMacCount(teamId)}
+            {renderWindowsCount(teamId)}
+            {renderLinuxCount(teamId)}
           </>
         );
     }
@@ -124,7 +104,7 @@ const HostsSummary = ({
       }`}
       style={opacity}
     >
-      {renderCounts()}
+      {renderCounts(currentTeamId)}
     </div>
   );
 };

@@ -380,6 +380,10 @@ const ManageSoftwarePage = ({
 
       newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_SOFTWARE,
         routeTemplate,
@@ -389,15 +393,17 @@ const ManageSoftwarePage = ({
     },
     [
       isRouteOk,
+      teamIdForApi,
       tableQueryData,
-      sortHeader,
-      sortDirection,
-      searchQuery,
       page,
-      filterVuln,
-      router,
-      routeTemplate,
+      searchQuery,
+      sortDirection,
       isPremiumTier,
+      sortHeader,
+      DEFAULT_SORT_HEADER,
+      filterVuln,
+      routeTemplate,
+      router,
     ]
   );
 

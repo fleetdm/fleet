@@ -1,0 +1,2 @@
+- Fixed UI bug where dashboard links to hosts filtered by platform did not carry over the selected
+  team filter.
