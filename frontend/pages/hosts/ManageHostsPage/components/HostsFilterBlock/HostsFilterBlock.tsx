@@ -26,7 +26,7 @@ import Button from "components/buttons/Button";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
+import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../../assets/images/icon-trash-14x14@2x.png";

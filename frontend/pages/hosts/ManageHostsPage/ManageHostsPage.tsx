@@ -69,7 +69,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
-import Icon from "components/Icon";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -81,8 +80,8 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  HOST_SELECT_STATUSES,
-} from "./constants";
+  getHostSelectStatuses,
+} from "./HostsPageConfig";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -1272,20 +1271,21 @@ const ManageHostsPage = ({
         : undefined;
 
     // Add the "Premium Feature Icon" to the "Missing hosts" dropdown option in Sandbox mode
-    const dropdownOptions: {
-      disabled: boolean;
-      label: string | JSX.Element;
-      value: string;
-      helpText: string;
-    }[] = HOST_SELECT_STATUSES.slice();
-    if (isSandboxMode) {
-      dropdownOptions[3].label = (
-        <span>
-          <span>Missing hosts</span>
-          <Icon name="premium-feature" className="premium-feature-icon" />
-        </span>
-      );
-    }
+    // const dropdownOptions: {
+    //   disabled: boolean;
+    //   label: string | JSX.Element;
+    //   value: string;
+    //   helpText: string;
+    // }[] = HOST_SELECT_STATUSES.slice();
+    // if (isSandboxMode) {
+    //   dropdownOptions[3].label = (
+    //     <span>
+    //       <span>Missing hosts</span>
+    //       {/* <Icon name="premium-feature" className="premium-feature-icon" /> */}
+    //       <PremiumFeatureIconWithTooltip />
+    //     </span>
+    //   );
+    // }
     const statusDropdownClassnames = classNames(
       `${baseClass}__status_dropdown`,
       { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
@@ -1295,7 +1295,8 @@ const ManageHostsPage = ({
         <Dropdown
           value={status || ""}
           className={statusDropdownClassnames}
-          options={dropdownOptions}
+          // options={dropdownOptions}
+          options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}
         />
