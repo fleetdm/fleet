@@ -229,7 +229,7 @@ func insertHostSoftwareInstalledPaths(
 	tx sqlx.ExtContext,
 	toInsert []fleet.HostSoftwareInstalledPath,
 ) error {
-	stmt := "INSERT IGNORE INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
