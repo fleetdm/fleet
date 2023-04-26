@@ -1096,6 +1096,10 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
+				// TeamByName in the real Datastore does not return notFoundError, it
+				// returns ErrNoRows directly, we're a bit inconsistent with that at
+				// the moment. This is important as ApplyTeamSpecs checks if TeamByName
+				// returns an error that wraps ErrNoRows (and not an IsNotFound).
 				return nil, sql.ErrNoRows
 			}
 			clone := *team
@@ -1115,7 +1119,7 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamsByID[id]
 			if !ok {
-				return nil, sql.ErrNoRows
+				return nil, &notFoundError{}
 			}
 			clone := *tm
 			return &clone, nil
@@ -1192,7 +1196,7 @@ func TestApplyMacosSetupAssistant(t *testing.T) {
 			if asst, ok := asstsByTeam[tmID]; ok {
 				return asst, nil
 			}
-			return nil, sql.ErrNoRows
+			return nil, &notFoundError{}
 		}
 		return ds
 	}
