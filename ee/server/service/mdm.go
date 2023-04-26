@@ -237,13 +237,15 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return err
 	}
 
-	var tmName string
+	var ptrTeamID *uint
+	var ptrTeamName *string
 	if tmID >= 1 {
 		tm, err := svc.teamByIDOrName(ctx, &tmID, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get team name for delete bootstrap package activity details")
 		}
-		tmName = tm.Name
+		ptrTeamID = &tm.ID
+		ptrTeamName = &tm.Name
 	}
 
 	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
@@ -255,7 +257,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: &tmID, TeamName: &tmName}); err != nil {
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
