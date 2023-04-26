@@ -1,56 +1,66 @@
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import {
-  MacMdmProfileOperationType,
-  MacMdmProfileStatus,
-} from "interfaces/mdm";
+import { IconNames } from "components/icons";
+import { MacMdmProfileOperationType, MdmProfileStatus } from "interfaces/mdm";
 import _ from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "mac-setting-status-cell";
 
+type ProfileDisplayOption = {
+  statusText: string;
+  iconName: IconNames;
+  tooltipText?: string;
+} | null;
+
+type OperationTypeOption = Record<MdmProfileStatus, ProfileDisplayOption>;
+type ProfileDisplayConfig = Record<
+  MacMdmProfileOperationType,
+  OperationTypeOption
+>;
+
+const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
+  install: {
+    pending: {
+      statusText: "Enforcing (pending)",
+      iconName: "pending-partial",
+      tooltipText: "Setting will be enforced when the host comes online.",
+    },
+    verifying: {
+      statusText: "Verifying",
+      iconName: "success-partial",
+      tooltipText: "Host applied the setting.",
+    },
+    failed: {
+      statusText: "Failed",
+      iconName: "error",
+      tooltipText: undefined,
+    },
+  },
+  remove: {
+    pending: {
+      statusText: "Removing enforcement (pending)",
+      iconName: "pending-partial",
+      tooltipText: "Enforcement will be removed when the host comes online.",
+    },
+    verifying: null, // should not be reached
+    failed: {
+      statusText: "Failed",
+      iconName: "error",
+      tooltipText: undefined,
+    },
+  },
+};
+
 interface IMacSettingStatusCellProps {
-  status: MacMdmProfileStatus;
+  status: MdmProfileStatus;
   operationType: MacMdmProfileOperationType;
 }
 const MacSettingStatusCell = ({
   status,
   operationType,
 }: IMacSettingStatusCellProps): JSX.Element => {
-  const PROFILE_DISPLAY_CONFIG = {
-    install: {
-      pending: {
-        statusText: "Enforcing (pending)",
-        iconName: "pending",
-        tooltipText: "Setting will be enforced when the host comes online.",
-      },
-      applied: {
-        statusText: "Applied",
-        iconName: "success",
-        tooltipText: "Host applied the setting.",
-      },
-      failed: {
-        statusText: "Failed",
-        iconName: "error",
-        tooltipText: undefined,
-      },
-    },
-    remove: {
-      pending: {
-        statusText: "Removing enforcement (pending)",
-        iconName: "pending",
-        tooltipText: "Enforcement will be removed when the host comes online.",
-      },
-      applied: null, // should not be reached
-      failed: {
-        statusText: "Failed",
-        iconName: "error",
-        tooltipText: undefined,
-      },
-    },
-  } as const;
-
   const options = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
 
   if (options) {

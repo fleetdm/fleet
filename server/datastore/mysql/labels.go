@@ -560,6 +560,7 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	query, params = filterHostsByMDM(query, opt, params)
 	query, params = filterHostsByMacOSSettingsStatus(query, opt, params)
 	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
+	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query = appendListOptionsToSQL(query, &opt.ListOptions)

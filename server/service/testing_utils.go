@@ -573,8 +573,10 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
 		{"GET", "/api/latest/fleet/mdm/apple"},
-		{"POST", "/api/latest/fleet/mdm/apple/dep_login"},
 		{"GET", apple_mdm.EnrollPath + "?token=test"},
 		{"GET", apple_mdm.InstallerPath + "?token=test"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},
 	}
 }

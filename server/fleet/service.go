@@ -28,6 +28,8 @@ type EnterpriseOverrides struct {
 	// overrides.
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -579,7 +581,7 @@ type Service interface {
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -605,6 +607,10 @@ type Service interface {
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
+	// the specified options.
+	ListMDMAppleCommands(ctx context.Context, opts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
@@ -666,13 +672,6 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
 
-	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
-	// credentials are valid, returns a MDM enrollment profile.
-	//
-	// ROP refers to the "Resource Owner Password Flow" as specified by
-	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
-	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
-
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -684,7 +683,16 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
+
+	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
+
+	// Create or update the MDM Apple Setup Assistant for a team or no team.
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
+	// Get the MDM Apple Setup Assistant for the provided team or no team.
+	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// Delete the MDM Apple Setup Assistant for the provided team or no team.
+	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

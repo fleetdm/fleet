@@ -311,7 +311,7 @@ spec:
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings.
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
 
 The following example file shows the default organization settings:
 

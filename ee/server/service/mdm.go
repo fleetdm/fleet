@@ -5,16 +5,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
-	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
@@ -150,55 +150,20 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }
 
-func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error) {
-	// skipauth: No user context available yet to authorize against.
-	svc.authz.SkipAuthorization(ctx)
-
-	okta := externalsvc.Okta{
-		BaseURL:      svc.config.MDM.OktaServerURL,
-		ClientID:     svc.config.MDM.OktaClientID,
-		ClientSecret: svc.config.MDM.OktaClientSecret,
-	}
-
-	if err := okta.ROPLogin(ctx, username, password); err != nil {
-		if errors.Is(err, externalsvc.ErrInvalidGrant) {
-			return nil, fleet.NewAuthFailedError(err.Error())
-		}
-		return nil, err
-	}
-
-	dict, err := apple_mdm.SaltedSHA512PBKDF2(password)
-	if err != nil {
-		return nil, err
-	}
-
-	uuid := uuid.New().String()
-	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		SaltedSHA512PBKDF2Dictionary: dict,
-		UUID:                         uuid,
-		Username:                     username,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	query := url.Values{"ref": []string{uuid}}
-	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL+"?"+query.Encode(),
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
-	)
-}
-
 func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	var ptrTeamName *string
+	var ptrTeamId *uint
+	if teamID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for upload bootstrap package activity details")
+		}
+		ptrTeamName = &tm.Name
+		ptrTeamId = &teamID
 	}
 
 	hashBuf := bytes.NewBuffer(nil)
@@ -231,6 +196,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for upload bootstrap package")
+	}
+
 	return nil
 }
 
@@ -258,13 +227,161 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+	var ptrTeamID *uint
+	var ptrTeamName *string
+	if tmID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &tmID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for delete bootstrap package activity details")
+		}
+		ptrTeamID = &tm.ID
+		ptrTeamName = &tm.Name
+	}
+
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
+	}
+
+	return nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleBootstrapPackageSummary, error) {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionRead); err != nil {
+		return &fleet.MDMAppleBootstrapPackageSummary{}, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, tmID)
+		if err != nil {
+			return &fleet.MDMAppleBootstrapPackageSummary{}, err
+		}
+	}
+
+	summary, err := svc.ds.GetMDMAppleBootstrapPackageSummary(ctx, tmID)
+	if err != nil {
+		return &fleet.MDMAppleBootstrapPackageSummary{}, ctxerr.Wrap(ctx, err, "getting bootstrap package summary")
+	}
+
+	return summary, nil
+}
+
+func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(asst.Profile, &m); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
+	}
+
+	deniedFields := map[string]string{
+		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
+		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+	}
+	for k, msg := range deniedFields {
+		if _, ok := m[k]; ok {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
+		}
+	}
+
+	// must read the existing setup assistant first to detect if it did change
+	// (so that the changed activity is not created if the same assistant was
+	// uploaded).
+	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
+	}
+	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
+	}
+
+	// if the name is the same and the content did not change, uploaded at will stay the same
+	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		var teamName *string
+		if newAsst.TeamID != nil {
+			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get team")
+			}
+			teamName = &tm.Name
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
+			TeamID:   newAsst.TeamID,
+			TeamName: teamName,
+			Name:     newAsst.Name,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
+		}
+	}
+	return newAsst, nil
+}
+
+func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+}
+
+func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// must read the existing setup assistant first to detect if it did delete
+	// and to get the name of the deleted assistant.
+	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get previous setup assistant")
+	}
+
+	if err := svc.ds.DeleteMDMAppleSetupAssistant(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete setup assistant")
+	}
+
+	if prevAsst != nil {
+		var teamName *string
+		if teamID != nil {
+			tm, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team")
+			}
+			teamName = &tm.Name
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
+			TeamID:   teamID,
+			TeamName: teamName,
+			Name:     prevAsst.Name,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for deleted macos setup assistant")
+		}
 	}
 
 	return nil

@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import simpleSearch from "utilities/simple_search";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import {

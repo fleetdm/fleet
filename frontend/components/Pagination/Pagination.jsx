@@ -6,6 +6,9 @@ import FleetIcon from "components/icons/FleetIcon";
 
 const baseClass = "pagination";
 
+// TODO: Refactor to typescript
+// Already seeing issues with prop types (currentPage passed through as string instead of number)
+
 class Pagination extends PureComponent {
   static propTypes = {
     currentPage: PropTypes.number,
@@ -37,14 +40,14 @@ class Pagination extends PureComponent {
         <Button
           variant="unstyled"
           disabled={this.disablePrev()}
-          onClick={() => onPaginationChange(currentPage - 1)}
+          onClick={() => onPaginationChange(parseInt(currentPage, 10) - 1)}
         >
           <FleetIcon name="chevronleft" /> Previous
         </Button>
         <Button
           variant="unstyled"
           disabled={this.disableNext()}
-          onClick={() => onPaginationChange(currentPage + 1)}
+          onClick={() => onPaginationChange(parseInt(currentPage, 10) + 1)}
         >
           Next <FleetIcon name="chevronright" />
         </Button>
