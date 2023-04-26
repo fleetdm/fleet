@@ -1053,6 +1053,245 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
 }
 
+// TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
+// only get queries that they can execute.
+func TestGetQueriesAsObserver(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	setCurrentUserSession := func(user *fleet.User) {
+		user, err := ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+			return &fleet.Session{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				ID:              1,
+				AccessedAt:      time.Now(),
+				UserID:          user.ID,
+				Key:             key,
+			}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return user, nil
+		}
+	}
+
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: false,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: true,
+			},
+			{
+				ID:             44,
+				Name:           "query3",
+				Description:    "some desc 3",
+				Query:          "select 3;",
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+
+	for _, tc := range []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			name: "global observer",
+			user: &fleet.User{
+				ID:         1,
+				Name:       "Global observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "go@example.com",
+				GlobalRole: ptr.String(fleet.RoleObserverPlus),
+			},
+		},
+		{
+			name: "team observer",
+			user: &fleet.User{
+				ID:         2,
+				Name:       "Team observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "tm@example.com",
+				GlobalRole: nil,
+				Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+			},
+		},
+		{
+			name: "observer of multiple teams",
+			user: &fleet.User{
+				ID:         3,
+				Name:       "Observer of multiple teams",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "omt@example.com",
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleObserverPlus,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setCurrentUserSession(tc.user)
+
+			expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+			expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+`
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+`
+
+			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+		})
+	}
+
+	// Test with a user that is observer of a team, but maintainer of another team (should not filter the queries).
+	setCurrentUserSession(&fleet.User{
+		ID:         4,
+		Name:       "Not observer of all teams",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "omt2@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	})
+
+	expected := `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+| query3 | some desc 3 | select 3; |
++--------+-------------+-----------+
+`
+	expectedYaml := `---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc
+  name: query1
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 2
+  name: query2
+  query: select 2;
+---
+apiVersion: v1
+kind: query
+spec:
+  description: some desc 3
+  name: query3
+  query: select 3;
+`
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;"}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;"}}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+
+	// No queries are returned if none is observer_can_run.
+	setCurrentUserSession(&fleet.User{
+		ID:         2,
+		Name:       "Team observer",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "tm@example.com",
+		GlobalRole: nil,
+		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+	})
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: false,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: false,
+			},
+		}, nil
+	}
+	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries"}))
+
+	// No filtering is performed if all are observer_can_run.
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+		return []*fleet.Query{
+			{
+				ID:             42,
+				Name:           "query1",
+				Description:    "some desc",
+				Query:          "select 1;",
+				ObserverCanRun: true,
+			},
+			{
+				ID:             43,
+				Name:           "query2",
+				Description:    "some desc 2",
+				Query:          "select 2;",
+				ObserverCanRun: true,
+			},
+		}, nil
+	}
+	expected = `+--------+-------------+-----------+
+|  NAME  | DESCRIPTION |   QUERY   |
++--------+-------------+-----------+
+| query1 | some desc   | select 1; |
++--------+-------------+-----------+
+| query2 | some desc 2 | select 2; |
++--------+-------------+-----------+
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+}
+
 func TestEnrichedAppConfig(t *testing.T) {
 	t.Run("deprecated fields", func(t *testing.T) {
 		resp := []byte(`
@@ -1615,4 +1854,81 @@ func TestGetMDMCommands(t *testing.T) {
 | u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
 +----+----------------------+-------------+--------------+----------+
 `))
+}
+
+func TestUserIsObserver(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		user        fleet.User
+		expectedVal bool
+		expectedErr error
+	}{
+		{
+			name:        "user without roles",
+			user:        fleet.User{},
+			expectedErr: errUserNoRoles,
+		},
+		{
+			name:        "global observer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			expectedVal: true,
+		},
+		{
+			name:        "global observer+",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			expectedVal: true,
+		},
+		{
+			name:        "global maintainer",
+			user:        fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			expectedVal: false,
+		},
+		{
+			name: "team observer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team observer+",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserverPlus},
+				},
+			},
+			expectedVal: true,
+		},
+		{
+			name: "team maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+		{
+			name: "team observer and maintainer",
+			user: fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{Role: fleet.RoleObserver},
+					{Role: fleet.RoleMaintainer},
+				},
+			},
+			expectedVal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := userIsObserver(tc.user)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedVal, actual)
+		})
+	}
 }
