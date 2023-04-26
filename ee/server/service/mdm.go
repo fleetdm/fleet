@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"io"
 
@@ -345,18 +344,9 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	session, err := svc.ssoSessionStore.Get(auth.RequestID())
+	metadata, err := svc.ssoSessionStore.Validate(auth.RequestID())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sso request invalid")
-	}
-	// Remove session to so that is can't be reused before it expires.
-	err = svc.ssoSessionStore.Expire(auth.RequestID())
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "remove sso request")
-	}
-	var metadata *sso.Metadata
-	if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal metadata")
+		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
 	err = sso.ValidateAudiences(

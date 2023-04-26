@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/xml"
 	"errors"
 	"html/template"
 	"net/http"
@@ -466,17 +465,10 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		}
 		redirectURL = "/"
 	} else {
-		session, err := svc.ssoSessionStore.Get(auth.RequestID())
+		var session *sso.Session
+		session, metadata, err = svc.ssoSessionStore.Validate(auth.RequestID())
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "sso request invalid")
-		}
-		// Remove session to so that is can't be reused before it expires.
-		err = svc.ssoSessionStore.Expire(auth.RequestID())
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "remove sso request")
-		}
-		if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "unmarshal metadata")
+			return "", ctxerr.Wrap(ctx, err, "validate request in session")
 		}
 		redirectURL = session.OriginalURL
 	}

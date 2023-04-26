@@ -3,7 +3,9 @@ package sso
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -32,6 +34,7 @@ type SessionStore interface {
 	create(requestID, originalURL, metadata string, lifetimeSecs uint) error
 	Get(requestID string) (*Session, error)
 	Expire(requestID string) error
+	Validate(requestID string) (*Session, *Metadata, error)
 }
 
 // NewSessionStore creates a SessionStore
@@ -89,4 +92,24 @@ func (s *store) Expire(requestID string) error {
 	defer conn.Close()
 	_, err := conn.Do("DEL", requestID)
 	return err
+}
+
+func (s *store) Validate(requestID string) (*Session, *Metadata, error) {
+	session, err := s.Get(requestID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sso request invalid: %w", err)
+	}
+
+	// Remove session to so that is can't be reused before it expires.
+	err = s.Expire(requestID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("remove sso request: %w", err)
+	}
+
+	var metadata *Metadata
+	if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal sso request metadata: %w", err)
+	}
+
+	return session, metadata, nil
 }
