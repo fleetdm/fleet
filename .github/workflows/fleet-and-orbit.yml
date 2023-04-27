@@ -46,11 +46,11 @@ jobs:
     - id: gen
       run: |
         UUID=$(uuidgen)
-        echo "::set-output name=subdomain::fleet-test-$UUID"
-        echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
-        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+        echo "domain=fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
         ENROLL=$(uuidgen)
-        echo "::set-output name=enroll_secret::$ENROLL"
+        echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
 
   run-server:
     timeout-minutes: 60
