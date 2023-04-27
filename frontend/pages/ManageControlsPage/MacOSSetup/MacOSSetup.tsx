@@ -57,8 +57,7 @@ const MacOSSetup = ({
   const CurrentCard = currentFormSection.Card;
 
   // TODO: uncomment when API done
-  // if (!config?.mdm.apple_bm_enabled_and_configured) {
-  if (false) {
+  if (!config?.mdm.apple_bm_enabled_and_configured) {
     return <SetupEmptyState router={router} />;
   }
 

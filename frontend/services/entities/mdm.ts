@@ -121,13 +121,6 @@ export default {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
     return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
   },
-  downloadBootstrapPackage: (token: string) => {
-    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
-    return sendRequest(
-      "GET",
-      `${MDM_BOOTSTRAP_PACKAGE}?${buildQueryStringFromParams({ token })}`
-    );
-  },
   getBootstrapPackageAggregate: (teamId?: number) => {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 

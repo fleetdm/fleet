@@ -556,11 +556,12 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           policy_id: policyId,
           policy_response: response,
           page: 0, // resets page index
-        }),
+        },
       })
     );
   };
@@ -575,10 +576,11 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           macos_settings_disk_encryption: newStatus,
           page: 0, // resets page index
-        }),
+        },
       })
     );
   };
@@ -593,9 +595,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
-          bootstrap_package: newStatus,
-        }),
+        queryParams: { ...queryParams, bootstrap_package: newStatus },
       })
     );
   };

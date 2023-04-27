@@ -11,7 +11,7 @@ import Spinner from "components/Spinner";
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
-import DeletePackageModal from "./components/DeletePackageModal/DeletePackageModal";
+import DeletePackageModal from "./components/DeletePackageModal";
 
 const baseClass = "bootstrap-package";
 

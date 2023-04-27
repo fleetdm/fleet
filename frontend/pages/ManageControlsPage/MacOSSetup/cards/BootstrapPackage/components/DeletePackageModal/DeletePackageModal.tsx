@@ -28,12 +28,7 @@ const DeletePackageModal = ({
           use your configuration management tool (ex. Munki, Chef, or Puppet).
         </p>
         <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={() => onDelete()}
-            variant="alert"
-            className="delete-loading"
-          >
+          <Button type="button" onClick={() => onDelete()} variant="alert">
             Delete
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">

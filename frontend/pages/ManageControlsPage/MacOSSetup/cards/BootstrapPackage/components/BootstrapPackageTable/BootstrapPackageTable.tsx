@@ -9,8 +9,8 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 
 import {
+  TABLE_HEADERS,
   generateTableData,
-  generateTableHeaders,
 } from "./BootstrapPackageTableConfig";
 
 const baseClass = "bootstrap-package-table";
@@ -25,7 +25,7 @@ const DEFAULT_SORT_DIRECTION = "asc";
 const BootstrapPackageTable = ({
   currentTeamId,
 }: IBootstrapPackageTableProps) => {
-  const { data: bootstrapPackageAggregatem, isLoading, isError } = useQuery<
+  const { data: bootstrapPackageAggregate, isLoading, isError } = useQuery<
     IBootstrapPackageAggregate,
     Error,
     IBootstrapPackageAggregate
@@ -38,18 +38,14 @@ const BootstrapPackageTable = ({
     }
   );
 
-  const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(
-    bootstrapPackageAggregatem,
-    currentTeamId
-  );
+  const tableData = generateTableData(bootstrapPackageAggregate, currentTeamId);
 
   if (isError) return <DataError />;
 
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={tableHeaders}
+        columns={TABLE_HEADERS}
         data={tableData}
         resultsTitle=""
         isLoading={isLoading}

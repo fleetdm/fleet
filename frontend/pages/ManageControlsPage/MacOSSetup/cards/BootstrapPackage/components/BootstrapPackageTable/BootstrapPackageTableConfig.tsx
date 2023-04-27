@@ -53,7 +53,7 @@ type IDataColumn = {
     | ((props: IStatusCellProps) => JSX.Element);
 };
 
-const defaultTableHeaders: IDataColumn[] = [
+export const TABLE_HEADERS: IDataColumn[] = [
   {
     title: "Status",
     Header: "Status",
@@ -105,10 +105,6 @@ const defaultTableHeaders: IDataColumn[] = [
 type StatusNames = keyof IBootstrapPackageAggregate;
 
 type StatusEntry = [StatusNames, number];
-
-export const generateTableHeaders = (): IDataColumn[] => {
-  return defaultTableHeaders;
-};
 
 const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   installed: {
