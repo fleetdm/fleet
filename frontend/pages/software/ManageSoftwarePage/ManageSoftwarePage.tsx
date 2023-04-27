@@ -208,9 +208,9 @@ const ManageSoftwarePage = ({
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   useEffect(() => {
-    setFilterVuln(location?.query?.vulnerable === "true" || false);
-    setPage(location?.query?.page ? parseInt(location?.query?.page, 10) : 0);
-    setSearchQuery(location?.query?.query || "");
+    setFilterVuln(initialVulnFilter);
+    setPage(initialPage);
+    setSearchQuery(initialQuery);
     // TODO: handle invalid values for params
   }, [location]);
 
