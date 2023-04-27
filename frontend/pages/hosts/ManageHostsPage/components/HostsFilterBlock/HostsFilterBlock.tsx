@@ -26,8 +26,6 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
-
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
 import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
