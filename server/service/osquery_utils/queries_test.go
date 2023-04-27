@@ -740,7 +740,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
@@ -749,7 +749,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
 			var calledWith map[string]struct{}
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				calledWith = make(map[string]struct{})
 				for k, v := range sPaths {
 					calledWith[k] = v
@@ -803,7 +803,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				return nil, nil
 			}
 
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}

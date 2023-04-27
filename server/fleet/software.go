@@ -135,3 +135,26 @@ type UpdateHostSoftwareDBResult struct {
 	// What software was inserted
 	Inserted []Software
 }
+
+// CurrInstalled returns all software that should be currently installed on the host by looking at
+// was currently installed, removing anything that was deleted and adding anything that was inserted
+func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
+	var r []Software
+
+	deleteMap := map[uint]struct{}{}
+	for _, d := range uhsdbr.Deleted {
+		deleteMap[d.ID] = struct{}{}
+	}
+
+	for _, c := range uhsdbr.WasCurrInstalled {
+		if _, ok := deleteMap[c.ID]; !ok {
+			r = append(r, c)
+		}
+	}
+
+	for _, i := range uhsdbr.Inserted {
+		r = append(r, i)
+	}
+
+	return r
+}

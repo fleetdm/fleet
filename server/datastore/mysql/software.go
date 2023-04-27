@@ -80,16 +80,20 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
 	reported map[string]struct{},
+	mutationResults *fleet.UpdateHostSoftwareDBResult,
 ) error {
-	stored, err := ds.getHostSoftwareWithInstalledPaths(ctx, hostID)
+	currS := mutationResults.CurrInstalled()
+
+	hsip, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
 	if err != nil {
 		return err
 	}
 
-	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, stored)
+	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS)
 	if err != nil {
 		return err
 	}
+
 	if len(toI) == 0 && len(toD) == 0 {
 		// Nothing to do ...
 		return nil
@@ -108,72 +112,70 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
-func (ds *Datastore) getHostSoftwareWithInstalledPaths(
+func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
 ) (
-	map[string]fleet.HostSoftwareInstalledPath,
+	[]fleet.HostSoftwareInstalledPath,
 	error,
 ) {
-	// This query needs to include all columns used in 'ToUniqueStr' method
 	stmt := `
-		SELECT
-			s.id,
-			s.name,
-			s.version,
-			s.source,
-			s.bundle_identifier,
-			s.release,
-			s.vendor,
-			s.arch,
-			COALESCE(hsip.installed_path, '') AS installed_path
-		FROM software s
-			INNER JOIN host_software hs ON hs.host_id = ? AND hs.software_id = s.id
-			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = ? AND s.id = hsip.software_id
-		ORDER BY s.id
+		SELECT t.id, t.host_id, t.software_id, t.installed_path
+		FROM host_software_installed_paths t
+		WHERE t.host_id = ?
 	`
-	args := []interface{}{hostID, hostID}
 
-	var qResult []struct {
-		fleet.Software
-		InstalledPath string `db:"installed_path"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &qResult, stmt, args...); err != nil {
+	var result []fleet.HostSoftwareInstalledPath
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, stmt, hostID); err != nil {
 		return nil, err
 	}
 
-	result := make(map[string]fleet.HostSoftwareInstalledPath, len(qResult))
-	for _, s := range qResult {
-		result[s.ToUniqueStr()] = fleet.HostSoftwareInstalledPath{
-			HostID:        hostID,
-			SoftwareID:    s.ID,
-			InstalledPath: s.InstalledPath,
-		}
-	}
 	return result, nil
 }
 
+// hostSoftwareInstalledPathsDelta returns what should be inserted and deleted to keep the
+// 'host_software_installed_paths' table in-sync with the osquery reported query results.
+// 'reported' is a set of 'installed_path-software.UniqueStr' strings, built from the osquery
+// results.
+// 'stored' contains all 'host_software_installed_paths' rows for the given host.
+// 'hostSoftware' contains the current software installed on the host.
 func hostSoftwareInstalledPathsDelta(
 	hostID uint,
 	reported map[string]struct{},
-	stored map[string]fleet.HostSoftwareInstalledPath,
+	stored []fleet.HostSoftwareInstalledPath,
+	hostSoftware []fleet.Software,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
-	toDelete []fleet.HostSoftwareInstalledPath,
+	toDelete []uint,
 	err error,
 ) {
-	// Anything stored but not reported should be deleted
-	for unqStr, entry := range stored {
-		key := fmt.Sprintf("%s%s%s", entry.InstalledPath, fleet.SoftwareFieldSeparator, unqStr)
+	sLookup := map[uint]fleet.Software{}
+	for _, s := range hostSoftware {
+		sLookup[s.ID] = s
+	}
+
+	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
+	for _, r := range stored {
+		s, ok := sLookup[r.SoftwareID]
+		// Software currently not found on the host, should be deleted ...
+		if !ok {
+			toDelete = append(toDelete, r.ID)
+			continue
+		}
+
+		key := fmt.Sprintf("%s%s%s", r.InstalledPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		iSPathLookup[key] = r
+
+		// Anything stored but not reported should be deleted
 		if _, ok := reported[key]; !ok {
-			toDelete = append(toDelete, entry)
+			toDelete = append(toDelete, r.ID)
 		}
 	}
 
 	for key := range reported {
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 2)
 		sPath, unqStr := parts[0], parts[1]
-		entry, ok := stored[unqStr]
+		entry, ok := iSPathLookup[key]
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table
 		// because this should be executing after 'ds.UpdateHostSoftware'
@@ -202,22 +204,15 @@ func hostSoftwareInstalledPathsDelta(
 func deleteHostSoftwareInstalledPaths(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	toDelete []fleet.HostSoftwareInstalledPath,
+	toDelete []uint,
 ) error {
-	ids := make(map[uint][]uint)
-	for _, v := range toDelete {
-		ids[v.HostID] = append(ids[v.HostID], v.SoftwareID)
+	stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
+	stmt, args, err := sqlx.In(stmt, toDelete)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
 	}
-
-	for hostID, softwareIDs := range ids {
-		stmt := `DELETE FROM host_software_installed_paths WHERE host_id = ? AND software_id IN (?);`
-		stmt, args, err := sqlx.In(stmt, hostID, softwareIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
-		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
-		}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
 	}
 
 	return nil

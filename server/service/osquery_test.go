@@ -1299,7 +1299,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{}) error {
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 		return nil
 	}
 
