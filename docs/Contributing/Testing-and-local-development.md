@@ -608,17 +608,31 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 
 ##### Gating the DEP profile behind SSO
 
-To gate DEP enrollments behind SSO, you can use the same configuration values as those described in [Testing SSO](#testing-sso):
+For rapid iteration during local development, you can use the same configuration values as those described in [Testing SSO](#testing-sso), and test the flow in the browser by navigating to `https://localhost:8080/mdm/sso`.
+
+To fully test e2e during DEP enrollment however, you need:
+
+- A local tunnel to your Fleet server (instructions to set your tunnel are in the [running the server](#running-the-server) section)
+- A local tunnel to your local IdP server (or, optionally create an account in a cloud IdP like Okta)
+
+With an accessible Fleet server and IdP server, you can configure your env:
+
+- If you're going to use the SimpleSAML server that is automatically started in local development, edit [./tools/saml/config.php](https://github.com/fleetdm/fleet/blob/6cfef3d3478f02227677071fe3a62bada77c1139/tools/saml/config.php) and replace `https://localhost:8080` everywhere with the URL of your local tunnel.
+- After saving the file, restart the SimpleSAML service (eg: `docker-compose restart saml_idp`)
+- Finally, edit your app configuration:
 
 ```yaml
 mdm:
   end_user_authentication:
-    entity_id: https://localhost:8080
+    entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: http://localhost:9080/simplesaml/saml2/idp/SSOService.php
-    metadata: ""
-    metadata_url: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
+    metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
+
+> Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
+
+The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
 
 ### Nudge
 
