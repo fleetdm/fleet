@@ -12,10 +12,11 @@ func Up_20230426152918(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE host_software_installed_paths
 		(
-			id             BIGINT PRIMARY KEY,
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			host_id        INT    UNSIGNED NOT NULL,
 			software_id    BIGINT UNSIGNED NOT NULL,
 			installed_path TEXT            NOT NULL,
+			PRIMARY KEY (id),
 			KEY host_id_software_id_idx (host_id, software_id)
 		)
 	`)
