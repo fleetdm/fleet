@@ -7,6 +7,7 @@ import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import Button from "components/buttons/Button/Button";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import EmptyTable from "components/EmptyTable";
 
 import MAC_OS_SETUP_NAV_ITEMS from "./MacOSSetupNavItems";
 
@@ -18,17 +19,19 @@ interface ISetupEmptyState {
 
 const SetupEmptyState = ({ router }: ISetupEmptyState) => {
   const onClickEmptyConnect = () => {
-    router.push(PATHS.CONTROLS_MAC_SETTINGS);
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   return (
-    <div className={`${baseClass}__empty-state`}>
-      <h2>Setup experience for macOS hosts</h2>
-      <p>Connect Fleet to the Apple Business Manager to get started.</p>
-      <Button variant="brand" onClick={onClickEmptyConnect}>
-        Connect
-      </Button>
-    </div>
+    <EmptyTable
+      header="Setup experience for macOS hosts"
+      info="Connect Fleet to the Apple Business Manager to get started."
+      primaryButton={
+        <Button variant="brand" onClick={onClickEmptyConnect}>
+          Connect
+        </Button>
+      }
+    />
   );
 };
 
@@ -56,7 +59,6 @@ const MacOSSetup = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  // TODO: uncomment when API done
   if (!config?.mdm.apple_bm_enabled_and_configured) {
     return <SetupEmptyState router={router} />;
   }
