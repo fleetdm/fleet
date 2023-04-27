@@ -87,6 +87,7 @@ const SiteTopNav = ({
     isAnyTeamMaintainer,
     isNoAccess,
     isMdmEnabledAndConfigured, // TODO: confirm
+    isSandboxMode,
   } = useContext(AppContext);
 
   const isActiveDetailPage = isDetailPage(currentPath);
@@ -213,6 +214,7 @@ const SiteTopNav = ({
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}
+          isSandboxMode={isSandboxMode}
         />
       </div>
     );
