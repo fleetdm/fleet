@@ -215,6 +215,10 @@ func deleteHostSoftwareInstalledPaths(
 	tx sqlx.ExtContext,
 	toDelete []uint,
 ) error {
+	if len(toDelete) == 0 {
+		return nil
+	}
+
 	stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
 	stmt, args, err := sqlx.In(stmt, toDelete)
 	if err != nil {
@@ -232,6 +236,10 @@ func insertHostSoftwareInstalledPaths(
 	tx sqlx.ExtContext,
 	toInsert []fleet.HostSoftwareInstalledPath,
 ) error {
+	if len(toInsert) == 0 {
+		return nil
+	}
+
 	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES %s"
 	batchSize := 500
 
