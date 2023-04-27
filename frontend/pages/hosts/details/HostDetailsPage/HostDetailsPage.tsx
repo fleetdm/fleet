@@ -5,7 +5,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { RouteProps } from "react-router";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -65,6 +64,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
+import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 
 const baseClass = "host-details";
 
@@ -149,6 +149,9 @@ const HostDetailsPage = ({
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -417,6 +420,10 @@ const HostDetailsPage = ({
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
 
+  const toggleBootstrapPackageModal = useCallback(() => {
+    setShowBootstrapPackageModal(!showBootstrapPackageModal);
+  }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -575,8 +582,6 @@ const HostDetailsPage = ({
   if (isLoadingHost) {
     return <Spinner />;
   }
-
-  const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
@@ -646,6 +651,12 @@ const HostDetailsPage = ({
     !isGlobalOrHostsTeamObserverPlus &&
     !isHostsTeamObserver;
 
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup.bootstrap_package_status,
+    details: host?.mdm.macos_setup.details,
+    name: host?.mdm.macos_setup.bootstrap_package_name,
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -672,14 +683,15 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          statusClassName={statusClassName}
           titleData={titleData}
           diskEncryption={hostDiskEncryption}
+          bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
-          hostMacSettings={host?.mdm.profiles}
+          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+          hostMacSettings={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -807,7 +819,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}
@@ -820,6 +832,15 @@ const HostDetailsPage = ({
             onCancel={() => setShowDiskEncryptionModal(false)}
           />
         )}
+        {showBootstrapPackageModal &&
+          bootstrapPackageData.details &&
+          bootstrapPackageData.name && (
+            <BootstrapPackageModal
+              packageName={bootstrapPackageData.name}
+              details={bootstrapPackageData.details}
+              onClose={() => setShowBootstrapPackageModal(false)}
+            />
+          )}
       </div>
     </MainContent>
   );
