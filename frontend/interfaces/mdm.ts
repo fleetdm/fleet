@@ -110,3 +110,7 @@ export interface IMdmScript {
   created_at: string;
   updated_at: string;
 }
+
+export interface IMdmSSOReponse {
+  url: string;
+}
