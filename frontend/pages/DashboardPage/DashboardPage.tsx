@@ -285,7 +285,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     Error
   >(
     [`mdm-${selectedPlatform}`, teamIdForApi],
-    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi), // TODO: confirm
+    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
     {
       enabled: isRouteOk && selectedPlatform !== "linux",
       onSuccess: ({
@@ -395,15 +395,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: true,
     children: (
       <HostsSummary
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        labels={labels}
         errorHosts={!!errorHosts}
       />
     ),
@@ -431,7 +429,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
   // collecting inventory
   const isCollectingInventory =
-    !isAnyTeamSelected && // TODO: confirm
+    !isAnyTeamSelected &&
     !softwarePageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -444,7 +442,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
       />
     ),
   });
@@ -458,7 +456,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
       />
     ),
   });
@@ -639,7 +637,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     return (
       <AddHostsModal
-        currentTeamName={currentTeamName} // TODO: confirm
+        currentTeamName={currentTeamName}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
