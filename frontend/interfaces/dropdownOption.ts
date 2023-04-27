@@ -8,6 +8,7 @@ export default PropTypes.shape({
 
 export interface IDropdownOption {
   disabled: boolean;
-  label: string;
+  label: string | JSX.Element;
   value: string | number;
+  premiumOnly?: boolean;
 }

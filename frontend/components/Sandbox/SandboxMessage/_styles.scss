@@ -1,15 +1,14 @@
-.sandbox-demo-message {
+.sandbox-message {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   width: 350px;
-  margin: auto;
+  margin: $pad-xxlarge auto;
 
   &__message {
     font-size: $small;
     font-weight: $bold;
-    margin: 0 0 $pad-large;
   }
 
   &__link-message {

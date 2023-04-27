@@ -583,8 +583,14 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier, currentTeamId),
-    [isPremiumTier, router, currentTeamId]
+    () =>
+      generateSoftwareTableHeaders(
+        router,
+        isPremiumTier,
+        isSandboxMode,
+        currentTeamId
+      ),
+    [isPremiumTier, isSandboxMode, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -623,6 +629,7 @@ const ManageSoftwarePage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&

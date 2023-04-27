@@ -21,7 +21,7 @@ export default {
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
   ADMIN_SETTINGS_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
   ADMIN_SETTINGS_SSO: `${URL_PREFIX}/settings/organization/sso`,

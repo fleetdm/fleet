@@ -86,4 +86,20 @@ describe("Vulnerabilities", () => {
     expect(screen.queryByText("Critical", { exact: false })).toBeNull();
     expect(screen.queryByText("ago", { exact: false })).toBeNull();
   });
+
+  // Test for premium icons on column headers in Sandbox mode
+  it("Renders 4 'Premium feature' tooltips when in premium tier Sandbox mode", () => {
+    render(
+      <Vulnerabilities
+        isLoading={false}
+        isPremiumTier
+        isSandboxMode
+        software={mockSoftwareWithVuln}
+      />
+    );
+
+    expect(
+      screen.getAllByText("This is a Fleet Premium feature.", { exact: false })
+    ).toHaveLength(4);
+  });
 });
