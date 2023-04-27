@@ -53,6 +53,7 @@ go.mod @fleetdm/go
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
 /website/views/pages/pricing.ejs @mikermcneil
+/handbook/product/pricing-features-table.yml @mikermcneil
 
 # Website redirects and URLs
 /website/config/routes.js @mikermcneil @eashaw
