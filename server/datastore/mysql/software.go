@@ -149,14 +149,25 @@ func hostSoftwareInstalledPathsDelta(
 	toDelete []uint,
 	err error,
 ) {
-	sLookup := map[uint]fleet.Software{}
+	if len(reported) != 0 && len(hostSoftware) == 0 {
+		// Error condition, something reported implies that the host has some software
+		err = fmt.Errorf("software installed paths for host %d were reported but host contains no software", hostID)
+		return
+	}
+
+	sIDLookup := map[uint]fleet.Software{}
 	for _, s := range hostSoftware {
-		sLookup[s.ID] = s
+		sIDLookup[s.ID] = s
+	}
+
+	sUnqStrLook := map[string]fleet.Software{}
+	for _, s := range hostSoftware {
+		sUnqStrLook[s.ToUniqueStr()] = s
 	}
 
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
 	for _, r := range stored {
-		s, ok := sLookup[r.SoftwareID]
+		s, ok := sIDLookup[r.SoftwareID]
 		// Software currently not found on the host, should be deleted ...
 		if !ok {
 			toDelete = append(toDelete, r.ID)
@@ -174,28 +185,26 @@ func hostSoftwareInstalledPathsDelta(
 
 	for key := range reported {
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 2)
-		sPath, unqStr := parts[0], parts[1]
-		entry, ok := iSPathLookup[key]
+		iSPath, unqStr := parts[0], parts[1]
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table
-		// because this should be executing after 'ds.UpdateHostSoftware'
+		// because this executes after 'ds.UpdateHostSoftware'
+		s, ok := sUnqStrLook[unqStr]
 		if !ok {
 			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
 			return
 		}
 
-		if entry.InstalledPath == sPath {
+		if _, ok := iSPathLookup[key]; ok {
 			// Nothing to do
 			continue
 		}
 
-		if entry.InstalledPath != sPath {
-			toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-				HostID:        hostID,
-				SoftwareID:    entry.SoftwareID,
-				InstalledPath: sPath,
-			})
-		}
+		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
+			HostID:        hostID,
+			SoftwareID:    s.ID,
+			InstalledPath: iSPath,
+		})
 	}
 
 	return
