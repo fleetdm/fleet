@@ -1,8 +1,8 @@
 # CEO handbook
-This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
+This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant (Tee) collaborates with the CEO. 
 
 ## The CEO support team
-### EA to the CEO
+### EA to the CEO - Tee Lucas
 
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
@@ -18,28 +18,28 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 
 ## CEO preferences
 ### Scheduling with the CEO
->Reach out to the EA to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
->All meetings on Mike's calendar should be scheduled and vetted by the EA to the CEO. 
->- Please do not directly schedule a meeting onto Mike's calendar without confirming with the EA to the CEO in advance or unless requested directly from Mike.
+>Reach out to the EA to the CEO (Tee Lucas) in `#-meetings` with the required details to book a meeting with the CEO. 
+>All meetings on Mike's calendar should be scheduled and vetted by the EA to the CEO (Tee Lucas)
+>- Please do not directly schedule a meeting onto Mike's calendar without confirming with the EA to the CEO (Tee Lucas) in advance or unless requested directly from Mike.
 >- The CEO requires meetings to originate from his calendar and on his Zoom account.
 
-Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the EA to the CEO with your rationale for an exception. 
+Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the EA to the CEO (Tee Lucas) with your rationale for an exception. 
  - If Mike agrees to a meeting at 9 am or earlier, please schedule a block on his calendar on the previous day reminding him that he has a meeting before 9 am Central the following day.
 
 Morning times should be held for team members and external folks whose timezones make it harder for them to meet later in the day.
- - The EA to the CEO will confirm that recipients have accepted invites. 
- - If a recipient has not accepted, the EA to the CEO will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
+ - The EA to the CEO (Tee Lucas) will confirm that recipients have accepted invites. 
+ - If a recipient has not accepted, the EA to the CEO (Tee Lucas) will reach out to confirm attendance at least 24 hours before the meeting is scheduled to begin.
 
-Don't schedule over the Weekly E-group call unless approved by Mike.
+Don't schedule over the Weekly E-group call unless approved by Mike/ EA to CEO
  - Refer to Mike's list of priorities in the [Priority calls](https://docs.google.com/document/d/1kYbRUMiGgOtrl1Lh6HWRc64p3rLhwvgTZD6CSONbGEo/edit#) (internal doc). 
 
 All holds on Mike's calendar need a reason so he can judge when the hold might no longer apply.
 
 Meeting agendas should be added to the calendar invite by copying and pasting the link in the top of the calendar invite description in this format: "Agenda:link".
 
-Sales meetings are important. If the CEO can help the process, feel free to include him in the meeting by working with the EA to CEO on this. 
+Sales meetings are important. If the CEO can help the process, feel free to include him in the meeting by working with the EA to CEO  (Tee Lucas)on this. 
  - Please include the sales rep and solutions architect in this meeting. 
- - The person requesting the meeting should provide an agenda document to the EA at the time of their request to schedule.
+ - The person requesting the meeting should provide an agenda document to the EA (Tee Lucas) at the time of their request to schedule.
 
 Last minute changes or cancellations should be communicated to Mike via DM rather than public Slack messages or messages in a thread. 
  - If there is additional context to share, you can cross-post another Slack message as part of your DM.
@@ -73,7 +73,7 @@ Keeping up with Slack is tough enough, even more so if you’re the CEO. That’
 
 - Non-urgent
   - "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
-  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
+  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Tee Lucas monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
 - Urgent
   - “Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
 - Emergency
@@ -96,7 +96,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 > DISCUSS -mike, 2023-03
 
-Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month Tee will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -112,19 +112,19 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. Tee will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
   3. Context that helps the CEO to understand the purpose of meeting at a glance
   4. Share the document with meeting participants
 
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the `#-meetings` channel.**
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Tee in the `#-meetings` channel.**
 
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
 ### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee Lucas) completes four parts while constructing the associated document. 
  - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
  - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
  - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
@@ -135,7 +135,7 @@ The day before the meeting, Mike will prepare the "Vision" section of the origin
 
 ### Investor and advisor updates
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+  - Tee tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
 
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
@@ -154,7 +154,7 @@ Whereas agendas are good when it's all about action items / decisions / discussi
 ## Tasks as assigned
 
 ### Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask Tee to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.
