@@ -100,7 +100,7 @@ func (s *store) Fullfill(requestID string) (*Session, *Metadata, error) {
 		return nil, nil, fmt.Errorf("sso request invalid: %w", err)
 	}
 
-	// Remove session to so that is can't be reused before it expires.
+	// Remove session so that it can't be reused before it expires.
 	err = s.expire(requestID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("remove sso request: %w", err)
