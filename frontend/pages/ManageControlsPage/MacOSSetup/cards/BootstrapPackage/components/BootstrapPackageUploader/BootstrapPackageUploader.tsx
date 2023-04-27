@@ -60,7 +60,7 @@ const BootstrapPackageUploader = ({
         (ex. Munki, Chef, or Puppet) on hosts that automatically enroll to
         Fleet.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package"
           text="Learn more"
           newTab
         />

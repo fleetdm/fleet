@@ -492,7 +492,7 @@ describe("Activity Feed", () => {
   it("renders a 'added_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
-      details: { package_name: "foo.pkg", team_name: "Alphas" },
+      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
@@ -514,7 +514,7 @@ describe("Activity Feed", () => {
   it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
-      details: { package_name: "foo.pkg", team_name: "Alphas" },
+      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
@@ -536,7 +536,7 @@ describe("Activity Feed", () => {
   it("renders a 'added_bootstrap_package' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
-      details: { package_name: "foo.pkg" },
+      details: { bootstrap_package_name: "foo.pkg" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
@@ -555,7 +555,7 @@ describe("Activity Feed", () => {
   it("renders a 'deleted_bootstrap_package' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
-      details: { package_name: "foo.pkg" },
+      details: { bootstrap_package_name: "foo.pkg" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
