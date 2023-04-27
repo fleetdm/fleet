@@ -98,7 +98,7 @@ interface IRowProps extends Row {
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_PAGE_SIZE = 401;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
