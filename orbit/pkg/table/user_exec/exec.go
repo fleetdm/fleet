@@ -1,5 +1,8 @@
 // build +darwin
-
+// Package user_exec provides a generic way to run osquery as a user on macOS.
+// Some built-in osquery tables (e.g. screenlock) will only provide data for the
+// current user, which generally means "root" in fleet. This often isn't useful,
+// since root should never be used in the gui on macOS.
 package user_exec
 
 import (
