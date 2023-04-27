@@ -242,6 +242,7 @@ SELECT
     updated_at
 FROM
     mdm_apple_enrollment_profiles
+ORDER BY created_at DESC
 `,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
