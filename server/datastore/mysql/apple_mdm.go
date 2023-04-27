@@ -242,6 +242,7 @@ SELECT
     updated_at
 FROM
     mdm_apple_enrollment_profiles
+ORDER BY created_at DESC
 `,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
@@ -1525,16 +1526,16 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	sqlFmt := `
 SELECT
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS failed,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
-        END) AS pending, 
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS pending,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS verifying
 FROM
     hosts h
@@ -1677,7 +1678,7 @@ SELECT
             THEN 1
         END) AS action_required,
     COUNT(
-        CASE WHEN EXISTS (%s) 
+        CASE WHEN EXISTS (%s)
             THEN 1
         END) AS enforcing,
     COUNT(
@@ -1823,7 +1824,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
 }
 
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
-	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?) 
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)
         ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
 	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
@@ -1832,12 +1833,13 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 	stmt := `
 SELECT
-    CASE 
+    CASE
         WHEN ncr.status = 'Acknowledged' THEN ?
         WHEN ncr.status = 'Error' THEN ?
-        ELSE ? 
+        ELSE ?
     END AS bootstrap_package_status,
-    COALESCE(ncr.result, '') AS result
+    COALESCE(ncr.result, '') AS result,
+		mabs.name AS bootstrap_package_name
 FROM
     hosts h
 JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -1846,6 +1848,8 @@ LEFT JOIN nano_command_results ncr ON
     ncr.command_uuid = hmabp.command_uuid
 JOIN host_mdm hm ON
     hm.host_id = h.id
+JOIN mdm_apple_bootstrap_packages mabs ON
+		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
     h.id = ? AND hm.installed_from_dep = 1`
 

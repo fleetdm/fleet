@@ -14,18 +14,18 @@ const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect width="17" height="17" fill="#E5E5E5" />
+      <rect width="17" height="17" fill="none" />
       <rect
         width="1400"
         height="880"
         transform="translate(-664 -401)"
-        fill="white"
+        fill="none"
       />
       <rect
         width="1400"
         height="830"
         transform="translate(-664 -351)"
-        fill="white"
+        fill="none"
       />
       <g clipPath="url(#clip0_11687_321888)">
         <mask id="path-1-inside-1_11687_321888" fill="white">

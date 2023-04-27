@@ -29,7 +29,7 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func TestDeviceClientGetDesktopPayload(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", true, "")
+	client, err := NewDeviceClient("https://test.com", true, "", nil, "")
 	token := "test_token"
 	require.NoError(t, err)
 

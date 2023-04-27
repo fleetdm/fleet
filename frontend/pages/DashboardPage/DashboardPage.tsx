@@ -45,6 +45,7 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import SandboxGate from "components/Sandbox/SandboxGate";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -82,7 +83,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isPremiumTier,
-    isFreeTier,
     isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
@@ -285,7 +285,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     Error
   >(
     [`mdm-${selectedPlatform}`, teamIdForApi],
-    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi), // TODO: confirm
+    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
     {
       enabled: isRouteOk && selectedPlatform !== "linux",
       onSuccess: ({
@@ -395,15 +395,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: true,
     children: (
       <HostsSummary
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        labels={labels}
         errorHosts={!!errorHosts}
       />
     ),
@@ -431,7 +429,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
   // collecting inventory
   const isCollectingInventory =
-    !isAnyTeamSelected && // TODO: confirm
+    !isAnyTeamSelected &&
     !softwarePageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -444,7 +442,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -458,7 +457,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -489,6 +489,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -545,24 +546,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM)",
-    titleDetail: mdmTitleDetail,
-    showTitle: !isMacAdminsFetching,
-    description: (
-      <p>MDM is used to change settings and install software on your hosts.</p>
-    ),
-    children: (
-      <Mdm
-        isFetching={isMdmFetching}
-        error={errorMdm}
-        mdmStatusData={mdmStatusData}
-        mdmSolutions={mdmSolutions}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        selectedTeamId={currentTeamId}
-      />
-    ),
-  });
+  const MDMCard = (
+    <SandboxGate>
+      {useInfoCard({
+        title: "Mobile device management (MDM)",
+        titleDetail: mdmTitleDetail,
+        showTitle: !isMacAdminsFetching,
+        description: (
+          <p>
+            MDM is used to change settings and install software on your hosts.
+          </p>
+        ),
+        children: (
+          <Mdm
+            isFetching={isMdmFetching}
+            error={errorMdm}
+            mdmStatusData={mdmStatusData}
+            mdmSolutions={mdmSolutions}
+            selectedPlatformLabelId={selectedPlatformLabelId}
+            selectedTeamId={currentTeamId}
+          />
+        ),
+      })}
+    </SandboxGate>
+  );
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
@@ -639,7 +646,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     return (
       <AddHostsModal
-        currentTeamName={currentTeamName} // TODO: confirm
+        currentTeamName={currentTeamName}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
@@ -649,6 +656,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
+  const renderDashboardHeader = () => {
+    if (isPremiumTier) {
+      if (userTeams) {
+        if (userTeams.length > 1 || isOnGlobalTeam) {
+          return (
+            <TeamsDropdown
+              selectedTeamId={currentTeamId}
+              currentUserTeams={userTeams}
+              onChange={handleTeamChange}
+              isSandboxMode={isSandboxMode}
+            />
+          );
+        }
+        if (userTeams.length === 1) {
+          return <h1>{userTeams[0].name}</h1>;
+        }
+      }
+      // userTeams.length should have at least 1 element
+      return null;
+    }
+    // Free tier
+    return <h1>{config?.org_info.org_name}</h1>;
+  };
   return !isRouteOk ? (
     <Spinner />
   ) : (
@@ -657,20 +687,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
-              {isPremiumTier &&
-                userTeams &&
-                (userTeams.length > 1 || isOnGlobalTeam) && (
-                  <TeamsDropdown
-                    selectedTeamId={currentTeamId}
-                    currentUserTeams={userTeams}
-                    onChange={handleTeamChange}
-                  />
-                )}
-              {isPremiumTier &&
-                !isOnGlobalTeam &&
-                userTeams &&
-                userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+              {renderDashboardHeader()}
             </div>
           </div>
         </div>
