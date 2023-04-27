@@ -51,6 +51,7 @@ import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/Membe
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
+import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 
 import PATHS from "router/paths";
 
@@ -173,6 +174,8 @@ const routes = (
               <Route path="mac-os-updates" component={MacOSUpdates} />
               <Route path="mac-settings" component={MacOSSettings} />
               <Route path="mac-settings/:section" component={MacOSSettings} />
+              <Route path="mac-setup" component={MacOSSetup} />
+              <Route path="mac-setup/:section" component={MacOSSetup} />
             </Route>
           </Route>
 

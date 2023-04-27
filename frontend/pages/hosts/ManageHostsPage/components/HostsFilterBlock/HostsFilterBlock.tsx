@@ -8,6 +8,7 @@ import {
 } from "interfaces/operating_system";
 import {
   FileVaultProfileStatus,
+  BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
 } from "interfaces/mdm";
@@ -25,14 +26,16 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 
+import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
+
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
+import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
+import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../../assets/images/icon-trash-14x14@2x.png";
 import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
-import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 
 const baseClass = "hosts-filter-block";
 
@@ -62,6 +65,7 @@ interface IHostsFilterBlockProps {
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
     diskEncryptionStatus?: FileVaultProfileStatus;
+    bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -70,6 +74,9 @@ interface IHostsFilterBlockProps {
   onChangePoliciesFilter: (response: PolicyResponse) => void;
   onChangeDiskEncryptionStatusFilter: (
     response: FileVaultProfileStatus
+  ) => void;
+  onChangeBootstrapPackageStatusFilter: (
+    response: BootstrapPackageStatus
   ) => void;
   onChangeMacSettingsFilter: (
     newMacSettingsStatus: MacSettingsStatusQueryParam
@@ -101,6 +108,7 @@ const HostsFilterBlock = ({
     policy,
     mdmSolutionDetails,
     diskEncryptionStatus,
+    bootstrapPackageStatus,
   },
   selectedLabel,
   isOnlyObserver,
@@ -108,6 +116,7 @@ const HostsFilterBlock = ({
   handleClearFilter,
   onChangePoliciesFilter,
   onChangeDiskEncryptionStatusFilter,
+  onChangeBootstrapPackageStatusFilter,
   onChangeMacSettingsFilter,
   onClickEditLabel,
   onClickDeleteLabel,
@@ -372,6 +381,23 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderBootstrapPackageStatusBlock = () => {
+    if (!bootstrapPackageStatus) return null;
+
+    return (
+      <>
+        <BootstrapPackageStatusFilter
+          bootstrapPackageStatus={bootstrapPackageStatus}
+          onChange={onChangeBootstrapPackageStatusFilter}
+        />
+        <FilterPill
+          label="macOS settings: bootstrap package"
+          onClear={() => handleClearFilter(["bootstrap_package"])}
+        />
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -385,7 +411,8 @@ const HostsFilterBlock = ({
     osId ||
     (osName && osVersion) ||
     munkiIssueId ||
-    diskEncryptionStatus
+    diskEncryptionStatus ||
+    bootstrapPackageStatus
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -430,6 +457,8 @@ const HostsFilterBlock = ({
           return renderLowDiskSpaceFilterBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();
+        case !!bootstrapPackageStatus:
+          return renderBootstrapPackageStatusBlock();
         default:
           return null;
       }
