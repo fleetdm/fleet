@@ -826,6 +826,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
+| Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 
 
 
