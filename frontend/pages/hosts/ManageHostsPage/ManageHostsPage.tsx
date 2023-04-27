@@ -49,7 +49,7 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { FileVaultProfileStatus } from "interfaces/mdm";
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
@@ -248,6 +248,8 @@ const ManageHostsPage = ({
   const missingHosts = queryParams?.status === "missing";
   const diskEncryptionStatus: FileVaultProfileStatus | undefined =
     queryParams?.macos_settings_disk_encryption;
+  const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
+    queryParams?.bootstrap_package;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -378,6 +380,7 @@ const ManageHostsPage = ({
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -413,6 +416,7 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -553,11 +557,12 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           policy_id: policyId,
           policy_response: response,
           page: 0, // resets page index
-        }),
+        },
       })
     );
   };
@@ -572,10 +577,26 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           macos_settings_disk_encryption: newStatus,
           page: 0, // resets page index
-        }),
+        },
+      })
+    );
+  };
+
+  const handleChangeBootstrapPackageStatusFilter = (
+    newStatus: BootstrapPackageStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, bootstrap_package: newStatus },
       })
     );
   };
@@ -758,6 +779,8 @@ const ManageHostsPage = ({
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+      } else if (bootstrapPackageStatus && isPremiumTier) {
+        newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }
 
       router.replace(
@@ -794,6 +817,7 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       diskEncryptionStatus,
+      bootstrapPackageStatus,
     ]
   );
 
@@ -1561,6 +1585,7 @@ const ManageHostsPage = ({
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
               diskEncryptionStatus,
+              bootstrapPackageStatus,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1569,6 +1594,9 @@ const ManageHostsPage = ({
             onChangePoliciesFilter={handleChangePoliciesFilter}
             onChangeDiskEncryptionStatusFilter={
               handleChangeDiskEncryptionStatusFilter
+            }
+            onChangeBootstrapPackageStatusFilter={
+              handleChangeBootstrapPackageStatusFilter
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}

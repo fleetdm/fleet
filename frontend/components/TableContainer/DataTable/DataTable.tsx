@@ -54,6 +54,7 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -96,6 +97,7 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   disableHighlightOnHover,
   searchQuery,
@@ -219,7 +221,7 @@ const DataTable = ({
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds } = tableState;
+  const { sortBy, selectedRowIds, pageIndex } = tableState;
 
   useEffect(() => {
     if (tableFilters) {
@@ -575,14 +577,22 @@ const DataTable = ({
           <div className={`${baseClass}__pagination`}>
             <Button
               variant="unstyled"
-              onClick={() => previousPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
               disabled={!canPreviousPage}
             >
               {previousButton}
             </Button>
             <Button
               variant="unstyled"
-              onClick={() => nextPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
               disabled={!canNextPage}
             >
               {nextButton}

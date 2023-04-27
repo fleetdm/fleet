@@ -38,6 +38,7 @@
     - [Testing MDM](#testing-mdm)
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
+        - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
 
 ## License key
@@ -604,6 +605,20 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
 3. Boot the machine, it should automatically enroll into MDM.
+
+##### Gating the DEP profile behind SSO
+
+To gate DEP enrollments behind SSO, you can use the same configuration values as those described in [Testing SSO](#testing-sso):
+
+```yaml
+mdm:
+  end_user_authentication:
+    entity_id: https://localhost:8080
+    idp_name: SimpleSAML
+    issuer_uri: http://localhost:9080/simplesaml/saml2/idp/SSOService.php
+    metadata: ""
+    metadata_url: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+```
 
 ### Nudge
 

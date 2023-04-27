@@ -98,4 +98,41 @@ export default {
       team_id: teamId,
     });
   },
+
+  initiateMDMAppleSSO: () => {
+    const { MDM_APPLE_SSO } = endpoints;
+    return sendRequest("POST", MDM_APPLE_SSO, {});
+  },
+
+  getBootstrapPackageMetadata: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
+
+    return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
+  },
+
+  uploadBootstrapPackage: (file: File, teamId?: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+
+    const formData = new FormData();
+    formData.append("package", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
+  },
+  deleteBootstrapPackage: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+    return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
+  },
+  getBootstrapPackageAggregate: (teamId?: number) => {
+    let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
 };

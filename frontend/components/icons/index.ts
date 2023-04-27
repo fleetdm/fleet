@@ -54,6 +54,7 @@ import FilePython from "./FilePython";
 import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
+import FilePkg from "./FilePkg";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -107,6 +108,7 @@ export const ICON_MAP = {
   "file-python": FilePython,
   "file-zsh": FileZsh,
   "file-bash": FileBash,
+  "file-pkg": FilePkg,
   "file-generic": FileGeneric,
   refresh: Refresh,
 };

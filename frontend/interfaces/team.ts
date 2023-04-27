@@ -52,6 +52,9 @@ export interface ITeam extends ITeamSummary {
       custom_settings: null; // TODO: types?
       enable_disk_encryption: boolean;
     };
+    macos_setup: {
+      bootstrap_package: string | null;
+    };
   };
 }
 

@@ -4,7 +4,16 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 > WARNING: All of these scripts are for testing only, they are not safe for production use.
 
-# Setup and Run
+# Setup
+
+1. The script is executed on a macOS host.
+2. Fleet server also running on the same macOS host.
+3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
+
+> PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
+> has such hostname (and `localhost`) defined as SANs.
+
+# Run
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
@@ -23,18 +32,11 @@ GENERATE_RPM=1 \
 GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
-FLEET_CERTIFICATE=1 \
+USE_FLEET_SERVER_CERTIFICATE=1 \
 ./tools/tuf/test/main.sh
 ```
 
-Separate `*_FLEET_URL` and `*_TUF_URL` variables are needed for each package to support different setups.
-E.g. The values shown above assume:
-1. The script is executed on a macOS host.
-2. Fleet server also running on the same macOS host.
-3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
-
-> PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
-> has such hostname (and `localhost`) defined as SANs.
+> Separate `*_FLEET_URL` and `*_TUF_URL` variables are defined for each package type to support different setups.
 
 # Add new updates
 
