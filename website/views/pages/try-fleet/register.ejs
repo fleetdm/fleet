@@ -12,7 +12,7 @@
         <p class="mb-0">Interested in testing Fleet’s MDM capabilities? <a target="_blank" href="https://calendly.com/d/ykd-hqy-p7t/chat-with-fleet">Meet with us to learn more</a></p>
       </div>
       <div class="pt-3">
-        <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
+        <ajax-form :handle-submitting="handleSubmittingRegisterForm" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
             <div class="d-flex flex-row">
               <div class="d-flex flex-column mr-2">
