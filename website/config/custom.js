@@ -186,6 +186,7 @@ module.exports.custom = {
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+  // datadogApiKey: '…',
 
   //…
 
