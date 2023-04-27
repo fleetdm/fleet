@@ -68,6 +68,7 @@ const ManageControlsPage = ({
     isOnGlobalTeam,
     isPremiumTier,
     isGlobalAdmin,
+    isSandboxMode,
   } = useContext(AppContext);
 
   const {
@@ -172,6 +173,7 @@ const ManageControlsPage = ({
                         onChange={handleTeamChange}
                         includeAll={false}
                         includeNoTeams
+                        isSandboxMode={isSandboxMode}
                       />
                     )}
                   {isPremiumTier &&

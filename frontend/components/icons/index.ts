@@ -2,6 +2,7 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import CriticalPolicy from "./CriticalPolicy";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
@@ -28,8 +29,6 @@ import Linux from "./Linux";
 import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
-
-import Policy from "./Policy";
 
 // Encircled
 import ApplePurple from "./ApplePurple";
@@ -63,6 +62,7 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  "critical-policy": CriticalPolicy,
   "down-caret": DownCaret,
   ex: Ex,
   "empty-hosts": EmptyHosts,
@@ -98,7 +98,6 @@ export const ICON_MAP = {
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
-  policy: Policy,
   "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,

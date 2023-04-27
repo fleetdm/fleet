@@ -1,11 +1,14 @@
+import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const DEFAULT_OPTIONS: IDropdownOption[] = [
   {
     label: "Transfer",
     value: "transfer",
     disabled: false,
+    premiumOnly: true,
   },
   {
     label: "Query",
@@ -41,6 +44,7 @@ interface IHostActionConfigOptions {
   isFleetMdm: boolean;
   isMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
+  isSandboxMode: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -106,17 +110,33 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  isHostOnline: boolean
+  isHostOnline: boolean,
+  isSandboxMode: boolean
 ) => {
-  if (!isHostOnline) {
-    const disableOptions = options.filter(
-      (option) => option.value === "query" || option.value === "mdmOff"
-    );
-    disableOptions.forEach((option) => {
+  const disableOptions = (optionsToDisable: IDropdownOption[]) => {
+    optionsToDisable.forEach((option) => {
       option.disabled = true;
     });
+  };
+
+  let optionsToDisable: IDropdownOption[] = [];
+  console.log("options to disable: ", optionsToDisable);
+  if (!isHostOnline) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter(
+        (option) => option.value === "query" || option.value === "mdmOff"
+      )
+    );
+  }
+  console.log("options to disable: ", optionsToDisable);
+  if (isSandboxMode) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "transfer")
+    );
   }
 
+  console.log("options to disable: ", optionsToDisable);
+  disableOptions(optionsToDisable);
   return options;
 };
 
@@ -133,6 +153,28 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(options, config.isHostOnline);
+  options = setOptionsAsDisabled(
+    options,
+    config.isHostOnline,
+    config.isSandboxMode
+  );
+
+  if (config.isSandboxMode) {
+    const premiumOnlyOptions: IDropdownOption[] = options.filter(
+      (option) => !!option.premiumOnly
+    );
+
+    premiumOnlyOptions.forEach((option) => {
+      option.label = (
+        <span>
+          {option.label}
+          <PremiumFeatureIconWithTooltip
+            tooltipPositionOverrides={{ leftAdj: 2 }}
+          />
+        </span>
+      );
+    });
+  }
+
   return options;
 };

@@ -14,6 +14,7 @@ const baseClass = "vulnerabilities";
 interface IVulnerabilitiesProps {
   isLoading: boolean;
   isPremiumTier: boolean;
+  isSandboxMode?: boolean;
   software: ISoftware;
 }
 
@@ -38,11 +39,13 @@ const NoVulnsDetected = (): JSX.Element => {
 const Vulnerabilities = ({
   isLoading,
   isPremiumTier,
+  isSandboxMode = false,
   software,
 }: IVulnerabilitiesProps): JSX.Element => {
-  const tableHeaders = useMemo(() => generateVulnTableHeaders(isPremiumTier), [
-    isPremiumTier,
-  ]);
+  const tableHeaders = useMemo(
+    () => generateVulnTableHeaders(isPremiumTier, isSandboxMode),
+    [isPremiumTier, isSandboxMode]
+  );
 
   return (
     <div className="section section--vulnerabilities">

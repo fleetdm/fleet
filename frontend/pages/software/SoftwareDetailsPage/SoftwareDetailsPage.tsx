@@ -18,7 +18,6 @@ import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-
 import Vulnerabilities from "./components/Vulnerabilities";
 
 const baseClass = "software-details-page";
@@ -32,9 +31,13 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { isPremiumTier, currentTeam, filteredSoftwarePath } = useContext(
-    AppContext
-  );
+  const {
+    isPremiumTier,
+    isSandboxMode,
+    currentTeam,
+    filteredSoftwarePath,
+  } = useContext(AppContext);
+
   const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
@@ -119,6 +122,7 @@ const SoftwareDetailsPage = ({
         </div>
         <Vulnerabilities
           isPremiumTier={isPremiumTier}
+          isSandboxMode={isSandboxMode}
           isLoading={isFetchingSoftware}
           software={software}
         />

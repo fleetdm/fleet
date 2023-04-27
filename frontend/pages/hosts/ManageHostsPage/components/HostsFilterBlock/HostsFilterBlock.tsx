@@ -26,10 +26,9 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../constants";
-
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
+import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
@@ -83,6 +82,7 @@ interface IHostsFilterBlockProps {
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isSandboxMode?: boolean;
 }
 
 /**
@@ -120,6 +120,7 @@ const HostsFilterBlock = ({
   onChangeMacSettingsFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isSandboxMode = false,
 }: IHostsFilterBlockProps) => {
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
@@ -359,7 +360,10 @@ const HostsFilterBlock = ({
       <FilterPill
         label="Low disk space"
         tooltipDescription={TooltipDescription}
+        premiumFeatureTooltipDelayHide={1000}
         onClear={() => handleClearFilter(["low_disk_space"])}
+        isSandboxMode={isSandboxMode}
+        sandboxPremiumOnlyIcon
       />
     );
   };

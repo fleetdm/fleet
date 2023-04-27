@@ -9,8 +9,20 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const baseClass = "activity-item";
+
+const PREMIUM_ACTIVITIES = new Set([
+  "created_team",
+  "deleted_team",
+  "applied_spec_team",
+  "changed_user_team_role",
+  "deleted_user_team_role",
+  "read_host_disk_encryption_key",
+  "enabled_macos_disk_encryption",
+  "disabled_macos_disk_encryption",
+]);
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
@@ -499,6 +511,7 @@ const getDetail = (
 interface IActivityItemProps {
   activity: IActivity;
   isPremiumTier: boolean;
+  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -510,6 +523,7 @@ interface IActivityItemProps {
 const ActivityItem = ({
   activity,
   isPremiumTier,
+  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
@@ -518,6 +532,8 @@ const ActivityItem = ({
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
+  const indicatePremiumFeature =
+    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   return (
     <div className={baseClass}>
@@ -529,6 +545,7 @@ const ActivityItem = ({
       />
       <div className={`${baseClass}__details`}>
         <p>
+          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {activity.type === ActivityType.UserLoggedIn ? (
               <b>{activity.actor_email} </b>
