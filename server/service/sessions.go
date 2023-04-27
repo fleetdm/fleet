@@ -5,9 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/xml"
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -298,10 +296,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	if !appConfig.SSOSettings.EnableSSO {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
+		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	metadata, err := svc.getMetadata(appConfig)
+	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
 	}
@@ -461,45 +459,30 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
-		metadata, err = svc.getMetadata(appConfig)
+		metadata, err = sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "get sso metadata")
 		}
 		redirectURL = "/"
 	} else {
-		session, err := svc.ssoSessionStore.Get(auth.RequestID())
+		var session *sso.Session
+		session, metadata, err = svc.ssoSessionStore.Fullfill(auth.RequestID())
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "sso request invalid")
-		}
-		// Remove session to so that is can't be reused before it expires.
-		err = svc.ssoSessionStore.Expire(auth.RequestID())
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "remove sso request")
-		}
-		if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "unmarshal metadata")
+			return "", ctxerr.Wrap(ctx, err, "validate request in session")
 		}
 		redirectURL = session.OriginalURL
 	}
 
 	// Validate response
-	validator, err := sso.NewValidator(*metadata, sso.WithExpectedAudience(
+	err = sso.ValidateAudiences(
+		*metadata,
+		auth,
 		appConfig.SSOSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
-	))
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "create validator from metadata")
-	}
-	// make sure the response hasn't been tampered with
-	auth, err = validator.ValidateSignature(auth)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "signature validation failed")
-	}
-	// make sure the response isn't stale
-	err = validator.ValidateResponse(auth)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "response validation failed")
+		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
 	return redirectURL, nil
@@ -601,26 +584,6 @@ func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Sessio
 		return nil, ctxerr.Wrap(ctx, err, "creating new session")
 	}
 	return session, nil
-}
-
-func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {
-	if config.SSOSettings.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.SSOSettings.MetadataURL)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
-	}
-
-	if config.SSOSettings.Metadata != "" {
-		metadata, err := sso.ParseMetadata(config.SSOSettings.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
-	}
-
-	return nil, fmt.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

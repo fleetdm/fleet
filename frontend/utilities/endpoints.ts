@@ -47,6 +47,7 @@ export default {
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
   MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: `/${API_VERSION}/fleet/mdm/apple/filevault/summary`,
+  MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,

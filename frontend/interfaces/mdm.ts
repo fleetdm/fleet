@@ -111,6 +111,10 @@ export interface IMdmScript {
   updated_at: string;
 }
 
+export interface IMdmSSOReponse {
+  url: string;
+}
+
 export interface IBootstrapPackageMetadata {
   name: string;
   team_id: number;

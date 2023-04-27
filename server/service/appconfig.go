@@ -403,6 +403,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings != appConfig.MDM.EndUserAuthentication.SSOProviderSettings {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
+		}
+	}
+
 	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
 		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
 		// clear bootstrap package for no team - note that we cannot call

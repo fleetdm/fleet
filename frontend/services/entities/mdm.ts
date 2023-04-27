@@ -99,6 +99,11 @@ export default {
     });
   },
 
+  initiateMDMAppleSSO: () => {
+    const { MDM_APPLE_SSO } = endpoints;
+    return sendRequest("POST", MDM_APPLE_SSO, {});
+  },
+
   getBootstrapPackageMetadata: (teamId: number) => {
     const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
 

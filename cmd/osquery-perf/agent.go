@@ -340,6 +340,7 @@ func (a *agent) runOrbitLoop() {
 		"",
 		true,
 		a.EnrollSecret,
+		nil,
 		fleet.OrbitHostInfo{
 			HardwareUUID:   a.UUID,
 			HardwareSerial: a.SerialNumber,
@@ -352,7 +353,7 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
-	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "")
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
 		log.Println("creating device client: ", err)
 	}
