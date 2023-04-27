@@ -55,7 +55,7 @@ import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 
 import PATHS from "router/paths";
 
-import AppProvider, { AppContext } from "context/app";
+import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
@@ -112,12 +112,10 @@ const routes = (
             <Route path="windows" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect to="integrations" />
+            <IndexRedirect to="organization/info" />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route component={ExcludeInSandboxRoutes}>
-                  <Route path="organization" component={OrgSettingsPage} />
-                </Route>
+                <Route path="organization" component={OrgSettingsPage} />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
