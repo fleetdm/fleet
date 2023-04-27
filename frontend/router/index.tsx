@@ -68,7 +68,6 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
-const isSandboxMode = { AppContext };
 interface IAppWrapperProps {
   children: JSX.Element;
 }
@@ -81,7 +80,6 @@ const AppWrapper = ({ children }: IAppWrapperProps) => (
     </RoutingProvider>
   </AppProvider>
 );
-
 const routes = (
   <Router history={browserHistory}>
     <Route path={PATHS.ROOT} component={AppWrapper}>
@@ -114,9 +112,7 @@ const routes = (
             <Route path="windows" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect
-              to={isSandboxMode ? "integrations" : "organization"}
-            />
+            <IndexRedirect to="integrations" />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route component={ExcludeInSandboxRoutes}>
