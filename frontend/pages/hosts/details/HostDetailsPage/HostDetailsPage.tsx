@@ -112,6 +112,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalObserver,
     isPremiumTier = false,
+    isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
   } = useContext(AppContext);
@@ -655,6 +656,7 @@ const HostDetailsPage = ({
           titleData={titleData}
           diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}
+          isSandboxMode={isSandboxMode}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
