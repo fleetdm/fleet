@@ -79,6 +79,6 @@ export interface IActivityDetails {
   deadline?: string;
   profile_name?: string;
   profile_identifier?: string;
-  package_name?: string;
+  bootstrap_package_name?: string;
   name?: string;
 }
