@@ -194,7 +194,7 @@ module.exports = {
     ];
 
     // Build metrics for logged errors
-    if(inputs.storedErrors && inputs.storedErrors.length > 0){
+    if(inputs.storedErrors.length > 0) {
       // If inputs.storedErrors is not an empty array, we'll iterate through it to build custom metric for each object in the array
       for(let error of inputs.storedErrors) {
         // Create a new array of tags for this error
@@ -221,7 +221,7 @@ module.exports = {
 
 
     // If inputs.hostsEnrolledByOrbitVersion is not an empty array, we'll iterate through it to build custom metric for each object in the array
-    if(inputs.hostsEnrolledByOrbitVersion && inputs.hostsEnrolledByOrbitVersion.length > 0) {
+    if(inputs.hostsEnrolledByOrbitVersion.length > 0) {
       for(let version of inputs.hostsEnrolledByOrbitVersion) {
         let orbitVersionTags = _.clone(baseMetricTags);
         orbitVersionTags.push(`orbit_version:${version.orbitVersion}`);
@@ -238,7 +238,7 @@ module.exports = {
     }//ﬁ
 
     // If inputs.hostsEnrolledByOsqueryVersion is not an empty array, we'll iterate through it to build custom metric for each object in the array
-    if(inputs.hostsEnrolledByOsqueryVersion && inputs.hostsEnrolledByOsqueryVersion.length > 0) {
+    if(inputs.hostsEnrolledByOsqueryVersion.length > 0) {
       for(let version of inputs.hostsEnrolledByOsqueryVersion) {
         let osqueryVersionTags = _.clone(baseMetricTags);
         osqueryVersionTags.push(`osquery_version:${version.osqueryVersion}`);
