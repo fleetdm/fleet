@@ -1788,8 +1788,8 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		var args []interface{}
 		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
 		// if matchQuery is "email like" then don't bother with the additional wildcard searching
-		if !matchesEmail && hasNonASCIIRegex(matchQuery) && len(matchQuery) >= 3 {
-			union, wildCardArgs := hostSearchLikeAny(matchingHosts, args, replaceMatchAny(matchQuery), wildCardableHostSearchColumns...)
+		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
+			union, wildCardArgs := hostSearchLikeAny(matchingHosts, args, matchQuery, wildCardableHostSearchColumns...)
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs
 		}

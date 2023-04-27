@@ -1044,7 +1044,7 @@ func likePattern(m string) string {
 
 // noneReplacer doesn't manipulate
 func noneReplacer(m string) string {
-	return "%" + m + "%"
+	return m
 }
 
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
@@ -1081,7 +1081,16 @@ func searchLikePattern(sql string, params []interface{}, match string, replacer 
 // the presence of @, which is arguably the most important check
 // in this.
 var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
-var nonascii = regexp.MustCompile("[^[:ascii:]]")
+
+/*
+This regex matches any occurrence of a character from the ASCII character set followed by one or more characters that are not from the ASCII character set.
+The first part `[[:ascii:]]` matches any character that is within the ASCII range (0 to 127 in the ASCII table),
+while the second part `[^[:ascii:]]` matches any character that is not within the ASCII range.
+So, when these two parts are combined with no space in between, the resulting regex matches any
+sequence of characters where the first character is within the ASCII range and the following characters are not within the ASCII range.
+*/
+var nonascii = regexp.MustCompile(`(?P<ascii>[[:ascii:]])(?P<nonascii>[^[:ascii:]]+)`)
+var nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
 
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
@@ -1099,7 +1108,11 @@ func hostSearchLike(sql string, params []interface{}, match string, columns ...s
 }
 
 func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
-	return searchLikePattern(sql, params, match, noneReplacer, columns...)
+	return searchLikePattern(sql, params, buildWildcardMatchPhrase(match), noneReplacer, columns...)
+}
+
+func buildWildcardMatchPhrase(matchQuery string) string {
+	return replaceMatchAny(likePattern(matchQuery))
 }
 
 func hasNonASCIIRegex(s string) bool {
@@ -1107,7 +1120,7 @@ func hasNonASCIIRegex(s string) bool {
 }
 
 func replaceMatchAny(s string) string {
-	return nonascii.ReplaceAllString(s, "_")
+	return nonacsiiReplace.ReplaceAllString(s, "_")
 }
 
 func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
