@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -61,4 +63,28 @@ type MDMIdPAccount struct {
 	SaltedSHA512PBKDF2Dictionary
 	UUID     string
 	Username string
+}
+
+type MDMAppleBootstrapPackage struct {
+	Name      string    `json:"name"`
+	TeamID    uint      `json:"team_id" db:"team_id"`
+	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"-" db:"updated_at"`
+}
+
+func (bp MDMAppleBootstrapPackage) AuthzType() string {
+	return "mdm_apple_bootstrap_package"
+}
+
+func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
+	pkgURL, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
+	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
+	return pkgURL.String(), nil
 }

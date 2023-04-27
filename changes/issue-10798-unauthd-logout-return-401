@@ -1,0 +1,1 @@
+* Fix `/api/_version/fleet/logout` to return HTTP 401 if unauthorized.

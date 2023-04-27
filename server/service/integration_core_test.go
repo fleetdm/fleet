@@ -204,7 +204,7 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 		GlobalRole: ptr.String("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
+	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "invalid global role: wrongrole")
 }
 
 func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
@@ -632,7 +632,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
@@ -641,16 +643,14 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	n, err := s.ds.InsertSoftwareVulnerabilities(
-		context.Background(), []fleet.SoftwareVulnerability{
-			{
-				SoftwareID: soft1.ID,
-				CVE:        "cve-123-123-132",
-			},
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: soft1.ID,
+			CVE:        "cve-123-123-132",
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
-	require.Equal(t, 1, int(n))
+	require.True(t, inserted)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -1244,9 +1244,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	})
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
-	for _, h := range resp.Hosts {
-		fmt.Println("host", fmt.Sprintf("%+v", h.Host.HardwareSerial))
-	}
 
 	// set MDM information for another host installed from DEP and pending enrollment to Fleet MDM
 	pendingMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -1312,7 +1309,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "mdm_enrollment_status", "invalid-status")
+
+	// Filter by inexistent software.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -3329,7 +3330,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
-	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusUnauthorized, &logoutResp)
 
 	s.token = s.getTestAdminToken()
 
@@ -4631,12 +4632,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
 
-	// set the apple BM terms expired flag, and the mdm configured flag,
+	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
 	// modified by any PATCH request (it cannot be set via this endpoint).
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	appCfg.MDM.EnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
@@ -4644,6 +4646,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
 	// no server settings set for the URL, so not possible to test the
@@ -4820,12 +4823,13 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
-	// try to update the mdm configured flag via PATCH /config
+	// try to update the mdm configured flags via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": false }
+	  "mdm": { "enabled_and_configured": false, "apple_bm_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
+	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
 
 	// set the macos disk encryption field, fails due to license
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4848,6 +4852,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg, err = s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = false
+	appCfg.MDM.AppleBMEnabledAndConfigured = false
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
@@ -4984,25 +4989,26 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		}
 	}
 
+	var cpes []fleet.SoftwareCPE
 	for i, sw := range sws {
-		cpe := "somecpe" + strconv.Itoa(i)
-		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
+		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: sw.ID, CPE: "somecpe" + strconv.Itoa(i)})
 	}
+
+	_, err := s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software to load GeneratedCPEID
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
-	var vulns []fleet.SoftwareVulnerability
-	for i, sw := range hosts[0].Software[:10] {
-		vulns = append(vulns, fleet.SoftwareVulnerability{
-			SoftwareID: sw.ID,
-			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
-		})
-	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
-	require.NoError(t, err)
-	require.Equal(t, 10, int(n))
+	for i, sw := range hosts[0].Software[:10] {
+		inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: sw.ID,
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+	}
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use
 	// sws[19], 2 for sws[18], and 1 for sws[17])
@@ -6357,6 +6363,29 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+}
+
+func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
+	t := s.T()
+	ctx := context.Background()
+
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   time.Now(),
+		DetailUpdatedAt:  time.Now(),
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	var resp jsonError
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   uuid.New().String(),
+		HardwareUUID:   h.UUID,
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusUnauthorized, &resp)
+
+	require.Equal(t, resp.Message, "Authentication failed")
 }
 
 func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {

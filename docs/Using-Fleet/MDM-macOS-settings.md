@@ -1,10 +1,12 @@
 # macOS settings
 
-In Fleet you can enforce settings on your macOS hosts remotely.
+In Fleet you can enforce settings on your macOS hosts remotely:
 
-If you enforce disk encryption with Fleet, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
+* Disk encryption (FileVault): If enforced, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
 
-You can also enforce custom macOS settings. Learn how [here](#custom-settings).
+* Custom settings: learn how [here](#custom-settings).
+
+In addition to the above, Fleet automatically enforces settings for the fleetd agent using a "Fleetd configuration" configuration profile.
 
 ## Disk encryption
 
@@ -81,8 +83,6 @@ How to create a configuration profile with iMazing Profile Creator:
 In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
 
 The Fleet UI method is a good start if you're just getting familiar with Fleet.
-
-> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM features in the UI.
 
 The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
 

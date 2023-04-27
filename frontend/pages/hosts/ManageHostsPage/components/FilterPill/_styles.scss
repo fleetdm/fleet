@@ -1,5 +1,4 @@
 .filter-pill {
-
   &__label {
     display: inline-flex;
     align-items: center;
@@ -27,6 +26,14 @@
       img {
         padding: 0px;
         margin: 0px;
+      }
+    }
+
+    .premium-icon-tip {
+      .premium-feature-icon {
+        position: relative;
+        top: 2px;
+        margin-right: 6px;
       }
     }
   }

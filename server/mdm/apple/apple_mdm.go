@@ -3,18 +3,23 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/url"
 	"path"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/godep"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -42,6 +47,10 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
+
+	// FleetdPublicManifestURL contains a valid manifest that can be used
+	// by InstallEnterpriseApplication to install `fleetd` in a host.
+	FleetdPublicManifestURL = "https://download.fleetdm.com/fleetd-base-manifest.plist"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -65,20 +74,167 @@ func resolveURL(serverURL, relPath string) (string, error) {
 	return u.String(), nil
 }
 
-type DEPSyncer struct {
+// DEPService is used to encapsulate tasks related to DEP enrollment.
+//
+// This service doesn't perform any authentication checks, so its suitable for
+// internal usage within Fleet. If you need to expose any of the functionality
+// to users, please make sure the caller is enforcing the right authorization
+// checks.
+type DEPService struct {
+	ds         fleet.Datastore
 	depStorage nanodep_storage.AllStorage
 	syncer     *depsync.Syncer
 	logger     kitlog.Logger
 }
 
-func (d *DEPSyncer) Run(ctx context.Context) error {
+// GetDefaultProfile returns a godep.Profile with default values set.
+func (d *DEPService) GetDefaultProfile() *godep.Profile {
+	return &godep.Profile{
+		ProfileName:           "FleetDM default enrollment profile",
+		AllowPairing:          true,
+		AutoAdvanceSetup:      false,
+		AwaitDeviceConfigured: false,
+		IsSupervised:          false,
+		IsMultiUser:           false,
+		IsMandatory:           false,
+		IsMDMRemovable:        true,
+		Language:              "en",
+		OrgMagic:              "1",
+		Region:                "US",
+		SkipSetupItems: []string{
+			"Accessibility",
+			"Appearance",
+			"AppleID",
+			"AppStore",
+			"Biometric",
+			"Diagnostics",
+			"FileVault",
+			"iCloudDiagnostics",
+			"iCloudStorage",
+			"Location",
+			"Payment",
+			"Privacy",
+			"Restore",
+			"ScreenTime",
+			"Siri",
+			"TermsOfAddress",
+			"TOS",
+			"UnlockWithWatch",
+		},
+	}
+}
+
+// CreateDefaultProfile creates a new DEP enrollment profile with default
+// values in the database and registers it in Apple's servers.
+func (d *DEPService) CreateDefaultProfile(ctx context.Context) error {
+	if err := d.createProfile(ctx, d.GetDefaultProfile()); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating profile")
+	}
+	return nil
+}
+
+// createProfile creates a new DEP enrollment profile with the provided values
+// in the database and registers it in Apple's servers.
+//
+// All valid values are declared in the godep.Profile type and are specified in
+// https://developer.apple.com/documentation/devicemanagement/profile
+func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profile) error {
+	token := uuid.New().String()
+	enrollURL, err := d.EnrollURL(token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	rawDEPProfile, err := json.Marshal(depProfile)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling provided profile")
+	}
+
+	payload := fleet.MDMAppleEnrollmentProfilePayload{
+		Token:      token,
+		Type:       "automatic",
+		DEPProfile: ptr.RawMessage(rawDEPProfile),
+	}
+
+	if _, err := d.ds.NewMDMAppleEnrollmentProfile(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "saving enrollment profile in DB")
+	}
+
+	if err := d.RegisterProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
+		return ctxerr.Wrap(ctx, err, "registering profile in Apple servers")
+	}
+
+	return nil
+}
+
+// registerProfileInDEPServe is in charge of registering the enrollment profile
+// in Apple's servers via the DEP API, so it can be used for assignment.
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
+	appConfig, err := d.ds.AppConfig(context.Background())
+	if err != nil {
+		return fmt.Errorf("get app config: %w", err)
+	}
+
+	depProfile.URL = enrollURL
+
+	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+	// flow, otherwise use Fleet's enroll URL.
+	//
+	// Even though the DEP profile supports an `url` attribute, we should
+	// always still set configuration_web_url, otherwise the request method
+	// coming from Apple changes from GET to POST, and we want to preserve
+	// backwards compatibility.
+	if appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
+		depProfile.ConfigurationWebURL = enrollURL
+	} else {
+		depProfile.ConfigurationWebURL = appConfig.ServerSettings.ServerURL + "/mdm/sso"
+	}
+
+	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
+	res, err := depClient.DefineProfile(context.Background(), DEPName, depProfile)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
+	}
+
+	if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set profile UUID")
+	}
+
+	return nil
+}
+
+// EnrollURL returns an URL that can be used to obtain an MDM enrollment
+// profile (xml) from Fleet.
+func (d *DEPService) EnrollURL(token string) (string, error) {
+	appConfig, err := d.ds.AppConfig(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("get app config: %w", err)
+	}
+
+	return EnrollURL(token, appConfig)
+}
+
+func (d *DEPService) RunAssigner(ctx context.Context) error {
 	profileUUID, profileModTime, err := d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
 	if err != nil {
 		return err
 	}
 	if profileUUID == "" {
-		d.logger.Log("msg", "DEP profile not set, nothing to do")
-		return nil
+		d.logger.Log("msg", "DEP profile not set, creating one with default values")
+
+		// Note: This is likely to change once
+		// https://github.com/fleetdm/fleet/issues/10518 is defined and
+		// ready to develop. We'll have different DEP profiles per
+		// team, and we'll have to grab the right DEP profile for whatever
+		// AppConfig.MDM.AppleBMDefaultTeam is.
+		//
+		// I'm thinking that the default profile will be created along with
+		// the team, but that still TBD based on the designs of the CLI
+		// and the API.
+		if err := d.CreateDefaultProfile(ctx); err != nil {
+			return err
+		}
+		profileModTime = time.Now()
 	}
 	cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, DEPName)
 	if err != nil {
@@ -95,12 +251,12 @@ func (d *DEPSyncer) Run(ctx context.Context) error {
 	return d.syncer.Run(ctx)
 }
 
-func NewDEPSyncer(
+func NewDEPService(
 	ds fleet.Datastore,
 	depStorage nanodep_storage.AllStorage,
 	logger kitlog.Logger,
 	loggingDebug bool,
-) *DEPSyncer {
+) *DEPService {
 	depClient := NewDEPClient(depStorage, ds, logger)
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
@@ -136,10 +292,11 @@ func NewDEPSyncer(
 		}),
 	)
 
-	return &DEPSyncer{
+	return &DEPService{
 		syncer:     syncer,
 		depStorage: depStorage,
 		logger:     logger,
+		ds:         ds,
 	}
 }
 
@@ -250,7 +407,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} Enrollment</string>
+	<string>{{ .Organization }} enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>

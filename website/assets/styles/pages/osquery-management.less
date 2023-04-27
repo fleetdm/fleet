@@ -17,18 +17,13 @@
     line-height: 32px;
   }
   h4 {
-    color: @core-fleet-black-75;
-    font-weight: 500;
+    font-family: 'Roboto Mono';
+    font-style: normal;
+    font-weight: 400;
     font-size: 18px;
     line-height: 24px;
-    /* Text gradient */
-      background: linear-gradient(90deg, #FF5C83 0%, #6A67FE 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-fill-color: transparent;
-      display: inline-block;
-    /* End text gradient */
+    color: @core-fleet-black-75;
+    margin-bottom: 4px;
   }
   p {
     font-size: 16px;
@@ -77,6 +72,7 @@
       align-items: center;
       color: #FFF;
       position: relative;
+      text-decoration: none;
     }
     [purpose='cta-button']::before {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
@@ -181,11 +177,19 @@
       height: 16px;
     }
   }
+  [purpose='bottom-gradient'] {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
+  }
+  [purpose='bottom-cloud-city-banner'] {
+    background: linear-gradient(180deg, #E9F4F4 0%, #FFFFFF 100%);
+    img {
+      width: 100%;
+    }
+  }
 
   [purpose='tweets-container'] {
     padding-top: 120px;
     padding-bottom: 120px;
-    background-color: @ui-off-white;
   }
 
   [purpose='logos'] {
@@ -215,6 +219,7 @@
       height: 32px;
     }
   }
+
 
   @media (min-width: 1200px) {
     [purpose='page-container'] {

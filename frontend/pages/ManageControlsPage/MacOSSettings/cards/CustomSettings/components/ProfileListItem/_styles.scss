@@ -1,34 +1,3 @@
 .profile-list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  &__profile-data {
-    display: flex;
-    align-items: center;
-  }
-
-  &__profile-info {
-    margin-left: $pad-medium;
-    display: flex;
-    flex-direction: column;
-  }
-
-  &__profile-name {
-    font-size: $x-small;
-  }
-
-  &__profile-uploaded {
-    font-size: $xx-small;
-  }
-
-  &__download-button,
-  &__delete-button {
-    width: 40px;
-    height: 40px;
-  }
-
-  &__download-button {
-    margin-right: $pad-medium;
-  }
+  @include list-item;
 }

@@ -259,6 +259,20 @@ type KinesisConfig struct {
 	AuditStream      string `yaml:"audit_stream"`
 }
 
+// SESConfig defines configs for the AWS SES service for emailing
+type SESConfig struct {
+	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	SourceArn        string `yaml:"source_arn"`
+}
+
+type EmailConfig struct {
+	EmailBackend string `yaml:"backend"`
+}
+
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
 	Region           string
@@ -391,6 +405,8 @@ type FleetConfig struct {
 	Kinesis          KinesisConfig
 	Lambda           LambdaConfig
 	S3               S3Config
+	Email            EmailConfig
+	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
 	KafkaREST        KafkaRESTConfig
@@ -434,11 +450,6 @@ type MDMConfig struct {
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
 	appleBMToken *nanodep_client.OAuth1Tokens
-
-	OktaClientID        string `yaml:"okta_client_id"`
-	OktaClientSecret    string `yaml:"okta_client_secret"`
-	OktaServerURL       string `yaml:"okta_server_url"`
-	EndUserAgreementURL string `yaml:"eula_url"`
 
 	// AppleEnable enables Apple MDM functionality on Fleet.
 	AppleEnable bool `yaml:"apple_enable"`
@@ -505,7 +516,7 @@ func (x *x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
 		// X509KeyPair does not store the parsed certificate leaf
 		parsed, err := x509.ParseCertificate(cert.Certificate[0])
 		if err != nil {
-			return nil, fmt.Errorf("parse certificate: %w", err)
+			return nil, fmt.Errorf("parse leaf certificate: %w", err)
 		}
 		cert.Leaf = parsed
 	}
@@ -862,6 +873,16 @@ func (man Manager) addConfigs() {
 	man.addConfigString("logging.tracing_type", "opentelemetry",
 		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
+	// Email
+	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+	// SES
+	man.addConfigString("ses.region", "", "AWS Region to use")
+	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
+	man.addConfigString("ses.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("ses.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
 	man.addConfigString("firehose.endpoint_url", "",
@@ -1018,10 +1039,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
-	man.addConfigString("mdm.okta_client_id", "", "Public client ID of the Okta application")
-	man.addConfigString("mdm.okta_client_secret", "", "Private client secret of the Okta application")
-	man.addConfigString("mdm.okta_server_url", "The Okta server URL, eg: https://my-subdomain.okta.com", "")
-	man.addConfigString("mdm.eula_url", "", "A link to a PDF document containing an EULA document")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
@@ -1185,6 +1202,17 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
+		Email: EmailConfig{
+			EmailBackend: man.getConfigString("email.backend"),
+		},
+		SES: SESConfig{
+			Region:           man.getConfigString("ses.region"),
+			EndpointURL:      man.getConfigString("ses.endpoint_url"),
+			AccessKeyID:      man.getConfigString("ses.access_key_id"),
+			SecretAccessKey:  man.getConfigString("ses.secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
+			SourceArn:        man.getConfigString("ses.source_arn"),
+		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
 			StatusTopic:   man.getConfigString("pubsub.status_topic"),
@@ -1271,10 +1299,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMCertBytes:                man.getConfigString("mdm.apple_bm_cert_bytes"),
 			AppleBMKey:                      man.getConfigString("mdm.apple_bm_key"),
 			AppleBMKeyBytes:                 man.getConfigString("mdm.apple_bm_key_bytes"),
-			OktaClientID:                    man.getConfigString("mdm.okta_client_id"),
-			OktaClientSecret:                man.getConfigString("mdm.okta_client_secret"),
-			OktaServerURL:                   man.getConfigString("mdm.okta_server_url"),
-			EndUserAgreementURL:             man.getConfigString("mdm.eula_url"),
 			AppleEnable:                     man.getConfigBool("mdm.apple_enable"),
 			AppleSCEPSignerValidityDays:     man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),

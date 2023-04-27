@@ -1,9 +1,8 @@
 # Community
 
-## Marketing
+## Marketing mission
 
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
+To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
 
 ### Positioning
 
@@ -17,9 +16,18 @@ Marketing's goal is to increase product usage. We value users of all sizes adopt
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-### Posting on social media as Fleet
+### Product Marketing and Launch strategies
 
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+- [How we rank features for launch](https://fleetdm.com/handbook/product#ranking-features)
+- Our Launch Playbook on [Monday.com](https://fleetdm.monday.com/boards/3971829429) To start a new major product launch, duplicate this monday board, as well as the [Run-of-show board](https://fleetdm.monday.com/boards/4261275399).
+- [MDM Launch Retrospective](https://docs.google.com/document/d/16GPIY94nDLSinmZg1FRoiAccfnZNP0X2qfP5j7Yso4I/edit#heading=h.cd1i3rfqahn1)
+
+### How we show up for our community online
+
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts. Some specific guidelines that we follow at Fleet:
+- Answer technical questions quickly: if a community member has a technical question drop it in #g-marketing in slack if you can't answer it yourself.
+- Never engage with un-constructive feedback or competitive spamming. If there is a valuable conversation to be had, let our community lead the conversation, and let our community come to our defense. They are the users, and often their insight and debates are more attuned then ours.
+- Do not share Hacker News links directly. If we are on Hacker News, just let the community know and if they find us then great. 
 
 #### Topics:
 
@@ -53,6 +61,12 @@ Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the 
 ### Promoting blog posts on social media
 
 Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
+
+### Fleet in the news!
+- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
+- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
+- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
+- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
 
 ### Press releases
@@ -606,6 +620,18 @@ To propose changes:
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, the Brand team often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
+
+#### Cloudflare
+
+We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
+If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
+
+
+To make DNS changes in Cloudflare:
+1. Log into your Cloudflare account and select the "Fleet" account.
+2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
+3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
+
 
 ## Rituals
 

@@ -25,6 +25,11 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
     disk_encryption: null,
     action_required: null,
   },
+  macos_setup: {
+    bootstrap_package_status: "",
+    details: "",
+    bootstrap_package_name: "",
+  },
 };
 
 export const createMockHostMdmData = (

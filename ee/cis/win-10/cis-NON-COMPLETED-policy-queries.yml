@@ -322,6 +322,161 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.
+    All removable data drives that are not BitLocker-protected will be mounted as read-only. If the drive is protected by BitLocker, it will be mounted with read and write access.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query:
+  # TODO Able to set the GPO however,
+  # The HKEY RDVDenyWriteAccess is not showing up in the registry after modification
+  # Very odd as the rest of the section was perfectly fine
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = );
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Account Lockout' is set to include 'Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user's account is locked out as a result of too many failed logon attempts. Events for this subcategory include:
+    - 4625: An account failed to log on.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Account Lockout'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  # TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+  # OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:c7ba8f71918f1ca040747fbec5ab33f3
+  # SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditAccountLockout</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "2";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Group Membership' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy allows you to audit the group membership information in the user’s logon token. Events in this subcategory are generated on the computer on which a logon session is created. For an interactive logon, the security audit event is generated on the computer that the user logged on to. For a network logon, such as accessing a shared folder on the network, the security audit event is generated on the computer hosting the resource.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Group Membership'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  # TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+  # OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:ee85b155b604aa453fafc9c6d5418e33
+  # SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "1";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Logoff' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user logs off from the system. These events occur on the accessed computer. For interactive logons, the generation of these events occurs on the computer that is logged on to. If a network logon takes place to access a share, these events generate on the computer that hosts the accessed resource. If you configure this setting to No auditing, it is difficult or impossible to determine which user has accessed or attempted to access organization computers. Events for this subcategory include:
+    - 4634: An account was logged off.
+    - 4647: User initiated logoff.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logoff'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Logon' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user attempts to log on to the system. These events occur on the accessed computer. For interactive logons, the generation of these events occurs on the computer that is logged on to. If a network logon takes place to access a share, these events generate on the computer that hosts the accessed resource. If you configure this setting to No auditing, it is difficult or impossible to determine which user has accessed or attempted to access organization computers. Events for this subcategory include:
+    - 4624: An account was successfully logged on.
+    - 4625: An account failed to log on.
+    - 4648: A logon was attempted using explicit credentials.
+    - 4675: SIDs were filtered.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logon'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Other Logon/Logoff Events' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports other logon/logoff-related events, such as Remote Desktop Services session disconnects and reconnects, using RunAs to run processes under a different account, and locking and unlocking a workstation. Events for this subcategory include:
+    - 4649: A replay attack was detected.
+    - 4778: A session was reconnected to a Window Station.
+    - 4779: A session was disconnected from a Window Station.
+    - 4800: The workstation was locked.
+    - 4801: The workstation was unlocked.
+    - 4802: The screen saver was invoked.
+    - 4803: The screen saver was dismissed.
+    - 5378: The requested credentials delegation was disallowed by policy.
+    - 5632: A request was made to authenticate to a wireless network.
+    - 5633: A request was made to authenticate to a wired network.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Other Logon/Logoff Events'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Special Logon' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a special logon is used. A special logon is a logon that has administrator-equivalent privileges and can be used to elevate a process to a higher level. Events for this subcategory include:
+    - 4964 : Special groups have been assigned to a new logon.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Special Logon'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher
   platforms: win11
   platform: windows
@@ -336,6 +491,44 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DoHPolicy' AND data IN (2,3));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.4.1, CIS_not_completed
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Although this "legacy" setting traditionally applied to the use of Internet Connection Sharing (ICS) in Windows 2000, Windows XP & Server 2003, this setting now freshly applies to the Mobile Hotspot feature in Windows 10 & Server 2016.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to On (recommended):
+    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit use of Internet Connection Sharing on your DNS domain network'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_ShowSharedAccessUI' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.11.3
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether to require domain users to elevate when setting a network's location.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to On (recommended):
+    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Require domain users to elevate when setting a network's location'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_StdDomainUserSetLocation' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.11.4
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -497,6 +690,168 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7, CIS_not_completed
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to join Microsoft Active Protection Service (MAPS), which Microsoft renamed to Windows Defender Antivirus Cloud Protection Service and then Microsoft Defender Antivirus Cloud Protection Service.
+    Microsoft MAPS / Microsoft Defender Antivirus Cloud Protection Service is the online community that helps you choose how to respond to potential threats.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Join Microsoft MAPS'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
+  query: |
+    # Recommended registry key does not exist
+    # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\SpynetReporting' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.4.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Attack Surface Reduction Rules' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the state for the Attack Surface Reduction (ASR) rules.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Microsoft Defender Exploit Guard\Attack Surface Reduction\Configure Attack Surface Reduction rules'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    # Recommended registry key does not exist
+    # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ExploitGuard_ASR_Rules' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.1.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Attack Surface Reduction rules: Set the state for each ASR rule' is configured
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting sets the Attack Surface Reduction rules.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path so that
+    26190899-1602-49e8-8b27-eb1d0a1ce869,
+    3b576869-a4ec-4529-8536-b80a7769e899,
+    5beb7efe-fd9a-4556-801d-275e5ffc04cc,
+    75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84,
+    7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c,
+    92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b,
+    9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2,
+    b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4,
+    be9ba2d9-53ea-4cdc-84e5-9b1eeee46550,
+    d3e037e1-3eb8-44c8-a917-57927947596d,
+    d4f940ab-401b-4efc-aadc-ad5f3c50688a, and
+    e6db77e5-3df2-4cf1-b95a-636979351e5b are each set to a value of 1:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Microsoft Defender Exploit Guard\Attack Surface Reduction\Configure Attack Surface Reduction rules: Set the state for each ASR rule'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    # Recommended registry keys do not exist
+    # SELECT 1 WHERE EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\26190899-1602-49e8-8b27-eb1d0a1ce869' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\3b576869-a4ec-4529-8536-b80a7769e899' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\5beb7efe-fd9a-4556-801d-275e5ffc04cc' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\be9ba2d9-53ea-4cdc-84e5-9b1eeee46550' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\d3e037e1-3eb8-44c8-a917-57927947596d' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\d4f940ab-401b-4efc-aadc-ad5f3c50688a' AND data = 1)
+    # AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\e6db77e5-3df2-4cf1-b95a-636979351e5b' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.1.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable file hash computation feature' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines whether hash values are computed for files scanned by Microsoft Defender.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MpEngine\Enable file hash computation feature'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
+  query: |
+    # Recommended registry keys do not exist
+    # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine\\EnableFileHashComputation' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.6.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on script scanning' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows script scanning to be turned on/off. Script scanning intercepts scripts then scans them before they are executed on the system.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Real-Time Protection\Turn on script scanning'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection\\DisableScriptScanning' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.9.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow UI Automation redirection' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether User Interface (UI) Automation client applications running on the local computer can access UI elements on the server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\\Administrative Templates\\Windows Components\\Remote Desktop Services\\Remote Desktop Session Host\\Device and Resource Redirection\\Allow UI Automation redirection'
+  query: |
+    # Cannot test because UI path does not exist
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\EnableUiaRedirection' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.3.3.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not allow location redirection' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the redirection of location data to the remote computer in a Remote Desktop Services session.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow location redirection'
+  query: |
+    # Cannot test because UI path does not exist
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fDisableLocationRedir' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.3.3.4
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy

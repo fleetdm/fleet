@@ -41,11 +41,14 @@ interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  disableGlobalFilter?: boolean;
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
 
-const solutionsTableHeaders = [
+export const generateSolutionsTableHeaders = (
+  teamId?: number
+): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
@@ -85,7 +88,7 @@ const solutionsTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ mdm_id: cellProps.row.original.id }}
+          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />
@@ -94,10 +97,6 @@ const solutionsTableHeaders = [
     disableHidden: true,
   },
 ];
-
-export const generateSolutionsTableHeaders = (): IDataColumn[] => {
-  return solutionsTableHeaders;
-};
 
 const enhanceSolutionsData = (
   solutions: IMdmSolution[],

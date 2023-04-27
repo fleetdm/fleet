@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"github.com/go-kit/kit/log/level"
 	"html/template"
 	"net/http"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -296,6 +298,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if p.GlobalRole != nil || p.Teams != nil {
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
+		}
+		license, _ := license.FromContext(ctx)
+		if license == nil {
+			return nil, ctxerr.New(ctx, "license not found")
+		}
+		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
 
@@ -1023,7 +1032,11 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		},
 	}
 
-	return svc.mailService.SendEmail(resetEmail)
+	err = svc.mailService.SendEmail(resetEmail)
+	if err != nil {
+		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+	}
+	return err
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {

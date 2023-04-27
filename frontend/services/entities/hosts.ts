@@ -9,10 +9,28 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
+import { ISoftware } from "interfaces/software";
+import {
+  FileVaultProfileStatus,
+  BootstrapPackageStatus,
+  IMdmSolution,
+} from "interfaces/mdm";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
 export interface ISortOption {
   key: string;
   direction: string;
+}
+
+export interface ILoadHostsResponse {
+  hosts: IHost[];
+  software: ISoftware;
+  munki_issue: IMunkiIssuesAggregate;
+  mobile_device_management_solution: IMdmSolution;
+}
+
+export interface ILoadHostsQueryKey extends ILoadHostsOptions {
+  scope: "hosts";
 }
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
@@ -39,6 +57,8 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: FileVaultProfileStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export interface IExportHostsOptions {
@@ -63,6 +83,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: FileVaultProfileStatus;
 }
 
 export interface IActionByFilter {
@@ -153,6 +174,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -172,6 +194,7 @@ export default {
         munkiIssueId,
         softwareId,
         lowDiskSpaceHosts,
+        diskEncryptionStatus,
       }),
       status,
       label_id: label,
@@ -205,7 +228,9 @@ export default {
     device_mapping,
     selectedLabels,
     sortBy,
-  }: ILoadHostsOptions) => {
+    diskEncryptionStatus,
+    bootstrapPackageStatus,
+  }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -233,6 +258,8 @@ export default {
         osId,
         osName,
         osVersion,
+        diskEncryptionStatus,
+        bootstrapPackageStatus,
       }),
     };
 

@@ -12,9 +12,13 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net/url"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/micromdm/nanomdm/mdm"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -140,4 +144,28 @@ func secureRandInt(min, max int64) (int, error) {
 		}
 	}
 	return random, nil
+}
+
+func FmtErrorChain(chain []mdm.ErrorChain) string {
+	var sb strings.Builder
+	for _, mdmErr := range chain {
+		desc := mdmErr.USEnglishDescription
+		if desc == "" {
+			desc = mdmErr.LocalizedDescription
+		}
+		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
+	}
+	return sb.String()
+}
+
+func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
+	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return "", err
+	}
+	enrollURL.Path = path.Join(enrollURL.Path, EnrollPath)
+	q := enrollURL.Query()
+	q.Set("token", token)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }

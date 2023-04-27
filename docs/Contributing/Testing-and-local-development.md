@@ -38,6 +38,8 @@
     - [Testing MDM](#testing-mdm)
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
+        - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
+    - [Nudge](#nudge)
 
 ## License key
 
@@ -69,6 +71,14 @@ Make sure it is available in your `PATH`. To execute the basic unit and integrat
 
 ```
 REDIS_TEST=1 MYSQL_TEST=1 make test
+```
+
+Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
+
+```
+# start both the default docker-compose.yml and the redis cluster-specific
+# docker-compose-redis-cluster.yml
+$ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 ```
 
 ### Go unit tests
@@ -162,6 +172,8 @@ The code is deployed and tested once daily on the testing instance.
 
 QA Wolf manages any issues found from these tests and will raise github issues. Engineers should not
 have to worry about working with E2E testing code or raising issues themselves.
+
+However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
 
 For Fleet employees, if you would like access to the QA Wolf platform you can reach out in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) slack channel.
 
@@ -551,6 +563,7 @@ Choose and download a VM software, some options:
 
 - VMware Fusion: https://www.vmware.com/products/fusion.html
 - UTM: https://mac.getutm.app/
+- QEMU, for Linux, using instructions and scripts from the following repo: https://github.com/notAperson535/OneClick-macOS-Simple-KVM
 
 If you need a license please use your Brex card (and submit the receipt on Brex.)
 
@@ -563,6 +576,8 @@ so you can get the right serial numbers.
 
 If you are using UTM, you can simply click "Create a New Virtual Machine" button with the default
 settings. This creates a VM running the latest macOS.
+
+If you are using QEMU for Linux, follow the instruction guide to install a recent macOS version: https://oneclick-macos-simple-kvm.notaperson535.is-a.dev/docs/start-here. Note that only the manual enrollment was successfully tested with this setup. Once the macOS VM is installed and up and running, the rest of the steps are the same.
 
 #### Testing manual enrollment
 
@@ -590,5 +605,49 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
 3. Boot the machine, it should automatically enroll into MDM.
+
+##### Gating the DEP profile behind SSO
+
+To gate DEP enrollments behind SSO, you can use the same configuration values as those described in [Testing SSO](#testing-sso):
+
+```yaml
+mdm:
+  end_user_authentication:
+    entity_id: https://localhost:8080
+    idp_name: SimpleSAML
+    issuer_uri: http://localhost:9080/simplesaml/saml2/idp/SSOService.php
+    metadata: ""
+    metadata_url: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+```
+
+### Nudge
+
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
+
+1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
+2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
+3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
+
+#### Debugging tips
+
+- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
+```
+
+- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+
+- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
+
+```
+log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
+```
+
+- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
+```
 
 <meta name="pageOrderInSection" value="1500">

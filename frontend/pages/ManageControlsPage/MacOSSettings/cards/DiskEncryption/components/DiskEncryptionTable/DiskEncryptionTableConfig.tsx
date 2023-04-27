@@ -1,14 +1,20 @@
 import React from "react";
 
-import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
+import {
+  FileVaultProfileStatus,
+  IFileVaultSummaryResponse,
+} from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 interface IStatusCellValue {
   displayName: string;
-  statusName: "success" | "pending" | "error";
+  statusName: IndicatorStatus;
+  value: FileVaultProfileStatus;
   tooltip?: string | JSX.Element;
 }
 
@@ -21,6 +27,12 @@ interface IStatusCellProps {
 interface ICellProps {
   cell: {
     value: string;
+  };
+  row: {
+    original: {
+      status: IStatusCellValue;
+      teamId: number;
+    };
   };
 }
 
@@ -71,13 +83,27 @@ const defaultTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "hosts",
-    Cell: ({ cell: { value } }: ICellProps) => (
-      <TextCell value={value} formatter={(val) => <>{val}</>} />
-    ),
+    Cell: ({
+      cell: { value: aggregateCount },
+      row: { original },
+    }: ICellProps) => {
+      return (
+        <div className="disk-encryption-table__aggregate-table-data">
+          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          <ViewAllHostsLink
+            className="view-hosts-link"
+            queryParams={{
+              macos_settings_disk_encryption: original.status.value,
+              team_id: original.teamId,
+            }}
+          />
+        </div>
+      );
+    },
   },
 ];
 
-type StatusNames = keyof IDiskEncryptionStatusAggregate;
+type StatusNames = keyof IFileVaultSummaryResponse;
 
 type StatusEntry = [StatusNames, number];
 
@@ -85,15 +111,17 @@ export const generateTableHeaders = (): IDataColumn[] => {
   return defaultTableHeaders;
 };
 
-const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
-  applied: {
-    displayName: "Applied",
-    statusName: "success",
-    tooltip: "Disk encryption on and key stored in Fleet.",
+const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
+  verifying: {
+    displayName: "Verifying",
+    statusName: "successPartial",
+    value: FileVaultProfileStatus.VERIFYING,
+    tooltip: "Disk encryption on and key stored in Fleet. Fleet will verify.",
   },
   action_required: {
     displayName: "Action required (pending)",
-    statusName: "pending",
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.ACTION_REQUIRED,
     tooltip: (
       <>
         Ask the end user to follow <b>Disk encryption</b> instructions on their{" "}
@@ -103,21 +131,27 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
   enforcing: {
     displayName: "Enforcing (pending)",
-    statusName: "pending",
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.ENFORCING,
     tooltip: "Setting will be enforced when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
     statusName: "error",
+    value: FileVaultProfileStatus.FAILED,
   },
   removing_enforcement: {
     displayName: "Removing enforcement (pending)",
-    statusName: "pending",
+    statusName: "pendingPartial",
+    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
     tooltip: "Enforcement will be removed when the hosts come online.",
   },
 };
 
-export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
+export const generateTableData = (
+  data?: IFileVaultSummaryResponse,
+  currentTeamId?: number
+) => {
   if (!data) return [];
   const entries = Object.entries(data) as StatusEntry[];
 
@@ -125,5 +159,6 @@ export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
     // eslint-disable-next-line object-shorthand
     status: STATUS_CELL_VALUES[status],
     hosts: numHosts,
+    teamId: currentTeamId,
   }));
 };
