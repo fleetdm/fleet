@@ -516,7 +516,7 @@ func (x *x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
 		// X509KeyPair does not store the parsed certificate leaf
 		parsed, err := x509.ParseCertificate(cert.Certificate[0])
 		if err != nil {
-			return nil, fmt.Errorf("parse certificate: %w", err)
+			return nil, fmt.Errorf("parse leaf certificate: %w", err)
 		}
 		cert.Leaf = parsed
 	}

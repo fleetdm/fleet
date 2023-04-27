@@ -10,8 +10,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +26,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -84,64 +83,25 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if profile.DEPProfile != nil {
-		if err := svc.setDEPProfile(ctx, profile, appConfig); err != nil {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
-	enrollmentURL, err := svc.mdmAppleEnrollURL(profile.Token, appConfig)
+	enrollmentURL, err := apple_mdm.EnrollURL(profile.Token, appConfig)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	profile.EnrollmentURL = enrollmentURL
 
 	return profile, nil
-}
-
-func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
-	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
-	if err != nil {
-		return "", err
-	}
-	enrollURL.Path = path.Join(enrollURL.Path, apple_mdm.EnrollPath)
-	q := enrollURL.Query()
-	q.Set("token", token)
-	enrollURL.RawQuery = q.Encode()
-	return enrollURL.String(), nil
-}
-
-// setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
-// sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
-func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile, appConfig *fleet.AppConfig) error {
-	var depProfileRequest godep.Profile
-	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
-		return ctxerr.Wrap(ctx, err, "invalid DEP profile")
-	}
-
-	enrollURL, err := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
-	if err != nil {
-		return fmt.Errorf("generating enrollment URL: %w", err)
-	}
-	// Override url with Fleet's enroll path (publicly accessible address).
-	depProfileRequest.URL = enrollURL
-
-	// If the profile doesn't have a configuration_web_url, use Fleet's
-	// enrollURL, otherwise the request for the enrollment profile is
-	// submitted as a POST instead of GET.
-	if depProfileRequest.ConfigurationWebURL == "" {
-		depProfileRequest.ConfigurationWebURL = enrollURL
-	}
-
-	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
-	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
-	}
-
-	if err := svc.depStorage.StoreAssignerProfile(ctx, apple_mdm.DEPName, res.ProfileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set profile UUID")
-	}
-	return nil
 }
 
 type listMDMAppleEnrollmentProfilesRequest struct{}
@@ -180,7 +140,7 @@ func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range enrollments {
-		enrollURL, err := svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
+		enrollURL, err := apple_mdm.EnrollURL(enrollments[i].Token, appConfig)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
@@ -1936,13 +1896,13 @@ func (r deleteBootstrapPackageResponse) error() error { return r.Err }
 
 func deleteBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteBootstrapPackageRequest)
-	if err := svc.DeleteMDMAppleBootstrapPackage(ctx, req.TeamID); err != nil {
+	if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &req.TeamID); err != nil {
 		return deleteBootstrapPackageResponse{Err: err}, nil
 	}
 	return deleteBootstrapPackageResponse{}, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -2081,6 +2041,104 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/sso
+////////////////////////////////////////////////////////////////////////////////
+
+type initiateMDMAppleSSORequest struct{}
+
+type initiateMDMAppleSSOResponse struct {
+	URL string `json:"url,omitempty"`
+	Err error  `json:"error,omitempty"`
+}
+
+func (r initiateMDMAppleSSOResponse) error() error { return r.Err }
+
+func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
+	if err != nil {
+		return initiateMDMAppleSSOResponse{Err: err}, nil
+	}
+
+	return initiateMDMAppleSSOResponse{URL: idpProviderURL}, nil
+}
+
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/sso/callback
+////////////////////////////////////////////////////////////////////////////////
+
+type callbackMDMAppleSSORequest struct{}
+
+func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseForm()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}, "decode sso callback")
+	}
+	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode SAMLResponse",
+			InternalErr: err,
+		}, "decoding sso callback")
+	}
+	return authResponse, nil
+}
+
+type callbackMDMAppleSSOResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// used in hijackRender for the response
+	profile []byte
+}
+
+func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
+
+func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided.
+	if n, err := w.Write(r.profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	auth := request.(fleet.Auth)
+
+	// validate that the SSO response is valid
+	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
+	if err != nil {
+		return callbackMDMAppleSSOResponse{Err: err}, nil
+
+	}
+	return callbackMDMAppleSSOResponse{profile: profile}, nil
+}
+
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

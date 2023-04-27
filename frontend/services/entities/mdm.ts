@@ -98,4 +98,9 @@ export default {
       team_id: teamId,
     });
   },
+
+  initiateMDMAppleSSO: () => {
+    const { MDM_APPLE_SSO } = endpoints;
+    return sendRequest("POST", MDM_APPLE_SSO, {});
+  },
 };
