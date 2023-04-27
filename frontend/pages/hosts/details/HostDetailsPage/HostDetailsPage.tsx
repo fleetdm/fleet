@@ -3,6 +3,7 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { RouteProps } from "react-router";
 
 import classnames from "classnames";
 import { pick } from "lodash";
@@ -68,9 +69,18 @@ import MacSettingsModal from "../MacSettingsModal";
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
+  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
+    query: {
+      vulnerable?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+    search?: string;
   };
   params: Params;
 }
@@ -101,11 +111,15 @@ const TAGGED_TEMPLATES = {
 };
 
 const HostDetailsPage = ({
+  route,
   router,
-  location: { pathname },
+  location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
+
   const {
     config,
     currentUser,
@@ -124,6 +138,7 @@ const HostDetailsPage = ({
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
@@ -150,6 +165,7 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -335,6 +351,11 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString, host?.users]);
+
+  // Used for back to software pathname
+  useEffect(() => {
+    setPathname(location.pathname + location.search);
+  }, [location]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -666,7 +687,7 @@ const HostDetailsPage = ({
         />
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(pathname)}
+            selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
@@ -709,6 +730,10 @@ const HostDetailsPage = ({
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
+                queryParams={queryParams}
+                routeTemplate={routeTemplate}
+                hostId={host?.id || 0}
+                pathname={pathname}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
