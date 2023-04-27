@@ -9,9 +9,12 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
-import { DiskEncryptionStatus } from "utilities/constants";
 import { ISoftware } from "interfaces/software";
-import { BootstrapPackageStatus, IMdmSolution } from "interfaces/mdm";
+import {
+  FileVaultProfileStatus,
+  BootstrapPackageStatus,
+  IMdmSolution,
+} from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
 export interface ISortOption {
@@ -54,7 +57,7 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -80,7 +83,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
 }
 
 export interface IActionByFilter {

@@ -34,8 +34,8 @@ jobs:
     - id: gen
       run: |
         UUID=$(uuidgen)
-        echo "::set-output name=subdomain::fleet-test-$UUID"
-        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
 
   run-server:
     runs-on: ubuntu-latest

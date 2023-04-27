@@ -1,1 +1,1 @@
-export { default, IActionButtonProps } from "./ActionButton";
+export { default } from "./ActionButton";

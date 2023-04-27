@@ -7,6 +7,7 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import {
+  FileVaultProfileStatus,
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
@@ -14,12 +15,9 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
-
-// TODO: should this be in interfaces hosts?
 import { MacSettingsStatusQueryParam } from "services/entities/hosts";
 
 import {
-  DiskEncryptionStatus,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -66,7 +64,7 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: DiskEncryptionStatus;
+    diskEncryptionStatus?: FileVaultProfileStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
@@ -74,7 +72,9 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
+  onChangeDiskEncryptionStatusFilter: (
+    response: FileVaultProfileStatus
+  ) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
   ) => void;
@@ -277,7 +277,6 @@ const HostsFilterBlock = ({
     if (!mdmEnrollmentStatus) return null;
 
     const label = `MDM status: ${
-      // TODO: move MDM_ENROLLMENT_STATUS to util file
       invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
     }`;
 

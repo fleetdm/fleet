@@ -384,7 +384,7 @@ type MDMAppleConfigProfilesSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed includes each host that has failed to apply one or more of the profiles currently
 	// applicable to the host.
-	Failed uint `json:"failing" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -481,4 +481,19 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+}
+
+// MDMAppleSetupAssistant represents the setup assistant set for a given team
+// or no team.
+type MDMAppleSetupAssistant struct {
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (a MDMAppleSetupAssistant) AuthzType() string {
+	return "mdm_apple_setup_assistant"
 }

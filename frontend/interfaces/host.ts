@@ -8,9 +8,9 @@ import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
-  BootstrapPackageStatus,
-  IMacSettings,
+  IHostMacMdmProfile,
   MdmEnrollmentStatus,
+  BootstrapPackageStatus,
 } from "./mdm";
 
 export default PropTypes.shape({
@@ -117,7 +117,7 @@ export interface IHostMdmData {
   name?: string;
   server_url: string | null;
   id?: number;
-  profiles: IMacSettings | null;
+  profiles: IHostMacMdmProfile[] | null;
   macos_settings: IMdmMacOsSettings;
   macos_setup: IMdmMacOsSetup;
 }

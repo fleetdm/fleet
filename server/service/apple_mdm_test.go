@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -2277,6 +2278,85 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
+}
+
+func TestMDMAppleSetupAssistant(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return &fleet.MDMAppleSetupAssistant{}, nil
+	}
+	ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+		return asst, nil
+	}
+	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id}, nil
+	}
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		teamID          *uint
+		shouldFailRead  bool
+		shouldFailWrite bool
+	}{
+		{"no role no team", test.UserNoRoles, nil, true, true},
+		{"no role team", test.UserNoRoles, ptr.Uint(1), true, true},
+		{"global admin no team", test.UserAdmin, nil, false, false},
+		{"global admin team", test.UserAdmin, ptr.Uint(1), false, false},
+		{"global maintainer no team", test.UserMaintainer, nil, false, false},
+		{"global maintainer team", test.UserMaintainer, ptr.Uint(1), false, false},
+		{"global observer no team", test.UserObserver, nil, true, true},
+		{"global observer team", test.UserObserver, ptr.Uint(1), true, true},
+		{"global observer+ no team", test.UserObserverPlus, nil, true, true},
+		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
+		{"global gitops no team", test.UserGitOps, nil, true, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
+		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
+		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
+		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true},
+		{"team maintainer no team", test.UserTeamMaintainerTeam1, nil, true, true},
+		{"team maintainer team", test.UserTeamMaintainerTeam1, ptr.Uint(1), false, false},
+		{"team maintainer other team", test.UserTeamMaintainerTeam2, ptr.Uint(1), true, true},
+		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true},
+		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), true, true},
+		{"team observer other team", test.UserTeamObserverTeam2, ptr.Uint(1), true, true},
+		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true},
+		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true},
+		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
+		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
+		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+				Name:    "test",
+				Profile: json.RawMessage("{}"),
+				TeamID:  tt.teamID,
+			})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.DeleteMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

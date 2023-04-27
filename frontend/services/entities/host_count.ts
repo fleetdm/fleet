@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { BootstrapPackageStatus } from "interfaces/mdm";
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
@@ -9,7 +9,7 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { DiskEncryptionStatus } from "utilities/constants";
+
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
@@ -43,7 +43,7 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  diskEncryptionStatus?: FileVaultProfileStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
