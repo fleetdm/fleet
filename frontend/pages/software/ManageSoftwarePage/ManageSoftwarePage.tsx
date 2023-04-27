@@ -67,7 +67,7 @@ interface IManageSoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
-      page?: number;
+      page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
@@ -176,7 +176,7 @@ const ManageSoftwarePage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page;
+      page = parseInt(queryParams.page, 10);
     }
 
     return page;
@@ -208,9 +208,9 @@ const ManageSoftwarePage = ({
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   useEffect(() => {
-    setFilterVuln(location?.query?.vulnerable === "true" || false);
-    setPage(location?.query?.page || 0);
-    setSearchQuery(location?.query?.query || "");
+    setFilterVuln(initialVulnFilter);
+    setPage(initialPage);
+    setSearchQuery(initialQuery);
     // TODO: handle invalid values for params
   }, [location]);
 
@@ -572,8 +572,7 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !isAnyTeamSelected &&
-    !page &&
+    page === 0 &&
     !software?.software &&
     software?.counts_updated_at === null;
 
