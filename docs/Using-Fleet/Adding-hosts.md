@@ -132,7 +132,7 @@ The following command-line flags allow you to configure an osquery installer fur
 | --desktop-channel          | Update channel of desktop to use (default: `stable`)                                                                                    |
 | --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
 | --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
-| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)                |
+| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
