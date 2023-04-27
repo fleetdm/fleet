@@ -1387,6 +1387,7 @@ const ManageHostsPage = ({
         variant: "text-icon",
         icon: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
