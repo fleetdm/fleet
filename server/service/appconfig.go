@@ -403,7 +403,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings != appConfig.MDM.EndUserAuthentication.SSOProviderSettings {
+	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
+		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
+	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
