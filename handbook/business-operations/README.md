@@ -289,7 +289,7 @@ Capturing video from meetings with customers, prospects, and community members o
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
-To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. 
+To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
 If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
