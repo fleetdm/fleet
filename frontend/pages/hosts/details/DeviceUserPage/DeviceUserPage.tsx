@@ -247,9 +247,9 @@ const DeviceUserPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup.bootstrap_package_status,
-    details: host?.mdm.macos_setup.details,
-    name: host?.mdm.macos_setup.bootstrap_package_name,
+    status: host?.mdm.macos_setup?.bootstrap_package_status,
+    details: host?.mdm.macos_setup?.details,
+    name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
   const toggleMacSettingsModal = useCallback(() => {
@@ -324,12 +324,12 @@ const DeviceUserPage = ({
 
     const showDiskEncryptionLogoutRestart =
       diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings.action_required === "log_out";
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "log_out";
     const showDiskEncryptionKeyResetRequired =
       diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings.action_required === "rotate_key";
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "rotate_key";
 
     return (
       <div className="fleet-desktop-wrapper">
