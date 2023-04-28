@@ -22,9 +22,9 @@ interface ISettingsWrapperProp {
   router: InjectedRouter; // v3
 }
 
-const baseClass = "settings-wrapper";
+const baseClass = "admin-wrapper";
 
-const SettingsWrapper = ({
+const AdminWrapper = ({
   children,
   location: { pathname },
   router,
@@ -102,4 +102,4 @@ const SettingsWrapper = ({
   );
 };
 
-export default SettingsWrapper;
+export default AdminWrapper;
