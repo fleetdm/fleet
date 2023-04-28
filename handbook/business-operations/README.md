@@ -691,8 +691,8 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
-1. **Departing team member's manager**: Create [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose) and update last day in ["Fleeties"](https://fleetdm.com/handbook/company#org-chart).
-2. **Head of Business Operations**: After finding out at the next standup (or sooner), the Head of Business Operations will post in `#g-e` to inform the E-group of the team member's departure.  E-group members will inform any other managers on their teams.
+1. **Departing team member's manager**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+2. **Head of Business Operations**: After finding out at the next standup (or sooner), the Head of Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
 3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
