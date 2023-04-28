@@ -764,7 +764,7 @@ To start a preview without starting the simulated hosts, use the `--no-hosts` fl
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
 
-For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
+For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups.md#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
 
 ### Bug process
 
