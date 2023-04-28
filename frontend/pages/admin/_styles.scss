@@ -1,6 +1,6 @@
-@import "../../../../node_modules/react-tabs/style/react-tabs.scss";
+@import "../../../node_modules/react-tabs/style/react-tabs.scss";
 
-.settings-wrapper {
+.admin-wrapper {
   // we turn off overflow on the settings page as it seems to mess with our
   // header and navigation
   overflow: visible;
@@ -12,14 +12,14 @@
     position: relative;
 
     // fake padding for h1 while sticky
-      &::before {
-        content: "";
-        width: 100%;
-        height: $pad-xxlarge;
-        position: absolute;
-        top: -$pad-xxlarge;
-        background-color: $core-white;
-      }
+    &::before {
+      content: "";
+      width: 100%;
+      height: $pad-xxlarge;
+      position: absolute;
+      top: -$pad-xxlarge;
+      background-color: $core-white;
+    }
   }
 
   // These styles are here to make the sticky header and nav work correctly
