@@ -305,17 +305,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     {
       enabled: isRouteOk && !software?.software,
       keepPreviousData: true,
-      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
-      onSuccess: (data) => {
-        if (data > 0) {
-          setShowSoftwareCard(true);
-        } else {
-          setShowSoftwareCard(false);
-        }
-      },
     }
   );
 
@@ -392,6 +384,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       );
     },
   });
+
+  useEffect(() => {
+    softwareCount && softwareCount > 0
+      ? setShowSoftwareCard(true)
+      : setShowSoftwareCard(false);
+  }, [softwareCount]);
 
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
