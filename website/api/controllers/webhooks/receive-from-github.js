@@ -71,7 +71,6 @@ module.exports = {
       'zhumo',
       'ghernandez345',
       'rfairburn',
-      'artemist-work',
       'marcosd4h',
       'zayhanlon',
       'bradmacd',
