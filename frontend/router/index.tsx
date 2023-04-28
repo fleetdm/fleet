@@ -170,14 +170,16 @@ const routes = (
             </Route>
           </Route>
 
-          <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to="mac-os-updates" />
-            <Route component={ManageControlsPage}>
-              <Route path="mac-os-updates" component={MacOSUpdates} />
-              <Route path="mac-settings" component={MacOSSettings} />
-              <Route path="mac-settings/:section" component={MacOSSettings} />
-              <Route path="mac-setup" component={MacOSSetup} />
-              <Route path="mac-setup/:section" component={MacOSSetup} />
+          <Route component={ExcludeInSandboxRoutes}>
+            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+              <IndexRedirect to="mac-os-updates" />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacOSSettings} />
+                <Route path="mac-settings/:section" component={MacOSSettings} />
+                <Route path="mac-setup" component={MacOSSetup} />
+                <Route path="mac-setup/:section" component={MacOSSetup} />
+              </Route>
             </Route>
           </Route>
 
