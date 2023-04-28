@@ -55,8 +55,8 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
 export const MAC_SETTINGS_FILTER_OPTIONS = [
   {
     disabled: false,
-    label: "Latest",
-    value: "latest",
+    label: "Verifying",
+    value: "verifying",
   },
   {
     disabled: false,
@@ -65,7 +65,7 @@ export const MAC_SETTINGS_FILTER_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Failing",
-    value: "failing",
+    label: "Failed",
+    value: "failed",
   },
 ];
