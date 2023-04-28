@@ -204,9 +204,20 @@ resource "random_uuid" "jitprovisioner" {
   }
 }
 
-resource "local_file" "standard-query-library" {
-  content  = file("${path.module}/../../../docs/01-Using-Fleet/standard-query-library/standard-query-library.yml")
-  filename = "${path.module}/lambda/standard-query-library.yml"
+# Use the local to make the trigger work.
+locals {
+  fleet_tag = "v4.26.0"
+}
+
+resource "null_resource" "standard-query-library" {
+  triggers = {
+    fleet_tag = local.fleet_tag
+  }
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/../../../"
+    command     = "git archive -o ${path.module}/lambda/standard-query-library.yml fleet-${local.fleet_tag} docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+  }
 }
 
 data "archive_file" "jitprovisioner" {
