@@ -118,8 +118,8 @@ export interface IHostMdmData {
   server_url: string | null;
   id?: number;
   profiles: IHostMacMdmProfile[] | null;
-  macos_settings: IMdmMacOsSettings;
-  macos_setup: IMdmMacOsSetup;
+  macos_settings?: IMdmMacOsSettings;
+  macos_setup?: IMdmMacOsSetup;
 }
 
 export interface IMunkiIssue {
