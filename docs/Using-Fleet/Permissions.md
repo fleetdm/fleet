@@ -110,7 +110,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅             | ✅              | ✅               | ✅          |             |
 | Target hosts using labels                                                                                                        | ✅             | ✅              | ✅               | ✅          |             |
 | Add and delete hosts                                                                                                             |               |                | ✅               | ✅          |             |
-| Filter software by [vulnerabilities](<(https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)>) | ✅             | ✅              | ✅               | ✅          |             |
+| Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
 | Run only designated, **observer can run**, queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
