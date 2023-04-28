@@ -23,8 +23,8 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-NUDGE_MACOS_APP_BUNDLE_VERSION=1.1.10.81462
 SYSTEMS=${SYSTEMS:-macos linux windows}
+NUDGE_VERSION=stable
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
     OSQUERY_VERSION=5.8.2
@@ -101,8 +101,7 @@ for system in $SYSTEMS; do
 
     # Add Nudge application on macos (if enabled).
     if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        # For now we always make nudge (until it's uploaded to our TUF repo)
-        make nudge-app-tar-gz version=$NUDGE_MACOS_APP_BUNDLE_VERSION out-path=.
+        curl https://tuf.fleetctl.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target nudge.app.tar.gz \

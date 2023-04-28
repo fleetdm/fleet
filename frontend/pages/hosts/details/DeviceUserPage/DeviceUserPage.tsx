@@ -3,7 +3,6 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
@@ -43,6 +42,7 @@ import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import MacSettingsModal from "../MacSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 
 const baseClass = "device-user";
 
@@ -79,6 +79,9 @@ const DeviceUserPage = ({
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -243,6 +246,12 @@ const DeviceUserPage = ({
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
 
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup?.bootstrap_package_status,
+    details: host?.mdm.macos_setup?.details,
+    name: host?.mdm.macos_setup?.bootstrap_package_name,
+  };
+
   const toggleMacSettingsModal = useCallback(() => {
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
@@ -282,8 +291,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const statusClassName = classnames("status", `status--${host?.status}`);
-
   const turnOnMdmButton = (
     <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
@@ -317,12 +324,12 @@ const DeviceUserPage = ({
 
     const showDiskEncryptionLogoutRestart =
       diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings.action_required === "log_out";
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "log_out";
     const showDiskEncryptionKeyResetRequired =
       diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings.action_required === "rotate_key";
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "rotate_key";
 
     return (
       <div className="fleet-desktop-wrapper">
@@ -358,12 +365,12 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
-              hostMacSettings={host?.mdm.profiles}
+              hostMacSettings={host?.mdm.profiles ?? []}
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
@@ -399,6 +406,8 @@ const DeviceUserPage = ({
                     isLoading={isLoadingHost}
                     software={hostSoftware}
                     deviceUser
+                    hostId={host?.id || 0}
+                    pathname={location.pathname}
                   />
                 </TabPanel>
                 {isPremiumTier && (
@@ -431,10 +440,19 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}
+        {showBootstrapPackageModal &&
+          bootstrapPackageData.details &&
+          bootstrapPackageData.name && (
+            <BootstrapPackageModal
+              packageName={bootstrapPackageData.name}
+              details={bootstrapPackageData.details}
+              onClose={() => setShowBootstrapPackageModal(false)}
+            />
+          )}
       </div>
     );
   };

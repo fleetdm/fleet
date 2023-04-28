@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
@@ -71,6 +72,17 @@ func main() {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
 	}
 
+	fleetTLSClientCertificate := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE")
+	fleetTLSClientKey := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY")
+	fleetClientCrt, err := certificate.LoadClientCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("load fleet tls client certificate")
+	}
+	fleetAlternativeBrowserHost := os.Getenv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST")
+	if fleetClientCrt != nil {
+		log.Info().Msg("Using TLS client certificate and key to authenticate to the server.")
+	}
+
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
 
@@ -122,6 +134,8 @@ func main() {
 			fleetURL,
 			insecureSkipVerify,
 			rootCA,
+			fleetClientCrt,
+			fleetAlternativeBrowserHost,
 		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
@@ -250,12 +264,14 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(client.DeviceURL(tokenReader.GetCached())); err != nil {
-						log.Error().Err(err).Msg("open browser my device")
+					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+					if err := open.Browser(openURL); err != nil {
+						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser(client.TransparencyURL(tokenReader.GetCached())); err != nil {
-						log.Error().Err(err).Msg("open browser transparency")
+					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
+					if err := open.Browser(openURL); err != nil {
+						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
 					}
 				}
 			}

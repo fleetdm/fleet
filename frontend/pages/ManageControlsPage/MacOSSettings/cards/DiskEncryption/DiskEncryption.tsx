@@ -99,7 +99,9 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
     <div className={baseClass}>
       <h2>Disk encryption</h2>
       {!isPremiumTier ? (
-        <PremiumFeatureMessage />
+        <PremiumFeatureMessage
+          className={`${baseClass}__premium-feature-message`}
+        />
       ) : (
         <>
           {isLoadingTeam ? (

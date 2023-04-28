@@ -22,6 +22,9 @@ assignees: ''
 ### 💥  Actual behavior
 <!-- What did you see instead? -->
 
+### 👣  Reproduction steps
+<!-- What step-by-step actions did you take? -->
+
 
 ### More info
 <!-- Any ideas?  -->

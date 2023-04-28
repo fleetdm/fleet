@@ -377,6 +377,11 @@ In the case of a prospect or customer request, we strive to adhere to the follow
 - Talk to an expert: prospects can schedule chats via our calendar tool
 - All other enquiries: 1-2 days
 
+#### Web chat on-call
+The web chat will be monitored by an on-call rotation. If you are unable to answer a technical/product question, ask the Solution Consultant (SC) in #sales. If the SC is unavailable, post in # help-engineering / #help-product accordingly.
+Transition to the next week on Friday night into Saturday (e.g. Carlos’s shift starts at 12am on 1/21 for the week of 1/23)
+Respond “in-thread” in Slack “_from-prospective-customers”. In-channel reminders for the next person starting their on-call shift are automated with notifications issued every Monday at the beginning of the day.
+
 Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
 
 ### Salesforce lead status flow

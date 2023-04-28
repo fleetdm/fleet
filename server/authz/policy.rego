@@ -23,9 +23,6 @@ run := "run"
 # Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
 
-# MDM specific actions
-mdm_command := "mdm_command"
-
 # Roles
 admin := "admin"
 maintainer := "maintainer"
@@ -574,6 +571,13 @@ allow {
   action == [read, write][_]
 }
 
+# Global gitops can write Apple MDM config profiles.
+allow {
+  object.type == "mdm_apple_config_profile"
+  subject.global_role == gitops
+  action == write
+}
+
 # Team admins and maintainers can read and write Apple MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
@@ -583,19 +587,13 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins and maintainers can issue MDM commands to all hosts.
-allow {
-  object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-  action == mdm_command
-}
-
-# Team admins and maintainers can issue MDM commands to hosts on their teams.
+# Team gitops can write Apple MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "host"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == mdm_command
+  object.team_id != 0
+  object.type == "mdm_apple_config_profile"
+  team_role(subject, object.team_id) == gitops
+  action == write
 }
 
 # Global admins can read and write MDM apple information.
@@ -663,18 +661,18 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write (i.e. trigger) cron schedules.
-allow {
-  object.type == "cron_schedules"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins and maintainers can read and write MDM Apple settings.
 allow {
   object.type == "mdm_apple_settings"
   subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+# Global gitops can write MDM Apple settings.
+allow {
+  object.type == "mdm_apple_settings"
+  subject.global_role == gitops
+  action == write
 }
 
 # Team admins and maintainers can read and write MDM Apple Settings of their teams.
@@ -683,6 +681,14 @@ allow {
   object.type == "mdm_apple_settings"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+# Team gitops can write MDM Apple Settings of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_settings"
+  team_role(subject, object.team_id) == gitops
+  action == write
 }
 
 # Global admins and maintainers can read and write bootstrap packages.
@@ -698,6 +704,53 @@ allow {
   object.team_id != 0
   object.type == "mdm_apple_bootstrap_package"
   team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+##
+# MDM Apple Setup Assistant
+##
+
+# Global admins and maintainers can read and write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Global gitops can write macos setup assistants.
+allow {
+  object.type == "mdm_apple_setup_assistant"
+  subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read and write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team gitops can write macos setup assistants on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_setup_assistant"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+##
+# Cron schedules
+##
+
+# Global admins can read and write (i.e. trigger) cron schedules.
+allow {
+  object.type == "cron_schedules"
+  subject.global_role == admin
   action == [read, write][_]
 }
 

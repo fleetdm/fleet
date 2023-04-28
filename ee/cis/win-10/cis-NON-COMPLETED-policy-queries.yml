@@ -322,6 +322,161 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.
+    All removable data drives that are not BitLocker-protected will be mounted as read-only. If the drive is protected by BitLocker, it will be mounted with read and write access.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query:
+  # TODO Able to set the GPO however,
+  # The HKEY RDVDenyWriteAccess is not showing up in the registry after modification
+  # Very odd as the rest of the section was perfectly fine
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = );
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Account Lockout' is set to include 'Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user's account is locked out as a result of too many failed logon attempts. Events for this subcategory include:
+    - 4625: An account failed to log on.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Account Lockout'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  # TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+  # OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:c7ba8f71918f1ca040747fbec5ab33f3
+  # SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditAccountLockout</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "2";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Group Membership' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy allows you to audit the group membership information in the user’s logon token. Events in this subcategory are generated on the computer on which a logon session is created. For an interactive logon, the security audit event is generated on the computer that the user logged on to. For a network logon, such as accessing a shared folder on the network, the security audit event is generated on the computer hosting the resource.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Group Membership'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  # TODO Can't test, select * from mdm_bridge; is returning enrollment_status: device_not_enrolled
+  # OMA-URI provided here looks like only use for Microsoft InTune: https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_2004_Level_1_v1.0.1.audit:ee85b155b604aa453fafc9c6d5418e33
+  # SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "1";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Logoff' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user logs off from the system. These events occur on the accessed computer. For interactive logons, the generation of these events occurs on the computer that is logged on to. If a network logon takes place to access a share, these events generate on the computer that hosts the accessed resource. If you configure this setting to No auditing, it is difficult or impossible to determine which user has accessed or attempted to access organization computers. Events for this subcategory include:
+    - 4634: An account was logged off.
+    - 4647: User initiated logoff.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logoff'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Logon' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user attempts to log on to the system. These events occur on the accessed computer. For interactive logons, the generation of these events occurs on the computer that is logged on to. If a network logon takes place to access a share, these events generate on the computer that hosts the accessed resource. If you configure this setting to No auditing, it is difficult or impossible to determine which user has accessed or attempted to access organization computers. Events for this subcategory include:
+    - 4624: An account was successfully logged on.
+    - 4625: An account failed to log on.
+    - 4648: A logon was attempted using explicit credentials.
+    - 4675: SIDs were filtered.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Logon'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Other Logon/Logoff Events' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports other logon/logoff-related events, such as Remote Desktop Services session disconnects and reconnects, using RunAs to run processes under a different account, and locking and unlocking a workstation. Events for this subcategory include:
+    - 4649: A replay attack was detected.
+    - 4778: A session was reconnected to a Window Station.
+    - 4779: A session was disconnected from a Window Station.
+    - 4800: The workstation was locked.
+    - 4801: The workstation was unlocked.
+    - 4802: The screen saver was invoked.
+    - 4803: The screen saver was dismissed.
+    - 5378: The requested credentials delegation was disallowed by policy.
+    - 5632: A request was made to authenticate to a wireless network.
+    - 5633: A request was made to authenticate to a wired network.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Other Logon/Logoff Events'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit Special Logon' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a special logon is used. A special logon is a logon that has administrator-equivalent privileges and can be used to elevate a process to a higher level. Events for this subcategory include:
+    - 4964 : Special groups have been assigned to a new logon.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Logon/Logoff\Audit Special Logon'
+  query:
+  # TODO No HKEY or OMA-URI for 17.5.x
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.5.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher
   platforms: win11
   platform: windows
