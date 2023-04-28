@@ -2698,7 +2698,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	teamBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	type deviceWithResponse struct {
-		// An empty string here means "skip the response", ie: pending
 		bootstrapResponse string
 		device            *device
 	}
@@ -2708,6 +2707,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// which a device may or may not send a response. For example, "Offline" means that no response
 	// will be sent by the device, which should in turn be interpreted by Fleet as "Pending"). See
 	// https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+	//
+	// Below:
+	// - Acknowledge means the device will enroll and acknowledge the request to install the bp
+	// - Error means that the device will enroll and fail to install the bp
+	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
+	// - Pending means that the device won't enroll at all
 	noTeamDevices := []deviceWithResponse{
 		{"Acknowledge", newDevice(s)},
 		{"Acknowledge", newDevice(s)},
@@ -2715,6 +2720,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Error", newDevice(s)},
 		{"Offline", newDevice(s)},
 		{"Offline", newDevice(s)},
+		{"Pending", newDevice(s)},
+		{"Pending", newDevice(s)},
 	}
 
 	teamDevices := []deviceWithResponse{
@@ -2724,18 +2731,19 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Error", newDevice(s)},
 		{"Error", newDevice(s)},
 		{"Offline", newDevice(s)},
+		{"Pending", newDevice(s)},
 	}
 
-	expectedUUIDsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
-	expectedUUIDsByTeamAndStatus[0] = map[fleet.MDMBootstrapPackageStatus][]string{
-		fleet.MDMBootstrapPackageInstalled: {noTeamDevices[0].device.uuid, noTeamDevices[1].device.uuid, noTeamDevices[2].device.uuid},
-		fleet.MDMBootstrapPackageFailed:    {noTeamDevices[3].device.uuid},
-		fleet.MDMBootstrapPackagePending:   {noTeamDevices[4].device.uuid, noTeamDevices[5].device.uuid},
+	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
+	expectedSerialsByTeamAndStatus[0] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {noTeamDevices[0].device.serial, noTeamDevices[1].device.serial, noTeamDevices[2].device.serial},
+		fleet.MDMBootstrapPackageFailed:    {noTeamDevices[3].device.serial},
+		fleet.MDMBootstrapPackagePending:   {noTeamDevices[4].device.serial, noTeamDevices[5].device.serial, noTeamDevices[6].device.serial, noTeamDevices[7].device.serial},
 	}
-	expectedUUIDsByTeamAndStatus[team.ID] = map[fleet.MDMBootstrapPackageStatus][]string{
-		fleet.MDMBootstrapPackageInstalled: {teamDevices[0].device.uuid, teamDevices[1].device.uuid},
-		fleet.MDMBootstrapPackageFailed:    {teamDevices[2].device.uuid, teamDevices[3].device.uuid, teamDevices[4].device.uuid},
-		fleet.MDMBootstrapPackagePending:   {teamDevices[5].device.uuid},
+	expectedSerialsByTeamAndStatus[team.ID] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {teamDevices[0].device.serial, teamDevices[1].device.serial},
+		fleet.MDMBootstrapPackageFailed:    {teamDevices[2].device.serial, teamDevices[3].device.serial, teamDevices[4].device.serial},
+		fleet.MDMBootstrapPackagePending:   {teamDevices[5].device.serial, teamDevices[6].device.serial},
 	}
 
 	// for good measure, add a couple of manually enrolled hosts
@@ -2817,7 +2825,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -2856,12 +2864,16 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	for _, d := range noTeamDevices {
 		dd := d
-		enrollAndCheckBootstrapPackage(&dd, globalBootstrapPackage)
+		if dd.bootstrapResponse != "Pending" {
+			enrollAndCheckBootstrapPackage(&dd, globalBootstrapPackage)
+		}
 	}
 
 	for _, d := range teamDevices {
 		dd := d
-		enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
+		if dd.bootstrapResponse != "Pending" {
+			enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
+		}
 	}
 
 	checkHostDetails := func(t *testing.T, hostID uint, hostUUID string, expectedStatus fleet.MDMBootstrapPackageStatus) {
@@ -2892,11 +2904,11 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	}
 
 	checkHostAPIs := func(t *testing.T, status fleet.MDMBootstrapPackageStatus, teamID *uint) {
-		var expectedUUIDs []string
+		var expectedSerials []string
 		if teamID == nil {
-			expectedUUIDs = expectedUUIDsByTeamAndStatus[0][status]
+			expectedSerials = expectedSerialsByTeamAndStatus[0][status]
 		} else {
-			expectedUUIDs = expectedUUIDsByTeamAndStatus[*teamID][status]
+			expectedSerials = expectedSerialsByTeamAndStatus[*teamID][status]
 		}
 
 		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?bootstrap_package=%s", status)
@@ -2906,18 +2918,22 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		var listHostsResp listHostsResponse
 		s.DoJSON("GET", listHostsPath, nil, http.StatusOK, &listHostsResp)
 		require.NotNil(t, listHostsResp.Hosts)
-		require.Len(t, listHostsResp.Hosts, len(expectedUUIDs))
+		require.Len(t, listHostsResp.Hosts, len(expectedSerials))
 
-		gotHostsByUUID := make(map[string]fleet.HostResponse)
+		gotHostsBySerial := make(map[string]fleet.HostResponse)
 		for _, h := range listHostsResp.Hosts {
-			gotHostsByUUID[h.UUID] = h
+			gotHostsBySerial[h.HardwareSerial] = h
 		}
-		require.Len(t, gotHostsByUUID, len(expectedUUIDs))
+		require.Len(t, gotHostsBySerial, len(expectedSerials))
 
-		for _, uuid := range expectedUUIDs {
-			require.Contains(t, gotHostsByUUID, uuid)
-			h := gotHostsByUUID[uuid]
-			checkHostDetails(t, h.ID, h.UUID, status)
+		for _, serial := range expectedSerials {
+			require.Contains(t, gotHostsBySerial, serial)
+			h := gotHostsBySerial[serial]
+
+			// pending hosts don't have an UUID yet.
+			if h.UUID != "" {
+				checkHostDetails(t, h.ID, h.UUID, status)
+			}
 		}
 
 		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?bootstrap_package=%s", status)
@@ -2926,7 +2942,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		}
 		var countResp countHostsResponse
 		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
-		require.Equal(t, countResp.Count, len(expectedUUIDs))
+		require.Equal(t, countResp.Count, len(expectedSerials))
 	}
 
 	// check summary no team hosts
@@ -2934,7 +2950,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(3),
-		Pending:   uint(2),
+		Pending:   uint(4),
 		Failed:    uint(1),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
@@ -2947,7 +2963,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(2),
-		Pending:   uint(1),
+		Pending:   uint(2),
 		Failed:    uint(3),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
