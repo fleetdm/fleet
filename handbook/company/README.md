@@ -65,7 +65,7 @@ It takes reliable execution and a fully-activated mind to achieve ambitious goal
 
 - **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially merge requests, Slack, and emails.
 - **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, just fix it.  Follow through on commitments quickly.
-- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#strategy) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#purpose) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 - **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
 
 ### 🟢 Results
