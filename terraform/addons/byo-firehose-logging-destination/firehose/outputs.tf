@@ -1,4 +1,3 @@
-data "aws_region" "current" {}
 output "fleet_extra_environment_variables" {
   value = {
     FLEET_FIREHOSE_STATUS_STREAM       = var.firehose_status_name
