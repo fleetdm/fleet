@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { kebabCase } from "lodash";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
@@ -19,6 +20,7 @@ export interface IActionButtonProps {
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   icon?: string;
   iconPosition?: string;
+  indicatePremiumFeature?: boolean;
 }
 
 function useActionCallback(
@@ -42,6 +44,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     hideButton,
     icon,
     iconPosition,
+    indicatePremiumFeature,
   } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick);
 
@@ -75,9 +78,19 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return Boolean(hideButtonProp);
   };
 
-  return isHidden(hideButton) ? null : (
+  if (isHidden(hideButton)) {
+    return null;
+  }
+  return (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
+      {indicatePremiumFeature && (
+        <PremiumFeatureIconWithTooltip tooltipDelayHide={500} />
+      )}
+      <Button
+        disabled={indicatePremiumFeature}
+        onClick={() => onButtonClick(targetIds)}
+        variant={variant}
+      >
         <>
           {iconPosition === "left" && iconLink && (
             <img alt={`${name} icon`} src={iconLink} />

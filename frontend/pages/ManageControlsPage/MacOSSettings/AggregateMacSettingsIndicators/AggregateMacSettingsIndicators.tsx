@@ -1,4 +1,5 @@
-import { IAggregateMacSettingsStatus } from "interfaces/mdm";
+import { IconNames } from "components/icons";
+import { MdmProfileStatus } from "interfaces/mdm";
 import MacSettingsIndicator from "pages/hosts/details/MacSettingsIndicator";
 import React from "react";
 import { useQuery } from "react-query";
@@ -8,6 +9,39 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "aggregate-mac-settings-indicators";
 
+interface IAggregateDisplayOption {
+  value: MdmProfileStatus;
+  text: string;
+  iconName: IconNames;
+  tooltipText: string;
+}
+
+const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
+  {
+    value: MdmProfileStatus.VERIFYING,
+    text: "Verifying",
+    iconName: "success-partial",
+    tooltipText:
+      "Hosts that told Fleet all settings are enforced. Fleet is verifying.",
+  },
+  {
+    value: MdmProfileStatus.PENDING,
+    text: "Pending",
+    iconName: "pending-partial",
+    tooltipText:
+      "Hosts that will have settings enforced when the hosts come online.",
+  },
+  {
+    value: MdmProfileStatus.FAILED,
+    text: "Failed",
+    iconName: "error",
+    tooltipText:
+      "Hosts that failed to apply settings. Click on a host to view error(s).",
+  },
+];
+
+type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
+
 interface AggregateMacSettingsIndicatorsProps {
   teamId: number;
 }
@@ -15,52 +49,22 @@ interface AggregateMacSettingsIndicatorsProps {
 const AggregateMacSettingsIndicators = ({
   teamId,
 }: AggregateMacSettingsIndicatorsProps) => {
-  const AGGREGATE_STATUS_DISPLAY_OPTIONS = {
-    latest: {
-      text: "Latest",
-      iconName: "success",
-      tooltipText: "Hosts that applied the latest settings.",
-    },
-    pending: {
-      text: "Pending",
-      iconName: "pending",
-      tooltipText:
-        "Hosts that haven’t applied the latest settings because they are asleep, disconnected from the internet, or require action.",
-    },
-    failing: {
-      text: "Failing",
-      iconName: "error",
-      tooltipText:
-        "Hosts that failed to apply the latest settings. View hosts to see errors.",
-    },
-  } as const;
-
   const {
     data: aggregateProfileStatusesResponse,
-  } = useQuery<IAggregateMacSettingsStatus>(
+  } = useQuery<ProfileSummaryResponse>(
     ["aggregateProfileStatuses", teamId],
     () => mdmAPI.getAggregateProfileStatuses(teamId),
     { refetchOnWindowFocus: false }
   );
 
-  const DISPLAY_ORDER = ["latest", "pending", "failing"] as const;
-  const orderedResponseKVArr: [
-    keyof IAggregateMacSettingsStatus,
-    number
-  ][] = aggregateProfileStatusesResponse
-    ? DISPLAY_ORDER.map((key) => {
-        return [key, aggregateProfileStatusesResponse[key]];
-      })
-    : [];
+  if (!aggregateProfileStatusesResponse) return null;
 
-  const indicators = orderedResponseKVArr.map(([status, count]) => {
-    const { text, iconName, tooltipText } = AGGREGATE_STATUS_DISPLAY_OPTIONS[
-      status
-    ];
+  const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
+    const { value, text, iconName, tooltipText } = status;
+    const count = aggregateProfileStatusesResponse[value];
 
     return (
       <div className="aggregate-mac-settings-indicator">
-        {/* NOTE - below will be renamed as a general component and moved into the components dir by Gabe */}
         <MacSettingsIndicator
           indicatorText={text}
           iconName={iconName}
@@ -69,7 +73,7 @@ const AggregateMacSettingsIndicators = ({
         <a
           href={`${paths.MANAGE_HOSTS}?${buildQueryStringFromParams({
             team_id: teamId,
-            macos_settings: status,
+            macos_settings: value,
           })}`}
         >
           {count} hosts

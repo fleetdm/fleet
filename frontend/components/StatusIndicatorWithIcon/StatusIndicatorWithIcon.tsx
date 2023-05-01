@@ -9,10 +9,15 @@ import { COLORS } from "styles/var/colors";
 
 const baseClass = "status-indicator-with-icon";
 
-type Status = "success" | "pending" | "error";
+export type IndicatorStatus =
+  | "success"
+  | "successPartial"
+  | "pending"
+  | "pendingPartial"
+  | "error";
 
 interface IStatusIndicatorWithIconProps {
-  status: Status;
+  status: IndicatorStatus;
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;
@@ -21,9 +26,11 @@ interface IStatusIndicatorWithIconProps {
   className?: string;
 }
 
-const statusIconNameMapping: Record<Status, IconNames> = {
+const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   success: "success",
+  successPartial: "success-partial",
   pending: "pending",
+  pendingPartial: "pending-partial",
   error: "error",
 };
 
