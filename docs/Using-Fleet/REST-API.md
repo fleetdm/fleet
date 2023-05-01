@@ -3556,7 +3556,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
-- [Download a bootstrap package](#download-an-bootstrap-package)
+- [Download a bootstrap package](#download-a-bootstrap-package)
 - [Upload an EULA file](#upload-an-eula-file)
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
