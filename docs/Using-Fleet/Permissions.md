@@ -22,7 +22,7 @@ They can also run queries configured with the `observer_can_run` flag set to `tr
 
 `Applies only to Fleet Premium`
 
-Observer+ is an Observer with the added ability to run _any_ query.
+Observer+ is an Observer with the added ability to run *any* query.
 
 ### GitOps
 
