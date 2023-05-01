@@ -233,6 +233,20 @@ func (c *Client) CheckMDMEnabled() error {
 	return nil
 }
 
+func (c *Client) CheckPremiumMDMEnabled() error {
+	appCfg, err := c.GetAppConfig()
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+	}
+	if appCfg.License == nil || appCfg.License.Tier != fleet.TierPremium {
+		return errors.New("missing or invalid license")
+	}
+	return nil
+}
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
