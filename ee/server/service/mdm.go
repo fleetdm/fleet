@@ -545,7 +545,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	)
 }
 
-func (svc *Service) MDMAppleSyncDEPProfile(ctx context.Context) error {
+func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing profiles")
