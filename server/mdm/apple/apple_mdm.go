@@ -288,6 +288,8 @@ func NewDEPService(
 				level.Info(kitlog.With(logger)).Log("msg", "no DEP hosts to add")
 			}
 
+			// TODO(mna): at this point, the hosts rows are created for the devices, with the
+			// correct team_id, so we know what team-specific profile needs to be applied.
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)
