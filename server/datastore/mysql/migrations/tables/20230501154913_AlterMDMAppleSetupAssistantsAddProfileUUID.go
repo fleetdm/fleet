@@ -2,6 +2,8 @@ package tables
 
 import (
 	"database/sql"
+
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -9,7 +11,10 @@ func init() {
 }
 
 func Up_20230501154913(tx *sql.Tx) error {
-	return nil
+	_, err := tx.Exec(`
+ALTER TABLE mdm_apple_setup_assistants ADD COLUMN profile_uuid TEXT NOT NULL DEFAULT '';
+`)
+	return errors.Wrap(err, "add profile_uuid")
 }
 
 func Down_20230501154913(tx *sql.Tx) error {
