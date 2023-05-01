@@ -910,13 +910,18 @@ func TestAuthorizeTarget(t *testing.T) {
 	runTestCases(t, []authTestCase{
 		{user: nil, object: target, action: read, allow: false},
 
-		// Everyone logged in can retrieve target (filter appropriately for their
-		// access)
-		{user: test.UserNoRoles, object: target, action: read, allow: true},
+		{user: test.UserNoRoles, object: target, action: read, allow: false},
 		{user: test.UserAdmin, object: target, action: read, allow: true},
 		{user: test.UserMaintainer, object: target, action: read, allow: true},
 		{user: test.UserObserver, object: target, action: read, allow: true},
 		{user: test.UserObserverPlus, object: target, action: read, allow: true},
+		{user: test.UserGitOps, object: target, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: target, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: target, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: target, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: target, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: target, action: read, allow: false},
 	})
 }
 
