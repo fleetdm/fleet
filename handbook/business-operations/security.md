@@ -27,22 +27,21 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors *#help-login*                                                                                                                               |
+| Recoverer   | Person with access to perform the recovery who monitors `#g-business-operations`                                                                                                                               |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
 Here are the steps we take for the recovery process:
 
 
-1. If the requester still has access to Slack, they ask for help in `#help-login`. If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will post in `#help-login` for the requester.
-2. A recoverer acknowledges the request in #help-login using the "eyes" emoji 👀.
-3. The recoverer identifies the requester through a live video call.
+1. If the requester still has access to Slack, they [ask for help](https://fleetdm.com/handbook/business-operations#intake). If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will [ask for help](https://fleetdm.com/handbook/business-operations#intake) on behalf of the requester.
+2. The recoverer identifies the requester through a live video call.
 * If the recoverer does not know the requester well enough to positively identify them visually, the
   recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
   live on a video call at the same time.**
 *  For example, if the recoverer does not recognize Sam but can recognize Zach, they should ask Zach to identify Sam. Using the requester's manager or a direct teammate is recommended, as it increases the chances they frequently see each other on video.
-4. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
-   the identifier, they can perform the recovery and update the thread in `#help-login`.
+3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
+   the identifier, they can perform the recovery and update the login recovery issue.
 * If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to `#help-manage` to engage the security team immediately.
 
 
