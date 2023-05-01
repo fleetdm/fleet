@@ -1,5 +1,5 @@
 import React, { KeyboardEvent } from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
 
 import AutoSizeInputField from ".";
@@ -23,7 +23,7 @@ interface IAutoSizeInputFieldProps {
 
 export default {
   component: AutoSizeInputField,
-  title: "Components/FormFields/Input",
+  title: "Components/FormFields/Input/AutoSizeInputField",
   args: {
     autofocus: false,
     disabled: false,
@@ -43,7 +43,7 @@ export default {
   },
 } as Meta;
 
-const Template: Story<IAutoSizeInputFieldProps> = (props) => (
+const Template: StoryFn<IAutoSizeInputFieldProps> = (props) => (
   <AutoSizeInputField {...props} />
 );
 
