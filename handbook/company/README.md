@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-this-way) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
 We are dedicated to:
 
@@ -27,7 +27,7 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🔦 Head of Business Operations
+- [🚀 Product Quality Specialist](https://fleetdm.com/handbook/company/product-quality-specialist)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -58,14 +58,14 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
 - **Roleplay.** Read what you write.  [Again.](http://www.paulgraham.com/useful.html)  Use your imagination to see situations from different perspectives.
-- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
+- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers. Be present.
 
 ### 🟠 Ownership
 It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
+- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Especially merge requests, Slack, and emails.
 - **Assume responsibility.** Own up to mistakes. There's no time for finger-pointing, just fix it.  Follow through on commitments quickly.
-- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#strategy) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **No one is coming.** Take initiative. Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. Understand [Fleet's goals](https://fleetdm.com/handbook/company#purpose) yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 - **Think long term.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals.
 
 ### 🟢 Results

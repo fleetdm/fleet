@@ -402,7 +402,7 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 #### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
-- Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+- Bring your request to the Brand team by posting it in [their primary Slack channel](#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
@@ -575,7 +575,7 @@ In Figma:
 
 #### Maintaining browser compatibility
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../../docs/Using-Fleet/Supported-browsers.md).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.

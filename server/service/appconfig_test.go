@@ -17,8 +17,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -768,8 +770,20 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 func TestMDMAppleConfig(t *testing.T) {
 	ds := new(mock.Store)
+	depStorage := new(nanodep_mock.Storage)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "xyz"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
 
 	const licenseErr = "missing or invalid license"
 	const notFoundErr = "not found"
@@ -785,7 +799,9 @@ func TestMDMAppleConfig(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
-			expectedMDM: fleet.MDM{MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
@@ -807,14 +823,20 @@ func TestMDMAppleConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar", MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:          "ssoFree",
 			licenseTier:   "free",
@@ -827,7 +849,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
-			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}, MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
+				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "ssoAllFields",
 			licenseTier: "premium",
@@ -838,13 +863,14 @@ func TestMDMAppleConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
-				MetadataURL: "http://isser.metadata.com",
-				IDPName:     "onelogin",
-			}},
-				MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.String{Set: true}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IssuerURI:   "http://issuer.idp.com",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoShortEntityID",
@@ -894,7 +920,7 @@ func TestMDMAppleConfig(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}, DEPStorage: depStorage})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -916,6 +942,24 @@ func TestMDMAppleConfig(t *testing.T) {
 					return &fleet.Team{}, nil
 				}
 				return nil, errors.New(notFoundErr)
+			}
+			ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+				return []*fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+
+			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+				return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+			}
+
+			depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+				return &nanodep_client.OAuth1Tokens{}, nil
+			}
+
+			depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+				return nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)

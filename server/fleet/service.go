@@ -29,6 +29,8 @@ type EnterpriseOverrides struct {
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
+	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -154,9 +156,21 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
+	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
+	// different from InitiateSSO because it receives a different
+	// configuration and only supports a subset of the features (eg: we
+	// don't want to allow IdP initiated authentications)
+	InitiateMDMAppleSSO(ctx context.Context) (string, error)
+
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid
 	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid, then responds with an enrollment profile.
+	// TODO: add support for EULAs too
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
+
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
 	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
@@ -682,7 +696,7 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 

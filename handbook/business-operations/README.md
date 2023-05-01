@@ -57,20 +57,21 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+
 ### Attending conferences or company travel
-When attending a conference or traveling for Fleet, please make a post in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP) on Slack with the following information:
-- The start and end dates for your trip.
-- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-- The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
-- The price of the admission fees if attending a conference.
-- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or who are Salesforce contacts on an open, qualified opportunity with a budget of at least $160k+ ΔARR)**.
-- Customer/Partner Facing Events:
-  - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
-The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
-We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+When attending a conference or traveling for Fleet, keep the following in mind:
+- $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
+- We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
+  - The start and end dates for your trip.
+  - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+  - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
+  - The price of the admission fees if attending a conference.
+- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+
 
 ### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please make a post in [#g-business-opeartions](https://fleetdm.slack.com/archives/C047N5L6EGH)) on Slack with the following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -79,10 +80,15 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 ### Reimbursements
-We provide all of our team members with Brex cards for making purchases for the company. Fleet will reimburse team members who pay for work-related expenses with their personal funds.
+Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#intake).
+
+<!-- 
+No longer supported.  -mike, CEO, 2023-04-26.
+
+Fleet will reimburse team members who pay for work-related expenses with their personal funds.
 Team members can request reimbursement through [Gusto]([https://app.gusto.com/expenses](https://support.gusto.com/article/209831449100000/Get-reimbursed-for-expenses-as-an-employee)) if they're in the US or [Pilot]([https://pilot.co/](https://help.pilot.co/en/articles/4658204-how-to-request-a-reimbursement#:~:text=If%20you%20made%20a%20purchase,and%20click%20'Add%20new%20expense.)) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
->Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll.  -->
 
 
 ## Benefits
@@ -283,7 +289,7 @@ Capturing video from meetings with customers, prospects, and community members o
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
-To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. 
+To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
 If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
@@ -685,8 +691,8 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 
 ### Communicating departures
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
-1. **Departing team member's manager**: Create [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose) and update last day in ["Fleeties"](https://fleetdm.com/handbook/company#org-chart).
-2. **Head of Business Operations**: After finding out at the next standup (or sooner), the Head of Business Operations will post in `#g-e` to inform the E-group of the team member's departure.  E-group members will inform any other managers on their teams.
+1. **Departing team member's manager**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+2. **Head of Business Operations**: After finding out at the next standup (or sooner), the Head of Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
 3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 

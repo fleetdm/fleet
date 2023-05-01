@@ -49,6 +49,10 @@ type SSOProviderSettings struct {
 	IDPName string `json:"idp_name"`
 }
 
+func (s SSOProviderSettings) IsEmpty() bool {
+	return s == (SSOProviderSettings{})
+}
+
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
 	SSOProviderSettings
@@ -254,7 +258,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage    string         `json:"bootstrap_package"`
+	BootstrapPackage    optjson.String `json:"bootstrap_package"`
 	MacOSSetupAssistant optjson.String `json:"macos_setup_assistant"`
 }
 

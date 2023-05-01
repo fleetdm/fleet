@@ -40,7 +40,7 @@
 
           .info-flex__data {
             display: flex;
-            gap: 4px;
+            gap: $pad-xsmall;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;

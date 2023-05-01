@@ -3,7 +3,7 @@
     <div style="max-width:  650px;" class="mx-auto" v-if="!cloudSuccess">
       <h2 style="max-width: 650px;" class="mx-auto">Contact our team</h2>
       <p>We're here to answer your questions, and familiarize you with Fleet.</p>
-      <ajax-form action="deliverContactFormMessage" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
+      <ajax-form action="deliverContactFormMessage" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
         <div class="form-group">
           <div class="row">
             <div class="col-sm pt-4">

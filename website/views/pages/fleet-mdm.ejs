@@ -123,7 +123,7 @@
         <h2 class="text-center">Better MDM starts here</h2>
       </div>
       <div purpose="modal-form" v-if="!showSignupFormSuccess">
-      <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+      <ajax-form action="deliverMdmBetaSignup" class="mdm-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="form-group">
             <label for="fullName">Name</label>
             <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" @input="typeClearOneFormError('fullName')">

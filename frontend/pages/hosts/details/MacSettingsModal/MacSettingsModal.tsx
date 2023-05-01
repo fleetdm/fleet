@@ -1,11 +1,11 @@
 import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { IMacSettings } from "interfaces/mdm";
+import { IHostMacMdmProfile } from "interfaces/mdm";
 import MacSettingsTable from "./MacSettingsTable";
 
 interface IMacSettingsModalProps {
-  hostMacSettings?: IMacSettings;
+  hostMacSettings?: IHostMacMdmProfile[];
   onClose: () => void;
 }
 

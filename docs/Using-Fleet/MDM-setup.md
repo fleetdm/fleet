@@ -209,7 +209,7 @@ You should see information about the ABM server token such as organization name 
 ### Step 5: set Fleet to be the MDM server for Macs in ABM
 Finally, we set Fleet to be the MDM for all future Macs purchased via Apple or an authorized reseller. 
 
-1. Log in to [Apple Business Manager](business.apple.com)
+1. Log in to [Apple Business Manager](https://business.apple.com)
 2. Click your profile icon in the bottom left
 3. Click **Preferences**
 4. Click **MDM Server Assignment**

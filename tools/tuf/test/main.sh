@@ -7,6 +7,7 @@ export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
 export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
 export TUF_PATH=test_tuf
+export NUDGE=1
 
 if ( [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ] ) && [ -z "$ENROLL_SECRET" ]; then
   echo "Error: To generate packages you must set ENROLL_SECRET variable."
