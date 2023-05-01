@@ -13,6 +13,7 @@ func TestCheckPDF(t *testing.T) {
 		outErr string
 	}{
 		{[]byte{}, "reading magic bytes: EOF"},
+		{[]byte("--"), ErrInvalidType.Error()},
 		{[]byte("invalid"), ErrInvalidType.Error()},
 		{[]byte("%PDF-"), ""},
 		{[]byte("%PDF-1"), ""},

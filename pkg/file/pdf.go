@@ -2,6 +2,7 @@ package file
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -15,6 +16,9 @@ var pdfMagic = []byte{0x25, 0x50, 0x44, 0x46}
 func CheckPDF(pdf io.Reader) error {
 	buf := make([]byte, len(pdfMagic))
 	if _, err := io.ReadFull(pdf, buf); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return ErrInvalidType
+		}
 		return fmt.Errorf("reading magic bytes: %w", err)
 	}
 	if !bytes.Equal(buf, pdfMagic) {
