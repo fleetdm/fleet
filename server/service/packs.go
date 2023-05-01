@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -22,6 +23,28 @@ type packResponse struct {
 	HostIDs  []uint `json:"host_ids"`
 	LabelIDs []uint `json:"label_ids"`
 	TeamIDs  []uint `json:"team_ids"`
+}
+
+func userIsGitOpsOnly(ctx context.Context) (bool, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return false, fleet.ErrNoContext
+	}
+	if vc.User == nil {
+		return false, errors.New("missing user in context")
+	}
+	if vc.User.GlobalRole != nil {
+		return *vc.User.GlobalRole == fleet.RoleGitOps, nil
+	}
+	if len(vc.User.Teams) == 0 {
+		return false, errors.New("user has no roles")
+	}
+	for _, teamRole := range vc.User.Teams {
+		if teamRole.Role != fleet.RoleGitOps {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
@@ -43,11 +66,18 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		},
 	)
 	if err != nil {
-		// Some users (e.g. gitops) are not able to read targets, thus
-		// we do not fail when gathering the total host count to not fail
-		// the request.
 		var authErr *authz.Forbidden
 		if !errors.As(err, &authErr) {
+			return nil, err
+		}
+		// Some users (e.g. gitops) are not able to read targets, thus
+		// we do not fail when gathering the total host count to not fail
+		// write packs request.
+		ok, gerr := userIsGitOpsOnly(ctx)
+		if gerr != nil {
+			return nil, gerr
+		}
+		if !ok {
 			return nil, err
 		}
 	}
