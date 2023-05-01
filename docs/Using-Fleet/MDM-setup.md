@@ -26,6 +26,7 @@ This section will show you how to:
 3. Configure Fleet with the required files.
 
 ### Step 1: generate the required files
+For the MDM protocol to function, we need to generate the four following files:
 - APNs certificate 
 - APNs private key 
 - Simple Certificate Enrollment Protocol (SCEP) certificate 
