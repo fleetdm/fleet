@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -30,19 +31,35 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		return nil, err
 	}
 
+	totalHostsCount := uint(0)
+
 	hostMetrics, err := svc.CountHostsInTargets(
 		ctx,
 		nil,
-		fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs, TeamIDs: pack.TeamIDs},
+		fleet.HostTargets{
+			HostIDs:  pack.HostIDs,
+			LabelIDs: pack.LabelIDs,
+			TeamIDs:  pack.TeamIDs,
+		},
 	)
 	if err != nil {
-		return nil, err
+		// Some users (e.g. gitops) are not able to read targets, thus
+		// we do not fail when gathering the total host count to not fail
+		// the request.
+		var authErr *authz.Forbidden
+		if !errors.As(err, &authErr) {
+			return nil, err
+		}
+	}
+
+	if hostMetrics != nil {
+		totalHostsCount = hostMetrics.TotalHosts
 	}
 
 	return &packResponse{
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
-		TotalHostsCount: hostMetrics.TotalHosts,
+		TotalHostsCount: totalHostsCount,
 		HostIDs:         pack.HostIDs,
 		LabelIDs:        pack.LabelIDs,
 		TeamIDs:         pack.TeamIDs,
