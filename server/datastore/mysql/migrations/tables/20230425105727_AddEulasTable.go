@@ -12,12 +12,13 @@ func init() {
 func Up_20230425105727(tx *sql.Tx) error {
 	_, err := tx.Exec(`
           CREATE TABLE eulas (
+            id           int(10) unsigned NOT NULL,
             token        varchar(36),
             name         varchar(255),
             bytes        longblob,
             created_at   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-            PRIMARY KEY (token)
+            PRIMARY KEY (id)
           )`)
 	if err != nil {
 		return fmt.Errorf("creating eulas table: %w", err)

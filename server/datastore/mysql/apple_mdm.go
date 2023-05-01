@@ -1955,9 +1955,9 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-	// Currently, there can only be one EULA in the database, so we pick
-	// the first entry we find.
-	stmt := "SELECT name, created_at, token FROM eulas LIMIT 1"
+	// Currently, there can only be one EULA in the database, and we're
+	// hardcoding it's id to be 1 in order to enforce this restriction.
+	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
 	var eula fleet.MDMAppleEULA
 	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt); err != nil {
 		if err == sql.ErrNoRows {
@@ -1981,28 +1981,14 @@ func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*f
 }
 
 func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
-	// check if we already have an EULA in the database. This is a bit odd,
-	// at the moment we only allow one global EULA, but I haven't find a
-	// good way to enforce this check at the database level.
-	_, err := ds.MDMAppleGetEULAMetadata(ctx)
-
-	// if we didn't get any errors, the EULA exists, return an alreadyExists error
-	if err == nil {
-		return alreadyExists("MDMAppleEULA", "")
-	}
-
-	// if we got any error that's not a "not found", return that error
-	// before moving forward
-	if !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "checking if EULA already exists")
-	}
-
+	// We're intentionally hardcoding the id to be 1 because we only want to
+	// allow one EULA.
 	stmt := `
-          INSERT INTO eulas (name, bytes, token)
-	  VALUES (?, ?, ?)
+          INSERT INTO eulas (id, name, bytes, token)
+	  VALUES (1, ?, ?, ?)
 	`
 
-	_, err = ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	_, err := ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
 	if err != nil {
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMAppleEULA", eula.Token))

@@ -11,32 +11,33 @@ func TestUp_20230425105727(t *testing.T) {
 	applyNext(t, db)
 
 	insertStmt := `
-          INSERT INTO eulas (token, name, bytes)
-	  VALUES (?, ?, ?)
+          INSERT INTO eulas (id, token, name, bytes)
+	  VALUES (?, ?, ?, ?)
 	`
 
 	selectStmt := `
-	  SELECT name, bytes, token
+	  SELECT id, name, bytes, token
 	  FROM eulas
 	  WHERE token = ?
 	`
 
-	_, err := db.Exec(insertStmt, "ABC-DEF", "eula.pdf", []byte("eula"))
+	_, err := db.Exec(insertStmt, 1, "ABC-DEF", "eula.pdf", []byte("eula"))
 	require.NoError(t, err)
 
-	_, err = db.Exec(insertStmt, "ABC-DEF", "eula_2.pdf", []byte("eula_2"))
+	_, err = db.Exec(insertStmt, 1, "ABC-DEF", "eula_2.pdf", []byte("eula_2"))
 	require.ErrorContains(t, err, "Error 1062")
 
-	_, err = db.Exec(insertStmt, "GHI-JLK", "eula_2.pdf", []byte("eula_2"))
+	_, err = db.Exec(insertStmt, 2, "ABC-DEF", "eula_2.pdf", []byte("eula_2"))
 	require.NoError(t, err)
 
 	var (
 		token string
 		name  string
 		bytes []byte
+		id    uint
 	)
 
-	err = db.QueryRow(selectStmt, "ABC-DEF").Scan(&name, &bytes, &token)
+	err = db.QueryRow(selectStmt, "ABC-DEF").Scan(&id, &name, &bytes, &token)
 	require.NoError(t, err)
 	require.Equal(t, "ABC-DEF", token)
 	require.Equal(t, "eula.pdf", name)
