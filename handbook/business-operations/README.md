@@ -875,7 +875,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
 | `#g-business-operations`                | Business operations on-call
-| `#help-login`                           | Business operations on-call
 | `#help-brex`                            | Business operations on-call
 | `#help-classified` _(¶¶)_               | Business operations on-call
 | `#help-onboarding`                      | Mike McNeil
