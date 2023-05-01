@@ -98,6 +98,12 @@ func TestMDMRunCommand(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The payload isn't valid XML.`)
 
+	// pass valid xml plist that doesn't match the MDM command schema
+	mcFilePath := writeTmpMobileconfig(t, "Mobileconfig")
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", mcFilePath})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.`)
+
 	// host not found
 	cmdFilePath := writeTmpMDMCmd(t, "FooBar")
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "no-such-host", "--payload", cmdFilePath})
@@ -148,6 +154,14 @@ func writeTmpMDMCmd(t *testing.T, commandName string) string {
     </dict>
   </dict>
 </plist>`, uuid.New().String(), commandName))
+	require.NoError(t, err)
+	return tmpFile.Name()
+}
+
+func writeTmpMobileconfig(t *testing.T, name string) string {
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(string(mobileconfigForTest(name, uuid.New().String())))
 	require.NoError(t, err)
 	return tmpFile.Name()
 }
