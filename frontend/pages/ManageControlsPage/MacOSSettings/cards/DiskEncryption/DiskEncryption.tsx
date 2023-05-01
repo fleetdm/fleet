@@ -123,7 +123,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
                 encryption keys will be stored in Fleet.{" "}
                 <CustomLink
                   text="Learn more"
-                  url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#disk-encryption"
+                  url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"
                   newTab
                 />
               </p>
