@@ -250,7 +250,8 @@ Use either of the following methods to change the default team:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
->**Pending hosts**. Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
+### Pending hosts 
+Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
 
 ## Renewing ABM
 
