@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
+import { RouteProps, InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
 
@@ -30,7 +30,17 @@ import DeleteQueryModal from "./components/DeleteQueryModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
+  route: RouteProps;
   router: InjectedRouter; // v3
+  location: {
+    query: {
+      platform?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+  };
 }
 
 interface IQueryTableData extends IQuery {
@@ -82,8 +92,13 @@ const enhanceQuery = (q: IQuery) => {
 };
 
 const ManageQueriesPage = ({
+  route,
   router,
+  location,
 }: IManageQueriesPageProps): JSX.Element => {
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
+
   const { isOnlyObserver, isObserverPlus, isAnyTeamObserverPlus } = useContext(
     AppContext
   );
@@ -221,6 +236,8 @@ const ManageQueriesPage = ({
               isOnlyObserver={isOnlyObserver}
               isObserverPlus={isObserverPlus}
               isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+              router={router}
+              queryParams={queryParams}
             />
           )}
         </div>
