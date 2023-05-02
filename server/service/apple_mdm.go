@@ -1120,12 +1120,9 @@ func (svc *Service) EnqueueMDMAppleCommand(
 					FailedUUIDs: apnsErr.FailedUUIDs,
 				}, nil
 			}
-			// command was not processed on all hosts so return 422
-			err := fleet.NewInvalidArgumentError(
-				"command",
-				fmt.Sprintf("command failed to process on all hosts: %v", err),
-			).WithStatus(http.StatusUnprocessableEntity)
-			return http.StatusUnprocessableEntity, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+			// push failed for all hosts
+			err := fleet.NewMDMBadGatewayError("Apple push notificiation service", err)
+			return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 
 		} else if errors.As(err, &mysqlErr) {
 			// enqueue may fail with a foreign key constraint error 1452 when one of
@@ -2143,7 +2140,6 @@ func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	if err != nil {
 		return callbackMDMAppleSSOResponse{Err: err}, nil
-
 	}
 	return callbackMDMAppleSSOResponse{profile: profile}, nil
 }

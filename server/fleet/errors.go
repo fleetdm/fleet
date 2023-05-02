@@ -304,6 +304,38 @@ func (e *MDMNotConfiguredError) Error() string {
 	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
 }
 
+// MDMBadGatewayError is an error type that generates a 502 status code.
+type MDMBadGatewayError struct {
+	Message string
+	err     error
+
+	ErrorWithUUID
+}
+
+// NewMDMBadGatewayError returns a MDMBadGatewayError with the message and
+// error specified.
+func NewMDMBadGatewayError(message string, err error) *MDMBadGatewayError {
+	return &MDMBadGatewayError{
+		Message: message,
+		err:     err,
+	}
+}
+
+// StatusCode implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *MDMBadGatewayError) StatusCode() int {
+	return http.StatusBadGateway
+}
+
+// Error returns the error message.
+func (e *MDMBadGatewayError) Error() string {
+	msg := e.Message
+	if e.err != nil {
+		msg += ": " + e.err.Error()
+	}
+	return msg
+}
+
 // Error is a user facing error (API user). It's meant to be used for errors that are
 // related to fleet logic specifically. Other errors, such as mysql errors, shouldn't
 // be translated to this.
