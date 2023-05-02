@@ -1121,7 +1121,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 				}, nil
 			}
 			// push failed for all hosts
-			err := fleet.NewMDMBadGatewayError("Apple push notificiation service", err)
+			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
 			return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 
 		} else if errors.As(err, &mysqlErr) {
