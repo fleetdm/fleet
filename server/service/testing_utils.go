@@ -19,6 +19,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -43,7 +46,6 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
-	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
@@ -58,8 +60,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
 		is                fleet.InstallerStore
 		mdmStorage        nanomdm_storage.AllStorage
-		depStorage        nanodep_storage.AllStorage
+		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
 		mdmPusher         nanomdm_push.Pusher
+		mailer            fleet.MailService = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -93,13 +96,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
+		if opts[0].UseMailService {
+			mailer, err = mail.NewService(config.TestConfig())
+			require.NoError(t, err)
+		}
 
 		// allow to explicitly set installer store to nil
 		is = opts[0].Is
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
-		// allow to explicitly set DEP storage to nil
-		depStorage = opts[0].DEPStorage
+		if opts[0].DEPStorage != nil {
+			depStorage = opts[0].DEPStorage
+		}
 		// allow to explicitly set mdm pusher to nil
 		mdmPusher = opts[0].MDMPusher
 	}
@@ -150,7 +158,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			NewMDMAppleCommander(mdmStorage, mdmPusher),
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+			"",
+			ssoStore,
 		)
 		if err != nil {
 			panic(err)
@@ -251,6 +261,7 @@ type TestServerOpts struct {
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
+	UseMailService      bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -275,6 +286,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
+	var mdmPusher nanomdm_push.Pusher
+	if len(opts) > 0 && opts[0].MDMPusher != nil {
+		mdmPusher = opts[0].MDMPusher
+	}
 	limitStore, _ := memstore.New(0)
 	rootMux := http.NewServeMux()
 
@@ -284,11 +299,15 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
-				cfg.MDMApple.SCEP,
+				cfg.MDM,
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{ds: ds},
+				&MDMAppleCheckinAndCommandService{
+					ds:        ds,
+					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+					logger:    kitlog.NewNopLogger(),
+				},
 			)
 			require.NoError(t, err)
 		}
@@ -309,6 +328,19 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		server.Close()
 	})
 	return users, server
+}
+
+func testSESPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Email = config.EmailConfig{EmailBackend: "ses"}
+	c.SES = config.SESConfig{
+		Region:           "us-east-1",
+		AccessKeyID:      "foo",
+		SecretAccessKey:  "bar",
+		StsAssumeRoleArn: "baz",
+		SourceArn:        "qux",
+	}
+	return c
 }
 
 func testKinesisPluginConfig() config.FleetConfig {
@@ -521,4 +553,33 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		}
 	}
 	return res, nil
+}
+
+func mdmAppleConfigurationRequiredEndpoints() [][2]string {
+	return [][2]string{
+		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
+		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers"},
+		{"GET", "/api/latest/fleet/mdm/apple/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/dep/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary"},
+		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll"},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
+		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
+		{"GET", "/api/latest/fleet/mdm/apple"},
+		{"GET", apple_mdm.EnrollPath + "?token=test"},
+		{"GET", apple_mdm.InstallerPath + "?token=test"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+	}
 }

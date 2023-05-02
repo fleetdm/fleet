@@ -108,7 +108,7 @@ func updateVulnsInDB(
 	toInsert, toDelete := utils.VulnsDelta(detected, existing)
 
 	// Remove any possible dups...
-	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
+	toInsertSet := make(map[string]fleet.SoftwareVulnerability, len(toInsert))
 	for _, i := range toInsert {
 		toInsertSet[i.Key()] = i
 	}
@@ -119,14 +119,16 @@ func updateVulnsInDB(
 	}
 
 	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, fleet.MacOfficeReleaseNotesSource)
-		if err != nil {
-			return err
-		}
+	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
+		for _, v := range vulns {
+			ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.MacOfficeReleaseNotesSource)
+			if err != nil {
+				return err
+			}
 
-		if n > 0 {
-			inserted = append(inserted, v...)
+			if ok {
+				inserted = append(inserted, v)
+			}
 		}
 
 		return nil
@@ -157,7 +159,8 @@ func Analyze(
 		return nil, nil
 	}
 
-	iter, err := ds.ListSoftwareBySourceIter(ctx, []string{"apps"})
+	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}
+	iter, err := ds.AllSoftwareIterator(ctx, queryParams)
 	if err != nil {
 		return nil, err
 	}

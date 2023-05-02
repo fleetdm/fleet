@@ -146,4 +146,31 @@
       display: none;
     }
   }
+
+  .critical-tooltip {
+    text-align: left;
+    font-weight: $regular;
+  }
+
+  .critical-policy-icon {
+    margin-left: 1px;
+    position: relative;
+  }
+
+  .policy-name-cell {
+    .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+
+      .tooltip-base {
+        display: inline-flex;
+      }
+
+      .policy-name-text {
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+    }
+  }
 }

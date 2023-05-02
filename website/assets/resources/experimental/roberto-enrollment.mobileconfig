@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadContent</key>
+            <dict>
+                <key>Key Type</key>
+                <string>RSA</string>
+                <key>Challenge</key>
+                <string>scepchallenge</string>
+                <key>Key Usage</key>
+                <integer>5</integer>
+                <key>Keysize</key>
+                <integer>2048</integer>
+                <key>URL</key>
+                <string>https://e729-2803-9800-9446-8115-c172-dea8-6348-cf5a.sa.ngrok.io/mdm/apple/scep</string>
+                <key>Subject</key>
+                <array>
+                    <array><array><string>O</string><string>FleetDM</string></array></array>
+                    <array><array><string>CN</string><string>FleetDM Identity</string></array></array>
+                </array>
+            </dict>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.fleet.mdm.apple.scep</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.scep</string>
+            <key>PayloadUUID</key>
+            <string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+        <dict>
+            <key>AccessRights</key>
+            <integer>8191</integer>
+            <key>CheckOutWhenRemoved</key>
+            <true/>
+            <key>IdentityCertificateUUID</key>
+            <string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+            <key>PayloadType</key>
+            <string>com.apple.mdm</string>
+            <key>PayloadUUID</key>
+            <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>ServerCapabilities</key>
+            <array>
+                <string>com.apple.mdm.per-user-connections</string>
+                <string>com.apple.mdm.bootstraptoken</string>
+            </array>
+            <key>ServerURL</key>
+            <string>https://e729-2803-9800-9446-8115-c172-dea8-6348-cf5a.sa.ngrok.io/mdm/apple/mdm</string>
+            <key>SignMessage</key>
+            <true/>
+            <key>Topic</key>
+            <string>com.apple.mgmt.External.02cc4433-25b1-4c8c-ad0c-1f06137885ba</string>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Fleet Device Management Inc. Enrollment</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.fleet.mdm.apple</string>
+    <key>PayloadOrganization</key>
+    <string>Fleet Device Management Inc.</string>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

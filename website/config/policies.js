@@ -33,7 +33,6 @@ module.exports.policies = {
   'download-sitemap': true,
   'view-transparency': true,
   'view-press-kit': true,
-  'view-platform': true,
   'view-landing': true,
   'deliver-demo-signup': true,
   'articles/*': true,
@@ -55,4 +54,6 @@ module.exports.policies = {
   'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
   'view-compliance': true,
+  'view-osquery-management': true,
+  'experimental/*': true, // For internal Fleet demos
 };

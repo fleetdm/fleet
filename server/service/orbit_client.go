@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +27,7 @@ type OrbitClient struct {
 	*baseClient
 	nodeKeyFilePath string
 	enrollSecret    string
-	uuid            string
+	hostInfo        fleet.OrbitHostInfo
 
 	enrolledMu sync.Mutex
 	enrolled   bool
@@ -73,12 +74,20 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 
 // NewOrbitClient creates a new OrbitClient.
 //
-// rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
-// addr is the address of the Fleet server.
-// uuid is the UUID of the OrbitClient instance.
-func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string) (*OrbitClient, error) {
+//   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
+//   - addr is the address of the Fleet server.
+//   - orbitHostInfo is the host system information used for enrolling to Fleet.
+func NewOrbitClient(
+	rootDir string,
+	addr string,
+	rootCA string,
+	insecureSkipVerify bool,
+	enrollSecret string,
+	fleetClientCert *tls.Certificate,
+	orbitHostInfo fleet.OrbitHostInfo,
+) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", orbitCapabilities)
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +97,7 @@ func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVeri
 		nodeKeyFilePath: nodeKeyFilePath,
 		baseClient:      bc,
 		enrollSecret:    enrollSecret,
-		uuid:            uuid,
+		hostInfo:        orbitHostInfo,
 		enrolled:        false,
 	}, nil
 }
@@ -135,7 +144,13 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
+	params := EnrollOrbitRequest{
+		EnrollSecret:   oc.enrollSecret,
+		HardwareUUID:   oc.hostInfo.HardwareUUID,
+		HardwareSerial: oc.hostInfo.HardwareSerial,
+		Hostname:       oc.hostInfo.Hostname,
+		Platform:       oc.hostInfo.Platform,
+	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {

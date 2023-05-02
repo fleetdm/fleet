@@ -25,7 +25,7 @@ type newAndExciting struct{}
 func (newAndExciting) Error() string { return "" }
 
 func TestHandlesErrorsCode(t *testing.T) {
-	var errorTests = []struct {
+	errorTests := []struct {
 		name string
 		err  error
 		code int
@@ -52,17 +52,17 @@ func TestHandlesErrorsCode(t *testing.T) {
 		},
 		{
 			"osquery error - invalid node",
-			osqueryError{nodeInvalid: true},
+			&osqueryError{nodeInvalid: true},
 			http.StatusUnauthorized,
 		},
 		{
 			"osquery error - valid node",
-			osqueryError{},
+			&osqueryError{},
 			http.StatusInternalServerError,
 		},
 		{
 			"data not found",
-			notFoundError{},
+			&notFoundError{},
 			http.StatusNotFound,
 		},
 		{
@@ -89,5 +89,4 @@ func TestHandlesErrorsCode(t *testing.T) {
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}
-
 }

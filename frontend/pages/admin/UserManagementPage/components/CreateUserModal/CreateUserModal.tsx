@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
@@ -9,12 +9,13 @@ import { IFormData } from "../UserForm/UserForm";
 interface ICreateUserModalProps {
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   availableTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured: boolean;
+  sesConfigured: boolean;
   currentTeam?: ITeam;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
@@ -35,6 +36,7 @@ const CreateUserModal = ({
   availableTeams,
   isPremiumTier,
   smtpConfigured,
+  sesConfigured,
   canUseSso,
   isModifiedByGlobalAdmin,
   isUpdatingUsers,
@@ -55,6 +57,7 @@ const CreateUserModal = ({
         submitText={"Create"}
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
+        sesConfigured={sesConfigured}
         canUseSso={canUseSso}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         currentTeam={currentTeam}

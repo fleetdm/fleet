@@ -225,9 +225,13 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable     int
-	withLastOpened int
-	lastOpenedProb float64
+	vulnerable                   int
+	withLastOpened               int
+	lastOpenedProb               float64
+	commonSoftwareUninstallCount int
+	commonSoftwareUninstallProb  float64
+	uniqueSoftwareUninstallCount int
+	uniqueSoftwareUninstallProb  float64
 }
 
 func newAgent(
@@ -237,6 +241,7 @@ func newAgent(
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
+	emptySerialProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -245,6 +250,10 @@ func newAgent(
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
+	}
+	serial := randSerial()
+	if rand.Float64() <= emptySerialProb {
+		serial = ""
 	}
 	return &agent{
 		agentIndex:      agentIndex,
@@ -266,7 +275,7 @@ func newAgent(
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           strings.ToUpper(uuid.New().String()),
-		SerialNumber:   randSerial(),
+		SerialNumber:   serial,
 	}
 }
 
@@ -331,7 +340,12 @@ func (a *agent) runOrbitLoop() {
 		"",
 		true,
 		a.EnrollSecret,
-		a.UUID,
+		nil,
+		fleet.OrbitHostInfo{
+			HardwareUUID:   a.UUID,
+			HardwareSerial: a.SerialNumber,
+			Hostname:       a.CachedString("hostname"),
+		},
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -339,7 +353,7 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
-	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "")
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
 		log.Println("creating device client: ", err)
 	}
@@ -459,9 +473,11 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
-
-	req := fasthttp.AcquireRequest()
+	params := service.EnrollOrbitRequest{
+		EnrollSecret:   a.EnrollSecret,
+		HardwareUUID:   a.UUID,
+		HardwareSerial: a.SerialNumber,
+	}
 
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -469,14 +485,16 @@ func (a *agent) orbitEnroll() error {
 		return err
 	}
 
+	req := fasthttp.AcquireRequest()
 	req.SetBody(jsonBytes)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
-
 	resp := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, resp)
+
+	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 
 	if resp.StatusCode() != http.StatusOK {
@@ -582,8 +600,6 @@ func (a *agent) config() {
 		}
 	}
 	a.scheduledQueries = scheduledQueries
-
-	// No need to read the config body
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -740,6 +756,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"last_opened_at":    lastOpenedAt,
 		}
 	}
+	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonSoftware), func(i, j int) {
+			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
+		})
+		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+	}
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -753,6 +775,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
 		}
+	}
+	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueSoftware), func(i, j int) {
+			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
+		})
+		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
@@ -1181,17 +1209,24 @@ func main() {
 	}
 
 	var (
-		serverURL                   = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret                = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount                   = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed                    = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod                 = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval              = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-		queryInterval               = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-		onlyAlreadyEnrolled         = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
-		nodeKeyFile                 = flag.String("node_key_file", "", "File with node keys to use")
-		commonSoftwareCount         = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
-		uniqueSoftwareCount         = flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
+		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
+
+		commonSoftwareCount          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
+		commonSoftwareUninstallCount = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
+		commonSoftwareUninstallProb  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
+
+		uniqueSoftwareCount          = flag.Int("unique_software_count", 10, "Number of uninstalls ")
+		uniqueSoftwareUninstallCount = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
+		uniqueSoftwareUninstallProb  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
+
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
 		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
@@ -1202,6 +1237,7 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 	)
 
 	flag.Parse()
@@ -1211,6 +1247,13 @@ func main() {
 		// Orbit enrollment does not support the "already enrolled" mode at the
 		// moment (see TODO in this file).
 		*orbitProb = 0
+	}
+
+	if *commonSoftwareUninstallCount >= *commonSoftwareCount {
+		log.Fatalf("Argument common_software_uninstall_count cannot be bigger than common_software_count")
+	}
+	if *uniqueSoftwareUninstallCount >= *uniqueSoftwareCount {
+		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
 	}
 
 	var tmpls []*template.Template
@@ -1250,9 +1293,13 @@ func main() {
 					common: *commonSoftwareCount,
 					unique: *uniqueSoftwareCount,
 				},
-				vulnerable:     *vulnerableSoftwareCount,
-				withLastOpened: *withLastOpenedSoftwareCount,
-				lastOpenedProb: *lastOpenedChangeProb,
+				vulnerable:                   *vulnerableSoftwareCount,
+				withLastOpened:               *withLastOpenedSoftwareCount,
+				lastOpenedProb:               *lastOpenedChangeProb,
+				commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
+				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 			}, entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,
@@ -1261,6 +1308,7 @@ func main() {
 			*orbitProb,
 			*munkiIssueProb,
 			*munkiIssueCount,
+			*emptySerialProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

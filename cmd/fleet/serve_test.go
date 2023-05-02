@@ -271,7 +271,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
@@ -354,6 +354,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		expected := `
 {
   "cve": "CVE-2022-39348",
+  "cve_published": "2022-10-26T14:15:00Z",
   "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-39348",
   "epss_probability": 0.0089,
   "cvss_score": 5.4,
@@ -387,7 +388,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		iterator := &softwareIterator{
 			softwares: []*fleet.Software{
 				{
@@ -410,10 +411,16 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
-		return 1, nil
+	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		return true, nil
 	}
-	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
@@ -480,12 +487,13 @@ func TestScanVulnerabilities(t *testing.T) {
 		}, nil
 	}
 
-	vulnPath := t.TempDir()
+	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
 	}
 
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})

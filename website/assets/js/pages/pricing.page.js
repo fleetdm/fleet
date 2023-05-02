@@ -6,7 +6,7 @@ parasails.registerPage('pricing', {
     formData: {},
     estimatedCost: '', // For pricing calculator
     estimatedUltimateCostPerHost: 7,
-    displaySecurityPricingMode: true, // For pricing mode switch
+    displaySecurityPricingMode: false, // For pricing mode switch
     estimatedUltimateCostPerHostHasBeenUpdated: false,
   },
 

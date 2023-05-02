@@ -162,7 +162,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.26.0-1"
+    value = "v4.26.0-3"
   }
 
   set {

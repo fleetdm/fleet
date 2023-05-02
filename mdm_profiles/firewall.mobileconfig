@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>AllowSigned</key>
+			<true/>
+			<key>BlockAllIncoming</key>
+			<false/>
+			<key>EnableFirewall</key>
+			<true/>
+			<key>EnableStealthMode</key>
+			<false/>
+			<key>PayloadDescription</key>
+			<string>Configures Firewall settings</string>
+			<key>PayloadDisplayName</key>
+			<string>Firewall</string>
+			<key>PayloadIdentifier</key>
+			<string>com.github.erikberglund.ProfileCreator.F302AA03-F873-4249-A1C3-7BD94B9B855F.com.apple.security.firewall.0E0E1617-E88D-45C6-9E9B-C56BFD80C730</string>
+			<key>PayloadOrganization</key>
+			<string></string>
+			<key>PayloadType</key>
+			<string>com.apple.security.firewall</string>
+			<key>PayloadUUID</key>
+			<string>0E0E1617-E88D-45C6-9E9B-C56BFD80C730</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Configures the firewall to ne enabled in stealth mode</string>
+	<key>PayloadDisplayName</key>
+	<string>Turn on Firewall stealth mode</string>
+	<key>PayloadIdentifier</key>
+	<string>com.github.erikberglund.ProfileCreator.F302AA03-F873-4249-A1C3-7BD94B9B855F</string>
+	<key>PayloadOrganization</key>
+	<string>FleetDM</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F302AA03-F873-4249-A1C3-7BD94B9B855F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -13,11 +13,17 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func NewService() fleet.MailService {
-	return &mailService{}
+func NewService(config config.FleetConfig) (fleet.MailService, error) {
+	switch strings.ToLower(config.Email.EmailBackend) {
+	case "ses":
+		return NewSESSender(config.SES.Region, config.SES.EndpointURL, config.SES.AccessKeyID, config.SES.SecretAccessKey, config.SES.StsAssumeRoleArn, config.SES.SourceArn)
+	default:
+		return &mailService{}, nil
+	}
 }
 
 type mailService struct{}
@@ -27,7 +33,7 @@ type sender interface {
 }
 
 func Test(mailer fleet.MailService, e fleet.Email) error {
-	mailBody, err := getMessageBody(e)
+	mailBody, err := getMessageBody(e, getFrom)
 	if err != nil {
 		return fmt.Errorf("failed to get message body: %w", err)
 	}
@@ -50,7 +56,9 @@ const (
 	PortTLS = 587
 )
 
-func getMessageBody(e fleet.Email) ([]byte, error) {
+type fromFunc func(e fleet.Email) (string, error)
+
+func getMessageBody(e fleet.Email, f fromFunc) ([]byte, error) {
 	body, err := e.Mailer.Message()
 	if err != nil {
 		return nil, fmt.Errorf("get mailer message: %w", err)
@@ -58,16 +66,23 @@ func getMessageBody(e fleet.Email) ([]byte, error) {
 	mime := `MIME-version: 1.0;` + "\r\n"
 	content := `Content-Type: text/html; charset="UTF-8";` + "\r\n"
 	subject := "Subject: " + e.Subject + "\r\n"
-	from := "From: " + e.Config.SMTPSettings.SMTPSenderAddress + "\r\n"
+	from, err := f(e)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain from address: %w", err)
+	}
 	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
+}
+
+func getFrom(e fleet.Email) (string, error) {
+	return "From: " + e.Config.SMTPSettings.SMTPSenderAddress + "\r\n", nil
 }
 
 func (m mailService) SendEmail(e fleet.Email) error {
 	if !e.Config.SMTPSettings.SMTPConfigured {
 		return errors.New("email not configured")
 	}
-	msg, err := getMessageBody(e)
+	msg, err := getMessageBody(e, getFrom)
 	if err != nil {
 		return err
 	}

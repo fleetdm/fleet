@@ -3,7 +3,6 @@ import { IMacadminsResponse } from "interfaces/host";
 const DEFAULT_MAC_ADMINS_MOCK: IMacadminsResponse = {
   macadmins: {
     mobile_device_management: {
-      encryption_key_available: false,
       enrollment_status: "On (manual)",
       server_url: "https://kandji.com/2",
       name: "Kandji",

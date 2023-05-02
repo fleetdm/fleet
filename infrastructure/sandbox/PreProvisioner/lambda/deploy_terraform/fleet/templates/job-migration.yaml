@@ -10,6 +10,7 @@ metadata:
   name: {{ .Values.fleetName }}-migration
   namespace: {{ .Release.Namespace }}
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     metadata:
 {{- with .Values.podAnnotations }}

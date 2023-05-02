@@ -3,7 +3,6 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
@@ -42,6 +41,8 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import MacSettingsModal from "../MacSettingsModal";
+import ResetKeyModal from "./ResetKeyModal";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 
 const baseClass = "device-user";
 
@@ -63,6 +64,7 @@ const DeviceUserPage = ({
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [showResetKeyModal, setShowResetKeyModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -77,6 +79,9 @@ const DeviceUserPage = ({
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -95,7 +100,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: deviceMacAdminsData, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -229,6 +234,10 @@ const DeviceUserPage = ({
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
+  const toggleResetKeyModal = useCallback(() => {
+    setShowResetKeyModal(!showResetKeyModal);
+  }, [showResetKeyModal, setShowResetKeyModal]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -236,6 +245,12 @@ const DeviceUserPage = ({
     },
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup?.bootstrap_package_status,
+    details: host?.mdm.macos_setup?.details,
+    name: host?.mdm.macos_setup?.bootstrap_package_name,
+  };
 
   const toggleMacSettingsModal = useCallback(() => {
     setShowMacSettingsModal(!showMacSettingsModal);
@@ -276,8 +291,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const statusClassName = classnames("status", `status--${host?.status}`);
-
   const turnOnMdmButton = (
     <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
@@ -295,10 +308,29 @@ const DeviceUserPage = ({
     );
   };
 
+  const resetKeyButton = (
+    <Button variant="unstyled" onClick={toggleResetKeyModal}>
+      <b>Reset key</b>
+    </Button>
+  );
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     const isMdmUnenrolled =
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
+
+    const diskEncryptionBannersEnabled =
+      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
+
+    const showDiskEncryptionLogoutRestart =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "log_out";
+    const showDiskEncryptionKeyResetRequired =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings?.action_required === "rotate_key";
+
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -308,20 +340,37 @@ const DeviceUserPage = ({
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
-                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                // Turn on MDM banner
+                <InfoBanner color="yellow" cta={turnOnMdmButton}>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
                   lets your organization keep your device up to date so you
                   don’t have to.
                 </InfoBanner>
               )}
+            {showDiskEncryptionLogoutRestart && (
+              // MDM - Disk Encryption: Logout or restart banner
+              <InfoBanner color="yellow">
+                Disk encryption: Log out of your device or restart to turn on
+                disk encryption. Then, select <strong>Refetch</strong>. This
+                prevents unauthorized access to the information on your device.
+              </InfoBanner>
+            )}
+            {showDiskEncryptionKeyResetRequired && (
+              // MDM - Disk Encryption: Reset key required banner
+              <InfoBanner color="yellow" cta={resetKeyButton}>
+                Disk encryption: Reset your disk encryption key. This lets your
+                organization help you unlock your device if you forget your
+                password.
+              </InfoBanner>
+            )}
             <HostSummaryCard
-              statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
-              hostMacSettings={host?.mdm.profiles}
+              hostMacSettings={host?.mdm.profiles ?? []}
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
@@ -357,6 +406,8 @@ const DeviceUserPage = ({
                     isLoading={isLoadingHost}
                     software={hostSoftware}
                     deviceUser
+                    hostId={host?.id || 0}
+                    pathname={location.pathname}
                   />
                 </TabPanel>
                 {isPremiumTier && (
@@ -373,6 +424,12 @@ const DeviceUserPage = ({
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showResetKeyModal && (
+              <ResetKeyModal
+                onClose={toggleResetKeyModal}
+                deviceAuthToken={deviceAuthToken}
+              />
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
@@ -383,21 +440,34 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}
+        {showBootstrapPackageModal &&
+          bootstrapPackageData.details &&
+          bootstrapPackageData.name && (
+            <BootstrapPackageModal
+              packageName={bootstrapPackageData.name}
+              details={bootstrapPackageData.details}
+              onClose={() => setShowBootstrapPackageModal(false)}
+            />
+          )}
       </div>
     );
   };
 
   return (
     <div className="app-wrap">
-      <nav className="site-nav">
-        <div className="site-nav-container">
+      <nav className="site-nav-container">
+        <div className="site-nav-content">
           <ul className="site-nav-list">
-            <li className={`site-nav-item--logo`} key={`nav-item`}>
-              <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+            <li className="site-nav-item dup-org-logo" key="dup-org-logo">
+              <div className="site-nav-item__logo-wrapper">
+                <div className="site-nav-item__logo">
+                  <OrgLogoIcon className="logo" src={orgLogoURL || FleetIcon} />
+                </div>
+              </div>
             </li>
           </ul>
         </div>

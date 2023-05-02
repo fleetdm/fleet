@@ -9,9 +9,20 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
-import { actions } from "react-table";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const baseClass = "activity-item";
+
+const PREMIUM_ACTIVITIES = new Set([
+  "created_team",
+  "deleted_team",
+  "applied_spec_team",
+  "changed_user_team_role",
+  "deleted_user_team_role",
+  "read_host_disk_encryption_key",
+  "enabled_macos_disk_encryption",
+  "disabled_macos_disk_encryption",
+]);
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
@@ -28,6 +39,40 @@ const getProfileMessageSuffix = (
     );
   }
   return messageSuffix;
+};
+
+const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+  return teamName ? (
+    <>
+      {" "}
+      assigned to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>with no team</>
+  );
+};
+
+const getMacOSSetupAssistantMessage = (
+  action: "added" | "deleted",
+  name?: string,
+  teamName?: string | null
+) => {
+  const suffix = teamName ? (
+    <>
+      {" "}
+      that automatically enroll to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>that automatically enroll to no team</>
+  );
+
+  return (
+    <>
+      {" "}
+      changed the macOS Setup Assistant ({action} <b>{name}</b>) for hosts{" "}
+      {suffix}.
+    </>
+  );
 };
 
 const TAGGED_TEMPLATES = {
@@ -88,7 +133,7 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
       </>
     ) : (
       "edited multiple teams using fleetctl."
@@ -222,29 +267,41 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        viewed the disk encryption key for {activity.details?.host_display_name}
-        .
+        viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
 
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
     return (
       <>
         {" "}
-        added configuration profile {activity.details?.profile_name} to{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        .
       </>
     );
   },
 
   deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
     return (
       <>
         {" "}
-        deleted configuration profile {
-          activity.details?.host_display_name
-        } from{" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
         {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
@@ -263,6 +320,28 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+  },
+  disableMacDiskEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+  },
+  changedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "added",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
+  deletedMacOSSetupAssistant: (activity: IActivity) => {
+    return getMacOSSetupAssistantMessage(
+      "deleted",
+      activity.details?.name,
+      activity.details?.team_name
+    );
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -275,6 +354,56 @@ const TAGGED_TEMPLATES = {
     ) : (
       <>
         {activityType} <b>{entityName}</b>.
+      </>
+    );
+  },
+  addedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        added a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMDMBootstrapPackage: (activity: IActivity) => {
+    const packageName = activity.details?.bootstrap_package_name;
+    return (
+      <>
+        {" "}
+        deleted a bootstrap package{" "}
+        {packageName ? (
+          <>
+            &#40;<b>{packageName}</b>&#41;{" "}
+          </>
+        ) : (
+          ""
+        )}
+        for macOS hosts that automatically enroll to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
       </>
     );
   },
@@ -355,6 +484,24 @@ const getDetail = (
     case ActivityType.EditedMacOSProfile: {
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
     }
+    case ActivityType.EnabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+    }
+    case ActivityType.DisabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+    }
+    case ActivityType.AddedBootstrapPackage: {
+      return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.DeletedBootstrapPackage: {
+      return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.ChangedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);
+    }
+    case ActivityType.DeletedMacOSSetupAssistant: {
+      return TAGGED_TEMPLATES.deletedMacOSSetupAssistant(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -364,6 +511,7 @@ const getDetail = (
 interface IActivityItemProps {
   activity: IActivity;
   isPremiumTier: boolean;
+  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -375,6 +523,7 @@ interface IActivityItemProps {
 const ActivityItem = ({
   activity,
   isPremiumTier,
+  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
@@ -383,6 +532,8 @@ const ActivityItem = ({
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
+  const indicatePremiumFeature =
+    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   return (
     <div className={baseClass}>
@@ -394,6 +545,7 @@ const ActivityItem = ({
       />
       <div className={`${baseClass}__details`}>
         <p>
+          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {activity.type === ActivityType.UserLoggedIn ? (
               <b>{activity.actor_email} </b>

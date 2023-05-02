@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
@@ -68,14 +70,24 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Usage:   "Path to server certificate chain",
+			Usage:   "Path to the Fleet server certificate chain",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+		},
+		&cli.StringFlag{
+			Name:    "fleet-desktop-alternative-browser-host",
+			Usage:   "Alternative host:port to use for Fleet Desktop in the browser (this may be required when using TLS client authentication in the Fleet server)",
+			EnvVars: []string{"ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST"},
 		},
 		&cli.StringFlag{
 			Name:    "update-url",
 			Usage:   "URL for update server",
 			Value:   "https://tuf.fleetctl.com",
 			EnvVars: []string{"ORBIT_UPDATE_URL"},
+		},
+		&cli.StringFlag{
+			Name:    "update-tls-certificate",
+			Usage:   "Path to the update server TLS certificate chain",
+			EnvVars: []string{"ORBIT_UPDATE_TLS_CERTIFICATE"},
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret",
@@ -145,6 +157,12 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
 			Hidden:  true,
 		},
+		&cli.BoolFlag{
+			Name:    "use-system-configuration",
+			Usage:   "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
+			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
+			Hidden:  true,
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -162,7 +180,6 @@ func main() {
 				return fmt.Errorf("failed to set root-dir: %w", err)
 			}
 		}
-
 		return nil
 	}
 	app.Action = func(c *cli.Context) error {
@@ -208,6 +225,10 @@ func main() {
 			return errors.New("insecure and fleet-certificate may not be specified together")
 		}
 
+		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
+			return errors.New("insecure and update-tls-certificate may not be specified together")
+		}
+
 		if c.String("enroll-secret-path") != "" {
 			if c.String("enroll-secret") != "" {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
@@ -225,6 +246,46 @@ func main() {
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
+		// if neither are set, this might be an agent deployed via MDM, try to read
+		// both configs from a configuration profile
+		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
+			log.Info().Msg("trying to read fleet-url and enroll-secret from a configuration profile")
+			for {
+				config, err := profiles.GetFleetdConfig()
+				switch {
+				// handle these errors separately as debug messages to not raise false
+				// alarms when users look into the orbit logs, it's perfectly normal to
+				// not have a configuration profile, or to get into this situation in
+				// operating systems that don't have profile support.
+				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
+					log.Debug().Msgf("reading configuration profile: %v", err)
+				case err != nil:
+					log.Error().Err(err).Msg("reading configuration profile")
+				case config.EnrollSecret == "" || config.FleetURL == "":
+					log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
+				default:
+					log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
+					if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
+						return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+					}
+					if err := c.Set("fleet-url", config.FleetURL); err != nil {
+						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+					}
+					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
+						return fmt.Errorf("write enroll secret: %w", err)
+					}
+				}
+
+				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+					log.Info().Msg("found configuration values in system profile")
+					break
+				}
+
+				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
+				time.Sleep(30 * time.Second)
+			}
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -257,6 +318,7 @@ func main() {
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
+		opt.ServerCertificatePath = c.String("update-tls-certificate")
 
 		var (
 			osquerydPath string
@@ -280,6 +342,17 @@ func main() {
 				Interval: softwareUpdatedKickstartInterval,
 			})
 			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		}
+
+		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
+		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
+		updateClientCrt, err := certificate.LoadClientCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading update client certificate: %w", err)
+		}
+		if updateClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to the update server.")
+			opt.ClientCertificate = &updateClientCrt.Crt
 		}
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -380,12 +453,11 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
-		uuidStr, err := getUUID(osquerydPath)
+		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Msg("UUID is " + uuidStr)
+		log.Debug().Str("info", fmt.Sprint(orbitHostInfo)).Msg("retrieved host info")
 
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
@@ -509,13 +581,31 @@ func main() {
 
 		}
 
+		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
+		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
+		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		if err != nil {
+			return fmt.Errorf("error loading fleet client certificate: %w", err)
+		}
+
+		var fleetClientCertificate *tls.Certificate
+		if fleetClientCrt != nil {
+			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
+			fleetClientCertificate = &fleetClientCrt.Crt
+			options = append(options, osquery.WithFlags([]string{
+				"--tls_client_cert", fleetClientCertPath,
+				"--tls_client_key", fleetClientKeyPath,
+			}))
+		}
+
 		orbitClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
-			uuidStr,
+			fleetClientCertificate,
+			orbitHostInfo,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -532,6 +622,8 @@ func main() {
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			})
+
+			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -613,7 +705,13 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
-			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
+			deviceClient, err := service.NewDeviceClient(
+				fleetURL,
+				c.Bool("insecure"),
+				c.String("fleet-certificate"),
+				fleetClientCertificate,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
 			if err != nil {
 				return fmt.Errorf("initializing client: %w", err)
 			}
@@ -721,7 +819,8 @@ func main() {
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
-			uuidStr,
+			fleetClientCertificate,
+			orbitHostInfo,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -742,7 +841,24 @@ func main() {
 		)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), trw)
+			var (
+				rawClientCrt []byte
+				rawClientKey []byte
+			)
+			if fleetClientCrt != nil {
+				rawClientCrt = fleetClientCrt.RawCrt
+				rawClientKey = fleetClientCrt.RawKey
+			}
+			desktopRunner := newDesktopRunner(
+				desktopPath,
+				fleetURL,
+				c.String("fleet-certificate"),
+				c.Bool("insecure"),
+				trw,
+				rawClientCrt,
+				rawClientKey,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
 			g.Add(desktopRunner.actor())
 		}
 
@@ -761,6 +877,10 @@ func main() {
 		return nil
 	}
 
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
+		platform.PreUpdateQuirks()
+	}
+
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
@@ -771,25 +891,51 @@ func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
+// desktopRunner runs the Fleet Desktop application.
 type desktopRunner struct {
-	desktopPath   string
-	fleetURL      string
-	trw           *token.ReadWriter
-	fleetRootCA   string
-	insecure      bool
-	interruptCh   chan struct{} // closed when interrupt is triggered
-	executeDoneCh chan struct{} // closed when execute returns
+	// desktopPath is the path to the desktop executable.
+	desktopPath string
+	// fleetURL is the URL of the Fleet server.
+	fleetURL string
+	// trw is the Fleet Desktop token reader and writer (implements token rotation).
+	trw *token.ReadWriter
+	// fleetRootCA is the path to a certificate to use for server TLS verification.
+	fleetRootCA string
+	// insecure disables all TLS verification.
+	insecure bool
+	// fleetClientCrt is the raw TLS client certificate (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientCrt []byte
+	// fleetClientKey is the raw TLS client private key (in PEM format)
+	// to use for authenticating to the Fleet server.
+	fleetClientKey []byte
+	// fleetAlternativeBrowserHost is an alternative host:port to use for
+	// the browser URLs in Fleet Desktop.
+	fleetAlternativeBrowserHost string
+	// interruptCh is closed when interrupt is triggered.
+	interruptCh chan struct{} //
+	// executeDoneCh is closed when execute returns.
+	executeDoneCh chan struct{}
 }
 
-func newDesktopRunner(desktopPath, fleetURL, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
+func newDesktopRunner(
+	desktopPath, fleetURL, fleetRootCA string,
+	insecure bool,
+	trw *token.ReadWriter,
+	fleetClientCrt []byte, fleetClientKey []byte,
+	fleetAlternativeBrowserHost string,
+) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:   desktopPath,
-		fleetURL:      fleetURL,
-		trw:           trw,
-		fleetRootCA:   fleetRootCA,
-		insecure:      insecure,
-		interruptCh:   make(chan struct{}),
-		executeDoneCh: make(chan struct{}),
+		desktopPath:                 desktopPath,
+		fleetURL:                    fleetURL,
+		trw:                         trw,
+		fleetRootCA:                 fleetRootCA,
+		insecure:                    insecure,
+		fleetClientCrt:              fleetClientCrt,
+		fleetClientKey:              fleetClientKey,
+		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
+		interruptCh:                 make(chan struct{}),
+		executeDoneCh:               make(chan struct{}),
 	}
 }
 
@@ -830,9 +976,15 @@ func (d *desktopRunner) execute() error {
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
+
 		// TODO(roperzh): this env var is keept only for backwards compatibility,
 		// we should remove it once we think is safe
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
+
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
+
+		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
@@ -907,37 +1059,81 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
-func getUUID(osqueryPath string) (string, error) {
+// hostInfo is used to parse osquery JSON output from `system_info` and `os_version` tables.
+type hostInfo struct {
+	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
+	HardwareUUID string `json:"uuid"`
+	// HardwareSerial is the unique serial number for this device (extracted from `system_info` osquery table).
+	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname (extracted from `system_info` osquery table).
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
+	Platform string `json:"platform"`
+}
+
+// getHostInfo retrieves system information about the host.
+//
+// On macOS and Linux it shells out to osqueryd to retrieve the information.
+//
+// On Windows:
+//
+//   - HardwareUUID is retrieved by shelling out to wmic, if that fails
+//     then the windows API are used.
+//   - HardwareSerial is currently not retrieved for Windows devices.
+//   - Hostname is retrieved using stdlib method.
+//   - Platform is always "windows" for windows hosts.
+//
+// NOTE: Windows uses a different approach to retrieve the device information
+// as there were issues at the time with shelling out to osquery - from what the
+// team remembers it would sometimes fail due to the osquery process not being ready yet.
+// A recent CI run without the Windows special-case did succeed, but since we don't
+// need the serial number for Windows at the moment, we opted to keep the
+// code as it is.
+func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo, error) {
 	if runtime.GOOS == "windows" {
 		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
-			return "", err
+			return fleet.OrbitHostInfo{}, err
 		}
-
-		log.Debug().Msgf("UUID source was %s.", uuidSource)
-
-		return uuidData, nil
+		log.Debug().Str("source", string(uuidSource)).Msg("UUID")
+		// Hostname might differ from the one provided by osquery but we are sending it
+		// for troubleshooting purposes and to avoid empty host entries in the UI.
+		hostname, err := os.Hostname()
+		if err != nil {
+			return fleet.OrbitHostInfo{}, err
+		}
+		return fleet.OrbitHostInfo{
+			HardwareUUID:   uuidData,
+			HardwareSerial: "", // currently not needed for Windows.
+			Hostname:       hostname,
+			Platform:       "windows",
+		}, nil
 	}
-	type UuidOutput struct {
-		UuidString string `json:"uuid"`
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
+	args := []string{
+		"-S",
+		"--database_path", osqueryDBPath,
+		"--json", systemQuery,
 	}
-
-	args := []string{"-S", "--json", "select uuid from system_info"}
+	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return "", err
+		return fleet.OrbitHostInfo{}, err
 	}
-	var uuids []UuidOutput
-	err = json.Unmarshal(out, &uuids)
+	var info []hostInfo
+	err = json.Unmarshal(out, &info)
 	if err != nil {
-		return "", err
+		return fleet.OrbitHostInfo{}, err
 	}
-
-	if len(uuids) != 1 {
-		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	if len(info) != 1 {
+		return fleet.OrbitHostInfo{}, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
 	}
-	return uuids[0].UuidString, nil
+	return fleet.OrbitHostInfo{
+		HardwareSerial: info[0].HardwareSerial,
+		HardwareUUID:   info[0].HardwareUUID,
+		Hostname:       info[0].Hostname,
+		Platform:       info[0].Platform,
+	}, nil
 }
 
 var versionCommand = &cli.Command{
@@ -1052,4 +1248,24 @@ func (f *capabilitiesChecker) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
+}
+
+// writeSecret writes the orbit enroll secret to the designated file. We do
+// this at runtime for packages that are using --use-system-config, since they
+// don't contain a secret file in their payload.
+//
+// This implementation is very similar to the one in orbit/pkg/packaging but
+// intentionally kept separate to prevent issues since the writes happen at two
+// completely different circumstances.
+func writeSecret(enrollSecret string, orbitRoot string) error {
+	path := filepath.Join(orbitRoot, constant.OsqueryEnrollSecretFileName)
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(enrollSecret), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
 }

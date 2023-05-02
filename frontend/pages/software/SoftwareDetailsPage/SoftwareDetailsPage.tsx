@@ -9,6 +9,7 @@ import {
   ISoftware,
   IGetSoftwareByIdResponse,
 } from "interfaces/software";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
@@ -17,7 +18,6 @@ import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-
 import Vulnerabilities from "./components/Vulnerabilities";
 
 const baseClass = "software-details-page";
@@ -31,7 +31,13 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isSandboxMode,
+    currentTeam,
+    filteredSoftwarePath,
+  } = useContext(AppContext);
+
   const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
@@ -69,11 +75,21 @@ const SoftwareDetailsPage = ({
     return <Spinner />;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToSoftwarePath = () => {
+    if (filteredSoftwarePath) {
+      return filteredSoftwarePath;
+    }
+    return currentTeam && currentTeam?.id > APP_CONTEXT_NO_TEAM_ID
+      ? `${PATHS.MANAGE_SOFTWARE}?team_id=${currentTeam?.id}`
+      : PATHS.MANAGE_SOFTWARE;
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to software" path={PATHS.MANAGE_SOFTWARE} />
+          <BackLink text="Back to software" path={backToSoftwarePath()} />
         </div>
         <div className="header title">
           <div className="title__inner">
@@ -106,6 +122,7 @@ const SoftwareDetailsPage = ({
         </div>
         <Vulnerabilities
           isPremiumTier={isPremiumTier}
+          isSandboxMode={isSandboxMode}
           isLoading={isFetchingSoftware}
           software={software}
         />
