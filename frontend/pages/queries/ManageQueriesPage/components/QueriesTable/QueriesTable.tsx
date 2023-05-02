@@ -121,7 +121,7 @@ const QueriesTable = ({
       queryParams &&
       (queryParams.platform === "windows" ||
         queryParams.platform === "linux" ||
-        queryParams.platform === "mac")
+        queryParams.platform === "darwin")
     ) {
       platformSelected = queryParams.platform;
     }
@@ -142,7 +142,6 @@ const QueriesTable = ({
   const page = initialPage;
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
-
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
@@ -166,11 +165,6 @@ const QueriesTable = ({
       newQueryParams.platform = platform || DEFAULT_PLATFORM; // must set from URL
       newQueryParams.page = newPageIndex;
       // Reset page number to 0 for new filters
-      console.log("newSortDirection", newSortDirection);
-      console.log("sortDirection", sortDirection);
-      console.log("newSortHeader", newSortHeader);
-      console.log("sortHeader", sortHeader);
-      console.log("newSearchQuery", newSearchQuery);
       if (
         newSortDirection !== sortDirection ||
         newSortHeader !== sortHeader ||
@@ -186,7 +180,7 @@ const QueriesTable = ({
 
       router?.replace(locationPath);
     },
-    [sortHeader, sortDirection, searchQuery, platform, router]
+    [sortHeader, sortDirection, searchQuery, platform, router, page]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -203,11 +197,13 @@ const QueriesTable = ({
           order_key: sortHeader,
         },
       });
+      console.log("onClientSidePaginationChange");
       router?.replace(locationPath);
     },
     [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
+  console.log("page", page);
   const emptyState = () => {
     const emptyQueries: IEmptyTableProps = {
       iconName: "empty-queries",
@@ -303,6 +299,7 @@ const QueriesTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={searchable}
+        searchQueryColumn="name"
         customControl={searchable ? renderPlatformDropdown : undefined}
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
