@@ -106,4 +106,4 @@ How to reset a macOS host's password using the disk encryption key:
 4. The Mac will display a prompt to reset the password. Reset the password and save this password somewhere safe. If you plan to prepare this Mac for a new employee, you'll need this password to erase all content and settings on the Mac.
 
 <meta name="pageOrderInSection" value="1503">
-<meta name="title" value="MDM disk macOS settings">
+<meta name="title" value="MDM disk encryption">
