@@ -102,5 +102,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-05-01">
-<meta name="articleTitle" value="MDM enrollment workflow, API user role.">
+<meta name="articleTitle" value="Fleet 4.31.0 | MDM enrollment workflow, API user role.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.31.0-1600x900@2x.png">
