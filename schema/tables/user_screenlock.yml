@@ -1,7 +1,7 @@
 name: user_screenlock
 platforms:
   - darwin
-description: Information about macOS screenlock settings when osquery is running as root
+description: Per-user information about macOS screenlock settings.
 columns:
   - name: user
     type: text
