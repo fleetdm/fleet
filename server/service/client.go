@@ -33,7 +33,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, fleet.CapabilityMap{})
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{})
 	if err != nil {
 		return nil, err
 	}
@@ -233,6 +233,20 @@ func (c *Client) CheckMDMEnabled() error {
 	return nil
 }
 
+func (c *Client) CheckPremiumMDMEnabled() error {
+	appCfg, err := c.GetAppConfig()
+	if err != nil {
+		return err
+	}
+	if appCfg.License == nil || appCfg.License.Tier != fleet.TierPremium {
+		return errors.New("missing or invalid license")
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+	}
+	return nil
+}
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -313,8 +327,8 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
-			if macosSetup.BootstrapPackage != "" {
-				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage)
+			if macosSetup.BootstrapPackage.Value != "" {
+				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
 					return fmt.Errorf("applying fleet config: %w", err)
 				}
@@ -381,8 +395,8 @@ func (c *Client) ApplyGroup(
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 		for k, setup := range tmMacSetup {
-			if setup.BootstrapPackage != "" {
-				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage)
+			if setup.BootstrapPackage.Value != "" {
+				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
 					return fmt.Errorf("applying teams: %w", err)
 				}
@@ -468,7 +482,7 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
 	msa, _ := mos["macos_setup_assistant"].(string)
 	return &fleet.MacOSSetup{
-		BootstrapPackage:    bp,
+		BootstrapPackage:    optjson.SetString(bp),
 		MacOSSetupAssistant: optjson.SetString(msa),
 	}
 }

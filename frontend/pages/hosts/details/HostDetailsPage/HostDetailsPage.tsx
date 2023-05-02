@@ -3,8 +3,8 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { RouteProps } from "react-router";
 
-import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -64,13 +64,23 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
+import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
+  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
+    query: {
+      vulnerable?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+    search?: string;
   };
   params: Params;
 }
@@ -101,17 +111,22 @@ const TAGGED_TEMPLATES = {
 };
 
 const HostDetailsPage = ({
+  route,
   router,
-  location: { pathname },
+  location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
+  const routeTemplate = route?.path ?? "";
+  const queryParams = location.query;
+
   const {
     config,
     currentUser,
     isGlobalAdmin = false,
     isGlobalObserver,
     isPremiumTier = false,
+    isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
   } = useContext(AppContext);
@@ -124,6 +139,7 @@ const HostDetailsPage = ({
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
@@ -134,6 +150,9 @@ const HostDetailsPage = ({
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
+    false
+  );
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -150,6 +169,7 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [pathname, setPathname] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -336,6 +356,11 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString, host?.users]);
 
+  // Used for back to software pathname
+  useEffect(() => {
+    setPathname(location.pathname + location.search);
+  }, [location]);
+
   const titleData = normalizeEmptyValues(
     pick(host, [
       "id",
@@ -395,6 +420,10 @@ const HostDetailsPage = ({
   const toggleMacSettingsModal = useCallback(() => {
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
+
+  const toggleBootstrapPackageModal = useCallback(() => {
+    setShowBootstrapPackageModal(!showBootstrapPackageModal);
+  }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -554,8 +583,6 @@ const HostDetailsPage = ({
   if (isLoadingHost) {
     return <Spinner />;
   }
-
-  const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
@@ -606,7 +633,7 @@ const HostDetailsPage = ({
   const showDiskEncryptionUserActionRequired =
     config?.mdm.enabled_and_configured &&
     host?.mdm.name === "Fleet" &&
-    host?.mdm.macos_settings.disk_encryption === "action_required";
+    host?.mdm.macos_settings?.disk_encryption === "action_required";
 
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
@@ -624,6 +651,12 @@ const HostDetailsPage = ({
     !isGlobalObserver &&
     !isGlobalOrHostsTeamObserverPlus &&
     !isHostsTeamObserver;
+
+  const bootstrapPackageData = {
+    status: host?.mdm.macos_setup?.bootstrap_package_status,
+    details: host?.mdm.macos_setup?.details,
+    name: host?.mdm.macos_setup?.bootstrap_package_name,
+  };
 
   return (
     <MainContent className={baseClass}>
@@ -651,14 +684,16 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          statusClassName={statusClassName}
           titleData={titleData}
           diskEncryption={hostDiskEncryption}
+          bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
+          isSandboxMode={isSandboxMode}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
-          hostMacSettings={host?.mdm.profiles}
+          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+          hostMacSettings={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -666,7 +701,7 @@ const HostDetailsPage = ({
         />
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(pathname)}
+            selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
@@ -709,6 +744,10 @@ const HostDetailsPage = ({
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
+                queryParams={queryParams}
+                routeTemplate={routeTemplate}
+                hostId={host?.id || 0}
+                pathname={pathname}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
@@ -782,7 +821,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles}
+            hostMacSettings={host?.mdm.profiles ?? []}
             onClose={toggleMacSettingsModal}
           />
         )}
@@ -795,6 +834,15 @@ const HostDetailsPage = ({
             onCancel={() => setShowDiskEncryptionModal(false)}
           />
         )}
+        {showBootstrapPackageModal &&
+          bootstrapPackageData.details &&
+          bootstrapPackageData.name && (
+            <BootstrapPackageModal
+              packageName={bootstrapPackageData.name}
+              details={bootstrapPackageData.details}
+              onClose={() => setShowBootstrapPackageModal(false)}
+            />
+          )}
       </div>
     </MainContent>
   );

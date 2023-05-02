@@ -35,11 +35,11 @@ data "aws_iam_policy_document" "firehose" {
 
 }
 
-resource "aws_iam_policy" "fleet-firehose" {
+resource "aws_iam_policy" "fleet_firehose" {
   policy = data.aws_iam_policy_document.firehose.json
 }
 
-resource "aws_iam_policy_attachment" "fleet-firehose" {
-  name       = aws_iam_role.fleet_role.name
-  policy_arn = aws_iam_policy.fleet-firehose.arn
+resource "aws_iam_role_policy_attachment" "fleet_firehose" {
+  policy_arn = aws_iam_policy.fleet_firehose.arn
+  role       = aws_iam_role.fleet_role.name
 }

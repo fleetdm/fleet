@@ -242,6 +242,7 @@ SELECT
     updated_at
 FROM
     mdm_apple_enrollment_profiles
+ORDER BY created_at DESC
 `,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
@@ -1525,16 +1526,16 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	sqlFmt := `
 SELECT
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS failed,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
-        END) AS pending, 
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS pending,
     COUNT(
-        CASE WHEN EXISTS (%s) 
-            THEN 1 
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS verifying
 FROM
     hosts h
@@ -1677,7 +1678,7 @@ SELECT
             THEN 1
         END) AS action_required,
     COUNT(
-        CASE WHEN EXISTS (%s) 
+        CASE WHEN EXISTS (%s)
             THEN 1
         END) AS enforcing,
     COUNT(
@@ -1823,7 +1824,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
 }
 
 func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error {
-	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?) 
+	stmt := `INSERT INTO host_mdm_apple_bootstrap_packages (command_uuid, host_uuid) VALUES (?, ?)
         ON DUPLICATE KEY UPDATE command_uuid = command_uuid`
 	_, err := ds.writer.ExecContext(ctx, stmt, commandUUID, hostUUID)
 	return ctxerr.Wrap(ctx, err, "record bootstrap package command")
@@ -1832,12 +1833,13 @@ func (ds *Datastore) RecordHostBootstrapPackage(ctx context.Context, commandUUID
 func (ds *Datastore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 	stmt := `
 SELECT
-    CASE 
+    CASE
         WHEN ncr.status = 'Acknowledged' THEN ?
         WHEN ncr.status = 'Error' THEN ?
-        ELSE ? 
+        ELSE ?
     END AS bootstrap_package_status,
-    COALESCE(ncr.result, '') AS result
+    COALESCE(ncr.result, '') AS result,
+		mabs.name AS bootstrap_package_name
 FROM
     hosts h
 JOIN host_mdm_apple_bootstrap_packages hmabp ON
@@ -1846,6 +1848,8 @@ LEFT JOIN nano_command_results ncr ON
     ncr.command_uuid = hmabp.command_uuid
 JOIN host_mdm hm ON
     hm.host_id = h.id
+JOIN mdm_apple_bootstrap_packages mabs ON
+		COALESCE(h.team_id, 0) = mabs.team_id
 WHERE
     h.id = ? AND hm.installed_from_dep = 1`
 
@@ -1948,6 +1952,65 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 
 	_, err = tx.ExecContext(ctx, query, args...)
 	return err
+}
+
+func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	// Currently, there can only be one EULA in the database, and we're
+	// hardcoding it's id to be 1 in order to enforce this restriction.
+	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
+	var eula fleet.MDMAppleEULA
+	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA metadata")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
+	var eula fleet.MDMAppleEULA
+	if err := sqlx.GetContext(ctx, ds.reader, &eula, stmt, token); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA bytes")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	// We're intentionally hardcoding the id to be 1 because we only want to
+	// allow one EULA.
+	stmt := `
+          INSERT INTO eulas (id, name, bytes, token)
+	  VALUES (1, ?, ?, ?)
+	`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMAppleEULA", eula.Token))
+		}
+		return ctxerr.Wrap(ctx, err, "create EULA")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	stmt := "DELETE FROM eulas WHERE token = ?"
+	res, err := ds.writer.ExecContext(ctx, stmt, token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete EULA")
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
+	}
+	return nil
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {

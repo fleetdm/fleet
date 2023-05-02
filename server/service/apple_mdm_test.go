@@ -158,6 +158,18 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
+	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+		return nil
+	}
+	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
+		return nil
+	}
 
 	return svc, ctx, ds
 }
@@ -194,6 +206,14 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
+
+		// check EULA routes
+		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleDeleteEULA(ctx, "foo")
+		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
 	// Only global admins can access the endpoints.
@@ -216,6 +236,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	require.NoError(t, err)
+	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.
@@ -420,38 +442,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			})
 		}
 	})
-}
-
-func TestMDMAppleEnrollURL(t *testing.T) {
-	svc := Service{}
-
-	cases := []struct {
-		appConfig   *fleet.AppConfig
-		expectedURL string
-	}{
-		{
-			appConfig: &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: "https://foo.example.com",
-				},
-			},
-			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
-		},
-		{
-			appConfig: &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: "https://foo.example.com/",
-				},
-			},
-			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
-		},
-	}
-
-	for _, tt := range cases {
-		enrollURL, err := svc.mdmAppleEnrollURL("tok", tt.appConfig)
-		require.NoError(t, err)
-		require.Equal(t, tt.expectedURL, enrollURL)
-	}
 }
 
 func TestMDMAppleConfigProfileAuthz(t *testing.T) {

@@ -377,6 +377,7 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageStatus MDMBootstrapPackageStatus `db:"bootstrap_package_status" json:"bootstrap_package_status" csv:"-"`
 	Result                 []byte                    `db:"result" json:"-" csv:"-"`
 	Detail                 string                    `db:"-" json:"detail" csv:"-"`
+	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
 // DetermineDiskEncryptionStatus determines the disk encryption status for the

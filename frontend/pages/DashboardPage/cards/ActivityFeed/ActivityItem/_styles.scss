@@ -30,6 +30,12 @@
   &__details {
     padding-left: $pad-large;
 
+    .premium-icon-tip {
+      position: relative;
+      top: 4px;
+      padding-right: $pad-xsmall;
+    }
+
     p {
       margin: 0;
       line-height: 16px;

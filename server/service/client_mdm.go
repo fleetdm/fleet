@@ -139,7 +139,7 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 }
 
 func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBootstrapPackage, error) {
-	if err := c.CheckMDMEnabled(); err != nil {
+	if err := c.CheckPremiumMDMEnabled(); err != nil {
 		return nil, err
 	}
 
@@ -183,7 +183,7 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 		case errors.Is(err, file.ErrInvalidType):
 			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-setup")
+			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-sign-the-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}

@@ -129,6 +129,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
 			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
 		},
 	}, team.Config.MDM)
 
@@ -3153,6 +3154,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to get a carved file, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
 
+	// Attempt to search hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+		MatchQuery: "foo",
+		QueryID:    &q1.ID,
+	}, http.StatusForbidden, &searchTargetsResponse{})
+
+	// Attempt to count target hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+		Selected: fleet.HostTargets{
+			HostIDs:  []uint{h1.ID},
+			LabelIDs: []uint{clr.Label.ID},
+			TeamIDs:  []uint{t1.ID},
+		},
+		QueryID: &q1.ID,
+	}, http.StatusForbidden, &countTargetsResponse{})
+
 	//
 	// Start running permission tests with user gitops2 (which is a GitOps use for team t1).
 	//
@@ -3331,6 +3348,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 			},
 		},
 	}, http.StatusForbidden, &teamResponse{})
+
+	// Attempt to search hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+		MatchQuery: "foo",
+		QueryID:    &q1.ID,
+	}, http.StatusForbidden, &searchTargetsResponse{})
+
+	// Attempt to count target hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+		Selected: fleet.HostTargets{
+			HostIDs:  []uint{h1.ID},
+			LabelIDs: []uint{clr.Label.ID},
+			TeamIDs:  []uint{t1.ID},
+		},
+		QueryID: &q1.ID,
+	}, http.StatusForbidden, &countTargetsResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {

@@ -12,11 +12,15 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -227,32 +231,37 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
+	var ptrTeamID *uint
 	var ptrTeamName *string
-	var ptrTeamId *uint
-	if teamID >= 1 {
-		tm, err := svc.teamByIDOrName(ctx, &teamID, nil)
+	if tmID >= 1 {
+		tm, err := svc.teamByIDOrName(ctx, &tmID, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get team name for delete bootstrap package activity details")
 		}
+		ptrTeamID = &tm.ID
 		ptrTeamName = &tm.Name
-		ptrTeamId = &teamID
 	}
 
-	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, teamID); err != nil {
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
@@ -282,6 +291,79 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	}
 
 	return summary, nil
+}
+
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := file.CheckPDF(f); err != nil {
+		if errors.Is(err, file.ErrInvalidType) {
+			return &fleet.BadRequestError{
+				Message:     err.Error(),
+				InternalErr: err,
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking pdf")
+	}
+
+	// ensure we read the file from the start
+	_, err := f.Seek(0, io.SeekStart)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "seeking start of PDF file")
+	}
+
+	bytes, err := io.ReadAll(f)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
+	}
+
+	eula := &fleet.MDMAppleEULA{
+		Name:  name,
+		Token: uuid.New().String(),
+		Bytes: bytes,
+	}
+
+	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting EULA")
+	}
+
+	return nil
+}
+
+func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	// skipauth: this resource is authorized using the token provided in the
+	// request.
+	svc.authz.SkipAuthorization(ctx)
+
+	return svc.ds.MDMAppleGetEULABytes(ctx, token)
+}
+
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting EULA")
+	}
+
+	return nil
+}
+
+func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	return eula, nil
 }
 
 func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
@@ -380,4 +462,126 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	return nil
+}
+
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// initiate SSO.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+
+	// For now, until we get to #10999, we assume that SSO is disabled if
+	// no settings are provided.
+	if settings.IsEmpty() {
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+	}
+
+	metadata, err := sso.GetMetadata(&settings)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+	}
+
+	serverURL := appConfig.ServerSettings.ServerURL
+	authSettings := sso.Settings{
+		Metadata:                    metadata,
+		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+		SessionStore:                svc.ssoSessionStore,
+		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
+	}
+
+	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+	}
+
+	return idpURL, nil
+
+}
+
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+	}
+
+	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
+	}
+
+	err = sso.ValidateAudiences(
+		*metadata,
+		auth,
+		appConfig.SSOSettings.EntityID,
+		appConfig.ServerSettings.ServerURL,
+		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+	)
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating sso response")
+	}
+
+	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDM.AppleSCEPChallenge,
+		svc.mdmPushCertTopic,
+	)
+}
+
+func (svc *Service) MDMAppleSyncDEPPRofile(ctx context.Context) error {
+	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing profiles")
+	}
+
+	// Grab the first automatic enrollment profile we find, the current
+	// behavior is that the last enrollment profile that was uploaded is
+	// the one assigned to newly enrolled devices.
+	//
+	// TODO: this will change after #10995 where there can be a DEP profile
+	// per team.
+	var depProf *fleet.MDMAppleEnrollmentProfile
+	for _, prof := range profiles {
+		if prof.Type == "automatic" {
+			depProf = prof
+			break
+		}
+	}
+
+	if depProf == nil {
+		return svc.depService.CreateDefaultProfile(ctx)
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	enrollURL, err := apple_mdm.EnrollURL(depProf.Token, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var jsonProf *godep.Profile
+	if err := json.Unmarshal(*depProf.DEPProfile, &jsonProf); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, jsonProf, enrollURL)
 }

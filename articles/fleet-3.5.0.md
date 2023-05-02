@@ -35,7 +35,7 @@ In the prior 3.4.0 release, we introduced the fleetctl preview command which all
 
 In 3.5.0, we’ve added new messaging to appear while you wait for the instance to start and we’ve reduced the waiting time.
 
-With the fleetctl preview command, a user can download and start a collection of resources useful for setting up a test environment with osquery, Fleet, and an ELK stack. Check out [github.com/fleetdm/osquery-in-a-box](github.com/fleetdm/osquery-in-a-box) for more details.
+With the fleetctl preview command, a user can download and start a collection of resources useful for setting up a test environment with osquery, Fleet, and an ELK stack. Check out [github.com/fleetdm/osquery-in-a-box](https://github.com/fleetdm/osquery-in-a-box) for more details.
 
 ---
 

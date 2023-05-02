@@ -3,7 +3,7 @@ import React, { useContext } from "react";
 import { Params } from "react-router/lib/Router";
 
 import SideNav from "../components/SideNav";
-import INTEGRATION_SETTINGS_NAV_ITEMS from "./IntegrationNavItems";
+import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
@@ -12,9 +12,10 @@ interface IIntegrationSettingsPageProps {
 }
 
 const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
+  const { isSandboxMode } = useContext(AppContext);
   const { section } = params;
-  const DEFAULT_SETTINGS_SECTION = INTEGRATION_SETTINGS_NAV_ITEMS[0];
-  const navItems = INTEGRATION_SETTINGS_NAV_ITEMS;
+  const navItems = getFilteredIntegrationSettingsNavItems(isSandboxMode);
+  const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;

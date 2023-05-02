@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -154,4 +156,16 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
+}
+
+func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
+	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return "", err
+	}
+	enrollURL.Path = path.Join(enrollURL.Path, EnrollPath)
+	q := enrollURL.Query()
+	q.Set("token", token)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }

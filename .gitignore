@@ -11,6 +11,7 @@ dist
 assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2

@@ -110,3 +110,27 @@ export interface IMdmScript {
   created_at: string;
   updated_at: string;
 }
+
+export interface IMdmSSOReponse {
+  url: string;
+}
+
+export interface IBootstrapPackageMetadata {
+  name: string;
+  team_id: number;
+  sha256: string;
+  token: string;
+  created_at: string;
+}
+
+export interface IBootstrapPackageAggregate {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
+export enum BootstrapPackageStatus {
+  INSTALLED = "installed",
+  PENDING = "pending",
+  FAILED = "failed",
+}
