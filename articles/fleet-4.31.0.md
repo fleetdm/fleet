@@ -3,7 +3,6 @@
 ![Fleet 4.31.0](../website/assets/images/articles/fleet-4.31.0-1600x900@2x.png)
 
 Fleet 4.31.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.31.0) or continue reading to get the highlights.
-​
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 ​
 ​
@@ -25,19 +24,20 @@ Authentication for device enrollments enables you to integrate the MDM enrollmen
 In addition to Fleet Desktop, Fleet can also deliver a bootstrap software package or installer that to initiate the deployment and configuration of devices during the enrollment process. Use a bootstrap package to deploy your own configuration manager, such as Munki, Chef, or Puppet. With a seamless deployment and configuration of your preferred configuration manager on devices enrolled in Fleet, you will have more granular control and customized management of your organization's devices.
 ​
 ​
-### mTLS support in Fleet
+### mTLS support in fleetd (Orbit)
 ​
 _Available in Fleet Premium and Fleet Ultimate_
 ​
 Mutual TLS (mTLS) ensures secure and authenticated communication between two parties. Unlike traditional TLS, where only the server's identity is verified, mTLS requires both the server and the client to authenticate each other using digital certificates. This additional layer of security helps prevent unauthorized access and enhances data privacy. mTLS is often leveraged in a zero-trust networking environment, because security measures are applied regardless of whether the user or device is inside or outside the network perimeter.
 ​
-Fleet is bringing 🟢 Results with support for TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server to ensure secure communication between fleetd (Orbit) and your Fleet Server. Learn more about [using mTLS certificates](https://fleetdm.com/docs/using-fleet/orbit#orbit-mtls-support) when generating your Fleet packages.
+
+Fleet is bringing 🟢 Results with support for TLS client certificates in fleetd (Orbit) to ensure secure communication to fleet. Learn more about [using mTLS certificates](https://fleetdm.com/docs/using-fleet/orbit#orbit-mtls-support) when generating your Fleet packages.
 ​
 ​
 ### GitOps user role
-​
+
 _Available in Fleet Premium and Fleet Ultimate_
-​
+
 Take 🟠 Ownership of Fleet account roles with greater granularity. Fleet 4.31.0 includes a new user role, `gitops`. 
 ​
 The `gitops` user role is ideal for automated workflows as part of continuous integration/continuous development (CI/CD) actions, such as MDM profile commitments and security profiles. The `gitops` user role can only access Fleet using the API and is unable to access the Fleet dashboard.
