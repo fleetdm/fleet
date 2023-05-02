@@ -79,7 +79,6 @@ const ManageQueriesPage = ({
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
@@ -190,7 +189,6 @@ const ManageQueriesPage = ({
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onDeleteQueryClick={onDeleteQueryClick}
-              selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
               isObserverPlus={isObserverPlus}
               isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}

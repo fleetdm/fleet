@@ -29,7 +29,6 @@ interface IQueriesTableProps {
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
-  selectedDropdownFilter: string;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
@@ -80,7 +79,6 @@ const QueriesTable = ({
   isLoading,
   onDeleteQueryClick,
   onCreateQueryClick,
-  selectedDropdownFilter,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
@@ -254,7 +252,7 @@ const QueriesTable = ({
         queryParams: {
           ...queryParams,
           page: 0,
-          platflor: platformSelected,
+          platform: platformSelected,
         },
       })
     );
@@ -263,8 +261,8 @@ const QueriesTable = ({
   const renderPlatformDropdown = () => {
     return (
       <Dropdown
-        value={selectedDropdownFilter}
-        className={`${baseClass}__platform_dropdown`}
+        value={platform}
+        className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
         onChange={handlePlatformFilterDropdownChange}
@@ -282,7 +280,7 @@ const QueriesTable = ({
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        // filters={{ global: searchQuery, platform }}
+        // filters={{ global: searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
@@ -311,7 +309,7 @@ const QueriesTable = ({
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText="Delete"
-        // selectedDropdownFilter={selectedDropdownFilter}
+        selectedDropdownFilter={platform}
       />
     </div>
   ) : (
