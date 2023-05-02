@@ -437,8 +437,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
-	// NOTE: remember to update `service.mdmAppleConfigurationRequiredEndpoints`
-	// when you add an endpoint that's behind the mdmConfiguredMiddleware.
+	// NOTE: remember to update
+	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// endpoint that's behind the mdmConfiguredMiddleware, this applies
+	// both to this set of endpoints and to any public/token-authenticated
+	// endpoints using `neMDM` below in this file.
 	mdmConfiguredMiddleware := mdmconfigured.NewAppleMiddleware(svc)
 	mdm := ue.WithCustomMiddleware(mdmConfiguredMiddleware.Verify())
 	mdm.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
@@ -479,6 +482,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdm.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+
+	mdm.POST("/api/_version_/fleet/mdm/apple/setup/eula", createMDMAppleEULAEndpoint, createMDMAppleEULARequest{})
+	mdm.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMAppleEULAMetadataEndpoint, getMDMAppleEULAMetadataRequest{})
+	mdm.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMAppleEULAEndpoint, deleteMDMAppleEULARequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
@@ -565,11 +572,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
 	// These endpoint are token authenticated.
+	// NOTE: remember to update
+	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// endpoint that's behind the mdmConfiguredMiddleware, this applies
+	// both to this set of endpoints and to any user authenticated
+	// endpoints using `mdm.*` above in this file.
 	neMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.Verify())
 	neMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 	neMDM.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
 	neMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	neMDM.GET("/api/_version_/fleet/mdm/apple/bootstrap", downloadBootstrapPackageEndpoint, downloadBootstrapPackageRequest{})
+	neMDM.GET("/api/_version_/fleet/mdm/apple/setup/eula/{token}", getMDMAppleEULAEndpoint, getMDMAppleEULARequest{})
 
 	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
 
