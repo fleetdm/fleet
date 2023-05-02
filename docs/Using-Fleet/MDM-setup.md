@@ -82,7 +82,9 @@ fleetctl get mdm-apple
 
 ## Renewing APNs 
 
-> **Important** Apple requires that APNs certificates are renewed anually. If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
+> **Important** Apple requires that APNs certificates are renewed anually. 
+> - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
+> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
 This section will guide you through how to:
 1. Generate the files required to renew your APNs certificate.
@@ -113,8 +115,6 @@ fleetctl generate mdm-apple --email <email> --org <org>
 ```
 
 ### Step 2: renew APNs certificate
-
-> **Important** Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original APNs certificate.
 2. Click **Renew** next to the expired certificate. 
