@@ -93,7 +93,7 @@ func mdmRunCommand() *cli.Command {
 						return fmt.Errorf("Permission denied. You don't have permission to run an MDM command on this host: %w", err)
 					}
 					if sce.StatusCode() == http.StatusUnsupportedMediaType {
-						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.")
+						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file: %w", err)
 					}
 				}
 				return err
