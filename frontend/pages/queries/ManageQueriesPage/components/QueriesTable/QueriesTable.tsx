@@ -274,13 +274,15 @@ const QueriesTable = ({
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
 
+  console.log("QUERIES TABLE SEARCH QUERY", searchQuery);
+  console.log("queriesList", queriesList);
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        // filters={{ global: searchQuery }}
+        filters={{ global: searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
