@@ -101,7 +101,7 @@ const CustomSettings = ({
         <CustomLink
           newTab
           text="Learn how"
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#custom-settings"
+          url="https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings"
         />
       </p>
 
@@ -118,8 +118,10 @@ const CustomSettings = ({
       <FileUploader
         icon="profile"
         message="Configuration profile (.mobileconfig)"
+        accept=".mobileconfig,application/x-apple-aspen-config"
         isLoading={showLoading}
         onFileUpload={onFileUpload}
+        className={`${baseClass}__file-uploader`}
       />
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal

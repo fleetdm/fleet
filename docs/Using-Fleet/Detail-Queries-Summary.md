@@ -20,12 +20,12 @@ SELECT serial_number, cycle_count, health FROM battery;
 - Query:
 
 ```sql
-SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
+SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
 ```
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
 
@@ -45,7 +45,7 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
 
@@ -176,7 +176,7 @@ SELECT address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
 
@@ -270,7 +270,7 @@ SELECT version FROM orbit_info
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
 
@@ -310,7 +310,7 @@ SELECT * FROM os_version LIMIT 1
 SELECT
 		os.name,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os
 ```
@@ -328,7 +328,7 @@ SELECT
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os,
 		kernel_info k
@@ -366,9 +366,25 @@ SELECT *,
 			FROM osquery_schedule
 ```
 
+## software_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source,
+  '' AS vendor
+FROM chrome_extensions
+```
+
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
 
@@ -472,7 +488,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
@@ -624,7 +640,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: all
+- Platforms: linux, darwin, windows
 
 - Query:
 
@@ -633,6 +649,16 @@ WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
+```
+
+## users_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT uid, username, email FROM users
 ```
 
 ## windows_update_history

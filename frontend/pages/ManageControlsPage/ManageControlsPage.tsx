@@ -26,6 +26,10 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "macOS settings",
     pathname: PATHS.CONTROLS_MAC_SETTINGS,
   },
+  {
+    name: "macOS setup",
+    pathname: PATHS.CONTROLS_MAC_SETUP,
+  },
 ];
 
 interface IManageControlsPageProps {
@@ -64,6 +68,7 @@ const ManageControlsPage = ({
     isOnGlobalTeam,
     isPremiumTier,
     isGlobalAdmin,
+    isSandboxMode,
   } = useContext(AppContext);
 
   const {
@@ -168,6 +173,7 @@ const ManageControlsPage = ({
                         onChange={handleTeamChange}
                         includeAll={false}
                         includeNoTeams
+                        isSandboxMode={isSandboxMode}
                       />
                     )}
                   {isPremiumTier &&

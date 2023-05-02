@@ -28,6 +28,9 @@ type EnterpriseOverrides struct {
 	// overrides.
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
+	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -153,9 +156,21 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
+	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
+	// different from InitiateSSO because it receives a different
+	// configuration and only supports a subset of the features (eg: we
+	// don't want to allow IdP initiated authentications)
+	InitiateMDMAppleSSO(ctx context.Context) (string, error)
+
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid
 	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid, then responds with an enrollment profile.
+	// TODO: add support for EULAs too
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
+
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
 	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
@@ -579,7 +594,7 @@ type Service interface {
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -605,6 +620,10 @@ type Service interface {
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
+	// the specified options.
+	ListMDMAppleCommands(ctx context.Context, opts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
@@ -666,13 +685,6 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
 
-	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
-	// credentials are valid, returns a MDM enrollment profile.
-	//
-	// ROP refers to the "Resource Owner Password Flow" as specified by
-	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
-	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
-
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
@@ -684,7 +696,30 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
+
+	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
+
+	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// the given token.
+	//
+	// A token is required as the means of authentication for this resource
+	// since it can be publicly accessed with anyone with a valid token.
+	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	// MDMAppleGetEULABytes returns metadata about the EULA file that can
+	// be used by clients to display information.
+	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	// MDMAppleCreateEULA adds a new EULA file.
+	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	// MDMAppleDelete EULA removes an EULA entry.
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
+
+	// Create or update the MDM Apple Setup Assistant for a team or no team.
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
+	// Get the MDM Apple Setup Assistant for the provided team or no team.
+	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// Delete the MDM Apple Setup Assistant for the provided team or no team.
+	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { useQuery } from "react-query";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 

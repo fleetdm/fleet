@@ -9,7 +9,8 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 
@@ -30,6 +31,8 @@ interface IPoliciesTableProps {
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
+  isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
 }
 
 const PoliciesTable = ({
@@ -41,6 +44,8 @@ const PoliciesTable = ({
   tableType,
   currentTeam,
   currentAutomatedPolicies,
+  isPremiumTier,
+  isSandboxMode,
 }: IPoliciesTableProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
@@ -120,11 +125,15 @@ const PoliciesTable = ({
       ) : (
         <TableContainer
           resultsTitle={"policies"}
-          columns={generateTableHeaders({
-            selectedTeamId: currentTeam?.id,
-            canAddOrDeletePolicy,
-            tableType,
-          })}
+          columns={generateTableHeaders(
+            {
+              selectedTeamId: currentTeam?.id,
+              canAddOrDeletePolicy,
+              tableType,
+            },
+            isPremiumTier,
+            isSandboxMode
+          )}
           data={generateDataSet(
             policiesList,
             currentAutomatedPolicies,

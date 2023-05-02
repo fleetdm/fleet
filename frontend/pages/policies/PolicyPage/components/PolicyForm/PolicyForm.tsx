@@ -27,6 +27,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -38,6 +39,9 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
+  isTeamAdmin: boolean;
+  isTeamMaintainer: boolean;
+  isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -65,6 +69,9 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
   isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
@@ -103,14 +110,12 @@ const PolicyForm = ({
 
   const {
     currentUser,
-    isTeamObserver,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isTeamAdmin,
-    isTeamMaintainer,
     isPremiumTier,
+    isSandboxMode,
   } = useContext(AppContext);
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
@@ -423,22 +428,30 @@ const PolicyForm = ({
 
   const renderCriticalPolicy = () => {
     return (
-      <Checkbox
-        name="critical-policy"
-        className="critical-policy"
-        onChange={(value: boolean) => setLastEditedQueryCritical(value)}
-        value={lastEditedQueryCritical}
-        isLeftLabel
-      >
-        <TooltipWrapper
-          tipContent={
-            "<p>If automations are turned on, this<br/> information is included.</p>"
-          }
-          isDelayed
+      <div className="critical-checkbox-wrapper">
+        {isSandboxMode && (
+          <PremiumFeatureIconWithTooltip
+            tooltipDelayHide={500}
+            tooltipPositionOverrides={{ leftAdj: 84, topAdj: -4 }}
+          />
+        )}
+        <Checkbox
+          name="critical-policy"
+          className="critical-policy"
+          onChange={(value: boolean) => setLastEditedQueryCritical(value)}
+          value={lastEditedQueryCritical}
+          isLeftLabel
         >
-          Critical:
-        </TooltipWrapper>
-      </Checkbox>
+          <TooltipWrapper
+            tipContent={
+              "<p>If automations are turned on, this<br/> information is included.</p>"
+            }
+            isDelayed
+          >
+            Critical:
+          </TooltipWrapper>
+        </Checkbox>
+      </div>
     );
   };
 

@@ -1244,9 +1244,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	})
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
-	for _, h := range resp.Hosts {
-		fmt.Println("host", fmt.Sprintf("%+v", h.Host.HardwareSerial))
-	}
 
 	// set MDM information for another host installed from DEP and pending enrollment to Fleet MDM
 	pendingMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -1312,7 +1309,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "mdm_enrollment_status", "invalid-status")
+
+	// Filter by inexistent software.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -3329,7 +3330,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
-	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusInternalServerError, &logoutResp) // TODO: should be OK even if not logged in, see #4406.
+	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusUnauthorized, &logoutResp)
 
 	s.token = s.getTestAdminToken()
 
@@ -4631,12 +4632,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
 
-	// set the apple BM terms expired flag, and the mdm configured flag,
+	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
 	// modified by any PATCH request (it cannot be set via this endpoint).
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	appCfg.MDM.EnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
@@ -4644,6 +4646,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
 	// no server settings set for the URL, so not possible to test the
@@ -4820,12 +4823,13 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
-	// try to update the mdm configured flag via PATCH /config
+	// try to update the mdm configured flags via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": false }
+	  "mdm": { "enabled_and_configured": false, "apple_bm_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
+	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
 
 	// set the macos disk encryption field, fails due to license
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4848,6 +4852,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg, err = s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = false
+	appCfg.MDM.AppleBMEnabledAndConfigured = false
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)

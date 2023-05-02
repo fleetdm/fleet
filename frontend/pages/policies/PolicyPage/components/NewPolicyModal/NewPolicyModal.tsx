@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
 import { platform } from "process";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 export interface INewPolicyModalProps {
   baseClass: string;
@@ -49,7 +50,7 @@ const NewPolicyModal = ({
   lastEditedQueryPlatform,
   isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -142,21 +143,24 @@ const NewPolicyModal = ({
           />
           {platformSelector.render()}
           {isPremiumTier && (
-            <Checkbox
-              name="critical-policy"
-              onChange={(value: boolean) => setCritical(value)}
-              value={critical}
-              isLeftLabel
-            >
-              <TooltipWrapper
-                tipContent={
-                  "<p>If automations are turned on, this<br/> information is included.</p>"
-                }
-                isDelayed
+            <div className="critical-checkbox-wrapper">
+              {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+              <Checkbox
+                name="critical-policy"
+                onChange={(value: boolean) => setCritical(value)}
+                value={critical}
+                isLeftLabel
               >
-                Critical:
-              </TooltipWrapper>
-            </Checkbox>
+                <TooltipWrapper
+                  tipContent={
+                    "<p>If automations are turned on, this<br/> information is included.</p>"
+                  }
+                  isDelayed
+                >
+                  Critical:
+                </TooltipWrapper>
+              </Checkbox>
+            </div>
           )}
           <div className="modal-cta-wrap">
             <span

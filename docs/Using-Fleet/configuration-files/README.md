@@ -311,7 +311,7 @@ spec:
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings.
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
 
 The following example file shows the default organization settings:
 
@@ -521,7 +521,7 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](ht
 **Available in Fleet Premium**. Direct users of Fleet Desktop to a custom transparency URL page.
 
 - Optional setting (string)
-- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
+- Default value: Fleet's default transparency URL ("[https://fleetdm.com/transparency](https://fleetdm.com/transparency)")
 - Config file format:
   ```yaml
   fleet_desktop:
