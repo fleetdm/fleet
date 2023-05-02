@@ -238,11 +238,11 @@ func (c *Client) CheckPremiumMDMEnabled() error {
 	if err != nil {
 		return err
 	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
 	if appCfg.License == nil || appCfg.License.Tier != fleet.TierPremium {
 		return errors.New("missing or invalid license")
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
 	}
 	return nil
 }
