@@ -21,6 +21,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
 | [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
+| [Website](#website-group)                               | Make the website wonderful.
 
 
 ### MDM group
@@ -40,7 +41,7 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 
 ### Customer experience group
 
-The goal of the customer experience (CX) group is to make customers happier and more successful.  This includes simpler deployments, more successful customer onboarding, features that drive more win-win meetings with Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
+The goal of the customer experience (CX) group is to make users and customers happier and more successful.  This includes simpler usage, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
 
 
 | Responsibility                    | Human(s)                  |
@@ -49,7 +50,7 @@ The goal of the customer experience (CX) group is to make customers happier and 
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Zay Hanlon
-| Software engineers (developers)   | Artemis Tosini, Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Marcos Oviedo, Eric Shaw _(fleetdm.com specialty)_
+| Software engineers (developers)   | Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Marcos Oviedo, Eric Shaw
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
@@ -64,6 +65,22 @@ The goal of the infrastructure group is to provide and support reliable and secu
 | Infrastructure engineers          | Robert Fairburn, Zach Winnerman
 
 > The Slack channel, kanban release board, and label for this product group is `#g-infra`.
+
+
+### Website group
+
+The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Designer                          | Michael Thomas
+| Engineering manager               | Mike McNeil
+| Quality assurance                 | Michael Thomas
+| Product manager                   | Michael Thomas
+| Software engineers (developers)   | Eric Shaw
+
+> The Slack channel, kanban release board, and label for this product group is `#g-website`.
+
 
 ## Making changes
 
