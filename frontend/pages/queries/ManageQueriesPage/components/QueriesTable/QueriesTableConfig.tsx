@@ -77,9 +77,17 @@ interface IDataColumn {
   sortType?: string;
 }
 
+interface IGenerateTableHeaders {
+  currentUser: IUser;
+  onClickQueryName: () => void;
+}
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
+const generateTableHeaders = ({
+  currentUser,
+  onClickQueryName,
+}: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
   const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
     currentUser
@@ -100,6 +108,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           classes="w400"
           value={cellProps.cell.value}
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
+          customOnClick={onClickQueryName}
         />
       ),
       sortType: "caseInsensitive",

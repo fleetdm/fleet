@@ -31,6 +31,7 @@ interface IManageQueriesPageProps {
   route: RouteProps;
   router: InjectedRouter; // v3
   location: {
+    pathname?: string;
     query: {
       platform?: string;
       page?: string;
@@ -38,6 +39,7 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
     };
+    search: string;
   };
 }
 
@@ -63,12 +65,11 @@ const enhanceQuery = (q: IQuery) => {
 };
 
 const ManageQueriesPage = ({
-  route,
   router,
   location,
 }: IManageQueriesPageProps): JSX.Element => {
-  const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
+  const pathname = location.pathname + location.search;
 
   const { isOnlyObserver, isObserverPlus, isAnyTeamObserverPlus } = useContext(
     AppContext
@@ -194,6 +195,7 @@ const ManageQueriesPage = ({
               isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
               router={router}
               queryParams={queryParams}
+              pathname={pathname}
             />
           )}
         </div>

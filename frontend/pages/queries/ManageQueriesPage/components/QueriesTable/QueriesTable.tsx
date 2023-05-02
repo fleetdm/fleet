@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback } from "react";
+import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
@@ -40,6 +40,7 @@ interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
   };
+  pathname: string;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -84,8 +85,9 @@ const QueriesTable = ({
   isAnyTeamObserverPlus,
   queryParams,
   router,
+  pathname,
 }: IQueriesTableProps): JSX.Element | null => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, setFilteredQueriesPath } = useContext(AppContext);
 
   const initialSearchQuery = (() => {
     let query = "";
@@ -142,6 +144,7 @@ const QueriesTable = ({
   const page = initialPage;
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
+
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
@@ -174,7 +177,6 @@ const QueriesTable = ({
       }
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
-        // routeTemplate,
         queryParams: newQueryParams,
       });
 
@@ -187,7 +189,6 @@ const QueriesTable = ({
     (pageIndex: number) => {
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
-        // routeTemplate,
         queryParams: {
           ...queryParams,
           page: pageIndex,
@@ -197,13 +198,11 @@ const QueriesTable = ({
           order_key: sortHeader,
         },
       });
-      console.log("onClientSidePaginationChange");
       router?.replace(locationPath);
     },
     [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
-  console.log("page", page);
   const emptyState = () => {
     const emptyQueries: IEmptyTableProps = {
       iconName: "empty-queries",
@@ -244,7 +243,6 @@ const QueriesTable = ({
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
-        // routeTemplate,
         queryParams: {
           ...queryParams,
           page: 0,
@@ -266,12 +264,20 @@ const QueriesTable = ({
     );
   };
 
-  const tableHeaders = currentUser && generateTableHeaders(currentUser);
+  const onClickQueryName = () => {
+    console.log("is this running?");
+    console.log("pathname", pathname);
+    setFilteredQueriesPath(pathname);
+  };
+
+  const tableHeaders = useMemo(
+    () =>
+      currentUser && generateTableHeaders({ currentUser, onClickQueryName }),
+    [currentUser, onClickQueryName, pathname]
+  );
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
 
-  console.log("QUERIES TABLE SEARCH QUERY", searchQuery);
-  console.log("queriesList", queriesList);
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer

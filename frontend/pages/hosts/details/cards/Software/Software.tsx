@@ -159,7 +159,7 @@ const SoftwareTable = ({
     },
     [sortHeader, sortDirection, searchQuery, filterVuln, router, routeTemplate]
   );
-  console.log("routeTemplate", routeTemplate);
+
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
       const locationPath = getNextLocationPath({

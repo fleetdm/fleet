@@ -217,7 +217,7 @@ const ManageSoftwarePage = ({
   useEffect(() => {
     const path = location.pathname + location.search;
     if (filteredSoftwarePath !== path) {
-      setFilteredSoftwarePath(location.pathname + location.search);
+      setFilteredSoftwarePath(path);
     }
   }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
