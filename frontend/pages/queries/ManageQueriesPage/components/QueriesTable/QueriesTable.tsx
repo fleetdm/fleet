@@ -264,16 +264,11 @@ const QueriesTable = ({
     );
   };
 
-  const onClickQueryName = () => {
-    console.log("is this running?");
-    console.log("pathname", pathname);
-    setFilteredQueriesPath(pathname);
-  };
-
   const tableHeaders = useMemo(
     () =>
-      currentUser && generateTableHeaders({ currentUser, onClickQueryName }),
-    [currentUser, onClickQueryName, pathname]
+      currentUser &&
+      generateTableHeaders({ currentUser, pathname, setFilteredQueriesPath }),
+    [currentUser, pathname, setFilteredQueriesPath]
   );
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");

@@ -79,14 +79,16 @@ interface IDataColumn {
 
 interface IGenerateTableHeaders {
   currentUser: IUser;
-  onClickQueryName: () => void;
+  pathname: string;
+  setFilteredQueriesPath: (path: string) => void;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = ({
   currentUser,
-  onClickQueryName,
+  pathname,
+  setFilteredQueriesPath,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
   const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
@@ -103,14 +105,20 @@ const generateTableHeaders = ({
         />
       ),
       accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          classes="w400"
-          value={cellProps.cell.value}
-          path={PATHS.EDIT_QUERY(cellProps.row.original)}
-          customOnClick={onClickQueryName}
-        />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const onClickQueryName = () => {
+          setFilteredQueriesPath(pathname);
+        };
+
+        return (
+          <LinkCell
+            classes="w400"
+            value={cellProps.cell.value}
+            path={PATHS.EDIT_QUERY(cellProps.row.original)}
+            customOnClick={onClickQueryName}
+          />
+        );
+      },
       sortType: "caseInsensitive",
     },
     {
