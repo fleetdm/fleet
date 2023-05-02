@@ -3326,6 +3326,60 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	require.Equal(t, "test3", noTeamAsst2.Name)
 	require.JSONEq(t, `{"x": 3}`, string(noTeamAsst2.Profile))
 
+	// upsert team no change, uploaded at timestamp does not change
+	tmAsst3, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst2, tmAsst3)
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "abcd")
+	require.NoError(t, err)
+
+	// get for team returns the same data, but now with a profile uuid
+	getAsst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, "abcd", getAsst.ProfileUUID)
+	getAsst.ProfileUUID = ""
+	require.Equal(t, tmAsst3, getAsst)
+
+	// upsert again the team with no change, uploaded at timestamp does not change nor does the profile uuid
+	tmAsst4, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, "abcd", tmAsst4.ProfileUUID)
+	tmAsst4.ProfileUUID = ""
+	require.Equal(t, tmAsst3, tmAsst4)
+
+	// upsert team with a change, clears the profile uuid and updates the uploaded at timestamp
+	tmAsst5, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst4.ID, tmAsst5.ID)
+	require.False(t, tmAsst5.UploadedAt.Before(tmAsst4.UploadedAt)) // after or equal
+	require.Equal(t, tmAsst4.TeamID, tmAsst5.TeamID)
+	require.Equal(t, "test2", tmAsst5.Name)
+	require.Empty(t, tmAsst5.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst5.Profile))
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "efgh")
+	require.NoError(t, err)
+
+	// upsert again the team with no change
+	tmAsst6, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, "efgh", tmAsst6.ProfileUUID)
+	tmAsst6.ProfileUUID = ""
+	require.Equal(t, tmAsst5, tmAsst6)
+
+	// upsert team with a name change
+	tmAsst7, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test3", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst6.ID, tmAsst7.ID)
+	require.False(t, tmAsst7.UploadedAt.Before(tmAsst6.UploadedAt)) // after or equal
+	require.Equal(t, tmAsst6.TeamID, tmAsst7.TeamID)
+	require.Equal(t, "test3", tmAsst7.Name)
+	require.Empty(t, tmAsst7.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst7.Profile))
+
 	// delete no team
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, nil)
 	require.NoError(t, err)
