@@ -52,7 +52,7 @@ import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 

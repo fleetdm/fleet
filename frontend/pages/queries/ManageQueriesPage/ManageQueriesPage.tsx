@@ -20,8 +20,6 @@ import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -47,33 +45,6 @@ interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-
-const PLATFORM_FILTER_OPTIONS = [
-  {
-    disabled: false,
-    label: "All platforms",
-    value: "all",
-    helpText: "All queries.",
-  },
-  {
-    disabled: false,
-    label: "Linux",
-    value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
-  },
-  {
-    disabled: false,
-    label: "macOS",
-    value: "darwin",
-    helpText: "Queries that are compatible with macOS operating systems.",
-  },
-  {
-    disabled: false,
-    label: "Windows",
-    value: "windows",
-    helpText: "Queries that are compatible with Windows operating systems.",
-  },
-];
 
 const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
   const { platforms } = checkPlatformCompatibility(queryString);
@@ -180,18 +151,6 @@ const ManageQueriesPage = ({
     }
   }, [refetchFleetQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
-  const renderPlatformDropdown = () => {
-    return (
-      <Dropdown
-        value={selectedDropdownFilter}
-        className={`${baseClass}__platform_dropdown`}
-        options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
-        onChange={setSelectedDropdownFilter}
-      />
-    );
-  };
-
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
@@ -231,7 +190,6 @@ const ManageQueriesPage = ({
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onDeleteQueryClick={onDeleteQueryClick}
-              customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
               isObserverPlus={isObserverPlus}

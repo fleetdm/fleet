@@ -9,12 +9,13 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { isEmpty } from "lodash";
 
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
-import Icon from "components/Icon";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
@@ -28,7 +29,6 @@ interface IQueriesTableProps {
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
-  customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
@@ -44,16 +44,42 @@ interface IQueriesTableProps {
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_SORT_HEADER = "updated_at";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PLATFORM = "all";
+
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "All platforms",
+    value: "all",
+    helpText: "All queries.",
+  },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+    helpText: "Queries that are compatible with Linux operating systems.",
+  },
+  {
+    disabled: false,
+    label: "macOS",
+    value: "darwin",
+    helpText: "Queries that are compatible with macOS operating systems.",
+  },
+  {
+    disabled: false,
+    label: "Windows",
+    value: "windows",
+    helpText: "Queries that are compatible with Windows operating systems.",
+  },
+];
 
 const QueriesTable = ({
   queriesList,
   isLoading,
   onDeleteQueryClick,
   onCreateQueryClick,
-  customControl,
   selectedDropdownFilter,
   isOnlyObserver,
   isObserverPlus,
@@ -72,8 +98,12 @@ const QueriesTable = ({
   })();
 
   const initialSortHeader = (() => {
-    let sortHeader = "name";
-    if (queryParams && queryParams.order_key) {
+    let sortHeader = "updated_at";
+    if (
+      queryParams &&
+      (queryParams.order_key === "name" ||
+        queryParams.order_key === "author_name")
+    ) {
       sortHeader = queryParams.order_key;
     }
     return sortHeader;
@@ -115,10 +145,6 @@ const QueriesTable = ({
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
 
-  // const onQueryChange = ({ searchQuery }: ITableQueryData) => {
-  //   setSearchString(searchQuery);
-  // };
-
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
@@ -142,6 +168,11 @@ const QueriesTable = ({
       newQueryParams.platform = platform || DEFAULT_PLATFORM; // must set from URL
       newQueryParams.page = newPageIndex;
       // Reset page number to 0 for new filters
+      console.log("newSortDirection", newSortDirection);
+      console.log("sortDirection", sortDirection);
+      console.log("newSortHeader", newSortHeader);
+      console.log("sortHeader", sortHeader);
+      console.log("newSearchQuery", newSearchQuery);
       if (
         newSortDirection !== sortDirection ||
         newSortHeader !== sortHeader ||
@@ -215,6 +246,32 @@ const QueriesTable = ({
     return emptyQueries;
   };
 
+  const handlePlatformFilterDropdownChange = (platformSelected: string) => {
+    router?.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_QUERIES,
+        // routeTemplate,
+        queryParams: {
+          ...queryParams,
+          page: 0,
+          platflor: platformSelected,
+        },
+      })
+    );
+  };
+
+  const renderPlatformDropdown = () => {
+    return (
+      <Dropdown
+        value={selectedDropdownFilter}
+        className={`${baseClass}__platform_dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        searchable={false}
+        onChange={handlePlatformFilterDropdownChange}
+      />
+    );
+  };
+
   const tableHeaders = currentUser && generateTableHeaders(currentUser);
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
@@ -222,21 +279,18 @@ const QueriesTable = ({
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
-        resultsTitle={"queries"}
+        resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
+        // filters={{ global: searchQuery, platform }}
         isLoading={isLoading}
-        defaultSortHeader={"updated_at"}
-        defaultSortDirection={"desc"}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        onQueryChange={onQueryChange}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+        defaultSearchQuery={searchQuery}
+        defaultPageIndex={page}
+        pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
-        onPrimarySelectActionClick={onDeleteQueryClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText={"Delete"}
+        onQueryChange={onQueryChange}
         emptyComponent={() =>
           EmptyTable({
             iconName: emptyState().iconName,
@@ -246,15 +300,23 @@ const QueriesTable = ({
             primaryButton: emptyState().primaryButton,
           })
         }
-        customControl={searchable ? customControl : undefined}
-        isClientSideFilter
-        searchQueryColumn="name"
-        selectedDropdownFilter={selectedDropdownFilter}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        searchable={searchable}
+        customControl={searchable ? renderPlatformDropdown : undefined}
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
+        isClientSideFilter
+        onPrimarySelectActionClick={onDeleteQueryClick}
+        primarySelectActionButtonVariant="text-icon"
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText="Delete"
+        // selectedDropdownFilter={selectedDropdownFilter}
       />
     </div>
-  ) : null;
+  ) : (
+    <></>
+  );
 };
 
 export default QueriesTable;

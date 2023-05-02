@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
@@ -20,7 +14,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
@@ -165,7 +159,7 @@ const SoftwareTable = ({
     },
     [sortHeader, sortDirection, searchQuery, filterVuln, router, routeTemplate]
   );
-
+  console.log("routeTemplate", routeTemplate);
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
       const locationPath = getNextLocationPath({
@@ -256,6 +250,7 @@ const SoftwareTable = ({
           {software && (
             <div className={deviceType || ""}>
               <TableContainer
+                resultsTitle="software items"
                 columns={tableHeaders}
                 data={tableSoftware || []}
                 filters={{
@@ -263,15 +258,13 @@ const SoftwareTable = ({
                   vulnerabilities: filterVuln,
                 }}
                 isLoading={isLoading}
-                defaultSortHeader={sortHeader || DEFAULT_SORT_DIRECTION}
+                defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
                 defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-                defaultPageIndex={page}
                 defaultSearchQuery={searchQuery}
-                inputPlaceHolder={
-                  "Search software by name or vulnerabilities ( CVEs)"
-                }
+                defaultPageIndex={page}
+                pageSize={DEFAULT_PAGE_SIZE}
+                inputPlaceHolder="Search software by name or vulnerabilities ( CVEs)"
                 onQueryChange={onQueryChange}
-                resultsTitle={"software items"}
                 emptyComponent={() => (
                   <EmptySoftwareTable
                     isFilterVulnerable={filterVuln}
@@ -285,8 +278,8 @@ const SoftwareTable = ({
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
                 onClientSidePaginationChange={onClientSidePaginationChange}
-                pageSize={DEFAULT_PAGE_SIZE}
                 isClientSideFilter
+                searchQueryColumn="name"
                 disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
                 onSelectSingleRow={handleRowSelect}
               />
