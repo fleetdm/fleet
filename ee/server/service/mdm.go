@@ -293,6 +293,79 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := file.CheckPDF(f); err != nil {
+		if errors.Is(err, file.ErrInvalidType) {
+			return &fleet.BadRequestError{
+				Message:     err.Error(),
+				InternalErr: err,
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking pdf")
+	}
+
+	// ensure we read the file from the start
+	_, err := f.Seek(0, io.SeekStart)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "seeking start of PDF file")
+	}
+
+	bytes, err := io.ReadAll(f)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
+	}
+
+	eula := &fleet.MDMAppleEULA{
+		Name:  name,
+		Token: uuid.New().String(),
+		Bytes: bytes,
+	}
+
+	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting EULA")
+	}
+
+	return nil
+}
+
+func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	// skipauth: this resource is authorized using the token provided in the
+	// request.
+	svc.authz.SkipAuthorization(ctx)
+
+	return svc.ds.MDMAppleGetEULABytes(ctx, token)
+}
+
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting EULA")
+	}
+
+	return nil
+}
+
+func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	return eula, nil
+}
+
 func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	if err := svc.authz.Authorize(ctx, asst, fleet.ActionWrite); err != nil {
 		return nil, err

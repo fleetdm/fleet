@@ -521,7 +521,7 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](ht
 **Available in Fleet Premium**. Direct users of Fleet Desktop to a custom transparency URL page.
 
 - Optional setting (string)
-- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
+- Default value: Fleet's default transparency URL ("[https://fleetdm.com/transparency](https://fleetdm.com/transparency)")
 - Config file format:
   ```yaml
   fleet_desktop:

@@ -152,5 +152,5 @@ You should see the URL for your bootstrap package as the value for `mdm.macos_se
 
 > This feature is currently in development.
 
-<meta name="pageOrderInSection" value="1504">
+<meta name="pageOrderInSection" value="1505">
 <meta name="title" value="MDM macOS setup">

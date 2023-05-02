@@ -358,7 +358,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedMDMBootstrapPackage: (activity: IActivity) => {
-    const packageName = activity.details?.package_name;
+    const packageName = activity.details?.bootstrap_package_name;
     return (
       <>
         {" "}
@@ -383,7 +383,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedMDMBootstrapPackage: (activity: IActivity) => {
-    const packageName = activity.details?.package_name;
+    const packageName = activity.details?.bootstrap_package_name;
     return (
       <>
         {" "}

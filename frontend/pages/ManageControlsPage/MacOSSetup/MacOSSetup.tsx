@@ -59,7 +59,7 @@ const MacOSSetup = ({
 
   const CurrentCard = currentFormSection.Card;
 
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
+  if (isPremiumTier && !config?.mdm.apple_bm_enabled_and_configured) {
     return <SetupEmptyState router={router} />;
   }
 

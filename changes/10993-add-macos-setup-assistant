@@ -1,2 +1,0 @@
-* Added support for the `mdm.macos_setup.macos_setup_assistant` key in the 'config' and 'team' YAML payloads supported by `fleetctl apply`.
-* Added the endpoints to set, get and delete the macOS setup assistant associated with a team or no team (`GET`, `POST` and `DELETE` methods on the `/api/latest/fleet/mdm/apple/enrollment_profile` path).

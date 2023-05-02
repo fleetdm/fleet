@@ -342,7 +342,7 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
 To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
-The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](../../tools/tuf/test/README.md).
+The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](https://github.com/fleetdm/fleet/tree/main/tools/tuf/test/README.md).
 
 ### Troubleshooting
 
@@ -379,7 +379,7 @@ sudo rpm -e fleet-osquery-X.Y.Z.x86_64
 
 #### macOS
 
-Run the [cleanup script](../../orbit/tools/cleanup/cleanup_macos.sh).
+Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh).
 
 ## Bugs
 
