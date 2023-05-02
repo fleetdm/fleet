@@ -11,6 +11,7 @@ You can also enforce custom macOS settings. Learn how [here](./MDM-custom-macOS-
 To enforce disk encryption and have Fleet collect the disk encryption key, we will do the following steps:
 
 1. Enforce disk encryption
+2. Share migrations with end users
 2. Confirm disk encryption is enforced and Fleet is storing the disk encryption key
 
 ### Step 1: enforce disk encryption
@@ -63,23 +64,29 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 4. Run the `fleetctl apply -f workstations-canary-config.yml` command.
 
-### Step 2: confirm disk encryption is enforced and Fleet is storing the disk encryption key
+### Step 2: share migration instructions with your end users
 
-1. In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** tab.
+In order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must take action. If the host already had disk encryption turned on, the user will need to input their password. If the host did not already have disk encryption turned on, the user will need to log out or restart their computer.
 
-2. In the table under the **Disk encryption** header click each status to view a list hosts:
+Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-encryption) with your end users.
 
-* Applied: disk encryption on and key stored in Fleet. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+### Step 3: confirm disk encryption is enforced and Fleet is storing the disk encryption key
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-encryption) with your end users.
+In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
+
+* Applied: disk encryption is turned on and key stored in Fleet. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
 
 * Enforcing (pending): disk encryption will be enforced and the disk encryption key will be sent to Fleet when the hosts come online.
 
 > It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Removing enforcement (pending): disk encryption enforcement will be removed when the hosts come online.
+* Removing enforcement (pending): disk encryption enforcement will be removed when the hosts come online. 
 
-* Failed: hosts that are failed to enforce disk encryption.
+* Failed: hosts that are failed to enforce disk encryption. 
+
+You can click each status to view the list of hosts for that status.
 
 ## View disk encryption key
 
@@ -92,6 +99,8 @@ How to view the disk encryption key:
 1. Select a host on the **Hosts** page.
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
+
+> Whenever a disk encryption key is viewed, an activity will be logged.
 
 ## Reset a macOS host's password using the disk encryption key
 
