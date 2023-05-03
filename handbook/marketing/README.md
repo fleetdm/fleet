@@ -105,6 +105,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 
 All of Fleet's partnerships are located in ["❤️‍🔥 Buying situations > 🚿Channels / partners"](https://docs.google.com/spreadsheets/d/1pstllb-5vfVt8FifzaXRy8ixyKbe4B56Y1O8tLMnVUQ/edit#gid=1625487826).  (This is the source of truth for any active or proposed partnership.)
 
+## Field Marketing 
+
+For all requests related to enterprise sponsorship email Natalia natalia@fleetdm.com
 
 ## Community
 
