@@ -2149,7 +2149,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\irmon' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
   purpose: Informational
