@@ -1,11 +1,14 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -55,33 +58,74 @@ func TestMDMAppleAuthorization(t *testing.T) {
 			require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
 		}
 	}
+	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
+		ctx := test.UserContext(ctx, user)
+		_, err := svc.GetAppleMDM(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+		_, err = svc.GetAppleBM(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
 
-	cases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
-	}{
-		{"TestGlobalAdmin", test.UserAdmin, false},
-		{"TestGlobalMaintainer", test.UserMaintainer, false},
-		{"TestTeamAdmin", test.UserTeamAdminTeam1, false},
-		{"TestTeamMaintainer", test.UserTeamMaintainerTeam1, false},
-		{"TestGlobalObserver", test.UserObserver, true},
-		{"TestTeamObserver", test.UserTeamObserverTeam1, true},
-		{"TestNoRoles", test.UserNoRoles, true},
+		// deliberately send invalid args so it doesn't actually generate a CSR
+		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
+		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
+		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := test.UserContext(ctx, c.user)
-			_, err := svc.GetAppleMDM(ctx)
-			checkAuthErr(t, c.shouldFail, err)
-			_, err = svc.GetAppleBM(ctx)
-			checkAuthErr(t, c.shouldFail, err)
+	// Only global admins can access the endpoints.
+	testAuthdMethods(t, test.UserAdmin, false)
 
-			// deliberately send invalid args so it doesn't actually generate a CSR
-			_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
-			require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
-			checkAuthErr(t, c.shouldFail, err)
-		})
+	// All other users should not have access to the endpoints.
+	for _, user := range []*fleet.User{
+		test.UserNoRoles,
+		test.UserMaintainer,
+		test.UserObserver,
+		test.UserObserverPlus,
+		test.UserTeamAdminTeam1,
+	} {
+		testAuthdMethods(t, user, true)
 	}
+}
+
+func TestVerifyMDMAppleConfigured(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	cfg := config.TestConfig()
+	svc, baseCtx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	// mdm not configured
+	authzCtx := &authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(baseCtx, authzCtx)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+	}
+	err := svc.VerifyMDMAppleConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// error retrieving app config
+	authzCtx = &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
+	testErr := errors.New("test err")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return nil, testErr
+	}
+	err = svc.VerifyMDMAppleConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// mdm configured
+	authzCtx = &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	err = svc.VerifyMDMAppleConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
 }

@@ -17,7 +17,7 @@ const NudgePreview = () => {
       <p>As the deadline gets closer, Fleet provides stronger encouragement.</p>
       <CustomLink
         text="Learn more about macOS updates in Fleet"
-        url="https://fleetdm.com/docs/using-fleet/mobile-device-management#mac-os-updates"
+        url="https://fleetdm.com/docs/using-fleet/mdm-macos-updates"
         newTab
       />
       <img

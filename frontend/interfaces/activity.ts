@@ -1,6 +1,7 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ITeamSummary } from "./team";
+import { UserRole } from "./user";
 
 export enum ActivityType {
   CreatedPack = "created_pack",
@@ -36,6 +37,12 @@ export enum ActivityType {
   CreatedMacOSProfile = "created_macos_profile",
   DeletedMacOSProfile = "deleted_macos_profile",
   EditedMacOSProfile = "edited_macos_profile",
+  EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
+  DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  AddedBootstrapPackage = "added_bootstrap_package",
+  DeletedBootstrapPackage = "deleted_bootstrap_package",
+  ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
+  DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
 }
 export interface IActivity {
   created_at: string;
@@ -64,7 +71,7 @@ export interface IActivityDetails {
   public_ip?: string;
   user_email?: string;
   email?: string;
-  role?: string;
+  role?: UserRole;
   host_serial?: string;
   host_display_name?: string;
   installed_from_dep?: boolean;
@@ -72,4 +79,6 @@ export interface IActivityDetails {
   deadline?: string;
   profile_name?: string;
   profile_identifier?: string;
+  bootstrap_package_name?: string;
+  name?: string;
 }

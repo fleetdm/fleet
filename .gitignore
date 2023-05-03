@@ -11,6 +11,7 @@ dist
 assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
@@ -84,3 +85,6 @@ macoffice_rel_notes/
 # (e.g. with ./build/fleetctl generate ...).
 /*.key
 /*.crt
+
+# IDE
+.vscode

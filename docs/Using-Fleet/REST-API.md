@@ -6,6 +6,7 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
+- [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule](#schedule)
@@ -15,6 +16,7 @@
 - [Teams](#teams)
 - [Translator](#translator)
 - [Users](#users)
+- [API errors](#api-responses)
 
 Use the Fleet APIs to automate Fleet.
 
@@ -118,7 +120,7 @@ Logs out the authenticated user.
 
 ### Forgot password
 
-Sends a password reset email to the specified email. Requires that SMTP is configured for your Fleet server.
+Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
 `POST /api/v1/fleet/forgot_password`
 
@@ -839,9 +841,25 @@ None.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -919,6 +937,7 @@ None.
   },
   "mdm": {
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "apple_bm_default_team": "",
     "macos_updates": {
@@ -1026,6 +1045,8 @@ Modifies the Fleet's configuration with the supplied information.
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1102,10 +1123,26 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1161,13 +1198,6 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ]
-  },
-  "mdm": {
-    "apple_bm_default_team": "",
-    "macos_updates": {
-      "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
-    }
   },
   "logging": {
       "debug": false,
@@ -1773,10 +1803,14 @@ the `software` table.
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1784,7 +1818,7 @@ If `software_id` is specified, an additional top-level key `"software"` is retur
 
 If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
-If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
 
@@ -1875,7 +1909,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 Response payload with the `mdm_id` filter provided:
 
@@ -1925,13 +1959,17 @@ Response payload with the `munki_issue_id` filter provided:
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
-If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 #### Example
 
@@ -2249,13 +2287,31 @@ Returns the information of the specified host.
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2429,13 +2485,30 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
@@ -2681,8 +2754,10 @@ Retrieves MDM enrollment summary. Windows servers are excluded from the aggregat
 
 | Name     | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | -------- | ------- | ----- | -------------------------------------------------------------------------------- |
-| team_id  | integer | query | Filter by team                                                                   |
+| team_id  | integer | query | _Available in Fleet Premium_ Filter by team                                      |
 | platform | string  | query | Filter by platform ("windows" or "darwin")                                       |
+
+A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
 
 #### Example
 
@@ -2796,6 +2871,8 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
 
 #### Example
 
@@ -2968,12 +3045,15 @@ requested by a web browser.
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
-If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 #### Example
 
@@ -3352,8 +3432,16 @@ Returns a list of the hosts that belong to the specified label.
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
-| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
+| mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
+| mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
+
+If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+
 #### Example
 
 `GET /api/v1/fleet/labels/6/hosts&query=floobar`
@@ -3460,6 +3548,748 @@ Deletes the label specified by ID.
 
 ---
 
+## Mobile device management (MDM)
+
+These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](./Mobile-device-management.md).
+
+- [Add custom macOS setting (configuration profile)](#add-custom-macos-setting-configuration-profile)
+- [List custom macOS settings (configuration profiles)](#list-custom-macos-settings-configuration-profiles)
+- [Download custom macOS setting (configuration profile)](#download-custom-macos-setting-configuration-profile)
+- [Delete custom macOS setting (configuration profile)](#delete-custom-macos-setting-configuration-profile)
+- [Update disk encryption enforcement](#update-disk-encryption-enforcement)
+- [Get disk encryption statistics](#get-disk-encryption-statistics)
+- [Get macOS settings statistics](#get-macos-settings-statistics)
+- [Run custom MDM command](#run-custom-mdm-command)
+- [Get custom MDM command results](#get-custom-mdm-command-results)
+- [List custom MDM commands](#list-custom-mdm-commands)
+- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
+- [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
+- [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
+- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Turn off MDM for a host](#turn-off-mdm-for-a-host)
+- [Upload a bootstrap package](#upload-a-bootstrap-package)
+- [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
+- [Delete a bootstrap package](#delete-a-bootstrap-package)
+- [Download a bootstrap package](#download-a-bootstrap-package)
+
+### Add custom macOS setting (configuration profile)
+
+Add a configuration profile to enforce custom settings on macOS hosts.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                               |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+
+#### Example
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 42
+}
+```
+
+###### Additional notes
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier.
+
+
+### List custom macOS settings (configuration profiles)
+
+Get a list of the configuration profiles in Fleet.
+
+For Fleet Premium, the list can
+optionally be filtered by team ID. If no team ID is specified, team profiles are excluded from the
+results (i.e., only profiles that are associated with "No team" are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profiles": [
+    {
+        "profile_id": 1337,
+        "team_id": 0,
+        "name": "Example profile",
+        "identifier": "com.example.profile",
+        "created_at": "2023-03-31T00:00:00Z",
+        "updated_at": "2023-03-31T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Download custom macOS setting (configuration profile)
+
+`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Delete custom macOS setting (configuration profile)
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+### Update disk encryption enforcement
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+##### Default response
+
+`204`
+
+### Get disk encryption statistics
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of disk encryption enforced on hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verifying": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
+### Get macOS settings statistics
+
+Get aggregate status counts of all macOS settings (configuraiton profiles and disk encryption) enforced on hosts.
+
+For Fleet Premium uses, the statistics can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are associated with "No team" are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verifying": 123,
+  "failed": 123,
+  "pending": 123
+}
+```
+
+### Run custom MDM command
+
+This endpoint tells Fleet to run a custom an MDM command, on the targeted macOS hosts, the next time they come online.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
+```
+
+### Get custom MDM command results
+
+This endpoint returns the results for a specific custom MDM command.
+
+`GET /api/v1/fleet/mdm/apple/commandresults`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string | query | The unique identifier of the command.                                     |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer",
+      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+    }
+  ]
+}
+```
+
+### List custom MDM commands
+
+This endpoint returns the list of custom MDM commands that have been executed.
+
+`GET /api/v1/fleet/mdm/apple/commands`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| page                      | integer | query | Page number of the results to fetch.                                      |
+| per_page                  | integer | query | Results per page.                                                         |
+| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
+| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer"
+    }
+  ]
+}
+```
+
+### Set custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Sets the custom MDM setup enrollment profile for a team or no team.
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                   |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------     |
+| team_id                   | integer | json  | The team id this custom enrollment profile applies to, or no team if omitted. |
+| name                      | string  | json  | The filename of the uploaded custom enrollment profile.                       |
+| enrollment_profile        | object  | json  | The custom enrollment profile's json, as documented in https://developer.apple.com/documentation/devicemanagement/profile. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Get custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the custom MDM setup enrollment profile for a team or no team.
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to return the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Delete custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to delete the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 204`
+
+### Get Apple Push Notification service (APNs)
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
+### Get Apple Business Manager (ABM)
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
+}
+```
+
+### Turn off MDM for a host
+
+`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet. |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
+
+
+### Upload a bootstrap package
+
+_Available in Fleet Premium_
+
+Upload a bootstrap package that will be automatically installed during DEP setup.
+
+`POST /api/v1/fleet/mdm/apple/bootstrap`
+
+#### Parameters
+
+| Name    | Type   | In   | Description                                                                                                                                                                                                            |
+| ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| team_id | string | form | The team id for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+
+#### Example
+
+Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
+assigned to a team. Note that in this example the form data specifies `team_id` in addition to
+`package`.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="package"; filename="bootstrap-package.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get metadata about a bootstrap package
+
+_Available in Fleet Premium_
+
+Get information about a bootstrap package that was uploaded to Fleet.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
+
+#### Parameters
+
+| Name    | Type   | In  | Description                                                                                                                                               |
+| ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id | string | url | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/0/metadata`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "bootstrap-package.pkg",
+  "team_id": 0,
+  "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+  "created_at": "2023-04-20T13:02:05Z"
+}
+```
+
+In the response above:
+
+- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
+- `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
+
+### Delete a bootstrap package
+
+_Available in Fleet Premium_
+
+Delete a team's bootstrap package.
+
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/{team_id}`
+
+#### Parameters
+
+| Name    | Type   | In  | Description                                                                                                                                               |
+| ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id | string | url | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/1`
+
+##### Default response
+
+`Status: 200`
+
+### Download a bootstrap package
+
+_Available in Fleet Premium_
+
+Download a bootstrap package.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                                      |
+| ----- | ------ | ----- | ------------------------------------------------ |
+| token | string | query | **Required** The token of the bootstrap package. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+```
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Get a summary of bootstrap package status
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of bootstrap packages delivered to DEP enrolled hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | The team id to filter the summary.                                        |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "installed": 10,
+  "failed": 1,
+  "pending": 4
+}
+```
+
+---
+
 ## Policies
 
 - [List policies](#list-policies)
@@ -3468,10 +4298,6 @@ Deletes the label specified by ID.
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
 - [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
-
-`In Fleet 4.3.0, the Policies feature was introduced.`
-
-> Fleet 4.7.0 (release on 2021-12-08), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.7.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -4258,7 +5084,7 @@ Returns a list of all queries in the Fleet instance.
 | name             | string | body | **Required**. The name of the query.                                                                                                                   |
 | query            | string | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description      | string | body | The query's description.                                                                                                                               |
-| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
+| observer_can_run | bool   | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 
 #### Example
 
@@ -4311,7 +5137,7 @@ Returns the query specified by ID.
 | name             | string  | body | The name of the query.                                                                                                                                 |
 | query            | string  | body | The query in SQL syntax.                                                                                                                               |
 | description      | string  | body | The query's description.                                                                                                                               |
-| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 
 #### Example
 
@@ -5009,7 +5835,7 @@ Deletes the session specified by ID. When the user associated with the session n
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
@@ -5042,7 +5868,8 @@ Deletes the session specified by ID. When the user associated with the session n
             "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
-            "cisa_known_exploit": false
+            "cisa_known_exploit": false,
+            "cve_published": "2022-01-01 12:32:00"
           }
         ],
         "hosts_count": 1
@@ -5407,6 +6234,20 @@ _Available in Fleet Premium_
         "policy_ids": null,
         "host_batch_size": 0
       }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
+      "macos_settings": {
+        "custom_settings": ["path/to/profile.mobileconfig"],
+        "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
+      }
     }
   }
 }
@@ -5515,6 +6356,8 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 
 
 #### Example (add users to a team)
@@ -5573,8 +6416,16 @@ _Available in Fleet Premium_
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
+      },
+      "macos_settings": {
+        "custom_settings": ["path/to/profile.mobileconfig"],
+        "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
-    },
+    }
   }
 }
 ```
@@ -5942,8 +6793,8 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
-| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 
@@ -6059,9 +6910,9 @@ By default, the user will be forced to reset its password upon first login.
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
+| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 
@@ -6509,6 +7360,31 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 #### Parameters
 
 None.
+
+## API errors
+
+Fleet returns API errors as a JSON document with the following fields:
+- `message`: This field contains the kind of error (bad request error, authorization error, etc.).
+- `errors`: List of errors with `name` and `reason` keys.
+- `uuid`: Unique identifier for the error. This identifier can be matched to Fleet logs which might contain more information about the cause of the error.
+
+Sample of an error when trying to send an empty body on a request that expects a JSON body:
+```sh
+$ curl -k -H "Authorization: Bearer $TOKEN" -H 'Content-Type:application/json' "https://localhost:8080/api/v1/fleet/sso" -d ''
+```
+Response:
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Expected JSON Body"
+    }
+  ],
+  "uuid": "c0532a64-bec2-4cf9-aa37-96fe47ead814"
+}
+```
 
 ---
 <meta name="pageOrderInSection" value="400">

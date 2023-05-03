@@ -33,7 +33,6 @@ For instructions on using our testings tools, check out our [testing docs](https
     - [ESLint and TypeScript](#es-lint-and-typescript)
     - [Jest](#jest)
     - [Testing library](#testing-library)
-    - [Cypress](#cypress)
   - [Additional examples](#additional-examples)
     - [Roles and permissions](#roles-and-permissions)
     - [Mac and Windows hosts](#mac-and-windows-hosts)
@@ -125,8 +124,8 @@ We use a variety of testing to ensure that our software is working as intended. 
 | Reusable utilities | Unit with Jest | Devs | String util, url util | Little to no dependencies. Function argument-based. |
 | Reusable hooks | Unit with Jest & react-hooks Library | Devs | useToggleDisplayed Hook | Little to no dependencies. Function argument-based. |
 | Reusable UI components | Unit with Jest & testing-library | Devs | Radio, button, and input components | Little to no dependencies. Props-based. |
-| App widgets | Integration or E2E with testing-library or Cypress | End users | Create user form. Reset password form. | Less reusable code with more complex environment setup and dependencies. Depending on the case, can be done with integration or E2E. For integration, mock at the backend level; don't mock other UI systems. For E2E, don't mock other systems except for common network error states. |
-| User journeys | E2E with Cypress | End users | Filtering a host by software. Creating a team as admin. | Full business flows. Little to no mocking of systems, except for common network error states. |
+| App widgets | Integration or E2E with testing-library or QA Wolf | End users | Create user form. Reset password form. | Less reusable code with more complex environment setup and dependencies. Depending on the case, can be done with integration or E2E. For integration, mock at the backend level; don't mock other UI systems. For E2E, don't mock other systems except for common network error states. |
+| User journeys | E2E with QA Wolf | End users | Filtering a host by software. Creating a team as admin. | Full business flows. Little to no mocking of systems, except for common network error states. |
 | N/A | Manual | N/A | // TODO | Manual testing can be used for all types of code. Examples would be for one-offs or states that would require extremely difficult testing setups. |
 
 #### Manual testing
@@ -285,45 +284,10 @@ describe("ResetPasswordForm - component", () => {
 #### E2E testing
 
 Our E2E layer tests all the systems of the software (frontend and backend) together to
-ensure the application works as intended. To support this, we rarely mock API responses at this
-layer of testing. Exceptions include mocking network error responses and mocking external APIs, such
-as Jira or Zendesk integration responses. At this level, we want to test the software as an actual user.
+ensure the application works as intended. We have partnered with QA Wolf to cover these flows, and
+the E2E tests are written and maintained by them.
 
-[View the full labels flow user journey testing source](https://github.com/fleetdm/fleet/blob/main/cypress/integration/all/app/labelflow.spec.ts).
-
-```ts
-describe("Labels flow", () => {
-  before(() => {
-    // ...setup
-  });
-  after(() => {
-    // ...teardown
-  });
-
-  describe("Manage hosts page", () => {
-    beforeEach(() => {
-      // ...setup
-    });
-    it("creates a custom label", () => {
-      cy.getAttached(".label-filter-select__control").click();
-      cy.findByRole("button", { name: /add label/i }).click();
-      cy.getAttached(".ace_content").type(
-        "{selectall}{backspace}SELECT * FROM users;"
-      );
-      cy.findByLabelText(/name/i).click().type("Show all MAC users");
-      cy.findByLabelText(/description/i)
-        .click()
-        .type("Select all MAC users.");
-      cy.getAttached(".label-form__form-field--platform > .Select").click();
-      cy.getAttached(".Select-menu-outer").within(() => {
-        cy.findByText(/macOS/i).click();
-      });
-      cy.findByRole("button", { name: /save label/i }).click();
-      cy.findByText(/label created/i).should("exist");
-    });
-  });
-});
-```
+The code is deployed and tested once daily on the testing instance. However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
 
 
 ### Tooling
@@ -345,17 +309,9 @@ integration testing.
 #### Testing library
 
 We rely heavily on the different libraries that are part of the testing-library ecosystem for our
-unit and integration testing. These including react-testing-library, cypress-testing-library,
-react-hooks, and user-events. The guiding principles of the testing-library tools align with our own
+unit and integration testing. These including react-testing-library, react-hooks, and user-events.
+The guiding principles of the testing-library tools align with our own
 in that we believe tests should resemble real-world usage as closely as possible.
-
-#### Cypress
-
-We use Cypress with Cypress Testing Library as our E2E testing framework. We primarily rely on full
-E2E software testing and rarely mock API responses, but we make exceptions for mocking common
-network error responses and testing app integrations with external APIs.
-
-For more details on our E2E testing, check out our [Cypress documentation](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/cypress/README.md).
 
 ### Additional examples
 

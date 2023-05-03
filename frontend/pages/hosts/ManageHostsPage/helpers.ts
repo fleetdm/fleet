@@ -1,11 +1,11 @@
-import { isEmpty, reduce, trim, union } from "lodash";
+import { isEmpty, reduce, trim, trimEnd, union } from "lodash";
 import { buildQueryStringFromParams } from "utilities/url";
 
 interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number };
+  queryParams?: { [key: string]: string | number | undefined };
 }
 
 type RouteParams = Record<string, string>;
@@ -57,10 +57,10 @@ export const getNextLocationPath = ({
   const routeString = createRouteString(routeTemplate, routeParams);
   const queryString = buildQueryStringFromParams(queryParams);
 
-  const nextLocation = union(
-    trim(pathPrefix, "/").split("/"),
-    routeString.split("/")
-  ).join("/");
+  const nextLocation = trimEnd(
+    union(trim(pathPrefix, "/").split("/"), routeString.split("/")).join("/"),
+    "/"
+  );
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };

@@ -168,7 +168,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	SELECT
 		os.name,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -415,6 +415,8 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return nil
 }
 
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
 // (via DirectIngestFunc).
@@ -487,7 +489,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -521,7 +523,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
-		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Query:            usesMacOSDiskEncryptionQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
@@ -570,7 +572,7 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            `SELECT to_base64(group_concat(line)) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -607,7 +609,7 @@ var softwareMacOS = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
@@ -829,12 +831,31 @@ FROM cached_users CROSS JOIN atom_packages USING (uid);
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var softwareChrome = DetailQuery{
+	Query: `SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source,
+  '' AS vendor
+FROM chrome_extensions`,
+	Platforms:        []string{"chrome"},
+	DirectIngestFunc: directIngestSoftware,
+}
+
 var usersQuery = DetailQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
+	Platforms:        []string{"linux", "darwin", "windows"},
+	DirectIngestFunc: directIngestUsers,
+}
+
+var usersQueryChrome = DetailQuery{
+	Query:            `SELECT uid, username, email FROM users`,
+	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -915,7 +936,7 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
-		osVersion = build
+		osVersion = version
 	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
 	default:
@@ -1139,7 +1160,12 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	for _, row := range rows {
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
-			return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
+			if host.Platform == "chrome" {
+				uid = 0
+			} else {
+				return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			}
 		}
 		username := row["username"]
 		type_ := row["type"]
@@ -1292,6 +1318,18 @@ func directIngestDiskEncryptionKeyDarwin(
 		)
 	}
 
+	if rows[0]["encrypted"] == "0" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host does not use disk encryption",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	// it's okay if the key comes empty, this can happen and if the disk is
+	// encrypted it means we need to reset the encryption key
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
 }
 
@@ -1315,10 +1353,12 @@ func GetDetailQueries(
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
+		generatedMap["software_chrome"] = softwareChrome
 	}
 
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
 	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {

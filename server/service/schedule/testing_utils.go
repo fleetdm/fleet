@@ -88,6 +88,7 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
 	}
+	ml.expiresAt = time.Now()
 	return nil
 }
 
@@ -96,6 +97,13 @@ func (ml *MockLock) GetLockCount() int {
 	defer ml.mu.Unlock()
 
 	return ml.LockCount
+}
+
+func (ml *MockLock) GetExpiration() time.Time {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	return ml.expiresAt
 }
 
 func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {

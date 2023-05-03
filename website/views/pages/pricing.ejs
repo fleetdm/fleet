@@ -7,9 +7,9 @@
         </h2>
       </div>
       <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-5" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
-        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
         <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
-        <div purpose="pricing-tier-switch" :class="[!displaySecurityPricingMode ? 'it-selected' : '']"></div>
+        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
+        <div purpose="pricing-tier-switch" :class="[displaySecurityPricingMode ? 'security-selected' : '']"></div>
       </div>
       <h4 class="pb-4 mb-4 text-center" v-if="displaySecurityPricingMode">Always cross-platform, always secure. You will always have control over read/write privileges.</h4>
       <h4 class="pb-4 mb-4 text-center" v-else>You will always have control over your machines regardless of platform.</h4>
@@ -61,7 +61,7 @@
               <h2>Fleet Ultimate</h2>
               <h3>For orgs with large deployments</h3>
               <p>Over 500 hosts<a href="#additional-hosts">†</a></p>
-              <h2>$<span :class="[estimatedUltimateCostPerHostHasBeenUpdated ? 'show-estimated-price' : '']">{{ estimatedUltimateCostPerHost.toFixed(2) }}</span>/host</h2>
+              <h2>$<span :class="[estimatedUltimateCostPerHostHasBeenUpdated ? 'show-estimated-price' : '']">{{ estimatedUltimateCostPerHost.toFixed(2) }}</span>/host/month</h2>
             </div>
             <div>
               <p><strong>All of Premium plus</strong></p>
@@ -335,13 +335,13 @@
         </div>
       </div>
     </div>
-    <div purpose="bottom-cta" class=" mx-auto">
+    <div purpose="bottom-cta" class="d-block mx-auto">
       <h2 class="text-center">Still have questions?</h2>
-      <div class="btn-toolbar justify-content-center" style="text-align: center" >
-        <a purpose="chat-button" style="max-width: 250px" class="btn btn-block btn-md btn-primary my-3 mx-2" @click="clickChatButton()">
+      <div class="d-flex flex-column flex-sm-row flex-nowrap btn-toolbar justify-content-center" style="text-align: center" >
+        <a purpose="chat-button" style="max-width: 250px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary my-3 mx-sm-2" @click="clickChatButton()">
           Ask us anything
         </a>
-        <a style="max-width: 350px" class="btn btn-block btn-lg btn-white my-3 mx-2" purpose="animated-arrow-button" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom">
+        <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="animated-arrow-button" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom">
           Talk to an expert
         </a>
       </div>

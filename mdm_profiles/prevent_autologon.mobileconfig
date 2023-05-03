@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+	<key>PayloadDisplayName</key>
+	<string>Turn off automatic login</string>
+	<key>PayloadIdentifier</key>
+	<string>cis.macOSBenchmark.section5.AutoLogin</string>
+	<key>PayloadOrganization</key>
+	<string>Center for Internet Security</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>60A76297-E69F-4A31-838F-6FCCE793F57B</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>TargetDeviceType</key>
+	<integer>5</integer>
+    <key>PayloadRemovalDisallowed</key>
+    <true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>5.8 - Ensure Automatic Login Is Disabled</string>
+			<key>PayloadIdentifier</key>
+			<string>CIS.macOS.autologin</string>
+			<key>PayloadType</key>
+			<string>com.apple.loginwindow</string>
+			<key>PayloadUUID</key>
+			<string>8C8382A1-04FF-48BE-8DE5-FF919836E0D4</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>com.apple.login.mcx.DisableAutoLoginClient</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>

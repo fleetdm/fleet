@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 )
 
@@ -33,14 +35,11 @@ const (
 	MaskedPassword = "********"
 )
 
-// SSOSettings wire format for SSO settings
-type SSOSettings struct {
+type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id"`
 	// IssuerURI is the uri that identifies the identity provider
 	IssuerURI string `json:"issuer_uri"`
-	// IDPImageURL is a link to a logo or other image that is used for UX
-	IDPImageURL string `json:"idp_image_url"`
 	// Metadata contains IDP metadata XML
 	Metadata string `json:"metadata"`
 	// MetadataURL is a URL provided by the IDP which can be used to download
@@ -48,6 +47,18 @@ type SSOSettings struct {
 	MetadataURL string `json:"metadata_url"`
 	// IDPName is a human friendly name for the IDP
 	IDPName string `json:"idp_name"`
+}
+
+func (s SSOProviderSettings) IsEmpty() bool {
+	return s == (SSOProviderSettings{})
+}
+
+// SSOSettings wire format for SSO settings
+type SSOSettings struct {
+	SSOProviderSettings
+
+	// IDPImageURL is a link to a logo or other image that is used for UX
+	IDPImageURL string `json:"idp_image_url"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `json:"enable_sso"`
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
@@ -56,6 +67,9 @@ type SSOSettings struct {
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
 	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
+	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
+	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -104,6 +118,13 @@ type VulnerabilitySettings struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+
+	// AppleBMEnabledAndConfigured is set to true if Fleet has been
+	// configured with the required Apple BM key pair or token. It can't be set
+	// manually via the PATCH /config API, it's only set automatically when
+	// the server starts.
+	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
+
 	// AppleBMTermsExpired is set to true if an Apple Business Manager request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
@@ -113,12 +134,15 @@ type MDM struct {
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
-	// configured with all the required certificates. It cant' be set
+	// configured with the required APNS and SCEP certificates. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
+	MacOSSettings         MacOSSettings            `json:"macos_settings"`
+	MacOSSetup            MacOSSetup               `json:"macos_setup"`
+	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -166,35 +190,85 @@ func (m MacOSUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
+	// CustomSettings is a slice of configuration profile file paths.
+	//
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
 	CustomSettings []string `json:"custom_settings"`
+	// EnableDiskEncryption enables disk encryption on hosts such that the hosts'
+	// disk encryption keys will be stored in Fleet.
+	EnableDiskEncryption bool `json:"enable_disk_encryption"`
+
+	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings": s.CustomSettings,
+		"custom_settings":        s.CustomSettings,
+		"enable_disk_encryption": s.EnableDiskEncryption,
 	}
 }
 
-// CustomSettingsFromMap sets the custom settings field from the provided map,
-// which is the map type from the ApplyTeams spec struct. It returns true if
-// the custom settings were set from the map, false if they were left
-// unchanged.
-func (s *MacOSSettings) CustomSettingsFromMap(m map[string]interface{}) bool {
+// FromMap sets the macOS settings from the provided map, which is the map type
+// from the ApplyTeams spec struct. It returns a map of fields that were set in
+// the map (ie. the key was present even if empty) or an error. If the
+// operation updates an existing team, it should be called on the existing
+// MacOSSettings so that its fields are replaced only if present in the map.
+func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
+	set := make(map[string]bool)
+
 	if v, ok := m["custom_settings"]; ok {
+		set["custom_settings"] = true
+
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
 			strs := make([]string, 0, len(vals))
 			for _, v := range vals {
-				s, ok := v.(string)
-				if ok && s != "" {
-					strs = append(strs, s)
+				str, ok := v.(string)
+				if !ok {
+					// error, must be a []string
+					return nil, &json.UnmarshalTypeError{
+						Value: fmt.Sprintf("%T", v),
+						Type:  reflect.TypeOf(s.CustomSettings),
+						Field: "macos_settings.custom_settings",
+					}
 				}
+				strs = append(strs, str)
 			}
 			s.CustomSettings = strs
-			return true
 		}
 	}
-	return false
+
+	if v, ok := m["enable_disk_encryption"]; ok {
+		set["enable_disk_encryption"] = true
+		b, ok := v.(bool)
+		if !ok {
+			// error, must be a bool
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeOf(s.EnableDiskEncryption),
+				Field: "macos_settings.enable_disk_encryption",
+			}
+		}
+		s.EnableDiskEncryption = b
+	}
+
+	return set, nil
+}
+
+// MacOSSetup contains settings related to the setup of DEP enrolled devices.
+type MacOSSetup struct {
+	BootstrapPackage    optjson.String `json:"bootstrap_package"`
+	MacOSSetupAssistant optjson.String `json:"macos_setup_assistant"`
+}
+
+// MDMEndUserAuthentication contains settings related to end user authentication
+// to gate certain MDM features (eg: enrollment)
+type MDMEndUserAuthentication struct {
+	// SSOSettings configure the IdP integration. Note that all keys under
+	// SSOProviderSettings are top-level keys under this struct, that's why
+	// it's embedded.
+	SSOProviderSettings
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -224,8 +298,6 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	MacOSSettings MacOSSettings `json:"macos_settings"`
-
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -237,6 +309,19 @@ type AppConfig struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// Obfuscate overrides credentials with obfuscated characters.
+func (c *AppConfig) Obfuscate() {
+	if c.SMTPSettings.SMTPPassword != "" {
+		c.SMTPSettings.SMTPPassword = MaskedPassword
+	}
+	for _, jiraIntegration := range c.Integrations.Jira {
+		jiraIntegration.APIToken = MaskedPassword
+	}
+	for _, zdIntegration := range c.Integrations.Zendesk {
+		zdIntegration.APIToken = MaskedPassword
+	}
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
@@ -284,7 +369,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
-	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -305,9 +389,9 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 	}
 
-	if c.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]string, len(c.MacOSSettings.CustomSettings))
-		copy(clone.MacOSSettings.CustomSettings, c.MacOSSettings.CustomSettings)
+	if c.MDM.MacOSSettings.CustomSettings != nil {
+		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
+		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
 	}
 
 	return &clone
@@ -327,6 +411,7 @@ type enrichedAppConfigFields struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+	Email           *EmailConfig           `json:"email,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -640,6 +725,19 @@ func (e *EnrollSecret) AuthzType() string {
 	return "enroll_secret"
 }
 
+// ExtraAuthz implements authz.ExtraAuthzer.
+func (e *EnrollSecret) ExtraAuthz() (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"is_global_secret": e.TeamID == nil,
+	}, nil
+}
+
+// IsGlobalSecret returns whether the secret is global.
+// This method is defined for the Policy Rego code (is_global_secret).
+func (e *EnrollSecret) IsGlobalSecret() bool {
+	return e.TeamID == nil
+}
+
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
@@ -656,13 +754,17 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// tierBasic is for backward compatibility with previous tier names
-	tierBasic = "basic"
+	// tierBasicDeprecated is for backward compatibility with previous tier names
+	tierBasicDeprecated = "basic"
 
 	// TierPremium is Fleet Premium aka the paid license.
 	TierPremium = "premium"
 	// TierFree is Fleet Free aka the free license.
 	TierFree = "free"
+	// TierTrial is Fleet Premium but in trial mode
+	// this is used to distinguish between Premium, enabling different functionality
+	// when the license is expired, like disabling certain features
+	TierTrial = "trial"
 )
 
 // LicenseInfo contains information about the Fleet license.
@@ -680,11 +782,17 @@ type LicenseInfo struct {
 }
 
 func (l *LicenseInfo) IsPremium() bool {
-	return l.Tier == TierPremium || l.Tier == tierBasic
+	return l.Tier == TierPremium || l.Tier == tierBasicDeprecated || l.Tier == TierTrial
 }
 
 func (l *LicenseInfo) IsExpired() bool {
 	return l.Expiration.Before(time.Now())
+}
+
+func (l *LicenseInfo) ForceUpgrade() {
+	if l.Tier == tierBasicDeprecated {
+		l.Tier = TierPremium
+	}
 }
 
 const (
@@ -698,6 +806,16 @@ type Logging struct {
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
 	Audit  LoggingPlugin `json:"audit"`
+}
+
+type EmailConfig struct {
+	Backend string      `json:"backend"`
+	Config  interface{} `json:"config"`
+}
+
+type SESConfig struct {
+	Region    string `json:"region"`
+	SourceARN string `json:"source_arn"`
 }
 
 type UpdateIntervalConfig struct {
@@ -776,4 +894,12 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// Version is the authz type used to check access control to the version endpoint.
+type Version struct{}
+
+// AuthzType implements authz.AuthzTyper.
+func (v *Version) AuthzType() string {
+	return "version"
 }

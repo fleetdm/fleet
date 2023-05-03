@@ -21,9 +21,9 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
-> TODO: dedupe between this section and the issue template
+> TODO: dedupe between this section and the "Sale" issue template
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
@@ -41,8 +41,11 @@ This workflow outlines the process that sales and customer success can follow wh
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - Solution Architect completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
+    - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
     - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
-    - Prepare to review:
+    - Prepare to review the following from the Account Plan:
         - Details of the deal
         - Primary contact / their role
         - Desired use cases / desired outcomes
@@ -69,6 +72,15 @@ This workflow outlines the process that sales and customer success can follow wh
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+
+## Paying Fleet
+For customers with hundreds or more hosts, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+
+Fleet team members can provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF.
+
+
+
+
 
 ## Customer success calls
 
@@ -260,7 +272,17 @@ Customer team members can reach the engineering oncall for assistance by writing
 ## Runbook
 
 ### Responding to a request to change a credit card number
-To change a customer's credit card number, you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice, and they can update the payment method on file.
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+### Algolia crawler errors
+
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
@@ -278,6 +300,11 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
 ### Reviewing subscription agreement
 
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -287,11 +314,11 @@ To quickly get help doing a legal review of a prospect subscription agreement, w
 3. Follow the instructions in the "Submitting this request" section
 
 If the prospect/customer/partner is originating the request for signature:
-1. Communicate that the Fleet signatory is Mike McNeil, CEO and share his email
+1. Communicate to the prospect that the Fleet signatory is Mike McNeil, CEO and share his email.
 2. Mike will create the github issue mentioned above when he gets request
 3. Mike will forward to business operations for review
-4. Business operations will notify Mike and internal requestor when ready for signature
-5. Mike will sign and close the issue
+4. Business operations will notify Mike and the requestor (via GitHub comment w/ at-mention) when ready for signature
+5. Mike will sign and close the issue.  (This sends a notification to the requestor automatically.)
 
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.
@@ -349,6 +376,11 @@ In the case of a prospect or customer request, we strive to adhere to the follow
 - Web chat: 1 hour response during working hours, 8 hours otherwise
 - Talk to an expert: prospects can schedule chats via our calendar tool
 - All other enquiries: 1-2 days
+
+#### Web chat on-call
+The web chat will be monitored by an on-call rotation. If you are unable to answer a technical/product question, ask the Solution Consultant (SC) in #sales. If the SC is unavailable, post in # help-engineering / #help-product accordingly.
+Transition to the next week on Friday night into Saturday (e.g. Carlos’s shift starts at 12am on 1/21 for the week of 1/23)
+Respond “in-thread” in Slack “_from-prospective-customers”. In-channel reminders for the next person starting their on-call shift are automated with notifications issued every Monday at the beginning of the day.
 
 Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
 

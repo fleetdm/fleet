@@ -8,6 +8,7 @@ import ReactTooltip from "react-tooltip";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
+import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
@@ -90,11 +91,16 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (options: {
-  selectedTeamId?: number | null;
-  canAddOrDeletePolicy?: boolean;
-  tableType?: string;
-}): IDataColumn[] => {
+const generateTableHeaders = (
+  options: {
+    selectedTeamId?: number | null;
+    canAddOrDeletePolicy?: boolean;
+    tableType?: string;
+  },
+
+  isPremiumTier?: boolean,
+  isSandboxMode?: boolean
+): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
   const tableHeaders: IDataColumn[] = [
@@ -105,8 +111,42 @@ const generateTableHeaders = (options: {
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
-          classes="w250"
-          value={cellProps.cell.value}
+          classes="w250 policy-name-cell"
+          value={
+            <>
+              <div className="policy-name-text">{cellProps.cell.value}</div>
+              {isPremiumTier && cellProps.row.original.critical && (
+                <>
+                  <span
+                    className="tooltip-base"
+                    data-tip
+                    data-for={`critical-tooltip-${cellProps.row.original.id}`}
+                  >
+                    <Icon
+                      className="critical-policy-icon"
+                      name="critical-policy"
+                    />
+                  </span>
+                  <ReactTooltip
+                    className="critical-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`critical-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor="#3e4771"
+                  >
+                    This policy has been marked as critical.
+                    {isSandboxMode && (
+                      <>
+                        <br />
+                        This is a premium feature.
+                      </>
+                    )}
+                  </ReactTooltip>
+                </>
+              )}
+            </>
+          }
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
         />
       ),

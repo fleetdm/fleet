@@ -1,23 +1,12 @@
 # Community
 
-## Marketing
+## Marketing mission
 
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
-
-#### In this section
-
-- [Positioning](#positioning)
-- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-(MQOs)
-- [Lead enrichment](#lead-enrichment)
-- [Posting on social media as Fleet](#posting-on-social-media-as-fleet)
-- [Promoting blog posts on social media](#promoting-blog-posts-on-social-media)
-- [Press releases](#press-releases)
-- [Sponsoring events](#sponsoring-events)
+To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
 
 ### Positioning
 
-Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
+See [📖Company#Positioning](https://fleetdm.com/handbook/company#positioning).
 
 ### Marketing Qualified Opportunities (MQOs)
 
@@ -27,9 +16,18 @@ Marketing's goal is to increase product usage. We value users of all sizes adopt
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-### Posting on social media as Fleet
+### Product Marketing and Launch strategies
 
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+- [How we rank features for launch](https://fleetdm.com/handbook/product#ranking-features)
+- Our Launch Playbook on [Monday.com](https://fleetdm.monday.com/boards/3971829429) To start a new major product launch, duplicate this monday board, as well as the [Run-of-show board](https://fleetdm.monday.com/boards/4261275399).
+- [MDM Launch Retrospective](https://docs.google.com/document/d/16GPIY94nDLSinmZg1FRoiAccfnZNP0X2qfP5j7Yso4I/edit#heading=h.cd1i3rfqahn1)
+
+### How we show up for our community online
+
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts. Some specific guidelines that we follow at Fleet:
+- Answer technical questions quickly: if a community member has a technical question drop it in #g-marketing in slack if you can't answer it yourself.
+- Never engage with un-constructive feedback or competitive spamming. If there is a valuable conversation to be had, let our community lead the conversation, and let our community come to our defense. They are the users, and often their insight and debates are more attuned then ours.
+- Do not share Hacker News links directly. If we are on Hacker News, just let the community know and if they find us then great. 
 
 #### Topics:
 
@@ -64,6 +62,12 @@ Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the 
 
 Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
 
+### Fleet in the news!
+- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
+- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
+- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
+- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
+
 
 ### Press releases
 
@@ -80,7 +84,7 @@ That means better privacy, better device performance, and better data but with l
 ### Sponsoring events
 
 When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
-Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+Track prospective sponsorships in ["Sponsorships"](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
 
 Once a relevant sponsorship opportunity and its prospectus are reviewed:
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
@@ -97,27 +101,18 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+### Partners
+
+All of Fleet's partnerships are located in ["❤️‍🔥 Buying situations > 🚿Channels / partners"](https://docs.google.com/spreadsheets/d/1pstllb-5vfVt8FifzaXRy8ixyKbe4B56Y1O8tLMnVUQ/edit#gid=1625487826).  (This is the source of truth for any active or proposed partnership.)
+
 
 ## Community
-
-#### In this section
-
-- [Communities](#communities)
-- [Goals](#goals)
-- [Tools](#tools)
-- [Resources](#resources)
-- [Assistance from engineering](#assistance-from-engineering)
-- [Pull requests](#pull-requests)
-- [Managing community contributions](#managing-community-contributions)
-- [Communicate with contributors](#communicate-with-contributors)
-- [Making the updates](#making-the-updates)
-- [Fleet swag](#fleet-swag)
 
 ### Communities
 
 Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
-- [Osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
+- [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
 - [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
 - [osquery discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)
 - [osquery discussions on Twitter](https://twitter.com/search?q=osquery&src=typed_query)
@@ -267,17 +262,6 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 ## Brand
 
-#### In this section
-
-- [Publishing Fleet content](#publishing-fleet-content)
-- [Content style guide](#content-style-guide)
-- [For editors](#for-editors)
-- [Commonly used terms](#commonly-used-terms)
-- [Brand resources](#brand-resources)
-- [Email blasts](#email-blasts)
-- [Using Figma](#using-figma)
-- [Fleet website](#fleet-website)
-
 ### Publishing Fleet content 
 
 The following describes how to go about publishing and editing content at Fleet.
@@ -325,7 +309,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 #### In this section
 
-- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
+- [How to make edits with GitHub](#how-to-make-edits-with-github)
 - [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
 - [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
 - [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
@@ -384,7 +368,7 @@ Editing articles, release posts, and press releases usually comes in three flavo
 
 * For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
 
-* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-github).
 
 #### How to edit social media posts
 
@@ -418,7 +402,7 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 #### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
-- Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+- Bring your request to the Brand team by posting it in [their primary Slack channel](#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
@@ -491,19 +475,6 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 The Brand team is responsible for production and maintenance of the Fleet website.
 
-#### In this section
-
-- [Wireframes](#wireframes)
-- [Design reviews](#design-reviews)
-- [Estimation sessions](#estimation-sessions)
-- [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
-- [How to export images for the website](#how-to-export-images-for-the-website)
-- [Maintaining browser compatibility](#maintaining-browser-compatibility)
-- [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
-- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-git-hub-action-failed)
-- [Vulnerability monitoring](#vulnerability-monitoring)
-- [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
-
 #### Wireframes
 
 Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
@@ -515,6 +486,21 @@ See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/comp
 We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
 
 Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
+
+#### Experimentation
+
+In order for marketing to iterate rapidly we have created a process of experimentation. This will allow a small group of marketers to draft, review and publish a page or a flyer or an experiment without getting a series of approvals. Experiments should be short-lived, temporary things intended for a small audience. When an experiment succeeds it should immediately be turned into a part of Fleet'd rituals and then go through the proper wireframe-first approach. 
+
+Website experiments and landing pages should live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
+
+Some examples of experiments that would qualify to get a rapid approach:
+- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
+- A landing page for a movie screening presented by Fleet
+- A landing page for a private event
+- A landing page for an ad campaign that is running for 4 weeks.
+- An A/B test on product positioning
+- A giveaway page for a conference
+- Table-top signage for a conference booth or meetup
 
 #### Estimation sessions
 
@@ -547,6 +533,36 @@ When merging a PR to master, remember that whatever you merge to master gets dep
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
 
+#### How can I test changes to the website?
+
+When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+    
+    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+
+
+2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
+  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
+  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
+    
+    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
+    > 
+    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
+
+3. Once the script is complete, start the website server. From the `website/` folder:
+  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
+  - **With Sails.js installed globally:** start the server by running `sails lift`.
+4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024/admin/email-preview)
+    
+  > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
+
 #### How to export images for the website
 In Figma:
 1. Select the layers you want to export.
@@ -559,7 +575,7 @@ In Figma:
 
 #### Maintaining browser compatibility
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../../docs/Using-Fleet/Supported-browsers.md).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
@@ -596,7 +612,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
@@ -604,6 +620,18 @@ To propose changes:
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, the Brand team often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
+
+#### Cloudflare
+
+We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
+If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
+
+
+To make DNS changes in Cloudflare:
+1. Log into your Cloudflare account and select the "Fleet" account.
+2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
+3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
+
 
 ## Rituals
 

@@ -1,6 +1,6 @@
 # Fleet 4.1.0 released with Schedule and Activity feed features
 
-![Fleet 4.1.0](../website/assets/images/articles/fleet-4.1.0-cover-700x393@2x.jpg)
+![Fleet 4.1.0](../website/assets/images/articles/fleet-4.1.0-cover-1600x900@2x.jpg)
 
 Fleet 4.1.0 is now available to increase the usability and maturity of your Fleet deployment with Schedule for making the ability to collect data from your devices faster and Activity feed for easily monitoring changes made to your Fleet and osquery deployment.
 

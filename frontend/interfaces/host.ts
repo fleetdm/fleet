@@ -7,7 +7,11 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
-import { IMacSettings, MdmEnrollmentStatus } from "./mdm";
+import {
+  IHostMacMdmProfile,
+  MdmEnrollmentStatus,
+  BootstrapPackageStatus,
+} from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -86,13 +90,36 @@ export interface IMunkiData {
   version: string;
 }
 
+type MacDiskEncryptionState =
+  | "applied"
+  | "action_required"
+  | "enforcing"
+  | "failed"
+  | "removing_enforcement"
+  | null;
+
+type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+
+interface IMdmMacOsSettings {
+  disk_encryption: MacDiskEncryptionState | null;
+  action_required: MacDiskEncryptionActionRequired | null;
+}
+
+interface IMdmMacOsSetup {
+  bootstrap_package_status: BootstrapPackageStatus | "";
+  details: string;
+  bootstrap_package_name: string;
+}
+
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
-  server_url: string;
-  profiles?: IMacSettings;
-  id?: number;
   name?: string;
+  server_url: string | null;
+  id?: number;
+  profiles: IHostMacMdmProfile[] | null;
+  macos_settings?: IMdmMacOsSettings;
+  macos_setup?: IMdmMacOsSetup;
 }
 
 export interface IMunkiIssue {
@@ -102,10 +129,17 @@ export interface IMunkiIssue {
   created_at: string;
 }
 
+interface IMacadminMDMData {
+  enrollment_status: MdmEnrollmentStatus | null;
+  name?: string;
+  server_url: string | null;
+  id?: number;
+}
+
 export interface IMacadminsResponse {
   macadmins: null | {
     munki: null | IMunkiData;
-    mobile_device_management: null | IHostMdmData;
+    mobile_device_management: null | IMacadminMDMData;
     munki_issues: IMunkiIssue[];
   };
 }

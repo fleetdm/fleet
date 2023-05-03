@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { size } from "lodash";
+import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
@@ -8,13 +10,14 @@ import { NotificationContext } from "context/notification";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import local from "utilities/local";
-import sessionsAPI from "services/entities/sessions";
+import configAPI from "services/entities/config";
+import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
-import { AxiosError } from "axios";
+import Spinner from "components/Spinner/Spinner";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
@@ -46,86 +49,132 @@ const statusMessages: IStatusMessages = {
     "There was an error with single sign-on. Please contact your Fleet administrator.",
 };
 
+const baseClass = "login-page";
+
 const LoginPage = ({ router, location }: ILoginPageProps) => {
   const {
+    availableTeams,
+    config,
     currentUser,
     setAvailableTeams,
+    setConfig,
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loginVisible, setLoginVisible] = useState(true);
-  const [ssoSettings, setSSOSettings] = useState<ISSOSettings>();
-  const [pageStatus, setPageStatus] = useState<string | null>(
-    new URLSearchParams(location.search).get("status")
+
+  const {
+    data: ssoSettings,
+    isLoading: isLoadingSSOSettings,
+    error: errorSSOSettings,
+  } = useQuery<ISSOSettingsResponse, Error, ISSOSettings>(
+    ["ssoSettings"],
+    () => sessionsAPI.ssoSettings(),
+    {
+      enabled: !currentUser,
+      onError: (err) => {
+        console.error(err);
+      },
+      select: (data) => data.settings,
+    }
   );
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    const { DASHBOARD } = paths;
-    const getSSO = async () => {
+    if (
+      availableTeams &&
+      config &&
+      currentUser &&
+      !currentUser.force_password_reset
+    ) {
+      router.push(redirectLocation || paths.DASHBOARD);
+    }
+  }, [availableTeams, config, currentUser, redirectLocation, router]);
+
+  useEffect(() => {
+    // this only needs to run once so we can wrap it in useEffect to avoid unneccesary third-party
+    // API calls
+    (async function testGravatarAvailability() {
       try {
-        const { settings } = await sessionsAPI.ssoSettings();
-        setSSOSettings(settings);
+        const response = await fetch("https://gravatar.com/avatar");
+        if (response.ok) {
+          localStorage.setItem("gravatar_available", "true");
+        } else {
+          localStorage.setItem("gravatar_available", "false");
+        }
       } catch (error) {
-        console.error(error);
-        return false;
+        localStorage.setItem("gravatar_available", "false");
       }
-    };
+    })();
+  }, []);
 
-    if (!currentUser) {
-      getSSO();
+  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
+  useEffect(() => {
+    let status = new URLSearchParams(location.search).get("status");
+    status = status && statusMessages[status as keyof IStatusMessages];
+    if (status) {
+      renderFlash("error", status);
     }
+  }, [location?.search]);
 
-    if (currentUser && !currentUser.force_password_reset) {
-      router?.push(DASHBOARD);
-    }
-
-    if (pageStatus && pageStatus in statusMessages) {
-      renderFlash("error", statusMessages[pageStatus as keyof IStatusMessages]);
-    }
-  }, [router, currentUser]);
-
-  const onChange = () => {
+  const onChange = useCallback(() => {
     if (size(errors)) {
       setErrors({});
     }
 
     return false;
-  };
+  }, [errors]);
 
-  const onSubmit = async (formData: ILoginData) => {
-    const { DASHBOARD, RESET_PASSWORD } = paths;
+  const onSubmit = useCallback(
+    async (formData: ILoginData) => {
+      const { DASHBOARD, RESET_PASSWORD } = paths;
 
-    try {
-      const { user, available_teams, token } = await sessionsAPI.create(
-        formData
-      );
-      local.setItem("auth_token", token);
+      try {
+        const { user, available_teams, token } = await sessionsAPI.create(
+          formData
+        );
+        local.setItem("auth_token", token);
 
-      setLoginVisible(false);
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-      setCurrentTeam(undefined);
+        setLoginVisible(false);
+        setCurrentUser(user);
+        setAvailableTeams(user, available_teams);
+        setCurrentTeam(undefined);
 
-      // Redirect to password reset page if user is forced to reset password.
-      // Any other requests will fail.
-      if (user.force_password_reset) {
-        return router.push(RESET_PASSWORD);
+        // Redirect to password reset page if user is forced to reset password.
+        // Any other requests will fail.
+        if (user.force_password_reset) {
+          return router.push(RESET_PASSWORD);
+        }
+
+        if (!config) {
+          const configResponse = await configAPI.loadAll();
+          setConfig(configResponse);
+        }
+        return router.push(redirectLocation || DASHBOARD);
+      } catch (response) {
+        const errorObject = formatErrorResponse(response);
+        setErrors(errorObject);
+        return false;
       }
-      return router.push(redirectLocation || DASHBOARD);
-    } catch (response) {
-      const errorObject = formatErrorResponse(response);
-      setErrors(errorObject);
-      return false;
-    }
-  };
+    },
+    [
+      config,
+      redirectLocation,
+      router,
+      setAvailableTeams,
+      setConfig,
+      setCurrentTeam,
+      setCurrentUser,
+    ]
+  );
 
-  const ssoSignOn = async () => {
+  const ssoSignOn = useCallback(async () => {
     const { DASHBOARD } = paths;
     let returnToAfterAuth = DASHBOARD;
-    if (redirectLocation != null) {
+    if (redirectLocation !== null) {
       returnToAfterAuth = redirectLocation;
     }
 
@@ -143,7 +192,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       setErrors(errorObject);
       return false;
     }
-  };
+  }, [redirectLocation]);
+
+  if (isLoadingSSOSettings) {
+    return <Spinner className={`${baseClass}__loading-spinner`} />;
+  }
 
   return (
     <AuthenticationFormWrapper>

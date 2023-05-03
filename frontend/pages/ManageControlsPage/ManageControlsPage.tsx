@@ -1,22 +1,16 @@
-import React, { useContext } from "react";
-import { find } from "lodash";
-import { useQuery } from "react-query";
+import React, { useCallback, useContext } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import mdmAppleAPI from "services/entities/mdm_apple";
-import { IMdmApple } from "interfaces/mdm";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
+import TeamsDropdown from "components/TeamsDropdown";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 interface IControlsSubNavItem {
   name: string;
@@ -32,11 +26,22 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "macOS settings",
     pathname: PATHS.CONTROLS_MAC_SETTINGS,
   },
+  {
+    name: "macOS setup",
+    pathname: PATHS.CONTROLS_MAC_SETUP,
+  },
 ];
 
 interface IManageControlsPageProps {
   children: JSX.Element;
-  location: any; // no type in react-router v3
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: {
+      team_id?: string;
+    };
+  };
   router: InjectedRouter; // v3
 }
 
@@ -50,74 +55,83 @@ const getTabIndex = (path: string): number => {
 const baseClass = "manage-controls-page";
 
 const ManageControlsPage = ({
+  // TODO(sarah): decide on pattern to pass team id to subcomponents.
+  // using children makes it difficult to centralize page-level control
+  // over team id param
   children,
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
   const {
-    availableTeams,
+    config,
+    isFreeTier,
+    isOnGlobalTeam,
     isPremiumTier,
-    currentTeam,
-    setCurrentTeam,
+    isGlobalAdmin,
+    isSandboxMode,
   } = useContext(AppContext);
 
-  const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
-    IMdmApple,
-    Error
-  >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
-    enabled: isPremiumTier,
-    staleTime: 5000,
-    retry: false,
+  const {
+    currentTeamId,
+    userTeams,
+    teamIdForApi,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: true,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: false,
+      observer_plus: false,
+    },
   });
 
-  const navigateToNav = (i: number): void => {
-    const navPath = controlsSubNav[i].pathname;
-    const teamId = currentTeam?.id || undefined;
-    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
-    router.replace(navPath + queryString);
-  };
-
-  const handleTeamSelect = (ctx: ITeamsDropdownState) => {
-    const teamId = ctx.teamId;
-    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
-    router.replace(location.pathname + queryString);
-    const selectedTeam = find(availableTeams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
-  };
-
-  const renderHeader = () => (
-    <div className={`${baseClass}__header`}>
-      <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          <TeamsDropdownHeader
-            router={router}
-            location={location}
-            baseClass={baseClass}
-            defaultTitle="Controls"
-            onChange={handleTeamSelect}
-            description={() => {
-              return null;
-            }}
-            includeNoTeams
-            includeAll={false}
-          />
-        </div>
-      </div>
-    </div>
+  const navigateToNav = useCallback(
+    (i: number): void => {
+      const navPath = controlsSubNav[i].pathname;
+      router.replace(
+        navPath.concat(location?.search || "").concat(location?.hash || "")
+      );
+    },
+    [location, router]
   );
 
-  const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  const onConnectClick = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
+
+  const renderConnectButton = () => {
+    if (isGlobalAdmin) {
+      return (
+        <Button
+          variant="brand"
+          onClick={onConnectClick}
+          className={`${baseClass}__connectAPC-button`}
+        >
+          Connect
+        </Button>
+      );
+    }
+    return <></>;
+  };
+
+  const getInfoText = () => {
+    if (isGlobalAdmin) {
+      return "Connect Fleet to the Apple Push Certificates Portal to get started.";
+    }
+    return "Your Fleet administrator must connect Fleet to the Apple Push Certificates Portal to get started.";
+  };
 
   const renderBody = () => {
-    if (isLoadingMdmApple) {
-      return <Spinner />;
-    }
-    return mdmApple ? (
+    return config?.mdm.enabled_and_configured ? (
       <div>
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(location.pathname)}
-            onSelect={(i) => navigateToNav(i)}
+            selectedIndex={getTabIndex(location?.pathname || "")}
+            onSelect={navigateToNav}
           >
             <TabList>
               {controlsSubNav.map((navItem) => {
@@ -130,21 +144,13 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabsWrapper>
-        {children}
+        {React.cloneElement(children, { teamIdForApi })}
       </div>
     ) : (
       <EmptyTable
         header="Manage your macOS hosts"
-        info="Connect Fleet to the Apple Push Certificates Portal to get started."
-        primaryButton={
-          <Button
-            variant="brand"
-            onClick={onConnectClick}
-            className={`${baseClass}__connectAPC-button`}
-          >
-            Connect
-          </Button>
-        }
+        info={getInfoText()}
+        primaryButton={renderConnectButton()}
       />
     );
   };
@@ -152,7 +158,33 @@ const ManageControlsPage = ({
   return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header-wrap`}>
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isFreeTier && <h1>Controls</h1>}
+                  {isPremiumTier &&
+                    userTeams &&
+                    (userTeams.length > 1 || isOnGlobalTeam) && (
+                      <TeamsDropdown
+                        currentUserTeams={userTeams}
+                        selectedTeamId={currentTeamId}
+                        onChange={handleTeamChange}
+                        includeAll={false}
+                        includeNoTeams
+                        isSandboxMode={isSandboxMode}
+                      />
+                    )}
+                  {isPremiumTier &&
+                    !isOnGlobalTeam &&
+                    userTeams &&
+                    userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {renderBody()}
       </div>
     </MainContent>

@@ -149,15 +149,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /platform': {
-    action: 'view-platform',
-    locals: {
-      currentSection: 'platform',
-      pageTitleForMeta: 'Platform | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
-    }
-  },
-
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
@@ -274,13 +265,30 @@ module.exports.routes = {
     }
   },
 
+  'GET /osquery-management': {
+    action: 'view-osquery-management',
+    locals: {
+      pageTitleForMeta: 'Osquery management | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
+    }
+  },
+
+
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      optimizeForAppleWebview: true,
+    }
+  },
+
+
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
   //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
   'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
-
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -340,7 +348,9 @@ module.exports.routes = {
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
-
+  'GET /handbook/company/product-groups': '/handbook/company/development-groups',
+  'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-disk-encryption',
+  'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -352,6 +362,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/fleetctl-preview',
@@ -372,6 +383,7 @@ module.exports.routes = {
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
 
   // Sitemap
   // =============================================================================================================
@@ -434,4 +446,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
+  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
 };

@@ -711,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -896,7 +913,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
-> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments. 
+> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1197,7 +1214,7 @@ See the `activity_audit_log_plugin` option below that specifies the logging dest
 ##### activity_audit_log_plugin
 
 This is the log output plugin that should be used for audit logs.
-This flag only has effect if `activity_enable_audit_log` is set to `true`. 
+This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
@@ -2040,6 +2057,107 @@ kafkarest:
   status_topic: osquery_status
 ```
 
+#### Email backend
+
+By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
+SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
+configure Fleet to use AWS SES natively rather than through SMTP.
+
+##### backend
+
+Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
+
+````yaml
+email:
+  backend: ses
+````
+
+#### SES
+
+The following configurations only have an effect if SES email backend is enabled `FLEET_EMAIL_BACKEND=ses`.
+
+##### ses_region
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS region to use for SES connection.
+
+- Default value: none
+- Environment variable: `FLEET_SES_REGION`
+- Config file format:
+  ```yaml
+  ses:
+  	region: us-east-2
+  ```
+
+##### ses_access_key_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  ses:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### ses_secret_access_key
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS secret access key to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  ses:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### ses_sts_assume_role_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS role ARN to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
+##### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+The ARN of the identity that is associated with the sending authorization policy that permits you to send
+for the email address specified in the Source parameter of SendRawEmail.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -2345,17 +2463,44 @@ vulnerabilities:
 
 ##### database_path
 
-The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
+The path to a valid Maxmind GeoIP database (mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
 to determine location is extracted via HTTP headers in the following order: `True-Client-IP`, `X-Real-IP`, and finally `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
 on the Fleet web server.
+
+You can get a copy of the
+[Geolite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data?lang=en) database for free by
+[creating an account](https://www.maxmind.com/en/geolite2/signup?lang=en) on the MaxMind website,
+navigating to the [download page](https://www.maxmind.com/en/accounts/current/geoip/downloads),
+and downloading the GZIP archive. Decompress it and place the mmdb file somewhere fleet can access.
+
+It is also possible to automatically keep the database up to date, see the
+[documentation](https://dev.maxmind.com/geoip/updating-databases?lang=en) from MaxMind.
+
+GeoIP databases can find what general area a device is from, but not the exact location.
+They work by collecting which IP addresses ISPs use for different cities and countries and
+packaging them up into a list mapping IP address to city.
+
+You've likely seen services use GeoIP databases if they redirect you to a site specific
+to your country. e.g. Google will redirect you to [google.ca](https://google.ca) if you visit from Canada
+or Mouser will change to your local currency if you view an electronic component.
+
+This can be useful for your fleet install if you want to tell if a device is somewhere it shouldn't
+be. If a desktop machine located at a site in New York suddenly appears in London, then you can tell
+that something is wrong. It can also help you differentiate machines if they have similar names,
+e.g. if you have two computers "John's MacBook Pro".
+
+While it can be a useful tool, an unexpected result could be an error in the database, a user
+connecting via a mobile network which uses the same IP address for a wide area, or a user visiting
+family. Checking on the location of devices too often could be invasive to employees who are keeping
+work devices on them for e.g. oncall responsibilities.
 
 - Default value: none
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
   geoip:
-    database_path: /some/path
+    database_path: /some/path/to/geolite2.mmdb
   ```
 
 #### Sentry
@@ -2379,7 +2524,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2393,7 +2541,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2402,6 +2553,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging
@@ -2578,25 +2744,17 @@ packaging:
     region: us-east-1
 ```
 
-#### Mobile device management (MDM)
+## Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
+> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
-##### apple_apns_cert
+This section is a reference for the configuration required to turn on MDM features in production.
 
-This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
 
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_cert: /path/to/apns_cert.pem
-  ```
+##### mdm.apple_apns_cert_bytes
 
-##### apple_apns_cert_bytes
-
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
@@ -2609,21 +2767,9 @@ The content of the Apple Push Notification service (APNs) certificate. An X.509 
       -----END CERTIFICATE-----
   ```
 
-##### apple_apns_key
+##### mdm.apple_apns_key_bytes
 
-This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_key: /path/to/apns_key.pem
-  ```
-
-##### apple_apns_key_bytes
-
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
@@ -2636,21 +2782,9 @@ The content of the PEM-encoded private key for the Apple Push Notification servi
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_scep_cert
+##### mdm.apple_scep_cert_bytes
 
-This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
-  ```
-
-##### apple_scep_cert_bytes
-
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
@@ -2663,21 +2797,9 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-##### apple_scep_key
+##### mdm.apple_scep_key_bytes
 
-This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_key: /path/to/scep_key.pem
-  ```
-
-##### apple_scep_key_bytes
-
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
@@ -2690,21 +2812,45 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_bm_server_token
+##### mdm.apple_scep_challenge
 
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
 
 - Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
 - Config file format:
   ```
   mdm:
-    apple_bm_server_token: /path/to/server_token.p7m
+    apple_scep_challenge: scepchallenge
   ```
 
-##### apple_bm_server_token_bytes
+##### mdm.apple_scep_signer_validity_days
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+The number of days the signed SCEP client certificates will be valid.
+
+- Default value: 365
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_VALIDITY_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_validity_days: 100
+  ```
+
+##### mdm.apple_scep_signer_allow_renewal_days
+
+The number of days allowed to renew SCEP certificates.
+
+- Default value: 14
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_allow_renewal_days: 30
+  ```
+
+##### mdm.apple_bm_server_token_bytes
+
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2717,21 +2863,9 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### apple_bm_cert
+##### mdm.apple_bm_cert_bytes
 
-This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
-  ```
-
-##### apple_bm_cert_bytes
-
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -2744,21 +2878,9 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### apple_bm_key
+##### mdm.apple_bm_key_bytes
 
-This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_key: /path/to/private_key.pem
-  ```
-
-##### apple_bm_key_bytes
-
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
@@ -2771,18 +2893,17 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
-##### Example YAML
+##### mdm.apple_dep_sync_periodicity
 
-```yaml
-mdm:
-  apple_apns_cert: /path/to/apns_cert
-  apple_apns_key: /path/to/apns_key
-  apple_scep_cert: /path/to/scep_cert
-  apple_scep_key: /path/to/scep_key
-  apple_bm_server_token: /path/to/server_token.p7m
-  apple_bm_cert: /path/to/bm_cert
-  apple_bm_key: /path/to/private_key
-```
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
+
+- Default value: 1m
+- Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
+- Config file format:
+  ```
+  mdm:
+    apple_dep_sync_periodicity: 10m
+  ```
 
 ## Managing osquery configurations
 
@@ -2898,8 +3019,6 @@ Otherwise, the following values are required:
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
   requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - Obtain this value from the IDP.
-
 - _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
@@ -2922,7 +3041,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
@@ -2930,7 +3053,9 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
+The new account's email and full name are copied from the user data in the SSO response.
+By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
+To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
 
 To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Automatically create Observer user on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
@@ -2943,6 +3068,72 @@ For this to work correctly make sure that:
   - `cn`
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+
+#### Customization of user roles
+
+Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
+Fleet will attempt to parse SAML custom attributes with the following format:
+- `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
+- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
+
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer` and `observer_plus`.
+SAML supports multi-valued attributes, Fleet will always use the last value.
+
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
+
+During every SSO login, if `sso_settings.enable_jit_role_sync` is set to `true` (default is `false`) and if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
+> IMPORTANT: Beware that if `sso_settings.enable_jit_role_sync` is set to `true` but no SAML role attributes are configured for accounts then all Fleet users are changed to Global observers on every SSO login (overriding any previous role change).
+
+If none of the attributes above are set, then Fleet will default to use the `Global Observer` role.
+
+Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_GLOBAL" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">admin</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
+    </saml2:Attribute>
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
 #### Okta IDP configuration
 
@@ -2968,16 +3159,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
+3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+  ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
   - Check the _Enable single sign-on_ checkbox.
   - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 

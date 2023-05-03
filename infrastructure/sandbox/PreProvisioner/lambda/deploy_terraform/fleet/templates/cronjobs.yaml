@@ -11,6 +11,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   schedule: "{{ .Values.crons.vulnerabilities }}"
+  successfulJobsHistoryLimit: 0
   jobTemplate:
     spec:
       template:

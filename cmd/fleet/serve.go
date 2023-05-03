@@ -19,8 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	scep_depot "github.com/micromdm/scep/v2/depot"
-
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
@@ -42,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -55,11 +54,11 @@ import (
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"go.elastic.co/apm/module/apmhttp"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
 	"go.opentelemetry.io/otel"
@@ -162,7 +161,6 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -337,6 +335,9 @@ the way that the Fleet server works.
 				Filesystem: logging.FilesystemConfig{
 					EnableLogRotation:    config.Filesystem.EnableLogRotation,
 					EnableLogCompression: config.Filesystem.EnableLogCompression,
+					MaxSize:              config.Filesystem.MaxSize,
+					MaxAge:               config.Filesystem.MaxAge,
+					MaxBackups:           config.Filesystem.MaxBackups,
 				},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
@@ -503,6 +504,7 @@ the way that the Fleet server works.
 			// assume MDM is disabled until we verify that
 			// everything is properly configured below
 			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
@@ -518,20 +520,10 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize Apple BM DEP storage")
 				}
+				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
-			if config.MDMApple.Enable {
-				if !config.MDM.IsAppleAPNsSet() || !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
-				// TODO: for now (dogfood), Apple BM must be set when MDM is enabled,
-				// but when the MDM will be production-ready, Apple BM will be
-				// optional.
-				if !config.MDM.IsAppleBMSet() {
-					initFatal(errors.New("Apple BM configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
+			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
 				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
@@ -543,7 +535,8 @@ the way that the Fleet server works.
 				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -552,11 +545,24 @@ the way that the Fleet server works.
 				initFatal(err, "saving app config")
 			}
 
+			// setup mail service
+			if appCfg.SMTPSettings.SMTPEnabled {
+				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
+				if config.Email.EmailBackend != "" {
+					config.Email.EmailBackend = ""
+					level.Warn(logger).Log("msg", "SMTP is already enabled, first disable SMTP to utilize a different email backend")
+				}
+			}
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
+			}
+
 			cronSchedules := fleet.NewCronSchedules()
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
 			ctx, cancelFunc := context.WithCancel(baseCtx)
-			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
+			defer cancelFunc()
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
@@ -599,7 +605,9 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					mdmPushCertTopic,
+					ssoSessionStore,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -610,6 +618,34 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
+			level.Info(logger).Log("instanceID", instanceID)
+
+			// Perform a cleanup of cron_stats outside of the cronSchedules because the
+			// schedule package uses cron_stats entries to decide whether a schedule will
+			// run or not (see https://github.com/fleetdm/fleet/issues/9486).
+			go func() {
+				cleanupCronStats := func() {
+					level.Debug(logger).Log("msg", "cleaning up cron_stats")
+					// Datastore.CleanupCronStats should be safe to run by multiple fleet
+					// instances at the same time and it should not be an expensive operation.
+					if err := ds.CleanupCronStats(ctx); err != nil {
+						level.Info(logger).Log("msg", "failed to clean up cron_stats", "err", err)
+					}
+				}
+
+				cleanupCronStats()
+
+				cleanUpCronStatsTick := time.NewTicker(1 * time.Hour)
+				defer cleanUpCronStatsTick.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-cleanUpCronStatsTick.C:
+						cleanupCronStats()
+					}
+				}
+			}()
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config)
@@ -646,18 +682,21 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register integrations schedule")
 			}
 
-			if config.MDMApple.Enable {
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
+			}
+
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMAppleProfileManager(
 						ctx,
 						instanceID,
 						ds,
-						service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 						logger,
 						config.Logging.Debug,
 					)
@@ -768,10 +807,10 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.MDMApple.Enable {
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
-					config.MDMApple.SCEP,
+					config.MDM,
 					mdmStorage,
 					scepStorage,
 					logger,
@@ -782,14 +821,18 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(
+				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
 					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
-				)
-				rootMux.Handle("/metrics", metricsHandler)
+				))
 			} else {
-				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				if config.Prometheus.BasicAuth.Disable {
+					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				} else {
+					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				}
 			}
 
 			rootMux.Handle("/api/", apiHandler)
@@ -854,11 +897,7 @@ the way that the Fleet server works.
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
-			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-				handler = launcher.Handler(apmhttp.Wrap(rootMux))
-			} else {
-				handler = launcher.Handler(rootMux)
-			}
+			handler = launcher.Handler(rootMux)
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
 			if liveQueryRestPeriod > srv.WriteTimeout {
@@ -1003,6 +1042,13 @@ type devSQLInterceptor struct {
 	sqlmw.NullInterceptor
 
 	logger kitlog.Logger
+}
+
+func (in *devSQLInterceptor) ConnQueryContext(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	rows, err := conn.QueryContext(ctx, query, args)
+	in.logQuery(start, query, args, err)
+	return rows, err
 }
 
 func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {

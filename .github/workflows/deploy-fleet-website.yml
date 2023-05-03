@@ -54,12 +54,9 @@ jobs:
 
     # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
       with:
         go-version: 1.19
-
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file

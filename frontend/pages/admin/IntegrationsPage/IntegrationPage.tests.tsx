@@ -9,14 +9,14 @@ describe("Integrations Page", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
-        app: { isMdmFeatureFlagEnabled: true },
+        app: { isMdmEnabledAndConfigured: true },
       },
     });
 
     render(<IntegrationsPage params={{ section: "mdm" }} />);
 
     expect(
-      screen.getByText("Mobile Device Management (MDM)")
+      screen.getByText("Mobile device management (MDM)")
     ).toBeInTheDocument();
   });
 });

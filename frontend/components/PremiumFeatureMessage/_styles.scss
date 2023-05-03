@@ -1,0 +1,25 @@
+.premium-feature-message-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: $x-small;
+
+  .premium-feature-message {
+    display: flex;
+    gap: 4px;
+
+    p {
+      margin: 0;
+    }
+
+    .external-link-and-icon {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+
+      .custom-link {
+        font-weight: normal;
+      }
+    }
+  }
+}

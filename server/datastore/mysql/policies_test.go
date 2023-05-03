@@ -327,11 +327,11 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create hosts in each team
-	host3, err := ds.EnrollHost(ctx, "3", "3", &team1.ID, 0)
+	host3, err := ds.EnrollHost(ctx, false, "3", "", "", "3", &team1.ID, 0)
 	require.NoError(t, err)
-	host4, err := ds.EnrollHost(ctx, "4", "4", &team2.ID, 0)
+	host4, err := ds.EnrollHost(ctx, false, "4", "", "", "4", &team2.ID, 0)
 	require.NoError(t, err)
-	host5, err := ds.EnrollHost(ctx, "5", "5", &team2.ID, 0)
+	host5, err := ds.EnrollHost(ctx, false, "5", "", "", "5", &team2.ID, 0)
 	require.NoError(t, err)
 
 	// create some policy results
@@ -1048,7 +1048,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
-	host2, err := ds.EnrollHost(ctx, "2", "2", &team1.ID, 0)
+	host2, err := ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
@@ -1113,12 +1113,12 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 1, 1, 2)
 
 	// all host policies are removed when a host is enrolled in the same team
-	_, err = ds.EnrollHost(ctx, "2", "2", &team1.ID, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
-	_, err = ds.EnrollHost(ctx, "2", "2", &team2.ID, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team2.ID, 0)
 	require.NoError(t, err)
 	// both hosts are now in team2
 	checkPassingCount(0, 0, 1, 1)
@@ -1128,7 +1128,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 0, 2, 2)
 
 	// all host policies are removed when a host is re-enrolled
-	_, err = ds.EnrollHost(ctx, "2", "2", nil, 0)
+	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", nil, 0)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 }
@@ -1787,8 +1787,8 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 
 	setStatsTimestampDB := func(updatedAt time.Time) error {
 		_, err := ds.writer.ExecContext(ctx, `
-			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND type = ?
-		`, then, updatedAt, 0, "policy_violation_days")
+			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND global_stats = ? AND type = ?
+		`, then, updatedAt, 0, true, aggregatedStatsTypePolicyViolationsDays)
 		return err
 	}
 

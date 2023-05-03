@@ -1,18 +1,6 @@
 # CEO handbook
 This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
 
-
-#### In this section
-
-- [The CEO support team](#the-ceo-support-team)
-- [CEO preferences](#ceo-preferences)
-- [Contacting the CEO](#contacting-the-ceo)
-- [Scheduling with the CEO](#scheduling-with-the-ceo)
-- [OKR planning](#okr-planning)
-- [Prep work](#prep-work)
-- [Tasks as assigned](#tasks-as-assigned)
-
-
 ## The CEO support team
 ### EA to the CEO
 
@@ -58,6 +46,9 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 
 ### CEO email management
+
+> TODO: let's rethink this.  -Mike, March 2023
+
  - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
  - Emails that need the CEO's attention should be "starred" 
  - EA should prepare draft responses, move drafts to the Inbox, and label
@@ -89,6 +80,7 @@ Keeping up with Slack is tough enough, even more so if you’re the CEO. That’
   - “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
 
 
+<!--
 ## OKR planning
 OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
@@ -96,11 +88,14 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - OKRs are finalized one week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
-
+-->
 
 ## Prep work
 
 ### All Hands prep
+
+> DISCUSS -mike, 2023-03
+
 Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
@@ -129,12 +124,12 @@ In the notes document include:
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
 ### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Charlie completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
+ - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
+ - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
+ - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Tee will update the monthly "All Hands" link and grant Sid viewing access. 
+ - Tee will send Mike links to the new document and the backup copy in a direct message in Slack. 
  
 The day before the meeting, Mike will prepare the "Vision" section of the original document. Mike will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
@@ -178,8 +173,12 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to transcript:"
 
 
+
+<!-- 
 # Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
+
+> I commented out this section on 2023-02-28.  I also removed the issue template here: https://github.com/fleetdm/confidential/pull/2059#issue-1603849677  This was because CEO shadowing at Fleet is still evolving and we're experimenting with the right way to implement it at our scale.  -Mike
 
 #### In this section
 - [Eligibility](#eligibility)
@@ -203,7 +202,7 @@ All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligib
 ### How to apply
  1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
  2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. Once your manager approves the pull request, assign the pull request to `CharlotteChance`, link to the pull request in the #help-ceo-shadow channel, and tag `@Charlie`.
+ 3. Once your manager approves the pull request, assign the pull request to `mikermcneil`, link to the pull request in the #help-ceo-shadow channel, and tag `@mikermcneil`.
 
 ### Parental participation 
 To allow flexibility for parents to participate, there will be some rotations identified as "parent-friendly" weeks. These are weeks when Mike doesn't need a shadow for the full 5 workdays or where the program is split so the weeks are not consecutive.
@@ -240,7 +239,7 @@ To allow flexibility for parents to participate, there will be some rotations id
  - Revenue definitions such as [ARR (Annual Recurring Revenue)](https://www.investopedia.com/terms/a/arr.asp)
  - Keep a [finance dictionary](https://www.investopedia.com/financial-term-dictionary-4769738) handy
 
-```This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.```
+> This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.
 
 ### What to expect during the program 
 The value of the CEO Shadow Program comes from the broader context you'll gain and the interesting conversations you'll witness.
@@ -294,6 +293,7 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
  3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
-
-<meta name="maintainedBy" value="charlottechance">
+ -->
+ 
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="CEO handbook">

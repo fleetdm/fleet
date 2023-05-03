@@ -150,7 +150,7 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#my-sql).
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ## What is duplicate enrollment and how do I fix it?
 
@@ -182,16 +182,27 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 - `/api/osquery`
 - `/api/v1/osquery`
 
-If you are using Fleet Desk, top and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
 
 For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
-- /api/setup
-- /api/v1/setup
-- /api/latest/fleet/*
-- /api/v1/fleet/*
+- `/api/setup`
+- `/api/v1/setup`
+- `/api/latest/fleet/*`
+- `/api/v1/fleet/*`
+
+If you would like to use Fleet's MDM features, the following endpoints need to be exposed:
+
+- `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
+- `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
+- `/api/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
+- `/api/*/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to
+  download an enrollment profile.
+
+> The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
+> are not RESTful, and are not intended for use by API clients or browsers. 
 
 ## What is the minimum version of MySQL required by Fleet?
 

@@ -12,7 +12,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
-import { IActionButtonProps } from "./DataTable/ActionButton";
+import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -35,6 +35,7 @@ interface ITableContainerProps {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
+  defaultPageIndex?: number;
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
@@ -67,6 +68,7 @@ interface ITableContainerProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results
@@ -85,6 +87,7 @@ interface ITableContainerProps {
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   resetPageIndex?: boolean;
+  disableTableHeader?: boolean;
 }
 
 const baseClass = "table-container";
@@ -99,6 +102,7 @@ const TableContainer = ({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  defaultPageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   inputPlaceHolder = "Search",
@@ -128,6 +132,7 @@ const TableContainer = ({
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
   disableHighlightOnHover,
@@ -144,14 +149,22 @@ const TableContainer = ({
   renderFooter,
   setExportRows,
   resetPageIndex,
+  disableTableHeader,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
+  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
+
+  // Client side pagination is being overridden to previous page without this
+  useEffect(() => {
+    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
+      setPageIndex(defaultPageIndex);
+    }
+  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -180,18 +193,20 @@ const TableContainer = ({
   const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
-      setPageIndex(newPage);
-      hasPageIndexChangedRef.current = true;
+      if (!isClientSidePagination) {
+        setPageIndex(newPage);
+        hasPageIndexChangedRef.current = true;
+      }
     },
-    [hasPageIndexChangedRef]
+    [hasPageIndexChangedRef, isClientSidePagination]
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex) {
+    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
       onPaginationChange(0);
     }
-  }, [resetPageIndex, pageIndex]);
+  }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -276,100 +291,102 @@ const TableContainer = ({
           />
         </div>
       )}
-      <div
-        className={`${baseClass}__header ${
-          stackControls ? "stack-table-controls" : ""
-        }`}
-      >
+      {!disableTableHeader && (
         <div
-          className={`${baseClass}__header-left ${
+          className={`${baseClass}__header ${
             stackControls ? "stack-table-controls" : ""
           }`}
         >
-          <span className="results-count">
-            {renderCount && (
-              <div
-                className={`${baseClass}__results-count ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                style={opacity}
-              >
-                {renderCount()}
-              </div>
-            )}
-            {!renderCount &&
-            !disableCount &&
-            (isMultiColumnFilter || displayCount()) ? (
-              <div
-                className={`${baseClass}__results-count ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                style={opacity}
-              >
-                {TableContainerUtils.generateResultsCountText(
-                  resultsTitle,
-                  displayCount()
-                )}
-                {resultsHtml}
-              </div>
-            ) : (
-              <div />
-            )}
-          </span>
-          <span className={"controls"}>
-            {!hideActionButton && actionButtonText && (
-              <Button
-                disabled={disableActionButton}
-                onClick={onActionButtonClick}
-                variant={actionButtonVariant}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButtonText}
-                  {actionButtonIcon && (
-                    <img
-                      src={actionButtonIcon}
-                      alt={`${actionButtonText} icon`}
-                    />
+          <div
+            className={`${baseClass}__header-left ${
+              stackControls ? "stack-table-controls" : ""
+            }`}
+          >
+            <span className="results-count">
+              {renderCount && (
+                <div
+                  className={`${baseClass}__results-count ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  style={opacity}
+                >
+                  {renderCount()}
+                </div>
+              )}
+              {!renderCount &&
+              !disableCount &&
+              (isMultiColumnFilter || displayCount()) ? (
+                <div
+                  className={`${baseClass}__results-count ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  style={opacity}
+                >
+                  {TableContainerUtils.generateResultsCountText(
+                    resultsTitle,
+                    displayCount()
                   )}
-                </>
-              </Button>
+                  {resultsHtml}
+                </div>
+              ) : (
+                <div />
+              )}
+            </span>
+            <span className={"controls"}>
+              {!hideActionButton && actionButtonText && (
+                <Button
+                  disabled={disableActionButton}
+                  onClick={onActionButtonClick}
+                  variant={actionButtonVariant}
+                  className={`${baseClass}__table-action-button`}
+                >
+                  <>
+                    {actionButtonText}
+                    {actionButtonIcon && (
+                      <img
+                        src={actionButtonIcon}
+                        alt={`${actionButtonText} icon`}
+                      />
+                    )}
+                  </>
+                </Button>
+              )}
+              {customControl && customControl()}
+            </span>
+          </div>
+          <div className={`${baseClass}__search`}>
+            {/* Render search bar only if not empty component */}
+            {searchable && !wideSearch && (
+              <>
+                <div
+                  className={`${baseClass}__search-input ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  data-tip
+                  data-for="search-tooltip"
+                  data-tip-disable={!searchToolTipText}
+                >
+                  <SearchField
+                    placeholder={inputPlaceHolder}
+                    defaultValue={searchQuery}
+                    onChange={onSearchQueryChange}
+                  />
+                </div>
+                <ReactTooltip
+                  effect="solid"
+                  backgroundColor="#3e4771"
+                  id="search-tooltip"
+                  data-html
+                >
+                  <span className={`tooltip ${baseClass}__tooltip-text`}>
+                    {searchToolTipText}
+                  </span>
+                </ReactTooltip>
+              </>
             )}
-            {customControl && customControl()}
-          </span>
+          </div>
         </div>
-        <div className={`${baseClass}__search`}>
-          {/* Render search bar only if not empty component */}
-          {searchable && !wideSearch && (
-            <>
-              <div
-                className={`${baseClass}__search-input ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                data-tip
-                data-for="search-tooltip"
-                data-tip-disable={!searchToolTipText}
-              >
-                <SearchField
-                  placeholder={inputPlaceHolder}
-                  defaultValue={searchQuery}
-                  onChange={onSearchQueryChange}
-                />
-              </div>
-              <ReactTooltip
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="search-tooltip"
-                data-html
-              >
-                <span className={`tooltip ${baseClass}__tooltip-text`}>
-                  {searchToolTipText}
-                </span>
-              </ReactTooltip>
-            </>
-          )}
-        </div>
-      </div>
+      )}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
@@ -418,6 +435,7 @@ const TableContainer = ({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
+                defaultPageIndex={defaultPageIndex}
                 primarySelectActionButtonVariant={
                   primarySelectActionButtonVariant
                 }
@@ -428,6 +446,7 @@ const TableContainer = ({
                 onSelectSingleRow={onSelectSingleRow}
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
+                onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}
                 disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}

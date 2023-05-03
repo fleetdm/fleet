@@ -121,6 +121,10 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<key>ORBIT_FLEET_URL</key>
 		<string>{{ .FleetURL }}</string>
 		{{- end }}
+		{{- if .UseSystemConfiguration }}
+		<key>ORBIT_USE_SYSTEM_CONFIGURATION</key>
+		<string>{{ .UseSystemConfiguration }}</string>
+		{{- end }}
 		{{- if .DisableUpdates }}
 		<key>ORBIT_DISABLE_UPDATES</key>
 		<string>true</string>
@@ -131,11 +135,19 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<string>{{ .OsquerydChannel }}</string>
 		<key>ORBIT_UPDATE_URL</key>
 		<string>{{ .UpdateURL }}</string>
+		{{- if .UpdateTLSServerCertificate }}
+		<key>ORBIT_UPDATE_TLS_CERTIFICATE</key>
+		<string>/opt/orbit/update.pem</string>
+		{{- end }}
 		{{- if .Desktop }}
 		<key>ORBIT_FLEET_DESKTOP</key>
 		<string>true</string>
 		<key>ORBIT_DESKTOP_CHANNEL</key>
 		<string>{{ .DesktopChannel }}</string>
+		{{- if .FleetDesktopAlternativeBrowserHost }}
+		<key>ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST</key>
+		<string>{{ .FleetDesktopAlternativeBrowserHost }}</string>
+		{{- end }}
 		{{- end }}
 		<key>ORBIT_UPDATE_INTERVAL</key>
 		<string>{{ .OrbitUpdateInterval }}</string>

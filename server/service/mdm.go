@@ -40,7 +40,7 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 
 	// if there is no apple mdm config, fail with a 404
 	if !svc.config.MDM.IsAppleAPNsSet() {
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	apns, _, _, err := svc.config.MDM.AppleAPNs()
@@ -190,4 +190,21 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 		SCEPCert: scepCACertPEM,
 		SCEPKey:  scepCAKeyPEM,
 	}, nil
+}
+
+func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+
+	}
+
+	return nil
 }

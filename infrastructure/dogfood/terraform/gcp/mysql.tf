@@ -37,7 +37,7 @@ module "fleet-mysql" {
     {
       name      = var.db_name
       charset   = "utf8mb4"
-      collation = "utf8mb4_general_ci"
+      collation = "utf8mb4_unicode_ci"
     }
   ]
 

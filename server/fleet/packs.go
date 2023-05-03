@@ -61,7 +61,7 @@ func (p *Pack) teamPack() (*uint, error) {
 		return nil, nil
 	}
 	t := strings.TrimPrefix(*p.Type, "team-")
-	teamID, err := strconv.ParseUint(t, 10, 64)
+	teamID, err := strconv.ParseUint(t, 10, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -167,13 +167,6 @@ type PackSpecQuery struct {
 	Platform    *string `json:"platform,omitempty"`
 	Version     *string `json:"version,omitempty"`
 	Denylist    *bool   `json:"denylist,omitempty"`
-}
-
-// PackTarget targets a pack to a host, label, or team.
-type PackTarget struct {
-	ID     uint `db:"id" json:"-"`
-	PackID uint `db:"pack_id" json:"-"`
-	Target
 }
 
 type PackStats struct {
