@@ -1963,6 +1963,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables the server to be a File Transfer Protocol (FTP) server.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Internet Information Services - FTP Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND (data == 4 OR data == 0) );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.11
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
   platforms: win10
   platform: windows
