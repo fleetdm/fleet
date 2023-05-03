@@ -277,7 +277,7 @@ func NewDEPService(
 		depStorage,
 		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
+			n, teamID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
 			switch {
 			case err != nil:
 				level.Error(kitlog.With(logger)).Log("err", err)
@@ -290,6 +290,7 @@ func NewDEPService(
 
 			// TODO(mna): at this point, the hosts rows are created for the devices, with the
 			// correct team_id, so we know what team-specific profile needs to be applied.
+			_ = teamID
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)

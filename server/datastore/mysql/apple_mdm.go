@@ -599,20 +599,20 @@ func insertMDMAppleHostDB(
 	return nil
 }
 
-func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (createdCount int64, teamID *uint, err error) {
 	if len(devices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
-		return 0, nil
+		return 0, nil, nil
 	}
 	filteredDevices := filterMDMAppleDevices(devices, ds.logger)
 	if len(filteredDevices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP filtered all devices, skipping", "len(devices)", len(devices))
-		return 0, nil
+		return 0, nil, nil
 	}
 
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
 	}
 
 	args := []interface{}{nil}
@@ -629,13 +629,13 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			// If the team doesn't exist, we still ingest the device, but it won't
 			// belong to any team.
 		case err != nil:
-			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+			return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
 		default:
 			args[0] = team.ID
+			teamID = &team.ID
 		}
 	}
 
-	var resCount int64
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		us, unionArgs := unionSelectDevices(filteredDevices)
 		args = append(args, unionArgs...)
@@ -678,7 +678,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
 		}
-		resCount = n
+		createdCount = n
 
 		// get new host ids
 		args = []interface{}{}
@@ -715,7 +715,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return nil
 	})
 
-	return resCount, err
+	return createdCount, teamID, err
 }
 
 func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
