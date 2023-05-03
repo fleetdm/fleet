@@ -881,7 +881,7 @@ When no further review or action is required for an agreement and the document i
 
 ## Contract signature
 
-When a contract is ready for signature, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to Mike for signature. 
+When a contract is ready for signature, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
