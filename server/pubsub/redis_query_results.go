@@ -98,7 +98,7 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 		switch msg := msg.(type) {
 		case error:
 			// If an error occurred (i.e. connection was closed), then we should exit.
-			fmt.Fprintf(os.Stderr, "live_query: return error %v\n", msg)
+			fmt.Fprintf(os.Stderr, "live_query: return error receiveMessages %v\n", msg)
 			return
 		case redigo.Subscription:
 			// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
