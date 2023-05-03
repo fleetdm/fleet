@@ -69,7 +69,6 @@ const ManageQueriesPage = ({
   location,
 }: IManageQueriesPageProps): JSX.Element => {
   const queryParams = location.query;
-  // const pathname = location.pathname + location.search;
 
   const {
     isOnlyObserver,
