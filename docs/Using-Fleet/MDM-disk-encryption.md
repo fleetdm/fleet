@@ -100,7 +100,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-> Whenever a disk encryption key is viewed, an activity will be logged.
+> Whenever a disk encryption key is viewed, an activity will be logged. To view activity in the Fleet UI, click on the Fleet icon in the top navigation bar and make sure **All teams** is selected in the teams dropdown.
 
 ## Reset a macOS host's password using the disk encryption key
 
