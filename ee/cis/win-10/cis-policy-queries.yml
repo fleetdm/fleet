@@ -2003,7 +2003,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or 'not installed':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Computer Browser'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
+        OR 
+        EXISTS ( SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4) ;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.3
   contributors: sharon-fdm
