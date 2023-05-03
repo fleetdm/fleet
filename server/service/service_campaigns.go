@@ -123,7 +123,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	updateStatus := func() error {
 		metrics, err := svc.CountHostsInTargets(ctx, &campaign.QueryID, *targets)
 		if err != nil {
-			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
+			if err := conn.WriteJSONError(fmt.Sprintf("error retrieving target counts: %s", err)); err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieve target counts, write failed")
 			}
 			return ctxerr.Wrap(ctx, err, "retrieve target counts")
@@ -137,7 +137,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		}
 		if lastTotals != totals {
 			lastTotals = totals
-			if err = conn.WriteJSONMessage("totals", totals); err != nil {
+			if err := conn.WriteJSONMessage("totals", totals); err != nil {
 				return ctxerr.Wrap(ctx, err, "write totals")
 			}
 		}
@@ -149,7 +149,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		// only write status message if status has changed
 		if lastStatus != status {
 			lastStatus = status
-			if err = conn.WriteJSONMessage("status", status); err != nil {
+			if err := conn.WriteJSONMessage("status", status); err != nil {
 				return ctxerr.Wrap(ctx, err, "write status")
 			}
 		}
@@ -187,6 +187,10 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
+			case error:
+				if err := conn.WriteJSONError(fmt.Sprintf("received pubsub error: %s", res)); err != nil {
+					svc.logger.Log("msg", "error updating status", "err", err)
+				}
 			}
 
 		case <-ticker.C:
