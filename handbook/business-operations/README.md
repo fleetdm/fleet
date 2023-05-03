@@ -208,6 +208,21 @@ During their first week at Fleet, every new team member schedules a contributor 
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+<!-- 
+TODO: Merge this commented-out stuff with the above
+
+Agenda:
+A 60-minute call with Mike where you will share your screen, and she will work with you to...
+Make sure Slack messages are going to get seen and responded to quickly and disable email notifications in Slack
+Make sure you know where your issues are tracked, which kanban board you use, what the columns mean
+Make sure you can succeed with submitting a PR in github.com, modifying docs or handbook, working with Markdown
+Make sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe)
+Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
+A quick tour of the Google drive folder (access look correct? Ok. Give access to executed documents on the shared drive as needed) show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.)
+Make sure you know how to share a google doc into the folder for all fleeties to see and access.
+A high level overview of the Company values
+-->
+
 ### Onboarding retrospective
 At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call with the acting Head of People (CEO).  Agenda: 
 > Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
