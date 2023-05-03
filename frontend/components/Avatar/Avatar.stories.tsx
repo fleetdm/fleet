@@ -1,25 +1,21 @@
-import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+import { Meta, Story } from "@storybook/react";
 
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 import Avatar from ".";
 
-const meta: Meta<typeof Avatar> = {
+// import "./_styles.scss";
+import "../../index.scss";
+
+export default {
   component: Avatar,
   title: "Components/Avatar",
-  args: {
-    user: { gravatar_url: DEFAULT_GRAVATAR_LINK },
-  },
-};
+} as Meta;
 
-export default meta;
-
-type Story = StoryObj<typeof Avatar>;
-
-export const Default: Story = {};
-
-export const Small: Story = {
-  args: {
-    size: "small",
-  },
-};
+export const Default: Story = () => (
+  <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} />
+);
+export const Small: Story = () => (
+  <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} size="small" />
+);

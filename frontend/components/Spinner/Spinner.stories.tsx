@@ -1,46 +1,18 @@
-import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+import { Meta, Story } from "@storybook/react";
 
 import Spinner from ".";
 
 import "../../index.scss";
 
-const meta: Meta<typeof Spinner> = {
+export default {
   component: Spinner,
   title: "Components/Spinner",
-};
-
-export default meta;
-
-type Story = StoryObj<typeof Spinner>;
-
-export const SpinnerDefault: Story = {};
-
-export const SpinnerSmall: Story = {
   args: {
-    small: true,
+    isInButton: false,
   },
-};
+} as Meta;
 
-export const SpinnerButton: Story = {
-  args: {
-    button: true,
-  },
-};
+const Template: Story = (props) => <Spinner {...props} />;
 
-export const SpinnerWhite: Story = {
-  args: {
-    white: true,
-  },
-};
-
-export const SpinnerSize: Story = {
-  argTypes: {
-    size: {
-      options: ["x-small", "small", "medium"],
-      control: {
-        type: "select",
-        default: "medium",
-      },
-    },
-  },
-};
+export const Default = Template.bind({});

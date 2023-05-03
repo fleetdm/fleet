@@ -1,19 +1,9 @@
 import React from "react";
 import classnames from "classnames";
 import Icon from "components/Icon";
-import { IconNames } from "components/icons";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 const baseClass = "empty-table";
-
-export interface IEmptyTableProps {
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  iconName?: IconNames;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-  className?: string;
-}
 
 const EmptyTable = ({
   iconName,

@@ -1,21 +1,27 @@
 import React from "react";
-import { Meta, StoryObj } from "@storybook/react";
+import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 import Checkbox from ".";
 
-const meta: Meta<typeof Checkbox> = {
+import { ICheckboxProps } from "./Checkbox";
+
+import "../../../../index.scss";
+
+export default {
   component: Checkbox,
   title: "Components/FormFields/Checkbox",
-};
-
-export default meta;
-
-type Story = StoryObj<typeof Checkbox>;
-
-export const Basic: Story = {};
-
-export const WithLabel: Story = {
   args: {
-    children: <b>Label</b>,
+    value: false,
+    disabled: false,
+    indeterminate: false,
+    className: "",
+    name: "",
+    wrapperClassName: "",
+    onChange: noop,
   },
-};
+} as Meta;
+
+const Template: Story<ICheckboxProps> = (props) => <Checkbox {...props} />;
+
+export const Default = Template.bind({});

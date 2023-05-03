@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import LastUpdatedText from ".";
+import LastUpdatedText from "./LastUpdatedText";
 
 describe("Last updated text", () => {
   it("renders updated text", () => {
