@@ -1950,16 +1950,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.8
   contributors: rachelelysia
-
-
-
-
-
-
-
-
-
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Service supporting the audio gateway role of the Bluetooth Handsfree Profile.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Bluetooth Audio Gateway Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\BTAGService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.1
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -1977,7 +1986,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\bthserv\\Start' AND data == 4);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.4
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2364,13 +2373,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.22
   contributors: sharon-fdm
-
-
-
-
-
-
-
 ---
 apiVersion: v1
 kind: policy
