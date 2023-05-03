@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -508,7 +509,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -517,12 +518,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+		return "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
 	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
 	err = sso.ValidateAudiences(
@@ -534,35 +535,44 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	)
 
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
-	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL,
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
-	)
+	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "listing profiles")
+	}
+
+	if depProf == nil {
+		return "", ctxerr.Wrap(ctx, err, "missing profile")
+	}
+
+	profileURL, err := apple_mdm.EnrollURL(depProf.Token, appConfig)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating profile URL")
+	}
+
+	q := url.Values{
+		"profile_url": {profileURL},
+	}
+
+	if eula != nil {
+		q.Add("eula_url", appConfig.ServerSettings.ServerURL+"/api/latest/fleet/mdm/apple/setup/eula/"+eula.Token)
+	}
+
+	return appConfig.ServerSettings.ServerURL + "/mdm/sso/callback?" + q.Encode(), nil
+
 }
 
 func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
-	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
+	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing profiles")
-	}
-
-	// Grab the first automatic enrollment profile we find, the current
-	// behavior is that the last enrollment profile that was uploaded is
-	// the one assigned to newly enrolled devices.
-	//
-	// TODO: this will change after #10995 where there can be a DEP profile
-	// per team.
-	var depProf *fleet.MDMAppleEnrollmentProfile
-	for _, prof := range profiles {
-		if prof.Type == "automatic" {
-			depProf = prof
-			break
-		}
+		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
 	}
 
 	if depProf == nil {
@@ -585,4 +595,27 @@ func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 	}
 
 	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, jsonProf, enrollURL)
+}
+
+func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
+	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing profiles")
+	}
+
+	// Grab the first automatic enrollment profile we find, the current
+	// behavior is that the last enrollment profile that was uploaded is
+	// the one assigned to newly enrolled devices.
+	//
+	// TODO: this will change after #10995 where there can be a DEP profile
+	// per team.
+	var depProf *fleet.MDMAppleEnrollmentProfile
+	for _, prof := range profiles {
+		if prof.Type == "automatic" {
+			depProf = prof
+			break
+		}
+	}
+
+	return depProf, nil
 }
