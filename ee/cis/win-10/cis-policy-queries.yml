@@ -2006,7 +2006,7 @@ spec:
     SELECT 1 WHERE 
         NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
         OR 
-        EXISTS ( SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4) );
+        EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.3
   contributors: sharon-fdm
@@ -2065,7 +2065,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\IIS Admin Service'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.6
   contributors: sharon-fdm
@@ -2084,7 +2087,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Infrared monitor service'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.7
   contributors: sharon-fdm
@@ -2142,7 +2148,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\irmon' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.10
   contributors: sharon-fdm
@@ -2162,7 +2171,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\FTPSVC' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.11
   contributors: sharon-fdm
@@ -2201,7 +2213,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND (data == 4 OR data == 0) );
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\sshd' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.13
   contributors: sharon-fdm
