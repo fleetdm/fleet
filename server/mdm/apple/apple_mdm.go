@@ -196,6 +196,8 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
+	// TODO(mna): this should probably return the profile UUID (or the updated depProfile)
+	// instead (or in addition? we likely won't ever use the profile as stored in nanomdm's tables).
 	if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set profile UUID")
 	}
