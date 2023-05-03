@@ -1950,6 +1950,117 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.8
   contributors: rachelelysia
+
+
+
+
+
+
+
+
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service spools print jobs and handles interaction with printers.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Print Spooler'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Spooler\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.18
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides support for viewing, sending and deletion of system-level problem reports for the Problem Reports and Solutions control panel.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Problem Reports and Solutions Control Panel Support'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\wercplsupport\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.19
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates a connection to a remote network whenever a program references a remote DNS or NetBIOS name or address.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Access Auto Connection Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasAuto\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.20
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Remote Desktop Configuration service (RDCS) is responsible for all Remote Desktop related configuration and session maintenance activities that require SYSTEM context. These include per-session temporary folders, RD themes, and RD certificates.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Configuration'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SessionEnv\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.21
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Allows users to connect interactively to a remote computer. Remote Desktop and Remote Desktop Session Host Server depend on this service.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Services'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\TermService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.22
+  contributors: sharon-fdm
+
+
+
+
+
+
+
 ---
 apiVersion: v1
 kind: policy
