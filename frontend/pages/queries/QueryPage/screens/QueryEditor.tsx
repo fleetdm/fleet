@@ -137,14 +137,19 @@ const QueryEditor = ({
     return null;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToQueriesPath = () => {
+    if (filteredQueriesPath) {
+      return filteredQueriesPath;
+    }
+    return PATHS.MANAGE_QUERIES;
+  };
+
   console.log("filteredQueriesPath", filteredQueriesPath);
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink
-          text="Back to queries"
-          path={filteredQueriesPath || PATHS.MANAGE_QUERIES}
-        />
+        <BackLink text="Back to queries" path={backToQueriesPath()} />
       </div>
       <QueryForm
         router={router}

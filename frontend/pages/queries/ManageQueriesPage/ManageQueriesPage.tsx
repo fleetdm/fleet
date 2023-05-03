@@ -69,11 +69,16 @@ const ManageQueriesPage = ({
   location,
 }: IManageQueriesPageProps): JSX.Element => {
   const queryParams = location.query;
-  const pathname = location.pathname + location.search;
+  // const pathname = location.pathname + location.search;
 
-  const { isOnlyObserver, isObserverPlus, isAnyTeamObserverPlus } = useContext(
-    AppContext
-  );
+  const {
+    isOnlyObserver,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
+    setFilteredQueriesPath,
+    filteredQueriesPath,
+  } = useContext(AppContext);
+
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -112,6 +117,13 @@ const ManageQueriesPage = ({
       setQueriesList(enhancedQueriesList);
     }
   }, [enhancedQueriesList, isFetchingFleetQueries]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredQueriesPath !== path) {
+      setFilteredQueriesPath(path);
+    }
+  }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
   const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
@@ -195,7 +207,6 @@ const ManageQueriesPage = ({
               isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
               router={router}
               queryParams={queryParams}
-              pathname={pathname}
             />
           )}
         </div>

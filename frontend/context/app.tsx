@@ -341,6 +341,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     filteredSoftwarePath: state.filteredSoftwarePath,
+    filteredQueriesPath: state.filteredQueriesPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,

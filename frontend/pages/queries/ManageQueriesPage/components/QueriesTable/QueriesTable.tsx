@@ -40,7 +40,6 @@ interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
   };
-  pathname: string;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -85,9 +84,8 @@ const QueriesTable = ({
   isAnyTeamObserverPlus,
   queryParams,
   router,
-  pathname,
 }: IQueriesTableProps): JSX.Element | null => {
-  const { currentUser, setFilteredQueriesPath } = useContext(AppContext);
+  const { currentUser } = useContext(AppContext);
 
   const initialSearchQuery = (() => {
     let query = "";
@@ -265,10 +263,8 @@ const QueriesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () =>
-      currentUser &&
-      generateTableHeaders({ currentUser, pathname, setFilteredQueriesPath }),
-    [currentUser, pathname, setFilteredQueriesPath]
+    () => currentUser && generateTableHeaders({ currentUser }),
+    [currentUser]
   );
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
@@ -279,7 +275,7 @@ const QueriesTable = ({
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        filters={{ global: searchQuery }}
+        filters={{ global: searchQuery, platform }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}

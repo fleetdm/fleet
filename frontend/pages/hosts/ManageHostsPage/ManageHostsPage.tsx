@@ -504,10 +504,10 @@ const ManageHostsPage = ({
     }
     const path = location.pathname + location.search;
     if (filteredHostsPath !== path) {
-      setFilteredHostsPath(location.pathname + location.search);
+      setFilteredHostsPath(path);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
-
+  console.log("filteredHostsPath", filteredHostsPath);
   const isLastPage =
     tableQueryData &&
     !!hostsCount &&
