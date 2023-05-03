@@ -113,7 +113,7 @@
     - name: Just-in-time (JIT) provisioning
       tier: Premium
       comingSoon: false
-    - name: Automated user role sync via SAML
+    - name: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
       comingSoon: false
     - name: Vanta integration
