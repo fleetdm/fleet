@@ -1963,6 +1963,25 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables serverless peer name resolution over the Internet using the Peer Name Resolution Protocol (PNRP).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Name Resolution Protocol'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.14
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
   platforms: win10
   platform: windows
