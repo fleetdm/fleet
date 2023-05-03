@@ -2020,6 +2020,8 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 		VALUES
 			(?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
+			updated_at = IF(profile = VALUES(profile) AND name = VALUES(name), updated_at, CURRENT_TIMESTAMP),
+			profile_uuid = IF(profile = VALUES(profile) AND name = VALUES(name), profile_uuid, ''),
 			name = VALUES(name),
 			profile = VALUES(profile)
 `
@@ -2036,6 +2038,32 @@ func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst
 	return ds.getMDMAppleSetupAssistant(ctx, ds.writer, asst.TeamID)
 }
 
+func (ds *Datastore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+	const stmt = `
+	UPDATE
+		mdm_apple_setup_assistants
+	SET
+		profile_uuid = ?,
+		-- ensure updated_at does not change, as it is used to reflect the time
+		-- the setup assistant was uploaded, not when its profile was defined
+		-- with Apple's API.
+		updated_at = updated_at
+	WHERE global_or_team_id = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	res, err := ds.writer.ExecContext(ctx, stmt, profileUUID, globalOrTmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm apple setup assistant profile uuid")
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleSetupAssistant").WithID(globalOrTmID))
+	}
+	return nil
+}
+
 func (ds *Datastore) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 	return ds.getMDMAppleSetupAssistant(ctx, ds.reader, teamID)
 }
@@ -2047,6 +2075,7 @@ func (ds *Datastore) getMDMAppleSetupAssistant(ctx context.Context, q sqlx.Query
 		team_id,
 		name,
 		profile,
+		profile_uuid,
 		updated_at as uploaded_at
 	FROM
 		mdm_apple_setup_assistants
