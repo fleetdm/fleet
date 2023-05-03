@@ -12,7 +12,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Software Protection Platform\Turn off KMS Client Online AVS Validation'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AVSValidationGP.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\CurrentVersion\\Software Protection Platform\NoGenTicket' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.72.1
@@ -32,7 +31,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Disable all apps from Microsoft Store'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableStoreApps' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.1
@@ -52,7 +50,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.2
@@ -72,7 +69,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off Automatic Download and Install of updates'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\AutoDownload' AND data = 4);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.3
@@ -92,7 +88,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the offer to update to the latest version of Windows'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableOSUpgrade' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.4
@@ -112,10 +107,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the Store application'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RemoveWindowsStore' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.5
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.5
   contributors: rachelelysia
 ---
 
