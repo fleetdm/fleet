@@ -45,7 +45,7 @@ import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
-import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
@@ -55,7 +55,7 @@ import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
 
 import PATHS from "router/paths";
 
-import AppProvider, { AppContext } from "context/app";
+import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
@@ -68,7 +68,6 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
-const isSandboxMode = { AppContext };
 interface IAppWrapperProps {
   children: JSX.Element;
 }
@@ -81,7 +80,6 @@ const AppWrapper = ({ children }: IAppWrapperProps) => (
     </RoutingProvider>
   </AppProvider>
 );
-
 const routes = (
   <Router history={browserHistory}>
     <Route path={PATHS.ROOT} component={AppWrapper}>
@@ -114,14 +112,10 @@ const routes = (
             <Route path="windows" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect
-              to={isSandboxMode ? "integrations" : "organization"}
-            />
+            <IndexRedirect to="organization/info" />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route component={ExcludeInSandboxRoutes}>
-                  <Route path="organization" component={OrgSettingsPage} />
-                </Route>
+                <Route path="organization" component={OrgSettingsPage} />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
@@ -176,14 +170,16 @@ const routes = (
             </Route>
           </Route>
 
-          <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to="mac-os-updates" />
-            <Route component={ManageControlsPage}>
-              <Route path="mac-os-updates" component={MacOSUpdates} />
-              <Route path="mac-settings" component={MacOSSettings} />
-              <Route path="mac-settings/:section" component={MacOSSettings} />
-              <Route path="mac-setup" component={MacOSSetup} />
-              <Route path="mac-setup/:section" component={MacOSSetup} />
+          <Route component={ExcludeInSandboxRoutes}>
+            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+              <IndexRedirect to="mac-os-updates" />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacOSSettings} />
+                <Route path="mac-settings/:section" component={MacOSSettings} />
+                <Route path="mac-setup" component={MacOSSetup} />
+                <Route path="mac-setup/:section" component={MacOSSetup} />
+              </Route>
             </Route>
           </Route>
 

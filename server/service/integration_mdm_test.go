@@ -2530,9 +2530,18 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		enqueueMDMAppleCommandRequest{
 			Command:   base64Cmd(newRawCmd(uuid.New().String())),
 			DeviceIDs: []string{unenrolledHost.UUID},
-		}, http.StatusUnprocessableEntity)
+		}, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// call with payload that is not a valid, plist-encoded MDM command
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(string(mobileconfigForTest("test config profile", uuid.New().String()))),
+			DeviceIDs: []string{enrolledHost.uuid},
+		}, http.StatusUnsupportedMediaType)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "unable to decode plist command")
 
 	// call with enrolled host UUID
 	uuid2 := uuid.New().String()
@@ -2698,7 +2707,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	teamBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	type deviceWithResponse struct {
-		// An empty string here means "skip the response", ie: pending
 		bootstrapResponse string
 		device            *device
 	}
@@ -2708,6 +2716,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// which a device may or may not send a response. For example, "Offline" means that no response
 	// will be sent by the device, which should in turn be interpreted by Fleet as "Pending"). See
 	// https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+	//
+	// Below:
+	// - Acknowledge means the device will enroll and acknowledge the request to install the bp
+	// - Error means that the device will enroll and fail to install the bp
+	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
+	// - Pending means that the device won't enroll at all
 	noTeamDevices := []deviceWithResponse{
 		{"Acknowledge", newDevice(s)},
 		{"Acknowledge", newDevice(s)},
@@ -2715,6 +2729,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Error", newDevice(s)},
 		{"Offline", newDevice(s)},
 		{"Offline", newDevice(s)},
+		{"Pending", newDevice(s)},
+		{"Pending", newDevice(s)},
 	}
 
 	teamDevices := []deviceWithResponse{
@@ -2724,18 +2740,19 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		{"Error", newDevice(s)},
 		{"Error", newDevice(s)},
 		{"Offline", newDevice(s)},
+		{"Pending", newDevice(s)},
 	}
 
-	expectedUUIDsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
-	expectedUUIDsByTeamAndStatus[0] = map[fleet.MDMBootstrapPackageStatus][]string{
-		fleet.MDMBootstrapPackageInstalled: {noTeamDevices[0].device.uuid, noTeamDevices[1].device.uuid, noTeamDevices[2].device.uuid},
-		fleet.MDMBootstrapPackageFailed:    {noTeamDevices[3].device.uuid},
-		fleet.MDMBootstrapPackagePending:   {noTeamDevices[4].device.uuid, noTeamDevices[5].device.uuid},
+	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
+	expectedSerialsByTeamAndStatus[0] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {noTeamDevices[0].device.serial, noTeamDevices[1].device.serial, noTeamDevices[2].device.serial},
+		fleet.MDMBootstrapPackageFailed:    {noTeamDevices[3].device.serial},
+		fleet.MDMBootstrapPackagePending:   {noTeamDevices[4].device.serial, noTeamDevices[5].device.serial, noTeamDevices[6].device.serial, noTeamDevices[7].device.serial},
 	}
-	expectedUUIDsByTeamAndStatus[team.ID] = map[fleet.MDMBootstrapPackageStatus][]string{
-		fleet.MDMBootstrapPackageInstalled: {teamDevices[0].device.uuid, teamDevices[1].device.uuid},
-		fleet.MDMBootstrapPackageFailed:    {teamDevices[2].device.uuid, teamDevices[3].device.uuid, teamDevices[4].device.uuid},
-		fleet.MDMBootstrapPackagePending:   {teamDevices[5].device.uuid},
+	expectedSerialsByTeamAndStatus[team.ID] = map[fleet.MDMBootstrapPackageStatus][]string{
+		fleet.MDMBootstrapPackageInstalled: {teamDevices[0].device.serial, teamDevices[1].device.serial},
+		fleet.MDMBootstrapPackageFailed:    {teamDevices[2].device.serial, teamDevices[3].device.serial, teamDevices[4].device.serial},
+		fleet.MDMBootstrapPackagePending:   {teamDevices[5].device.serial, teamDevices[6].device.serial},
 	}
 
 	// for good measure, add a couple of manually enrolled hosts
@@ -2817,7 +2834,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
-	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	mockErrorChain := []mdm.ErrorChain{
 		{ErrorCode: 12021, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Unknown command", USEnglishDescription: "Unknown command"},
@@ -2856,12 +2873,16 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	for _, d := range noTeamDevices {
 		dd := d
-		enrollAndCheckBootstrapPackage(&dd, globalBootstrapPackage)
+		if dd.bootstrapResponse != "Pending" {
+			enrollAndCheckBootstrapPackage(&dd, globalBootstrapPackage)
+		}
 	}
 
 	for _, d := range teamDevices {
 		dd := d
-		enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
+		if dd.bootstrapResponse != "Pending" {
+			enrollAndCheckBootstrapPackage(&dd, teamBootstrapPackage)
+		}
 	}
 
 	checkHostDetails := func(t *testing.T, hostID uint, hostUUID string, expectedStatus fleet.MDMBootstrapPackageStatus) {
@@ -2892,11 +2913,11 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	}
 
 	checkHostAPIs := func(t *testing.T, status fleet.MDMBootstrapPackageStatus, teamID *uint) {
-		var expectedUUIDs []string
+		var expectedSerials []string
 		if teamID == nil {
-			expectedUUIDs = expectedUUIDsByTeamAndStatus[0][status]
+			expectedSerials = expectedSerialsByTeamAndStatus[0][status]
 		} else {
-			expectedUUIDs = expectedUUIDsByTeamAndStatus[*teamID][status]
+			expectedSerials = expectedSerialsByTeamAndStatus[*teamID][status]
 		}
 
 		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?bootstrap_package=%s", status)
@@ -2906,18 +2927,22 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		var listHostsResp listHostsResponse
 		s.DoJSON("GET", listHostsPath, nil, http.StatusOK, &listHostsResp)
 		require.NotNil(t, listHostsResp.Hosts)
-		require.Len(t, listHostsResp.Hosts, len(expectedUUIDs))
+		require.Len(t, listHostsResp.Hosts, len(expectedSerials))
 
-		gotHostsByUUID := make(map[string]fleet.HostResponse)
+		gotHostsBySerial := make(map[string]fleet.HostResponse)
 		for _, h := range listHostsResp.Hosts {
-			gotHostsByUUID[h.UUID] = h
+			gotHostsBySerial[h.HardwareSerial] = h
 		}
-		require.Len(t, gotHostsByUUID, len(expectedUUIDs))
+		require.Len(t, gotHostsBySerial, len(expectedSerials))
 
-		for _, uuid := range expectedUUIDs {
-			require.Contains(t, gotHostsByUUID, uuid)
-			h := gotHostsByUUID[uuid]
-			checkHostDetails(t, h.ID, h.UUID, status)
+		for _, serial := range expectedSerials {
+			require.Contains(t, gotHostsBySerial, serial)
+			h := gotHostsBySerial[serial]
+
+			// pending hosts don't have an UUID yet.
+			if h.UUID != "" {
+				checkHostDetails(t, h.ID, h.UUID, status)
+			}
 		}
 
 		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?bootstrap_package=%s", status)
@@ -2926,7 +2951,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		}
 		var countResp countHostsResponse
 		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
-		require.Equal(t, countResp.Count, len(expectedUUIDs))
+		require.Equal(t, countResp.Count, len(expectedSerials))
 	}
 
 	// check summary no team hosts
@@ -2934,7 +2959,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(3),
-		Pending:   uint(2),
+		Pending:   uint(4),
 		Failed:    uint(1),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
@@ -2947,13 +2972,60 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(2),
-		Pending:   uint(1),
+		Pending:   uint(2),
 		Failed:    uint(3),
 	}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	checkHostAPIs(t, fleet.MDMBootstrapPackageInstalled, &team.ID)
 	checkHostAPIs(t, fleet.MDMBootstrapPackagePending, &team.ID)
 	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, &team.ID)
+}
+
+func (s *integrationMDMTestSuite) TestEULA() {
+	t := s.T()
+	pdfBytes := []byte("%PDF-1.pdf-contents")
+	pdfName := "eula.pdf"
+
+	// trying to get metadata about an EULA that hasn't been uploaded yet is an error
+	metadataResp := getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+
+	// trying to upload a file that is not a PDF fails
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "")
+
+	// admin is able to upload a new EULA
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+
+	// get EULA metadata
+	metadataResp = getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusOK, &metadataResp)
+	require.NotEmpty(t, metadataResp.MDMAppleEULA.Token)
+	require.NotEmpty(t, metadataResp.MDMAppleEULA.CreatedAt)
+	require.Equal(t, pdfName, metadataResp.MDMAppleEULA.Name)
+	eulaToken := metadataResp.Token
+
+	// download EULA
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK)
+	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
+	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	respBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, pdfBytes, respBytes)
+
+	// try to download EULA with a bad token
+	var downloadResp downloadBootstrapPackageResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
+
+	// trying to upload any EULA without deleting the previous one first results in an error
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
+
+	// delete EULA
+	var deleteResp deleteMDMAppleEULAResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
+	metadataResp = getMDMAppleEULAMetadataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
+	// trying to delete again is a bad request
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
@@ -3276,6 +3348,37 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	}
 
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/bootstrap", b.Bytes(), expectedStatus, headers)
+
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
+}
+
+func (s *integrationMDMTestSuite) uploadEULA(
+	eula *fleet.MDMAppleEULA,
+	expectedStatus int,
+	wantErr string,
+) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the eula field
+	fw, err := w.CreateFormFile("eula", eula.Name)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
+	require.NoError(t, err)
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/setup/eula", b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
@@ -3791,4 +3894,12 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	require.NoError(t, plist.Unmarshal(body, &profile))
 	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+
+	// changing the server URL also updates the remote DEP profile
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+                "server_settings": {"server_url": "https://example.com"}
+	}`), http.StatusOK, &acResp)
+	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
+	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 }

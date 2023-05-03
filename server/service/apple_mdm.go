@@ -1085,10 +1085,13 @@ func (svc *Service) EnqueueMDMAppleCommand(
 
 	rawXMLCmd, err := base64.RawStdEncoding.DecodeString(rawBase64Cmd)
 	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
+
 		return 0, nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 	cmd, err := mdm.DecodeCommand(rawXMLCmd)
 	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
 		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
 
@@ -1104,7 +1107,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 
 	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
 		// if at least one UUID enqueued properly, return success, otherwise return
-		// 500
+		// error
 		var apnsErr *apple_mdm.APNSDeliveryError
 		var mysqlErr *mysql.MySQLError
 		if errors.As(err, &apnsErr) {
@@ -1117,15 +1120,23 @@ func (svc *Service) EnqueueMDMAppleCommand(
 					FailedUUIDs: apnsErr.FailedUUIDs,
 				}, nil
 			}
+			// push failed for all hosts
+			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+			return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+
 		} else if errors.As(err, &mysqlErr) {
 			// enqueue may fail with a foreign key constraint error 1452 when one of
 			// the hosts provided is not enrolled in nano_enrollments. Detect when
 			// that's the case and add information to the error.
 			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
-				err := fleet.NewInvalidArgumentError("device_ids", fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err))
-				return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+				err := fleet.NewInvalidArgumentError(
+					"device_ids",
+					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
+				).WithStatus(http.StatusConflict)
+				return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 			}
 		}
+
 		return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 	}
 	return http.StatusOK, &fleet.CommandEnqueueResult{
@@ -2129,7 +2140,6 @@ func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	if err != nil {
 		return callbackMDMAppleSSOResponse{Err: err}, nil
-
 	}
 	return callbackMDMAppleSSOResponse{profile: profile}, nil
 }

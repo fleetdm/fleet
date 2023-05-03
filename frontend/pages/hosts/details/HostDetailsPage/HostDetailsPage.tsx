@@ -633,7 +633,7 @@ const HostDetailsPage = ({
   const showDiskEncryptionUserActionRequired =
     config?.mdm.enabled_and_configured &&
     host?.mdm.name === "Fleet" &&
-    host?.mdm.macos_settings.disk_encryption === "action_required";
+    host?.mdm.macos_settings?.disk_encryption === "action_required";
 
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
@@ -653,9 +653,9 @@ const HostDetailsPage = ({
     !isHostsTeamObserver;
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup.bootstrap_package_status,
-    details: host?.mdm.macos_setup.details,
-    name: host?.mdm.macos_setup.bootstrap_package_name,
+    status: host?.mdm.macos_setup?.bootstrap_package_status,
+    details: host?.mdm.macos_setup?.details,
+    name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
   return (

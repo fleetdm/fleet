@@ -140,8 +140,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
   },
 
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
@@ -187,6 +187,7 @@ module.exports.custom = {
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+  // datadogApiKey: '…',
 
   //…
 
