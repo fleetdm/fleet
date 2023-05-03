@@ -101,15 +101,13 @@ const generateTableHeaders = ({
         />
       ),
       accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        return (
-          <LinkCell
-            classes="w400"
-            value={cellProps.cell.value}
-            path={PATHS.EDIT_QUERY(cellProps.row.original)}
-          />
-        );
-      },
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <LinkCell
+          classes="w400"
+          value={cellProps.cell.value}
+          path={PATHS.EDIT_QUERY(cellProps.row.original)}
+        />
+      ),
       sortType: "caseInsensitive",
     },
     {

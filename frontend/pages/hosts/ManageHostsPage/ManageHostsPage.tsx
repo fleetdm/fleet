@@ -507,7 +507,7 @@ const ManageHostsPage = ({
       setFilteredHostsPath(path);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
-  console.log("filteredHostsPath", filteredHostsPath);
+
   const isLastPage =
     tableQueryData &&
     !!hostsCount &&

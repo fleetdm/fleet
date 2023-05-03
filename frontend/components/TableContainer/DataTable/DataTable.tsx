@@ -225,16 +225,16 @@ const DataTable = ({
 
   useEffect(() => {
     if (tableFilters) {
-      // const filtersToSet = tableFilters;
-      // const global = filtersToSet.global;
-      // setGlobalFilter(global);
-      // delete filtersToSet.global;
-      // const allFilters = Object.entries(filtersToSet).map(([id, value]) => ({
-      //   id,
-      //   value,
-      // }));
-      // !!allFilters.length && setAllFilters(allFilters);
-      // setExportRows && setExportRows(rows);
+      const filtersToSet = tableFilters;
+      const global = filtersToSet.global;
+      setGlobalFilter(global);
+      delete filtersToSet.global;
+      const allFilters = Object.entries(filtersToSet).map(([id, value]) => ({
+        id,
+        value,
+      }));
+      !!allFilters.length && setAllFilters(allFilters);
+      setExportRows && setExportRows(rows);
     }
   }, [tableFilters]);
 

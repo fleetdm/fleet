@@ -145,7 +145,6 @@ const QueryEditor = ({
     return PATHS.MANAGE_QUERIES;
   };
 
-  console.log("filteredQueriesPath", filteredQueriesPath);
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
