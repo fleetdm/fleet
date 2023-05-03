@@ -1963,6 +1963,45 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Manages Internet SCSI (iSCSI) sessions from this computer to remote target devices.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft iSCSI Initiator Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\MSiSCSI\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.12
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    SSH protocol based service to provide secure encrypted communications between two untrusted hosts over an insecure network.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but it is installed by enabling an optional Windows feature (OpenSSH Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND (data == 4 OR data == 0) );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.13
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
   platforms: win10
   platform: windows
