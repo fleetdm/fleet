@@ -17,18 +17,14 @@ See [Extending Sails > Generators > Custom Generators](https://sailsjs.com/docs/
 <a href="https://sailsjs.com" target="_blank" title="Node.js framework for building realtime APIs."><img src="https://github-camo.global.ssl.fastly.net/9e49073459ed4e0e2687b80eaf515d87b0da4a6b/687474703a2f2f62616c64657264617368792e6769746875622e696f2f7361696c732f696d616765732f6c6f676f2e706e67" width=60 alt="Sails.js logo (small)"/></a>
 
 
-## Bugs &nbsp; [![NPM version](https://badge.fury.io/js/@eashaw/sails-generate-landing-page.svg)](http://npmjs.com/package/@eashaw/sails-generate-landing-page)
+## Bugs 
 
-To report a bug, [click here](https://sailsjs.com/bugs).
+To report a bug, [click here](https://github.com/fleetdm/fleet/issues/new).
 
 
 ## Contributing
 
-Please observe the guidelines and conventions laid out in the [Sails project contribution guide](https://sailsjs.com/documentation/contributing) when opening issues or submitting pull requests.
-
-[![NPM](https://nodei.co/npm/@eashaw/sails-generate-landing-page.png?downloads=true)](http://npmjs.com/package/@eashaw/sails-generate-landing-page)
-
-
+Anyone can contribute.
 
 ## License
 
