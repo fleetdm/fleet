@@ -12,7 +12,7 @@
 
 body {
   font-family: @main-font;
-  color: @core-fleet-black;
+  color: @core-fleet-black-75;
 }
 
 img {
@@ -28,7 +28,12 @@ img {
 h1, h2, h3, h4, h5, h6 {
   font-family: @header-font;
 }
-h1, h2, h3, h4 {
+h1, h2, h3, h4, h5 {
+  font-weight: 800;
+  color: @core-fleet-black;
+}
+
+h4 {
   font-weight: 800;
 }
 
@@ -44,6 +49,11 @@ h2 {
 
 p {
   line-height: 28px;
+}
+
+b, strong, .font-weight-bold {
+  font-weight: 600;
+  color: @core-fleet-black;
 }
 
 footer {

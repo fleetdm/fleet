@@ -139,7 +139,7 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 }
 
 func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBootstrapPackage, error) {
-	if err := c.CheckMDMEnabled(); err != nil {
+	if err := c.CheckPremiumMDMEnabled(); err != nil {
 		return nil, err
 	}
 

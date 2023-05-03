@@ -1,56 +1,44 @@
 # Fleet 4.31.0 | MDM enrollment workflow, API user role.
-​
+
 ![Fleet 4.31.0](../website/assets/images/articles/fleet-4.31.0-1600x900@2x.png)
 
 Fleet 4.31.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.31.0) or continue reading to get the highlights.
-​
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
-​
-​
+
 ## Highlights
-​
-​
-​
+
 * MDM enrollment workflow
 * mTLS support in Fleet
 * GitOps user role
-​
-​
+
 ### MDM enrollment workflow
-​
+
 Hot on the heels of Fleet’s [public beta announcement](https://fleetdm.com/releases/fleet-introduces-mdm) for MDM, we continue to provide 🟢 Results by adding several new features in the enrollment workflow, including SAML authentication and complete support for bootstrap packages.
-​
+
 Authentication for device enrollments enables you to integrate the MDM enrollment process with an identity provider. With Fleet, you can configure authentication for enrollments using any identity provider service that supports custom SAML integrations, including Google Workspace, Microsoft Azure, Okta, OneLogin, and JumpCloud, to name a few. Once set up, users must authenticate against their identity provider using their credentials to successfully enroll their devices into Fleet. 
-​
+
 In addition to Fleet Desktop, Fleet can also deliver a bootstrap software package or installer that to initiate the deployment and configuration of devices during the enrollment process. Use a bootstrap package to deploy your own configuration manager, such as Munki, Chef, or Puppet. With a seamless deployment and configuration of your preferred configuration manager on devices enrolled in Fleet, you will have more granular control and customized management of your organization's devices.
-​
-​
-### mTLS support in Fleet
-​
+
+### mTLS support in fleetd (Orbit)
+
 _Available in Fleet Premium and Fleet Ultimate_
-​
+
 Mutual TLS (mTLS) ensures secure and authenticated communication between two parties. Unlike traditional TLS, where only the server's identity is verified, mTLS requires both the server and the client to authenticate each other using digital certificates. This additional layer of security helps prevent unauthorized access and enhances data privacy. mTLS is often leveraged in a zero-trust networking environment, because security measures are applied regardless of whether the user or device is inside or outside the network perimeter.
-​
-Fleet is bringing 🟢 Results with support for TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server to ensure secure communication between fleetd (Orbit) and your Fleet Server. Learn more about [using mTLS certificates](https://fleetdm.com/docs/using-fleet/orbit#orbit-mtls-support) when generating your Fleet packages.
-​
-​
+
+Fleet is bringing 🟢 Results with support for TLS client certificates in fleetd (Orbit) to ensure secure communication to fleet. Learn more about [using mTLS certificates](https://fleetdm.com/docs/using-fleet/orbit#orbit-mtls-support) when generating your Fleet packages.
+
 ### GitOps user role
-​
+
 _Available in Fleet Premium and Fleet Ultimate_
-​
+
 Take 🟠 Ownership of Fleet account roles with greater granularity. Fleet 4.31.0 includes a new user role, `gitops`. 
-​
+
 The `gitops` user role is ideal for automated workflows as part of continuous integration/continuous development (CI/CD) actions, such as MDM profile commitments and security profiles. The `gitops` user role can only access Fleet using the API and is unable to access the Fleet dashboard.
-​
-​
+
 ## More new features, improvements, and bug fixes
-​
-​
-#### 
-    List of features
-​
-​
-​
+
+#### List of features
+    
 * Added `gitops` user role to Fleet. GitOps users are users that can manage configuration.
 * Added the `fleetctl get mdm-commands` command to get a list of MDM commands that were executed. Added the `GET /api/latest/fleet/mdm/apple/commands` API endpoint.
 * Added Fleet UI flows for uploading, downloading, deleting, and viewing information about a Fleet MDM bootstrap package.
@@ -92,10 +80,9 @@ The `gitops` user role is ideal for automated workflows as part of continuous in
 * Fixed software table to match UI spec (responsively hidden vulnerabilities/probability of export column under 990px width).
 * Fixed a bug where bundle information displayed in tooltips over a software's name was mistakenly hidden.
 * Fixed an HTTP 500 on `GET /api/_version_/fleet/hosts` returned when `mdm_enrollment_status` is invalid.
-​
-​
+
 ## Ready to upgrade?
-​
+
 Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.31.0.
 
 <meta name="category" value="releases">
