@@ -2530,9 +2530,18 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		enqueueMDMAppleCommandRequest{
 			Command:   base64Cmd(newRawCmd(uuid.New().String())),
 			DeviceIDs: []string{unenrolledHost.UUID},
-		}, http.StatusUnprocessableEntity)
+		}, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// call with payload that is not a valid, plist-encoded MDM command
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(string(mobileconfigForTest("test config profile", uuid.New().String()))),
+			DeviceIDs: []string{enrolledHost.uuid},
+		}, http.StatusUnsupportedMediaType)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "unable to decode plist command")
 
 	// call with enrolled host UUID
 	uuid2 := uuid.New().String()
