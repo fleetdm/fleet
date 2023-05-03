@@ -181,12 +181,18 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
 					// return and stop sending the query if the session was closed
 					// by the client
+					level.Info(svc.logger).Log("msg", "live_query: write message, session closed")
 					return
 				}
 				if err != nil {
 					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
+			case error:
+				_ = level.Error(svc.logger).Log("msg", "pubsub error", "err", res)
+				if err := conn.WriteJSONError(res.Error()); err != nil {
+					_ = svc.logger.Log("msg", "failed to write pubsub error", "err", err)
+				}
 			}
 
 		case <-ticker.C:
@@ -194,6 +200,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			if conn.GetSessionState() == sockjs.SessionClosed {
 				// return and stop sending the query if the session was closed
 				// by the client
+				level.Info(svc.logger).Log("msg", "live_query: ticker.C, session closed")
 				return
 			}
 			// Update status

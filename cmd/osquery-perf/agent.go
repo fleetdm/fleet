@@ -1038,15 +1038,37 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
+// runLiveQuery returns a dummy single row result.
+func (a *agent) runLiveQuery() []map[string]string {
+	return []map[string]string{
+		{
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "bar@example.com",
+			"name":       "zoo",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "6652123",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "foo",
+		},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
-		hostPolicyQueryPrefix = "fleet_policy_query_"
-		hostDetailQueryPrefix = "fleet_detail_query_"
+		hostPolicyQueryPrefix      = "fleet_policy_query_"
+		hostDetailQueryPrefix      = "fleet_detail_query_"
+		hostDistributedQueryPrefix = "fleet_distributed_query_"
 	)
 	statusOK := fleet.StatusOK
 	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
+	case strings.HasPrefix(name, hostDistributedQueryPrefix):
+		return true, a.runLiveQuery(), &statusOK
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
