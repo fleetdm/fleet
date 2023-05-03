@@ -2172,7 +2172,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\FTPSVC' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
   purpose: Informational
@@ -2214,7 +2214,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\LxssManager\\sshd' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
