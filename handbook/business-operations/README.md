@@ -184,7 +184,10 @@ Expectations during onboarding:
 
 
 ### Sightseeing tour
-During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
+During their first day at Fleet, new team members join a sightseeing tour call with the acting Head of People (CEO). During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+
+In this meeting, we'll take a look at:
+- Handbook: values, purpose, key pages to pay special attention to
 - GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
 - Google Calendar: the future.
@@ -197,7 +200,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Contributor experience training
-During their first week at Fleet, new team members are asked to schedule a contributor experience training call with Mike McNeil. During this call, the new team member will share their screen, and People operations will:
+During their first week at Fleet, every new team member schedules a contributor experience training call with the acting Head of People (CEO). During this call, the new team member will share their screen, and the acting Head of People will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
@@ -205,6 +208,26 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+<!-- 
+TODO: Merge this commented-out stuff with the above
+
+Agenda:
+A 60-minute call with Mike where you will share your screen, and she will work with you to...
+Make sure Slack messages are going to get seen and responded to quickly and disable email notifications in Slack
+Make sure you know where your issues are tracked, which kanban board you use, what the columns mean
+Make sure you can succeed with submitting a PR in github.com, modifying docs or handbook, working with Markdown
+Make sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe)
+Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
+A quick tour of the Google drive folder (access look correct? Ok. Give access to executed documents on the shared drive as needed) show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.)
+Make sure you know how to share a google doc into the folder for all fleeties to see and access.
+A high level overview of the Company values
+-->
+
+### Onboarding retrospective
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call with the acting Head of People (CEO).  Agenda: 
+> Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
+
+Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
 ### Directly responsible individuals
 Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
