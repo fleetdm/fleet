@@ -7756,6 +7756,105 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow widgets' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the widgets feature is allowed on the device. The widgets feature provides information such as, weather, news, sports, stocks, traffic, and entertainment (not an inclusive list).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Widgets\Allow Widgets'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template NewsAndInterests.admx/adml that is actually NOT included with the Microsoft Windows 10 Release 21H2 Administrative Templates (more info on missing settings on Windows 10 21H2: https://4sysops.com/archives/group-policies-for-windows-11-and-10-21h2-compared/) but is included in Windows 11 2022 Update (22H2).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Dsh\AllowNewsAndInterests' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.81.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to manage the behavior of Windows Defender SmartScreen. Windows Defender SmartScreen helps keep PCs safer by warning users before running unrecognized programs downloaded from the Internet. Some information is sent to Microsoft about files and programs run on PCs with this feature enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Warn and prevent bypass':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Explorer\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
+    ) AND EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prevent bypassing Windows Defender SmartScreen prompts for sites' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether employees can override the SmartScreen Filter warnings about potentially malicious websites.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Prevent bypassing Windows Defender SmartScreen prompts for sites'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\PreventOverride' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting enables or disables the Windows Game Recording and Broadcasting features.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Game Recording and Broadcasting\Enables or disables Windows Game Recording and Broadcasting'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GameDVR.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR\AllowGameDVR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.87.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
   platforms: win10
   platform: windows
