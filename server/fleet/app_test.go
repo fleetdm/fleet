@@ -113,3 +113,8 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 		}
 	})
 }
+
+func TestSSOSettingsIsEmpty(t *testing.T) {
+	require.True(t, (SSOProviderSettings{}).IsEmpty())
+	require.False(t, (SSOProviderSettings{EntityID: "fleet"}).IsEmpty())
+}

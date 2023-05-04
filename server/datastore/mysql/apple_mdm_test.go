@@ -5,6 +5,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"testing"
@@ -27,7 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMDMAppleConfigProfile(t *testing.T) {
+func TestMDMApple(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -43,6 +44,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
+		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
@@ -51,6 +53,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
+		{"TestListMDMAppleCommands", testListMDMAppleCommands},
+		{"TestMDMAppleEULA", testMDMAppleEULA},
+		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 	}
 
 	for _, c := range cases {
@@ -291,13 +296,13 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 
 	expectedProfiles0 := map[uint]fleet.HostMDMAppleProfile{
 		p0.ProfileID: {HostUUID: h0.UUID, Name: p0.Name, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
-		p1.ProfileID: {HostUUID: h0.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		p1.ProfileID: {HostUUID: h0.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
 		p2.ProfileID: {HostUUID: h0.UUID, Name: p2.Name, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
 	expectedProfiles1 := map[uint]fleet.HostMDMAppleProfile{
 		p0.ProfileID: {HostUUID: h1.UUID, Name: p0.Name, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: "Error installing profile"},
-		p1.ProfileID: {HostUUID: h1.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		p1.ProfileID: {HostUUID: h1.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
 		p2.ProfileID: {HostUUID: h1.UUID, Name: p2.Name, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
@@ -367,14 +372,14 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// mark h1's remove+failed profile as remove+applied, deletes the host profile row
+	// mark h1's remove+failed profile as remove+verifying, deletes the host profile row
 	h1RemoveFailed := expectedProfiles1[p2.ProfileID]
 	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		HostUUID:      h1RemoveFailed.HostUUID,
 		CommandUUID:   h1RemoveFailed.CommandUUID,
 		ProfileID:     h1RemoveFailed.ProfileID,
 		Name:          h1RemoveFailed.Name,
-		Status:        &fleet.MDMAppleDeliveryApplied,
+		Status:        &fleet.MDMAppleDeliveryVerifying,
 		OperationType: fleet.MDMAppleOperationTypeRemove,
 		Detail:        "",
 	})
@@ -382,7 +387,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 
 	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
-	require.Len(t, gotProfs, 2) // remove+applied is not there anymore
+	require.Len(t, gotProfs, 2) // remove+verifying is not there anymore
 
 	h1InstallPending := h1InstallFailed
 	h1InstallPending.Status = &fleet.MDMAppleDeliveryPending
@@ -738,7 +743,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: profiles[0].Identifier,
 			ProfileName:       profiles[0].Name,
 			HostUUID:          testUUID,
-			Status:            &fleet.MDMAppleDeliveryApplied,
+			Status:            &fleet.MDMAppleDeliveryVerifying,
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
 			CommandUUID:       "command-uuid",
 			Checksum:          []byte("csum"),
@@ -975,7 +980,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	`)
 	require.NoError(t, err)
 
-	// if there are no hosts, then no profiles need to be applied
+	// if there are no hosts, then no profiles need to be installed
 	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.Empty(t, profiles)
@@ -1108,7 +1113,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[0].Name,
 				Checksum:          globalProfiles[0].Checksum,
 				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1118,7 +1123,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[0].Name,
 				Checksum:          globalProfiles[0].Checksum,
 				HostUUID:          "test-uuid-3",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1128,7 +1133,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[1].Name,
 				Checksum:          globalProfiles[1].Checksum,
 				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1138,7 +1143,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[1].Name,
 				Checksum:          globalProfiles[1].Checksum,
 				HostUUID:          "test-uuid-3",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1148,7 +1153,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[2].Name,
 				Checksum:          globalProfiles[2].Checksum,
 				HostUUID:          "test-uuid-1",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1158,7 +1163,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       globalPfs[2].Name,
 				Checksum:          globalProfiles[2].Checksum,
 				HostUUID:          "test-uuid-3",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1168,7 +1173,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       teamPfs[0].Name,
 				Checksum:          teamProfiles[0].Checksum,
 				HostUUID:          "test-uuid-2",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1178,7 +1183,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				ProfileName:       teamPfs[1].Name,
 				Checksum:          teamProfiles[1].Checksum,
 				HostUUID:          "test-uuid-2",
-				Status:            &fleet.MDMAppleDeliveryApplied,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
 				OperationType:     fleet.MDMAppleOperationTypeInstall,
 				CommandUUID:       "command-uuid",
 			},
@@ -1382,6 +1387,177 @@ func upsertHostCPs(
 	require.NoError(t, err)
 }
 
+func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	checkListHosts := func(status fleet.MacOSSettingsStatus, teamID *uint, expected []*fleet.Host) bool {
+		expectedIDs := []uint{}
+		for _, h := range expected {
+			expectedIDs = append(expectedIDs, h.ID)
+		}
+
+		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.HostListOptions{MacOSSettingsFilter: status, TeamFilter: teamID})
+		gotIDs := []uint{}
+		for _, h := range gotHosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+
+		return assert.NoError(t, err) && assert.Len(t, gotHosts, len(expected)) && assert.ElementsMatch(t, expectedIDs, gotIDs)
+	}
+
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+	}
+
+	// create somes config profiles for no team
+	var noTeamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 10; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), 0))
+		require.NoError(t, err)
+		noTeamCPs = append(noTeamCPs, cp)
+	}
+	// add filevault profile for no team
+	fvNoTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", "com.fleetdm.fleet.mdm.filevault", 0))
+	require.NoError(t, err)
+
+	upsertHostCPs(hosts, append(noTeamCPs, fvNoTeam), fleet.MDMAppleOperationTypeInstall, nil, ctx, ds, t)
+	res, err := ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	upsertHostCPs(hosts, noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault not installed
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{fvNoTeam}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because filevault pending
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{fvNoTeam}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because no disk encryption key
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "foo")
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is not set
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, false, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is false
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-1), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Verifying) // hosts[0] now has filevault fully enforced
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1].ID, "bar")
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[1].ID}, false, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-1), res.Pending) // hosts[1] still pending because disk encryption key decryptable is false
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Verifying)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[1].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-2), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(2), res.Verifying) // hosts[0] and hosts[1] now have filevault fully enforced
+
+	// check that list hosts by status matches summary
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, hosts[:2]))
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+	require.NoError(t, err)
+
+	// add hosts[9] to team
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[9].ID})
+	require.NoError(t, err)
+
+	// remove profiles from hosts[9]
+	upsertHostCPs(hosts[9:10], append(noTeamCPs, fvNoTeam), fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Verifying)
+
+	// create somes config profiles for team
+	var teamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 2; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), team.ID))
+		require.NoError(t, err)
+		teamCPs = append(teamCPs, cp)
+	}
+	// add filevault profile for team
+	fvTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", mobileconfig.FleetFileVaultPayloadIdentifier, team.ID))
+	require.NoError(t, err)
+
+	upsertHostCPs(hosts[9:10], append(teamCPs, fvTeam), fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(1), res.Pending) // hosts[9] is pending because it has no disk encryption key
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Verifying)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[9].ID, "baz")
+	require.NoError(t, err)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[9].ID}, true, time.Now().Add(1*time.Hour))
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Verifying) // hosts[9] now has filevault fully enforced
+
+	// check that list hosts by status matches summary
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, &team.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, &team.ID, hosts[9:10]))
+}
+
 func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1422,13 +1598,13 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)), res.Pending) // each host only counts once
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.Latest)
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, hosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), hosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
 	// all hosts pending install of all profiles
 	upsertHostCPs(hosts, noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
@@ -1437,13 +1613,13 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)), res.Pending) // each host only counts once
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.Latest)
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, hosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), hosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
 	// hosts[0] and hosts[1] failed one profile
 	upsertHostCPs(hosts[0:2], noTeamCPs[0:1], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
@@ -1460,28 +1636,28 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-2), res.Pending) // two hosts are failing at least one profile (hosts[0] and hosts[1])
 	require.Equal(t, uint(2), res.Failed)             // only count one failure per host (hosts[0] failed two profiles but only counts once)
-	require.Equal(t, uint(0), res.Latest)
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts[2:]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
-	// hosts[0:3] applied a third profile
-	upsertHostCPs(hosts[0:3], noTeamCPs[2:3], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	// hosts[0:3] installed a third profile
+	upsertHostCPs(hosts[0:3], noTeamCPs[2:3], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-2), res.Pending) // no change
 	require.Equal(t, uint(2), res.Failed)             // no change
-	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts[2:]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), hosts[2:]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
 	// hosts[6] deletes all its profiles
 	tx, err := ds.writer.BeginTxx(ctx, nil)
@@ -1494,16 +1670,16 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore
 	require.Equal(t, uint(2), res.Failed)             // no change
-	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
-	// hosts[9] applied all profiles but one is with status nil (pending)
-	upsertHostCPs(hosts[9:10], noTeamCPs[:9], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	// hosts[9] installed all profiles but one is with status nil (pending)
+	upsertHostCPs(hosts[9:10], noTeamCPs[:9], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	upsertHostCPs(hosts[9:10], noTeamCPs[9:10], fleet.MDMAppleOperationTypeInstall, nil, ctx, ds, t)
 	pendingHosts = append(hosts[2:6:6], hosts[7:]...)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
@@ -1511,29 +1687,29 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore, hosts[9] still pending
 	require.Equal(t, uint(2), res.Failed)             // no change
-	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)          // no change, host must apply all profiles count as latest
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
-	// hosts[9] applied all profiles
-	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	// hosts[9] installed all profiles
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract hosts[6 and 9] from pending
 	require.Equal(t, uint(2), res.Failed)             // no change
-	require.Equal(t, uint(1), res.Latest)             // add one host that has applied all profiles
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), hosts[9:10]))
+	require.Equal(t, uint(1), res.Verifying)          // add one host that has installed all profiles
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, hosts[9:10]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), hosts[9:10]))
 
 	// create a team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "rocket"})
@@ -1541,12 +1717,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID) // get summary new team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(0), res.Pending) // no profiles yet
-	require.Equal(t, uint(0), res.Failed)  // no profiles yet
-	require.Equal(t, uint(0), res.Latest)  // no profiles yet
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, &tm.ID, []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Pending)   // no profiles yet
+	require.Equal(t, uint(0), res.Failed)    // no profiles yet
+	require.Equal(t, uint(0), res.Verifying) // no profiles yet
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, &tm.ID, []*fleet.Host{}))
 
 	// transfer hosts[9] to new team
 	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[9].ID})
@@ -1560,23 +1736,23 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
 	require.Equal(t, uint(len(hosts)-4), res.Pending) // hosts[9] is still not pending, transferred to team
 	require.Equal(t, uint(2), res.Failed)             // no change
-	require.Equal(t, uint(0), res.Latest)             // hosts[9] was transferred so this is now zero
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)          // hosts[9] was transferred so this is now zero
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID) // get summary for new team
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(1), res.Pending) // hosts[9] is pending removal of old profiles
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.Latest)
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, &tm.ID, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, &tm.ID, []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, &tm.ID, hosts[9:10]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, &tm.ID, []*fleet.Host{}))
 
 	// create somes config profiles for the new team
 	var teamCPs []*fleet.MDMAppleConfigProfile
@@ -1587,28 +1763,28 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	}
 
 	// install all team profiles on hosts[9]
-	upsertHostCPs(hosts[9:10], teamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	upsertHostCPs(hosts[9:10], teamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(1), res.Pending) // hosts[9] is still pending removal of old profiles
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.Latest)
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, &tm.ID, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, &tm.ID, []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, &tm.ID, hosts[9:10]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, &tm.ID, []*fleet.Host{}))
 
 	// hosts[9] successfully removed old profiles
-	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Equal(t, uint(0), res.Pending)
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(1), res.Latest) // hosts[9] is all good
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, &tm.ID, hosts[9:10]))
+	require.Equal(t, uint(1), res.Verifying) // hosts[9] is all good
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, &tm.ID, hosts[9:10]))
 
 	// confirm no changes in summary for profiles with no team
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, ptr.Uint(0)) // team id zero represents no team
@@ -1617,13 +1793,13 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
 	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract two failed hosts, one without profiles and hosts[9] transferred
 	require.Equal(t, uint(2), res.Failed)             // two failed hosts
-	require.Equal(t, uint(0), res.Latest)             // hosts[9] transferred to new team so is not counted under no team
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+	require.Equal(t, uint(0), res.Verifying)          // hosts[9] transferred to new team so is not counted under no team
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsFailed, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 }
 
 func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
@@ -1794,20 +1970,27 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
 	require.NoError(t, err)
 
-	// applied status
-	appliedHost := hosts[0]
-	upsertHostCPs([]*fleet.Host{appliedHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
+	// verifying status
+	verifyingHost := hosts[0]
+	upsertHostCPs([]*fleet.Host{verifyingHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-	createDiskEncryptionRecord(ctx, ds, t, appliedHost.ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, verifyingHost.ID, "key-1", true, oneMinuteAfterThreshold)
 
-	res, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(0), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(0), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err := ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// action required status
 	requiredActionHost := hosts[1]
@@ -1815,19 +1998,26 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 		[]*fleet.Host{requiredActionHost},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
 		fleet.MDMAppleOperationTypeInstall,
-		&fleet.MDMAppleDeliveryApplied, ctx, ds, t,
+		&fleet.MDMAppleDeliveryVerifying, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{requiredActionHost.ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// enforcing status
 	enforcingHost := hosts[2]
@@ -1840,14 +2030,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
 	)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// host profile status does not exist
 	upsertHostCPs(
@@ -1857,16 +2054,23 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 		nil, ctx, ds, t,
 	)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
 
-	// host profile status is applied but decryptable key field does not exist
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
+
+	// host profile status is verifying but decryptable key field does not exist
 	upsertHostCPs(
 		[]*fleet.Host{enforcingHost},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
@@ -1876,62 +2080,89 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{enforcingHost.ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
-
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// failed status
 	failedHost := hosts[3]
 	upsertHostCPs([]*fleet.Host{failedHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(1), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(1), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(2), allProfilesSummary.Pending)
+	require.Equal(t, uint(1), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// removing enforcement status
 	removingEnforcementHost := hosts[4]
 	upsertHostCPs([]*fleet.Host{removingEnforcementHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
 
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(1), res.ActionRequired)
-	require.Equal(t, uint(1), res.Enforcing)
-	require.Equal(t, uint(1), res.Failed)
-	require.Equal(t, uint(1), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(1), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(1), fvProfileSummary.Failed)
+	require.Equal(t, uint(1), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(3), allProfilesSummary.Pending)
+	require.Equal(t, uint(1), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 
 	// teams filter tests =====
-	appliedTeam1Host := hosts[6]
+	verifyingTeam1Host := hosts[6]
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
 	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-team-1", "com.fleetdm.fleet.mdm.filevault", tm.ID))
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{appliedTeam1Host.ID})
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{verifyingTeam1Host.ID})
 	require.NoError(t, err)
 
-	upsertHostCPs([]*fleet.Host{appliedTeam1Host}, []*fleet.MDMAppleConfigProfile{team1FVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, ctx, ds, t)
-	createDiskEncryptionRecord(ctx, ds, t, appliedTeam1Host.ID, "key-2", true, oneMinuteAfterThreshold)
-	res, err = ds.GetMDMAppleFileVaultSummary(ctx, &tm.ID)
+	upsertHostCPs([]*fleet.Host{verifyingTeam1Host}, []*fleet.MDMAppleConfigProfile{team1FVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	createDiskEncryptionRecord(ctx, ds, t, verifyingTeam1Host.ID, "key-2", true, oneMinuteAfterThreshold)
 
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, &tm.ID)
 	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, uint(1), res.Applied)
-	require.Equal(t, uint(0), res.ActionRequired)
-	require.Equal(t, uint(0), res.Enforcing)
-	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.RemovingEnforcement)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, uint(0), fvProfileSummary.ActionRequired)
+	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
+	require.Equal(t, uint(0), fvProfileSummary.Failed)
+	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+
+	allProfilesSummary, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), allProfilesSummary.Pending)
+	require.Equal(t, uint(0), allProfilesSummary.Failed)
+	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 }
 
 func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
@@ -2084,7 +2315,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, toInstall, 6)
 
-	// those applied to enrolledHosts[0] are listed as "to remove"
+	// those installed to enrolledHosts[0] are listed as "to remove"
 	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	require.Len(t, toRemove, 3)
@@ -2204,12 +2435,18 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	// (meant to be called from the MDMDirector in response from MDM commands), it would delete/update
 	// all rows in this test since we don't have command uuids.
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
-			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
-		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
-			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum")},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
+			Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
+			Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
+			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Checksum: []byte("csum"),
+		},
 	})
 	require.NoError(t, err)
 
@@ -2725,4 +2962,448 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
+}
+
+func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	createRawCmd := func(reqType, cmdUUID string) string {
+		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, reqType, cmdUUID)
+	}
+
+	// create some enrolled hosts
+	enrolledHosts := make([]*fleet.Host, 3)
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		enrolledHosts[i] = h
+		t.Logf("enrolled host [%d]: %s", i, h.UUID)
+	}
+	// create a team
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	// assign enrolledHosts[2] to tm1
+	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{enrolledHosts[2].ID})
+	require.NoError(t, err)
+
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	// no commands yet
+	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// enqueue a command for enrolled hosts [0] and [1]
+	uuid1 := uuid.New().String()
+	rawCmd1 := createRawCmd("ListApps", uuid1)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
+	require.NoError(t, err)
+
+	// command has no results yet, so the status is empty
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// simulate a result for enrolledHosts[0]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[0].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Acknowledged",
+		RequestType: "ListApps",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// command is now listed with a status for this result
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// simulate a result for enrolledHosts[1]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Error",
+		RequestType: "ListApps",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	// both results are now listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[0].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid1,
+			Status:      "Error",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+	})
+
+	// enqueue another command for enrolled hosts [1] and [2]
+	uuid2 := uuid.New().String()
+	rawCmd2 := createRawCmd("InstallApp", uuid2)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[1].UUID, enrolledHosts[2].UUID}, rawCmd2)
+	require.NoError(t, err)
+
+	// simulate a result for enrolledHosts[1] and [2]
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "InstallApp",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[2].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "InstallApp",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+
+	// results are listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 4)
+
+	// page-by-page: first page
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 3)
+
+	// page-by-page: second page
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+
+	// filter by a user from team tm1, can only see that team's host
+	u1, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{Team: *tm1, Role: fleet.RoleObserver},
+		},
+	})
+	require.NoError(t, err)
+	u1, err = ds.UserByID(ctx, u1.ID)
+	require.NoError(t, err)
+
+	// u1 is an observer, so if IncludeObserver is not set, returns nothing
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 3},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 0)
+
+	// now with IncludeObserver set to true
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1, IncludeObserver: true}, &fleet.MDMAppleCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 3, OrderKey: "updated_at", OrderDirection: fleet.OrderDescending},
+	})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
+		{
+			DeviceID:    enrolledHosts[2].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "InstallApp",
+			Hostname:    enrolledHosts[2].Hostname,
+			TeamID:      &tm1.ID,
+		},
+	})
+}
+
+func testMDMAppleEULA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	eula := &fleet.MDMAppleEULA{
+		Token: uuid.New().String(),
+		Name:  "eula.pdf",
+		Bytes: []byte("contents"),
+	}
+
+	err := ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.ErrorAs(t, err, &ae)
+
+	gotEULA, err := ds.MDMAppleGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotEULA.CreatedAt)
+	require.Equal(t, eula.Token, gotEULA.Token)
+	require.Equal(t, eula.Name, gotEULA.Name)
+
+	gotEULABytes, err := ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.NoError(t, err)
+	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
+	require.Equal(t, eula.Name, gotEULABytes.Name)
+
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.NoError(t, err)
+
+	var nfe fleet.NotFoundError
+	_, err = ds.MDMAppleGetEULAMetadata(ctx)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+}
+
+func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// get non-existing
+	_, err := ds.GetMDMAppleSetupAssistant(ctx, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// create for no team
+	noTeamAsst, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{Name: "test", Profile: json.RawMessage("{}")})
+	require.NoError(t, err)
+	require.NotZero(t, noTeamAsst.ID)
+	require.NotZero(t, noTeamAsst.UploadedAt)
+	require.Nil(t, noTeamAsst.TeamID)
+	require.Equal(t, "test", noTeamAsst.Name)
+	require.Equal(t, "{}", string(noTeamAsst.Profile))
+
+	// get for no team returns the same data
+	getAsst, err := ds.GetMDMAppleSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, noTeamAsst, getAsst)
+
+	// create for non-existing team fails
+	_, err = ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: ptr.Uint(123), Name: "test", Profile: json.RawMessage("{}")})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "foreign key constraint fails")
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tm"})
+	require.NoError(t, err)
+
+	// create for existing team
+	tmAsst, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test", Profile: json.RawMessage("{}")})
+	require.NoError(t, err)
+	require.NotZero(t, tmAsst.ID)
+	require.NotZero(t, tmAsst.UploadedAt)
+	require.NotNil(t, tmAsst.TeamID)
+	require.Equal(t, tm.ID, *tmAsst.TeamID)
+	require.Equal(t, "test", tmAsst.Name)
+	require.Equal(t, "{}", string(tmAsst.Profile))
+
+	// get for team returns the same data
+	getAsst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, tmAsst, getAsst)
+
+	// upsert team
+	tmAsst2, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst2.ID, tmAsst.ID)
+	require.False(t, tmAsst2.UploadedAt.Before(tmAsst.UploadedAt)) // after or equal
+	require.Equal(t, tmAsst.TeamID, tmAsst2.TeamID)
+	require.Equal(t, "test2", tmAsst2.Name)
+	require.JSONEq(t, `{"x": 2}`, string(tmAsst2.Profile))
+
+	// upsert no team
+	noTeamAsst2, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{Name: "test3", Profile: json.RawMessage(`{"x": 3}`)})
+	require.NoError(t, err)
+	require.Equal(t, noTeamAsst2.ID, noTeamAsst.ID)
+	require.False(t, noTeamAsst2.UploadedAt.Before(noTeamAsst.UploadedAt)) // after or equal
+	require.Nil(t, noTeamAsst2.TeamID)
+	require.Equal(t, "test3", noTeamAsst2.Name)
+	require.JSONEq(t, `{"x": 3}`, string(noTeamAsst2.Profile))
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team no change, uploaded at timestamp does not change
+	tmAsst3, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst2, tmAsst3)
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "abcd")
+	require.NoError(t, err)
+
+	// get for team returns the same data, but now with a profile uuid
+	getAsst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, "abcd", getAsst.ProfileUUID)
+	getAsst.ProfileUUID = ""
+	require.Equal(t, tmAsst3, getAsst)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert again the team with no change, uploaded at timestamp does not change nor does the profile uuid
+	tmAsst4, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, "abcd", tmAsst4.ProfileUUID)
+	tmAsst4.ProfileUUID = ""
+	require.Equal(t, tmAsst3, tmAsst4)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team with a change, clears the profile uuid and updates the uploaded at timestamp
+	tmAsst5, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst4.ID, tmAsst5.ID)
+	require.True(t, tmAsst5.UploadedAt.After(tmAsst4.UploadedAt))
+	require.Equal(t, tmAsst4.TeamID, tmAsst5.TeamID)
+	require.Equal(t, "test2", tmAsst5.Name)
+	require.Empty(t, tmAsst5.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst5.Profile))
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "efgh")
+	require.NoError(t, err)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert again the team with no change
+	tmAsst6, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, "efgh", tmAsst6.ProfileUUID)
+	tmAsst6.ProfileUUID = ""
+	require.Equal(t, tmAsst5, tmAsst6)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team with a name change
+	tmAsst7, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test3", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst6.ID, tmAsst7.ID)
+	require.True(t, tmAsst7.UploadedAt.After(tmAsst6.UploadedAt))
+	require.Equal(t, tmAsst6.TeamID, tmAsst7.TeamID)
+	require.Equal(t, "test3", tmAsst7.Name)
+	require.Empty(t, tmAsst7.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst7.Profile))
+
+	// delete no team
+	err = ds.DeleteMDMAppleSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+
+	// delete the team, which will cascade delete the setup assistant
+	err = ds.DeleteTeam(ctx, tm.ID)
+	require.NoError(t, err)
+
+	// get the team assistant
+	_, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// delete the team assistant, no error if it doesn't exist
+	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
 }

@@ -292,6 +292,7 @@ func getCommand() *cli.Command {
 			getMDMAppleCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
+			getMDMCommandsCommand(),
 		},
 	}
 }
@@ -323,6 +324,30 @@ func getQueriesCommand() *cli.Command {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
 
+				me, err := client.Me()
+				if err != nil {
+					return err
+				}
+				if me == nil {
+					return errors.New("/api/latest/fleet/me returned an empty user")
+				}
+				ok, err := userIsObserver(*me)
+				if err != nil {
+					return err
+				}
+				if ok {
+					// Filter out queries (in-place) that a observer user
+					// cannot execute (this behavior matches the UI).
+					n := 0
+					for _, query := range queries {
+						if query.ObserverCanRun {
+							queries[n] = query
+							n++
+						}
+					}
+					queries = queries[:n]
+				}
+
 				if len(queries) == 0 {
 					fmt.Println("No queries found")
 					return nil
@@ -330,7 +355,11 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						if err := printQuery(c, query); err != nil {
+						if err := printQuery(c, &fleet.QuerySpec{
+							Name:        query.Name,
+							Description: query.Description,
+							Query:       query.Query,
+						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
 					}
@@ -364,6 +393,28 @@ func getQueriesCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+var errUserNoRoles = errors.New("user does not have roles")
+
+// userIsObserver returns whether the user is a global/team observer/observer+.
+// In the case of user belonging to multiple teams, a user is considered observer
+// if it is observer of all teams.
+//
+// Returns errUserNoRoles if the user does not have any roles.
+func userIsObserver(user fleet.User) (bool, error) {
+	if user.GlobalRole != nil {
+		return *user.GlobalRole == fleet.RoleObserver || *user.GlobalRole == fleet.RoleObserverPlus, nil
+	} // Team user
+	if len(user.Teams) == 0 {
+		return false, errUserNoRoles
+	}
+	for _, team := range user.Teams {
+		if team.Role != fleet.RoleObserver && team.Role != fleet.RoleObserverPlus {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func getPacksCommand() *cli.Command {
@@ -417,7 +468,11 @@ func getPacksCommand() *cli.Command {
 						continue
 					}
 
-					if err := printQuery(c, query); err != nil {
+					if err := printQuery(c, &fleet.QuerySpec{
+						Name:        query.Name,
+						Description: query.Description,
+						Query:       query.Query,
+					}); err != nil {
 						return fmt.Errorf("unable to print query: %w", err)
 					}
 				}
@@ -1238,9 +1293,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New("The command doesn't exist. Please provide a valid command ID.")
-					// TODO(mna): once fleetctl get mdm-commands is implemented, reintroduce this section at the end of the message:
-					//   To see a list of commands that were run, run `fleetct get mdm-commands`.
+					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}
 
 				var sce kithttp.StatusCoder
@@ -1265,6 +1318,55 @@ func getMDMCommandResultsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMCommandsCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-commands",
+		Aliases: []string{"mdm_commands"},
+		Usage:   "List information about MDM commands that were run.",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckMDMEnabled(); err != nil {
+				return err
+			}
+
+			results, err := client.MDMAppleListCommands()
+			if err != nil {
+				return err
+			}
+			if len(results) == 0 {
+				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				return nil
+			}
+
+			// print the results as a table
+			data := [][]string{}
+			for _, r := range results {
+				data = append(data, []string{
+					r.CommandUUID,
+					r.UpdatedAt.Format(time.RFC3339),
+					r.RequestType,
+					r.Status,
+					r.Hostname,
+				})
+			}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
 			printTable(c, columns, data)
 
 			return nil

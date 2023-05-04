@@ -1,9 +1,8 @@
 # Community
 
-## Marketing
+## Marketing mission
 
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
+To show organizations how Fleet is the best way to keep their employees and their machines safe and productive. To create demand for the world’s first open-source and cross-platform MDM. 
 
 ### Positioning
 
@@ -17,9 +16,18 @@ Marketing's goal is to increase product usage. We value users of all sizes adopt
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-### Posting on social media as Fleet
+### Product Marketing and Launch strategies
 
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+- [How we rank features for launch](https://fleetdm.com/handbook/product#ranking-features)
+- Our Launch Playbook on [Monday.com](https://fleetdm.monday.com/boards/3971829429) To start a new major product launch, duplicate this monday board, as well as the [Run-of-show board](https://fleetdm.monday.com/boards/4261275399).
+- [MDM Launch Retrospective](https://docs.google.com/document/d/16GPIY94nDLSinmZg1FRoiAccfnZNP0X2qfP5j7Yso4I/edit#heading=h.cd1i3rfqahn1)
+
+### How we show up for our community online
+
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts. Some specific guidelines that we follow at Fleet:
+- Answer technical questions quickly: if a community member has a technical question drop it in #g-marketing in slack if you can't answer it yourself.
+- Never engage with un-constructive feedback or competitive spamming. If there is a valuable conversation to be had, let our community lead the conversation, and let our community come to our defense. They are the users, and often their insight and debates are more attuned then ours.
+- Do not share Hacker News links directly. If we are on Hacker News, just let the community know and if they find us then great. 
 
 #### Topics:
 
@@ -53,6 +61,12 @@ Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the 
 ### Promoting blog posts on social media
 
 Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
+
+### Fleet in the news!
+- Computer World: [Fleet announces open-source, cross-platform MDM solution](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html)
+- 9to5Mac: [Apple @ Work Podcast: Fleet announces open-source, cross-platform device management platform](https://9to5mac.com/2023/04/11/fleet-announces-open-source-cross-platform-device-management-platform/)
+- Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
+- Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
 
 ### Press releases
@@ -248,7 +262,7 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 ## Brand
 
-### Publishing Fleet content 
+### Publishing Fleet content
 
 The following describes how to go about publishing and editing content at Fleet.
 
@@ -388,7 +402,7 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 #### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
-- Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+- Bring your request to the Brand team by posting it in [their primary Slack channel](#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
@@ -549,6 +563,31 @@ Once you have the above follow these steps:
     
   > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
 
+#### How can I create a new landing page?
+
+The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
+
+To generate a new page, you'll need: 
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+    
+    > Note: If this is your first time running the website locally, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+
+2. Call the `landing-page` generator by running `node ./node_modules/sails/bin/sails generate landing-page [page-name]`, replacing `[page-name]` with the kebab-cased name (words seperated by dashes `-`) of your page.
+
+3. After the files have been generated, you'll need to manually update the website's routes. To do this, copy and paste the generated route for the new page to the "Imagine" section of `website/config/routes.js`.
+
+4. Next you need to update the stylesheets so that the page can inherit the correct styles. To do this, copy and paste the generated import statement to the "Imagine" section of `website/assets/styles/importer.less`.
+
+5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
+
+6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
+
+
 #### How to export images for the website
 In Figma:
 1. Select the layers you want to export.
@@ -561,7 +600,7 @@ In Figma:
 
 #### Maintaining browser compatibility
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../../docs/Using-Fleet/Supported-browsers.md).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.

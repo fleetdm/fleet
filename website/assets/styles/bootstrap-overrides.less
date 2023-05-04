@@ -12,7 +12,7 @@
 
 body {
   font-family: @main-font;
-  color: @core-fleet-black;
+  color: @core-fleet-black-75;
 }
 
 img {
@@ -28,7 +28,12 @@ img {
 h1, h2, h3, h4, h5, h6 {
   font-family: @header-font;
 }
-h1, h2, h3, h4 {
+h1, h2, h3, h4, h5 {
+  font-weight: 800;
+  color: @core-fleet-black;
+}
+
+h4 {
   font-weight: 800;
 }
 
@@ -44,6 +49,11 @@ h2 {
 
 p {
   line-height: 28px;
+}
+
+b, strong, .font-weight-bold {
+  font-weight: 600;
+  color: @core-fleet-black;
 }
 
 footer {
@@ -96,12 +106,27 @@ a.text-danger:hover, a.text-danger:focus {
   &.btn-primary {
     background-color: #ff5c83;
     border-color: #ff5c83;
-    &:hover {
-      background-color: darken(#ff5c83, 10%);
-      border-color: darken(#ff5c83, 10%);
+    cursor: pointer;
+    color: #FFF;
+    overflow: hidden;
+    text-decoration: none;
+    position: relative;
+    &:before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 50%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
     }
-    &:focus, &.focus {
-      box-shadow: 0 0 0.25rem 0.2rem #ff5c83;
+    &:hover:before {
+      opacity: 0;
+      left: 160px;
+      width: 110%;
     }
     &.disabled, &:disabled {
       color: #fff;
@@ -121,9 +146,27 @@ a.text-danger:hover, a.text-danger:focus {
   &.btn-info {
     background-color: #6A67FE;
     border-color: #6A67FE;
-    &:hover {
-      background-color: #6A67FE;
-      border-color: #6A67FE;
+    cursor: pointer;
+    color: #FFF;
+    overflow: hidden;
+    text-decoration: none;
+    position: relative;
+    &:before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 50%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+    }
+    &:hover:before {
+      opacity: 0;
+      left: 160px;
+      width: 110%;
     }
     &:not(:disabled):not(.disabled):active {
       background-color: #6A67FE;

@@ -13769,7 +13769,7 @@
       },
       {
         "name": "username",
-        "description": "Policy applies only this user",
+        "description": "policy only applies to the listed user. Blank if global.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26994,73 +26994,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
-    "name": "apfs_physical_stores",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
-    "columns": [
-      {
-        "name": "container_uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the APFS Contianer"
-      },
-      {
-        "name": "container_designated_physical_store",
-        "type": "text",
-        "required": false,
-        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
-      },
-      {
-        "name": "container_reference",
-        "type": "text",
-        "required": false,
-        "description": "The current reference for the APFS container, e.g. \"disk3\""
-      },
-      {
-        "name": "container_fusion",
-        "type": "text",
-        "required": false,
-        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "container_capacity_ceiling",
-        "type": "bigint",
-        "required": false,
-        "description": "The total amount of space in the container"
-      },
-      {
-        "name": "container_capacity_free",
-        "type": "bigint",
-        "required": false,
-        "description": "The amount of remaining free space in the container"
-      },
-      {
-        "name": "uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the physical store"
-      },
-      {
-        "name": "identifier",
-        "type": "text",
-        "required": false,
-        "description": "The current identifier of the physical store (e.g. disk1s2)"
-      },
-      {
-        "name": "size",
-        "type": "bigint",
-        "required": false,
-        "description": "The size of the physical store in byptes"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/apfs_physical_stores",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
-  },
-  {
     "name": "apfs_volumes",
     "platforms": [
       "darwin"
@@ -27174,6 +27107,73 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/apfs_volumes",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
+  },
+  {
+    "name": "apfs_physical_stores",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
+    "columns": [
+      {
+        "name": "container_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS Contianer"
+      },
+      {
+        "name": "container_designated_physical_store",
+        "type": "text",
+        "required": false,
+        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+      },
+      {
+        "name": "container_reference",
+        "type": "text",
+        "required": false,
+        "description": "The current reference for the APFS container, e.g. \"disk3\""
+      },
+      {
+        "name": "container_fusion",
+        "type": "text",
+        "required": false,
+        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "container_capacity_ceiling",
+        "type": "bigint",
+        "required": false,
+        "description": "The total amount of space in the container"
+      },
+      {
+        "name": "container_capacity_free",
+        "type": "bigint",
+        "required": false,
+        "description": "The amount of remaining free space in the container"
+      },
+      {
+        "name": "uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the physical store"
+      },
+      {
+        "name": "identifier",
+        "type": "text",
+        "required": false,
+        "description": "The current identifier of the physical store (e.g. disk1s2)"
+      },
+      {
+        "name": "size",
+        "type": "bigint",
+        "required": false,
+        "description": "The size of the physical store in byptes"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_physical_stores",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
   },
   {
     "name": "authdb",
@@ -27577,31 +27577,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
-    "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
-    "columns": [
-      {
-        "name": "chip",
-        "type": "text",
-        "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
-      },
-      {
-        "name": "output",
-        "type": "text",
-        "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
-  },
-  {
     "name": "filevault_users",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
@@ -27656,25 +27631,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
-    "name": "icloud_private_relay",
-    "platforms": [
-      "macOS"
-    ],
-    "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
-    "columns": [
-      {
-        "name": "status",
-        "type": "integer",
-        "required": false,
-        "description": "whether iCloud Private Relay is on or off. 1 is on. 0 is off."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/icloud_private_relay",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
-  },
-  {
     "name": "google_chrome_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Profiles configured in Google Chrome.",
@@ -27715,66 +27671,48 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
   },
   {
-    "name": "macos_profiles",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "High level information on installed profiles enrollment.",
+    "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
     ],
-    "evented": false,
-    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
+    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
     "columns": [
       {
-        "name": "description",
-        "description": "The description of the profile.",
+        "name": "chip",
+        "type": "text",
         "required": false,
-        "type": "text"
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
       },
       {
-        "name": "display_name",
-        "description": "The display name of the profile.",
+        "name": "output",
+        "type": "text",
         "required": false,
-        "type": "text"
-      },
-      {
-        "name": "identifier",
-        "description": "The identifier of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "install_date",
-        "description": "Date and time at which the profile was installed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "organization",
-        "description": "The profile's organization value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "type",
-        "description": "The type of profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "verification_state",
-        "description": "The verification state of the profile.",
-        "required": false,
-        "type": "text"
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
       }
     ],
-    "url": "https://fleetdm.com/tables/macos_profiles",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
+    "name": "icloud_private_relay",
+    "platforms": [
+      "macOS"
+    ],
+    "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
+    "columns": [
+      {
+        "name": "status",
+        "type": "integer",
+        "required": false,
+        "description": "whether iCloud Private Relay is on or off. 1 is on. 0 is off."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/icloud_private_relay",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
   },
   {
     "name": "macadmins_unified_log",
@@ -27891,6 +27829,68 @@
     ],
     "url": "https://fleetdm.com/tables/macadmins_unified_log",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
+  },
+  {
+    "name": "macos_profiles",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "High level information on installed profiles enrollment.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
+    "columns": [
+      {
+        "name": "description",
+        "description": "The description of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "display_name",
+        "description": "The display name of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "identifier",
+        "description": "The identifier of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_date",
+        "description": "Date and time at which the profile was installed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "organization",
+        "description": "The profile's organization value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "type",
+        "description": "The type of profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "verification_state",
+        "description": "The verification state of the profile.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_profiles",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
   },
   {
     "name": "mdm",
@@ -28028,44 +28028,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
-    "name": "munki_installs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
-    "columns": [
-      {
-        "name": "end_time",
-        "description": "The end time of the last Munki run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed",
-        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_version",
-        "description": "The version number of installed items.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "name",
-        "description": "The name of items managed by Munki.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
-  },
-  {
     "name": "munki_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
@@ -28134,23 +28096,42 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
-    "name": "nvram_info",
+    "name": "munki_installs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
     "platforms": [
       "darwin"
     ],
-    "description": "Information from nvram system call.",
+    "evented": false,
+    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
     "columns": [
       {
-        "name": "amfi_enabled",
-        "type": "integer",
+        "name": "end_time",
+        "description": "The end time of the last Munki run.",
         "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+        "type": "text"
+      },
+      {
+        "name": "installed",
+        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed_version",
+        "description": "The version number of installed items.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "name",
+        "description": "The name of items managed by Munki.",
+        "required": false,
+        "type": "text"
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
+    "url": "https://fleetdm.com/tables/munki_installs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
     "name": "orbit_info",
@@ -28208,6 +28189,25 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/orbit_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
+  },
+  {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "pmset",
@@ -28592,6 +28592,25 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/sudo_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sudo_info.yml"
+  },
+  {
+    "name": "software_update",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about available Apple software updates.",
+    "columns": [
+      {
+        "name": "software_update_required",
+        "type": "integer",
+        "required": false,
+        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/software_update",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
   },
   {
     "name": "user_login_settings",

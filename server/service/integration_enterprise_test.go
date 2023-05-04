@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -85,24 +86,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
-	mdm := fleet.TeamSpecMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.15.0",
-			Deadline:       "2021-01-01",
-		},
-	}
 	features := json.RawMessage(`{
     "enable_host_users": false,
     "enable_software_inventory": false,
     "additional_queries": {"foo": "bar"}
   }`)
-	teamSpecs := applyTeamSpecsRequest{
-		Specs: []*fleet.TeamSpec{
-			{
-				Name:         teamName,
-				AgentOptions: agentOpts,
-				Features:     &features,
-				MDM:          mdm,
+	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
+	// all keys to their zerovalue, and some are only valid with mdm enabled.
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+				"features":      &features,
+				"mdm": map[string]any{
+					"macos_updates": map[string]any{
+						"minimum_version": "10.15.0",
+						"deadline":        "2021-01-01",
+					},
+				},
 			},
 		},
 	}
@@ -122,6 +124,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MinimumVersion: "10.15.0",
 			Deadline:       "2021-01-01",
 		},
+		MacOSSetup: fleet.MacOSSetup{
+			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
+			// it did get marshalled, and then when unmarshalled it was set (but
+			// null).
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -129,7 +138,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
 	// dry-run with empty body
@@ -151,24 +167,65 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// dry-run with valid agent options and custom macos settings
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}}}}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+				"mdm": map[string]any{
+					"macos_settings": map[string]any{
+						"custom_settings": []string{"foo", "bar"},
+					},
+				},
+			},
+		},
+	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with macos disk encryption set to false, no error
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"enable_disk_encryption": false}}}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_settings": map[string]any{
+						"enable_disk_encryption": false,
+					},
+				},
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 
 	// dry-run with macos disk encryption set to true
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"enable_disk_encryption": true}}}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_settings": map[string]any{
+						"enable_disk_encryption": true,
+					},
+				},
+			},
+		},
+	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -178,7 +235,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.False(t, team.Config.MDM.MacOSSettings.EnableDiskEncryption)   // unchanged
 
 	// apply without agent options specified
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	// agent options are unchanged, not cleared
@@ -187,7 +250,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
 	// apply with agent options specified but null
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: json.RawMessage(`null`)}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": json.RawMessage(`null`),
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	// agent options are cleared
@@ -197,7 +267,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// force with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"foo": "qux"}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "force", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -216,12 +293,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// invalid agent options command-line flag
 	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 
 	// valid agent options command-line flag
 	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          teamName,
+				"agent_options": agentOpts,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -236,7 +327,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.True(t, len(teams) >= 1)
 
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2"}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": "team2",
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	teams, err = s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
@@ -258,11 +355,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
 	// updates
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:     "team2",
-		Secrets:  []fleet.EnrollSecret{{Secret: "ABC"}},
-		Features: nil,
-	}}}
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     "team2",
+				"secrets":  []fleet.EnrollSecret{{Secret: "ABC"}},
+				"features": nil,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
@@ -318,11 +419,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 
 	// Should allow editing own team.
 	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar2"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
-	editTeam1Spec := applyTeamSpecsRequest{
-		Specs: []*fleet.TeamSpec{
-			{
-				Name:         team1.Name,
-				AgentOptions: agentOpts,
+	editTeam1Spec := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          team1.Name,
+				"agent_options": agentOpts,
 			},
 		},
 	}
@@ -332,11 +433,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
 
 	// Should not allow editing other teams.
-	editTeam2Spec := applyTeamSpecsRequest{
-		Specs: []*fleet.TeamSpec{
-			{
-				Name:         team2.Name,
-				AgentOptions: agentOpts,
+	editTeam2Spec := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":          team2.Name,
+				"agent_options": agentOpts,
 			},
 		},
 	}
@@ -2592,7 +2693,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	//
 	// Setup test data.
-	// All actions are authored by a global admin.
+	// All setup actions are authored by a global admin.
 	//
 
 	admin, err := s.ds.UserByEmail(ctx, "admin1@example.com")
@@ -3052,6 +3153,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to get a carved file, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
 
+	// Attempt to search hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+		MatchQuery: "foo",
+		QueryID:    &q1.ID,
+	}, http.StatusForbidden, &searchTargetsResponse{})
+
+	// Attempt to count target hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+		Selected: fleet.HostTargets{
+			HostIDs:  []uint{h1.ID},
+			LabelIDs: []uint{clr.Label.ID},
+			TeamIDs:  []uint{t1.ID},
+		},
+		QueryID: &q1.ID,
+	}, http.StatusForbidden, &countTargetsResponse{})
+
 	//
 	// Start running permission tests with user gitops2 (which is a GitOps use for team t1).
 	//
@@ -3230,6 +3347,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 			},
 		},
 	}, http.StatusForbidden, &teamResponse{})
+
+	// Attempt to search hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+		MatchQuery: "foo",
+		QueryID:    &q1.ID,
+	}, http.StatusForbidden, &searchTargetsResponse{})
+
+	// Attempt to count target hosts, should fail.
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+		Selected: fleet.HostTargets{
+			HostIDs:  []uint{h1.ID},
+			LabelIDs: []uint{clr.Label.ID},
+			TeamIDs:  []uint{t1.ID},
+		},
+		QueryID: &q1.ID,
+	}, http.StatusForbidden, &countTargetsResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, password string) {

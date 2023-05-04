@@ -679,6 +679,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	return hosts, nil
 }
 
+// TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
@@ -777,6 +778,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
+	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -877,38 +879,27 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	newSQL := ""
-	newParams := []interface{}{}
-
 	if opt.TeamFilter == nil {
 		// macOS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
-	newSQL += ` AND EXISTS (
-		SELECT 1
-		FROM host_mdm_apple_profiles hmap
-		WHERE hmap.host_uuid = h.uuid
-		AND `
-
+	var subquery string
+	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
-	case fleet.MacOSSettingsStatusFailing:
-		newSQL += `hmap.status = ?)`
-		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
-
-	case fleet.MacOSSettingsStatusPending:
-		newSQL += `(hmap.status = ? OR hmap.status IS NULL) AND NOT EXISTS
-		(SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
-
-	case fleet.MacOSSettingsStatusLatest:
-		newSQL += `hmap.status = ? AND NOT EXISTS (
-			SELECT 1 FROM host_mdm_apple_profiles hmap2
-			WHERE h.uuid = hmap2.host_uuid AND (hmap2.status IS NULL OR hmap2.status != ?) ))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryApplied)
+	case fleet.MacOSSettingsFailed:
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+	case fleet.MacOSSettingsPending:
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
+	case fleet.MacOSSettingsVerifying:
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
+	}
+	if subquery != "" {
+		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
 	}
 
-	return sql + newSQL, append(params, newParams...)
+	return sql + newSQL, append(params, subqueryParams...)
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -916,23 +907,64 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		return sql, params
 	}
 
-	newSQL := ` AND EXISTS (
-		SELECT 1
-		FROM host_mdm_apple_profiles hmap
-		WHERE %s)`
-
+	var subquery string
+	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
-	case fleet.MacOSDiskEncryptionStatusApplied:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionApplied)
-	case fleet.MacOSDiskEncryptionStatusActionRequired:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionActionRequired)
-	case fleet.MacOSDiskEncryptionStatusEnforcing:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionEnforcing)
-	case fleet.MacOSDiskEncryptionStatusFailed:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionFailed)
-	case fleet.MacOSDiskEncryptionStatusRemovingEnforcement:
-		newSQL = fmt.Sprintf(newSQL, SQLDiskEncryptionRemovingEnforcement)
+	case fleet.DiskEncryptionVerifying:
+		subquery, subqueryParams = subqueryDiskEncryptionVerifying()
+	case fleet.DiskEncryptionActionRequired:
+		subquery, subqueryParams = subqueryDiskEncryptionActionRequired()
+	case fleet.DiskEncryptionEnforcing:
+		subquery, subqueryParams = subqueryDiskEncryptionEnforcing()
+	case fleet.DiskEncryptionFailed:
+		subquery, subqueryParams = subqueryDiskEncryptionFailed()
+	case fleet.DiskEncryptionRemovingEnforcement:
+		subquery, subqueryParams = subqueryDiskEncryptionRemovingEnforcement()
 	}
+
+	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
+}
+
+func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MDMBootstrapPackageFilter == nil || !opt.MDMBootstrapPackageFilter.IsValid() {
+		return sql, params
+	}
+
+	subquery := `SELECT 1
+	-- we need to JOIN on hosts again to account for 'pending' hosts that
+	-- haven't been enrolled yet, and thus don't have an uuid nor a matching
+	-- entry in nano_command_results.
+        FROM
+            hosts hh
+        LEFT JOIN
+            host_mdm_apple_bootstrap_packages hmabp ON hmabp.host_uuid = hh.uuid
+        LEFT JOIN
+            nano_command_results ncr ON ncr.command_uuid = hmabp.command_uuid
+        WHERE
+	      hh.id = h.id AND hmdm.installed_from_dep = 1`
+
+	// NOTE: The approach below assumes that there is only one bootstrap package per host. If this
+	// is not the case, then the query will need to be updated to use a GROUP BY and HAVING
+	// clause to ensure that the correct status is returned.
+	switch *opt.MDMBootstrapPackageFilter {
+	case fleet.MDMBootstrapPackageFailed:
+		subquery += ` AND ncr.status = 'Error'`
+	case fleet.MDMBootstrapPackagePending:
+		subquery += ` AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+	case fleet.MDMBootstrapPackageInstalled:
+		subquery += ` AND ncr.status = 'Acknowledged'`
+	}
+
+	newSQL := ""
+	if opt.TeamFilter == nil {
+		// macOS setup filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		newSQL += ` AND h.team_id IS NULL`
+	}
+	newSQL += fmt.Sprintf(` AND EXISTS (
+        %s
+    )
+    `, subquery)
 
 	return sql + newSQL, params
 }

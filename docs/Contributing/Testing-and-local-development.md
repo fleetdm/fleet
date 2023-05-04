@@ -38,6 +38,8 @@
     - [Testing MDM](#testing-mdm)
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
+        - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
+    - [Nudge](#nudge)
 
 ## License key
 
@@ -170,6 +172,8 @@ The code is deployed and tested once daily on the testing instance.
 
 QA Wolf manages any issues found from these tests and will raise github issues. Engineers should not
 have to worry about working with E2E testing code or raising issues themselves.
+
+However, development may necessitate running E2E tests on demand. To run E2E tests live on a branch such as the `main` branch, developers can navigate to [Deploy Cloud Environments](https://github.com/fleetdm/confidential/actions/workflows/cloud-deploy.yml) in our [/confidential](https://github.com/fleetdm/confidential) repo's Actions and select "Run workflow".
 
 For Fleet employees, if you would like access to the QA Wolf platform you can reach out in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) slack channel.
 
@@ -476,7 +480,7 @@ MinIO also offers a web interface at http://localhost:9001. Credentials are `min
 
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
-Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructions.
+Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
 
 ## MDM setup and testing
 
@@ -601,5 +605,63 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
 3. Boot the machine, it should automatically enroll into MDM.
+
+##### Gating the DEP profile behind SSO
+
+For rapid iteration during local development, you can use the same configuration values as those described in [Testing SSO](#testing-sso), and test the flow in the browser by navigating to `https://localhost:8080/mdm/sso`.
+
+To fully test e2e during DEP enrollment however, you need:
+
+- A local tunnel to your Fleet server (instructions to set your tunnel are in the [running the server](#running-the-server) section)
+- A local tunnel to your local IdP server (or, optionally create an account in a cloud IdP like Okta)
+
+With an accessible Fleet server and IdP server, you can configure your env:
+
+- If you're going to use the SimpleSAML server that is automatically started in local development, edit [./tools/saml/config.php](https://github.com/fleetdm/fleet/blob/6cfef3d3478f02227677071fe3a62bada77c1139/tools/saml/config.php) and replace `https://localhost:8080` everywhere with the URL of your local tunnel.
+- After saving the file, restart the SimpleSAML service (eg: `docker-compose restart saml_idp`)
+- Finally, edit your app configuration:
+
+```yaml
+mdm:
+  end_user_authentication:
+    entity_id: <your_fleet_tunnel_url>
+    idp_name: SimpleSAML
+    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
+    metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
+```
+
+> Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
+
+The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
+
+### Nudge
+
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Orbit:
+
+1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
+2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
+3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
+
+#### Debugging tips
+
+- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
+```
+
+- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+
+- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
+
+```
+log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
+```
+
+- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
+
+```
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
+```
 
 <meta name="pageOrderInSection" value="1500">

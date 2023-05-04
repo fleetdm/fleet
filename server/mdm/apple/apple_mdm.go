@@ -160,28 +160,38 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 		return ctxerr.Wrap(ctx, err, "saving enrollment profile in DB")
 	}
 
-	if err := d.registerProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
+	if err := d.RegisterProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
 		return ctxerr.Wrap(ctx, err, "registering profile in Apple servers")
 	}
 
 	return nil
 }
 
-// registerProfileInDEPServe is in charge of registering the enrollment profile
-// in Apple's servers via the DEP API, so it can be used for assignment.
-func (d *DEPService) registerProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
-	// Override url with Fleet's enroll path (publicly accessible address).
+// RegisterProfileWithAppleDEPServer registers the enrollment profile in
+// Apple's servers via the DEP API, so it can be used for assignment.
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
+	appConfig, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("get app config: %w", err)
+	}
+
 	depProfile.URL = enrollURL
 
-	// If the profile doesn't have a configuration_web_url, use Fleet's
-	// enrollURL, otherwise the request for the enrollment profile is
-	// submitted as a POST instead of GET.
-	if depProfile.ConfigurationWebURL == "" {
+	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+	// flow, otherwise use Fleet's enroll URL.
+	//
+	// Even though the DEP profile supports an `url` attribute, we should
+	// always still set configuration_web_url, otherwise the request method
+	// coming from Apple changes from GET to POST, and we want to preserve
+	// backwards compatibility.
+	if appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
 		depProfile.ConfigurationWebURL = enrollURL
+	} else {
+		depProfile.ConfigurationWebURL = appConfig.ServerSettings.ServerURL + "/mdm/sso"
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(context.Background(), DEPName, depProfile)
+	res, err := depClient.DefineProfile(ctx, DEPName, depProfile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
@@ -195,22 +205,13 @@ func (d *DEPService) registerProfileWithAppleDEPServer(ctx context.Context, depP
 
 // EnrollURL returns an URL that can be used to obtain an MDM enrollment
 // profile (xml) from Fleet.
-//
-// TODO: there's a similar function from the PoC that is meant to be removed.
 func (d *DEPService) EnrollURL(token string) (string, error) {
 	appConfig, err := d.ds.AppConfig(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("get app config: %w", err)
 	}
-	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
-	if err != nil {
-		return "", fmt.Errorf("parse url: %w", err)
-	}
-	enrollURL.Path = path.Join(enrollURL.Path, EnrollPath)
-	q := enrollURL.Query()
-	q.Set("token", token)
-	enrollURL.RawQuery = q.Encode()
-	return enrollURL.String(), nil
+
+	return EnrollURL(token, appConfig)
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
@@ -287,6 +288,8 @@ func NewDEPService(
 				level.Info(kitlog.With(logger)).Log("msg", "no DEP hosts to add")
 			}
 
+			// TODO(mna): at this point, the hosts rows are created for the devices, with the
+			// correct team_id, so we know what team-specific profile needs to be applied.
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)

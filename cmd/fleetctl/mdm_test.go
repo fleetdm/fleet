@@ -65,6 +65,9 @@ func TestMDMRunCommand(t *testing.T) {
 	ds.GetHostMDMProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		if len(uuids) == 0 {
 			return nil, nil
@@ -94,6 +97,12 @@ func TestMDMRunCommand(t *testing.T) {
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid", "--payload", yamlFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The payload isn't valid XML.`)
+
+	// pass valid xml plist that doesn't match the MDM command schema
+	mcFilePath := writeTmpMobileconfig(t, "Mobileconfig")
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", mcFilePath})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file:`)
 
 	// host not found
 	cmdFilePath := writeTmpMDMCmd(t, "FooBar")
@@ -145,6 +154,14 @@ func writeTmpMDMCmd(t *testing.T, commandName string) string {
     </dict>
   </dict>
 </plist>`, uuid.New().String(), commandName))
+	require.NoError(t, err)
+	return tmpFile.Name()
+}
+
+func writeTmpMobileconfig(t *testing.T, name string) string {
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(string(mobileconfigForTest(name, uuid.New().String())))
 	require.NoError(t, err)
 	return tmpFile.Name()
 }

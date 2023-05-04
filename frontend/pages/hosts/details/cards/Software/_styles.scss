@@ -119,6 +119,10 @@
       }
 
       tr {
+        .name__cell .children-wrapper {
+          overflow: visible;
+        }
+
         .software-link {
           opacity: 0;
           transition: 250ms;

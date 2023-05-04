@@ -58,9 +58,6 @@ jobs:
       with:
         go-version: 1.19
 
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
-
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
     # > i.e. the one used by the Fleet server.  This is because require() in node will go
@@ -84,7 +81,7 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.TEMP_GITHUB_TOKEN }}" npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
 
     # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
     - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .

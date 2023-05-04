@@ -20,16 +20,20 @@ They can also run queries configured with the `observer_can_run` flag set to `tr
 
 ### Observer+
 
+`Applies only to Fleet Premium`
+
 Observer+ is an Observer with the added ability to run *any* query.
 
 ### GitOps
+
+`Applies only to Fleet Premium`
 
 GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations.
 GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## User permissions
 
-| **Action**                                                                                                                                 | Observer | Observer+ | Maintainer | Admin | GitOps |
+| **Action**                                                                                                                                 | Observer | Observer+ *| Maintainer | Admin | GitOps *|
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------- | ---------- | ----- | ------ |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅        | ✅         | ✅          | ✅     |        |
 | View all hosts                                                                                                                             | ✅        | ✅         | ✅          | ✅     |        |
@@ -43,10 +47,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅        | ✅         | ✅          | ✅     |        |
 | Filter software by team\*                                                                                                                  | ✅        | ✅         | ✅          | ✅     |        |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |           |            | ✅     | ✅      |
-| Run only designated, **observer can run** ,queries as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
+| Run only designated, **observer can run**, queries as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅          | ✅     |        |
 | Create, edit, and delete queries                                                                                                           |          |           | ✅          | ✅     | ✅      |
-| View all queries                                                                                                                           | ✅        | ✅         | ✅          | ✅     |        |
+| View all queries\**                                                                                                                        | ✅        | ✅         | ✅          | ✅     |        |
 | Add, edit, and remove queries from all schedules                                                                                           |          |           | ✅          | ✅     | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |           | ✅          | ✅     | ✅      |
 | View all policies                                                                                                                          | ✅        | ✅         | ✅          | ✅     |        |
@@ -59,7 +63,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete teams\*                                                                                                           |          |           |            | ✅     | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |           | ✅          | ✅     | ✅      |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |           | ✅          | ✅     |        |
-| Read organization settings and agent options\**                                                                                            | ✅        | ✅         | ✅          | ✅     |        |
+| Read organization settings and agent options\***                                                                                           | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |           |            | ✅     | ✅      |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |           |            | ✅     | ✅      |
 | Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |           |            | ✅     | ✅      |
@@ -69,13 +73,20 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple business manager (BM) information                                                                                               |          |           |            | ✅     |        |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |           |            | ✅     |        |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                           | ✅        | ✅         | ✅          | ✅     |        |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          |           | ✅          | ✅     |        |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          |           | ✅          | ✅     | ✅      |
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                                |          |           | ✅          | ✅     |        |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
+| Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
+| Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
+| Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |           |            | ✅     |         |
+| View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
+| Edit/upload MDM macOS setup assistant\*                                                                                                    |          |           | ✅          | ✅     |       |
 
-\*Applies only to Fleet Premium
+\* Applies only to Fleet Premium
 
-\** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
+\** Global observers can view all queries but the UI and fleetctl only list the ones they can run (**observer can run**).
+
+\*** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 ## Team member permissions
 
@@ -100,12 +111,13 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅             | ✅              | ✅               | ✅          |             |
 | Target hosts using labels                                                                                                        | ✅             | ✅              | ✅               | ✅          |             |
 | Add and delete hosts                                                                                                             |               |                | ✅               | ✅          |             |
-| Filter software by [vulnerabilities](<(https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)>) | ✅             | ✅              | ✅               | ✅          |             |
+| Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
-| Run only designated, **observer can run** ,queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
+| Run only designated, **observer can run**, queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
+| View all queries\**                                                                                                              | ✅             | ✅              | ✅               | ✅          |             |
 | Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅               | ✅          | ✅           |
 | View policies                                                                                                                    | ✅             | ✅              | ✅               | ✅          |             |
 | View global (inherited) policies                                                                                                 | ✅             | ✅              | ✅               | ✅          |             |
@@ -119,11 +131,16 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅          | ✅           |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅               | ✅          |             |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅             | ✅              | ✅               | ✅          |             |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          |             |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          | ✅           |
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅               | ✅          |             |
 | Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
 | View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
+| Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
+| View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
+| Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
+
+\** Team observers can view all queries but the UI and fleetctl only list the ones they can run (**observer can run**).
 
 <meta name="pageOrderInSection" value="900">

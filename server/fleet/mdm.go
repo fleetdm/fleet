@@ -66,11 +66,13 @@ type MDMIdPAccount struct {
 }
 
 type MDMAppleBootstrapPackage struct {
-	Name   string `json:"name"`
-	TeamID uint   `json:"team_id" db:"team_id"`
-	Bytes  []byte `json:"bytes"`
-	Sha256 []byte `json:"sha256" db:"sha256"`
-	Token  string `json:"token"`
+	Name      string    `json:"name"`
+	TeamID    uint      `json:"team_id" db:"team_id"`
+	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"-" db:"updated_at"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
@@ -85,4 +87,16 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
+}
+
+// MDMAppleEULA represents an EULA (End User License Agreement) file.
+type MDMAppleEULA struct {
+	Name      string    `json:"name"`
+	Bytes     []byte    `json:"bytes"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+func (e MDMAppleEULA) AuthzType() string {
+	return "mdm_apple"
 }
