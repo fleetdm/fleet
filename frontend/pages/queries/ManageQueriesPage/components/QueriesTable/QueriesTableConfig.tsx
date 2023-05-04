@@ -11,6 +11,7 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import { addGravatarUrlToResource } from "utilities/helpers";
 
+import Icon from "components/Icon";
 import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -101,13 +102,41 @@ const generateTableHeaders = ({
         />
       ),
       accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          classes="w400"
-          value={cellProps.cell.value}
-          path={PATHS.EDIT_QUERY(cellProps.row.original)}
-        />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        console.log("cellProps.row.original", cellProps.row.original);
+        return (
+          <LinkCell
+            classes="w400"
+            value={
+              <>
+                <div className="query-name-text">{cellProps.cell.value}</div>
+                {!isOnlyObserver && cellProps.row.original.observer_can_run && (
+                  <>
+                    <span
+                      className="tooltip-base"
+                      data-tip
+                      data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                    >
+                      <Icon className="query-icon" name="query" />
+                    </span>
+                    <ReactTooltip
+                      className="observer-can-run-tooltip"
+                      place="top"
+                      type="dark"
+                      effect="solid"
+                      id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      backgroundColor="#3e4771"
+                    >
+                      Observers can run this query.
+                    </ReactTooltip>
+                  </>
+                )}
+              </>
+            }
+            path={PATHS.EDIT_QUERY(cellProps.row.original)}
+          />
+        );
+      },
       sortType: "caseInsensitive",
     },
     {
