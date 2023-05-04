@@ -1,8 +1,9 @@
 import React, { useContext, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 
 import { IApiError } from "interfaces/errors";
-import { IMdmProfile } from "interfaces/mdm";
+import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -20,15 +21,13 @@ import ProfileListHeading from "./components/ProfileListHeading";
 const baseClass = "custom-settings";
 
 interface ICustomSettingsProps {
-  profiles: IMdmProfile[];
-  onProfileUpload: () => void;
-  onProfileDelete: () => void;
+  currentTeamId: number;
+  onDataChange: () => void;
 }
 
 const CustomSettings = ({
-  profiles,
-  onProfileUpload,
-  onProfileDelete,
+  currentTeamId,
+  onDataChange,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam } = useContext(AppContext);
@@ -42,6 +41,15 @@ const CustomSettings = ({
     selectedProfile.current = profile;
     setShowDeleteProfileModal(true);
   };
+
+  const { data: profiles, refetch: refetchProfiles } = useQuery<
+    IMdmProfilesResponse,
+    unknown,
+    IMdmProfile[] | null
+  >(["profiles", currentTeamId], () => mdmAPI.getProfiles(currentTeamId), {
+    select: (data) => data.profiles,
+    refetchOnWindowFocus: false,
+  });
 
   const onFileUpload = async (files: FileList | null) => {
     setShowLoading(true);
@@ -64,7 +72,8 @@ const CustomSettings = ({
 
     try {
       await mdmAPI.uploadProfile(file, currentTeam?.id);
-      onProfileUpload();
+      refetchProfiles();
+      onDataChange();
       renderFlash("success", "Successfully uploaded!");
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
@@ -83,7 +92,8 @@ const CustomSettings = ({
   const onDeleteProfile = async (profileId: number) => {
     try {
       await mdmAPI.deleteProfile(profileId);
-      onProfileDelete();
+      refetchProfiles();
+      onDataChange();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
       renderFlash("error", "Couldn’t delete. Please try again.");
