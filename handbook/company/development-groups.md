@@ -43,6 +43,8 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 
 The goal of the customer experience (CX) group is to make users and customers happier and more successful.  This includes simpler usage, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
 
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [website group](https://fleetdm.com/handbook/company/development-groups#website-group)._
+
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -70,6 +72,8 @@ The goal of the infrastructure group is to provide and support reliable and secu
 ### Website group
 
 The goal of the website group is to make visitors on Fleet's website get what they want and what they need.  This includes making the website more navigable, more beautiful, simpler, and easier to understand.
+
+> _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
