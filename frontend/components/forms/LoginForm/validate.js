@@ -9,7 +9,7 @@ const validate = (formData) => {
   if (!validatePresence(email)) {
     errors.email = "Email field must be completed";
   } else if (!validateEmail(email)) {
-    errors.email = "Enter a valid email";
+    errors.email = "Email must be a valid email address";
   }
 
   if (!validatePresence(password)) {
