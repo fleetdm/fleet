@@ -655,8 +655,8 @@ This is the callback endpoint that the identity provider will use to send securi
 
 If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
 
-- `profile_url` is an URL that can be used to download an enrollment profile (.mobileconfig). Redirect the user to this URL to complete the enrollment.
-- `eula_url` (optional) if an EULA was uploaded, this contains an URL that can be used to view the document.
+- `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
+- `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
 
 ## Get or apply configuration files
 

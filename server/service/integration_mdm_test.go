@@ -3865,12 +3865,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	q := u.Query()
 	// without an EULA uploaded, only the profile token is provided
-	require.False(t, q.Has("eula_url"))
-	require.True(t, q.Has("profile_url"))
+	require.False(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
 	// the url retrieves a valid profile
-	pu, err := url.Parse(q.Get("profile_url"))
-	require.NoError(t, err)
-	s.downloadAndVerifyEnrollmentProfile(pu.Path + "?" + pu.RawQuery)
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -3884,16 +3882,12 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	q = u.Query()
 	// with an EULA uploaded, both values are present
-	require.True(t, q.Has("eula_url"))
-	require.True(t, q.Has("profile_url"))
+	require.True(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
 	// the url retrieves a valid profile
-	pu, err = url.Parse(q.Get("profile_url"))
-	require.NoError(t, err)
-	s.downloadAndVerifyEnrollmentProfile(pu.Path + "?" + pu.RawQuery)
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
 	// the url retrieves a valid EULA
-	eu, err := url.Parse(q.Get("eula_url"))
-	require.NoError(t, err)
-	resp := s.DoRaw("GET", eu.Path+"?"+eu.RawQuery, nil, http.StatusOK)
+	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err := io.ReadAll(resp.Body)

@@ -552,21 +552,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	profileURL, err := apple_mdm.EnrollURL(depProf.Token, appConfig)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "generating profile URL")
-	}
-
-	q := url.Values{
-		"profile_url": {profileURL},
-	}
-
+	q := url.Values{"profile_token": {depProf.Token}}
 	if eula != nil {
-		q.Add("eula_url", appConfig.ServerSettings.ServerURL+"/api/latest/fleet/mdm/apple/setup/eula/"+eula.Token)
+		q.Add("eula_token", eula.Token)
 	}
 
 	return appConfig.ServerSettings.ServerURL + "/mdm/sso/callback?" + q.Encode(), nil
-
 }
 
 func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import endpoints from "utilities/endpoints";
+
 import Spinner from "components/Spinner/Spinner";
 import SSOError from "components/MDM/SSOError";
 import Button from "components/buttons/Button";
@@ -11,13 +13,16 @@ const RedirectTo = ({ url }: { url: string }) => {
   return <Spinner />;
 };
 
+// appConfig.ServerSettings.ServerURL+"/api/latest/fleet/mdm/apple/setup/eula/"
+// /api/mdm/apple/enroll?token=
+
 const EnrollmentGate = () => {
   const query = new URLSearchParams(location.search);
-  const [showEULA, setShowEULA] = useState(query.has("eula_url"));
-  const profileURL = query.get("profile_url");
-  const eulaURL = query.get("eula_url") || "";
+  const [showEULA, setShowEULA] = useState(query.has("eula_token"));
+  const profileToken = query.get("profile_token");
+  const eulaToken = query.get("eula_token") || "";
 
-  if (!profileURL) {
+  if (!profileToken) {
     return <SSOError />;
   }
 
@@ -25,7 +30,11 @@ const EnrollmentGate = () => {
     return (
       <div className={`${baseClass}__eula-wrapper`}>
         <h3>Terms and conditions</h3>
-        <iframe src={eulaURL} width="100%" title="eula" />
+        <iframe
+          src={`/api/${endpoints.MDM_APPLE_EULA_FILE(eulaToken)}`}
+          width="100%"
+          title="eula"
+        />
         <Button onClick={() => setShowEULA(false)} variant="oversized">
           Agree and continue
         </Button>
@@ -33,7 +42,9 @@ const EnrollmentGate = () => {
     );
   }
 
-  return <RedirectTo url={profileURL} />;
+  return (
+    <RedirectTo url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(profileToken)} />
+  );
 };
 
 const MDMAppleSSOCallbackPage = () => {
