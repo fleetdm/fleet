@@ -871,7 +871,7 @@ spec:
 # Downloaded "Microsoft Windows 10 Release 21H2 Administrative Templates" and it did not contain NewsAndInterests.admx/adml
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Dsh\AllowNewsAndInterests' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.81.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.81.1, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
