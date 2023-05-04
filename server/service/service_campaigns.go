@@ -77,12 +77,20 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		conn.WriteJSONError("error getting campaign reader: " + err.Error()) //nolint:errcheck
 		return
 	}
-	defer cancelFunc()
+	defer func() {
+		level.Info(svc.logger).Log("msg", "live_query: calling cancelFunc")
+		cancelFunc()
+		level.Info(svc.logger).Log("msg", "live_query: cancelFunc completed")
+	}()
 
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+	defer func() {
+		level.Info(svc.logger).Log("msg", "live_query: calling CompleteCampaign")
+		err := svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+		level.Info(svc.logger).Log("msg", "live_query: CompleteCampaign completed", "err", err)
+	}()
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -115,7 +123,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	updateStatus := func() error {
 		metrics, err := svc.CountHostsInTargets(ctx, &campaign.QueryID, *targets)
 		if err != nil {
-			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
+			if err := conn.WriteJSONError(fmt.Sprintf("error retrieving target counts: %s", err)); err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieve target counts, write failed")
 			}
 			return ctxerr.Wrap(ctx, err, "retrieve target counts")
@@ -129,7 +137,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		}
 		if lastTotals != totals {
 			lastTotals = totals
-			if err = conn.WriteJSONMessage("totals", totals); err != nil {
+			if err := conn.WriteJSONMessage("totals", totals); err != nil {
 				return ctxerr.Wrap(ctx, err, "write totals")
 			}
 		}
@@ -141,7 +149,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		// only write status message if status has changed
 		if lastStatus != status {
 			lastStatus = status
-			if err = conn.WriteJSONMessage("status", status); err != nil {
+			if err := conn.WriteJSONMessage("status", status); err != nil {
 				return ctxerr.Wrap(ctx, err, "write status")
 			}
 		}
@@ -167,6 +175,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
+				level.Info(svc.logger).Log("msg", "live_query: got result", "host", res.Host.ID)
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
@@ -178,9 +187,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
+			case error:
+				if err := conn.WriteJSONError(fmt.Sprintf("received pubsub error: %s", res)); err != nil {
+					svc.logger.Log("msg", "error updating status", "err", err)
+				}
 			}
 
 		case <-ticker.C:
+			level.Info(svc.logger).Log("msg", "live_query: case ticker.C")
 			if conn.GetSessionState() == sockjs.SessionClosed {
 				// return and stop sending the query if the session was closed
 				// by the client
