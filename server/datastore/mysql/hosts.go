@@ -1690,6 +1690,12 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 `
 	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate entry") {
+			// This could throw an unexpected unique constraint violation because 'host_device_auth'
+			// has two unique keys ('host_id' and 'token'), having more than one unique key is known
+			// to be unsafe: https://dev.mysql.com/doc/refman/8.0/en/insert-on-duplicate.html
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
 	}
 	return nil
