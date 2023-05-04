@@ -709,12 +709,12 @@ To plan or propose a change to the website, or to submit a bug report about the 
 
 > _**Note:** One important exception is changes to the website that accompany changes in the core product.  These are instead handled by the [Customer Experience group](https://fleetdm.com/handbook/company/product-groups#customer-experience-group), and should be [proposed as changes to the core product](https://fleetdm.com/handbook/product#intake)._
 
+#### Website roadmap
+You can see [planned changes to the website](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).  All groups at Fleet share the same release schedule for iterations (sprints).
+
 ### Other requests
 To make any other kind of request from the marketing department, or if you are unsure, then post in our group Slack channel (`#g-marketing`) and someone from this group will reply within 1 business day.  Please only at-mention specific contributors in time-sensitive situations, or when their personal attention is required.
 
-## Roadmap
-
-https://github.com/orgs/fleetdm/projects/37
 
 ## Slack channels
 
