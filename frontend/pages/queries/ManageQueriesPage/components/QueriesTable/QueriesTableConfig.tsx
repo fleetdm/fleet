@@ -117,7 +117,7 @@ const generateTableHeaders = ({
                       data-tip
                       data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
                     >
-                      <Icon className="query-icon" name="query" />
+                      <Icon className="query-icon" name="query" size="small" />
                     </span>
                     <ReactTooltip
                       className="observer-can-run-tooltip"
@@ -233,6 +233,7 @@ const generateTableHeaders = ({
         const checkboxProps = {
           value: checked,
           indeterminate,
+          disabled: false, // TODO: Disable if all the other ones are disabled
           onChange: () => {
             if (!isAnyTeamMaintainerOrTeamAdmin) {
               toggleAllRowsSelected();
