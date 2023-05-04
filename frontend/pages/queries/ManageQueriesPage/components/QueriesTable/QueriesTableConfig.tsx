@@ -230,10 +230,25 @@ const generateTableHeaders = ({
           toggleRowSelected,
         } = cellProps;
         const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+
+        const disableToggleAllRowsSelected = () => {
+          /* Team admin or team maintainer can only delete queries they authored
+          If team admin or team maintainer authored 0 queries, disable select all queries for deletion */
+          if (isAnyTeamMaintainerOrTeamAdmin) {
+            return (
+              rows.filter(
+                (r: IQueryRow) => r.original.author_id === currentUser.id
+              ).length === 0
+            );
+          } else {
+            return false;
+          }
+        };
+
         const checkboxProps = {
           value: checked,
           indeterminate,
-          disabled: false, // TODO: Disable if all the other ones are disabled
+          disabled: disableToggleAllRowsSelected(), // Disable select all if all rows are disabled
           onChange: () => {
             if (!isAnyTeamMaintainerOrTeamAdmin) {
               toggleAllRowsSelected();
