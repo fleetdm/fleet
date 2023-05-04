@@ -700,6 +700,18 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
 
 
+## Intake
+
+### Changing the website
+Everyone [can contribute](https://fleetdm.com/handbook/company#openness).  Changes that impact the user interface, design, or APIs of fleetdm.com go through [Fleet's drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes).  
+
+To plan or propose a change to the website, or to submit a bug report about the website, [create a public issue using the "Website request" issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-website&template=website-request.md&title=Request%3A+__________________________).  These changes are addressed by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
+
+> _**Note:** One important exception is changes to the website that accompany changes in the core product.  These are instead handled by the [Customer Experience group](https://fleetdm.com/handbook/company/product-groups#customer-experience-group), and should be [proposed as changes to the core product](https://fleetdm.com/handbook/product#intake)._
+
+### Other requests
+To make any other kind of request from the marketing department, or if you are unsure, then post in our group Slack channel (`#g-marketing`) and someone from this group will reply within 1 business day.  Please only at-mention specific contributors in time-sensitive situations, or when their personal attention is required.
+
 ## Roadmap
 
 https://github.com/orgs/fleetdm/projects/37
