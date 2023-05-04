@@ -66,7 +66,7 @@ const { data } = useQuery<IHostResponse, Error>(
 // This is usually the case when we use the `select` option in useQuery.
 
 // `data` here will be type IHostProfiles
-const { data  } = useQuery<IHostResponse, Error, IHostProfiles>(
+const { data } = useQuery<IHostResponse, Error, IHostProfiles>(
   'host',
   () => hostAPI.getHost()
   {
@@ -81,7 +81,7 @@ const { data  } = useQuery<IHostResponse, Error, IHostProfiles>(
 ```typescript
 // Type all function arguments. Use type inference for the return value type.
 // NOTE: sometimes typescript does not get the return argument correct, in which
-// case it is ok too define the return type explicitly.
+// case it is ok to define the return type explicitly.
 const functionWithTableName = (tableName: string)=> {
   // ...
 };
@@ -90,7 +90,7 @@ const functionWithTableName = (tableName: string)=> {
 ### API interfaces
 
 ```typescript
-// API interfaces should live in the relevant entites file.
+// API interfaces should live in the relevant entities file.
 // Their names should be named to clarify what they are used for when interacting
 // with the API
 
