@@ -19,12 +19,12 @@ import DiskEncryptionTable from "./components/DiskEncryptionTable";
 const baseClass = "disk-encryption";
 interface IDiskEncryptionProps {
   currentTeamId: number;
-  onDataChange: () => void;
+  onMutation: () => void;
 }
 
 const DiskEncryption = ({
   currentTeamId,
-  onDataChange,
+  onMutation,
 }: IDiskEncryptionProps) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -83,7 +83,7 @@ const DiskEncryption = ({
         "success",
         "Successfully updated disk encryption enforcement!"
       );
-      onDataChange();
+      onMutation();
       setShowAggregate(diskEncryptionEnabled);
       if (currentTeamId === 0) {
         getUpdatedAppConfig();

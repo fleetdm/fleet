@@ -79,7 +79,7 @@ const MacOSSettings = ({
           <CurrentCard
             key={teamId}
             currentTeamId={teamId}
-            onDataChange={refetchAggregateProfileStatus}
+            onMutation={refetchAggregateProfileStatus}
           />
         }
       />
