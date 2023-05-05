@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -569,6 +570,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
 	} else {
 		for name, query := range liveQueries {
+			fmt.Fprintf(os.Stderr, "live_query: sending campaign %s to hostID=%d\n", name, host.ID)
 			queries[hostDistributedQueryPrefix+name] = query
 		}
 	}
@@ -1062,6 +1064,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		res.Error = &errMsg
 	}
 
+	fmt.Fprintf(os.Stderr, "live_query: received result campaign %d hostID=%d\n", campaignID, host.ID)
 	err = svc.resultStore.WriteResult(res)
 	if err != nil {
 		var pse pubsub.Error
@@ -1084,7 +1087,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
 			// Give the client a minute to connect before considering the
 			// campaign orphaned
-			return newOsqueryError("campaign waiting for listener (please retry)")
+			return newOsqueryError(fmt.Sprintf("campaign %d waiting for listener hostID=%d", campaignID, host.ID))
 		}
 
 		if campaign.Status != fleet.QueryComplete {
@@ -1099,7 +1102,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		}
 
 		// No need to record query completion in this case
-		return newOsqueryError("campaign stopped")
+		return newOsqueryError(fmt.Sprintf("campaign %d stopped", campaignID))
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
