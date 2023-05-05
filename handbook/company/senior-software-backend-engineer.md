@@ -56,7 +56,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 
 - 📖 Bachelor’s degree (or equivalent) in computer science
 - 💭 3-5 years' of experience in backend/SaaS development.
-- 🦉 You are Proficient in software backend development. You practice OOP design, design patterns and SOLID principles.
+- 🦉 You are proficient in software backend development. You practice OOP design, and are comfortable in a lean software development environment. 
 
 ## Why should you join us? 🛸
 
