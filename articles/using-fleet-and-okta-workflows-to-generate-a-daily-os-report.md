@@ -2,7 +2,7 @@
 
 ![Using Fleet and Okta Workflows to Generate a daily OS Report](../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report@2x.jpg)
 
-_Today we wanted to feature Harrison, a member of our community. We thought this piece was exceptionally useful and wanted to share it with you all. If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
+_Today we wanted to feature [Harrison](https://kitchenstocomputers.com/fleet/), a member of our community. We thought this piece was exceptionally useful and wanted to share it with you all. If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
 
 
 For us, it's audit season. This project started as we prepared for ISO27001 and needed to better understand where our device's OS stood at any given time.
