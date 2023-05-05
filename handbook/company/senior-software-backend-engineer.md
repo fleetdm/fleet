@@ -22,7 +22,7 @@ As a Senior Software Engineer at Fleet, you will get the chance to…
 
 In your first 90 days:
 
-- 🧑‍🔬 Design, Develop, Test and maintain a state-of-the-art Backend code including robust APIs to support mobile and desktop clients.
+- 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
 - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
 - 💭 Manage and optimize scalable distributed systems in the cloud
 - 🤝 Collaborate closely with Product managers to understand requirements and translate them into work plans and software design.
