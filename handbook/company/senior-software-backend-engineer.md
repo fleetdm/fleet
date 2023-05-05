@@ -22,12 +22,10 @@ As a Senior Software Engineer at Fleet, you will get the chance to…
 
 In your first 90 days:
 
-- 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
-- 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
-- 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
-- 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
-- 🤝 Collaborate closely with the engineering manager and product manager in your product group, actively participating in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-- 🌟 Contribute to the overall success of the [customer cxperience (CX)](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product group by ensuring users receive valuable new features and that existing features function as intended.
+- 🧑‍🔬 Design, Develop, Test and maintain a state-of-the-art Backend code including robust APIs to support mobile and desktop clients.
+- 🤝 Collaborate closely with Product managers to understand requirements and translate them into work plans and software design.
+- 🚀 Actively participating in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+- 🌟 Contribute to the overall success of the [customer cxperience (CX)](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product group by ensuring users receive valuable new features.
 
 ### Are you our new team member? 🧑‍🚀
 
@@ -35,25 +33,27 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 
 ### You "get it":
 
-- 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications
-- 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams
-- 🌐 Experience in manual testing across various devices, platforms, and browsers
-- 🏃‍♂️ Familiarity with agile development processes and scrum methodologies
-- 👥 A customer-centric mindset, focusing on delivering value and a positive user experience
+- 🧪 Translate requirements into proper design and software.
+- 📖 Mentor Junior team members.
+- 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
+- 🧪 Develop and oversee testing schedules in client server environment.
+- 🛠️ Produce quality code, raising the bar for team performance and speed.
+- 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
 
 ### You can "walk the walk":
 
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
-- 🛠️ Technical: You understand the software development processes.
-- 🟣 Openness: You are flexible and open to new ideas and ways of working
-- ➕ Bonus: Cybersecurity or IT background
+- 📈 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+- 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+- 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
+- 🟣 Openness: You are flexible and open to new ideas and ways of working.
+- ➕ Bonus: Cybersecurity or IT background.
 
 ### You can "talk the talk":
 
-- 💭 3-5 years' of experience in backend development
-- 💖 Proficient in software engineering development methods including OOP 
-- ✍️ Experience working with engineering and product teams in an agile environment
-- ➕ Bonus: B2B SaaS background
+- 📖 Bachelor’s degree (or equivalent) in computer science
+- 💭 3-5 years' of experience in backend/SaaS development.
+- 🦉 You are Proficient in software backend development. You practice OOP design, design patterns and SOLID principles.
 
 ## Why should you join us? 🛸
 
