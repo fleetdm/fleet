@@ -26,7 +26,7 @@ In your first 90 days:
 - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
 - 💭 Manage and optimize scalable distributed systems in the cloud.
 - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
-- 🚀 Actively participating in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+- 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
 - 🌟 Contribute to the overall success of the [customer cxperience (CX)](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product group by ensuring users receive valuable new features.
 
 ### Are you our new team member? 🧑‍🚀
