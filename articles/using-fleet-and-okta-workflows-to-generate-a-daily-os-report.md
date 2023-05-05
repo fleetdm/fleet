@@ -137,4 +137,13 @@ Lastly, we use a `POST` card to send this to Slack.
 
 That's really all there is to it! You could send this data almost anywhere, like if you prefer a Jira ticket or even a Google Spreadsheet. We have this running daily for now but will switch to weekly shortly. 
 
-Additionally, you could parse the return values and use the `If Error` card to handle anything other than a 200, but I have skipped that for now.
+Additionally, you could parse the return values and use the `If Error` card to handle anything other
+than a 200, but I have skipped that for now.
+
+<meta name="articleTitle" value="Using Fleet and Okta Workflows to Generate a daily OS Report">
+<meta name="authorFullName" value="Harrison Ravazzolo">
+<meta name="authorGitHubUsername" value="harrisonravazzolo">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2023-05-09">
+<meta name="articleImageUrl" value="../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report@2x.jpg">
+<meta name="description" value="Learn how to use Fleet to query device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows.">
