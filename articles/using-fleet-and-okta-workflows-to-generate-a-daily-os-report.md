@@ -1,4 +1,4 @@
-# Using Fleet and Okta Workflows to Generate a daily OS Report
+# Using Fleet and Okta Workflows to generate a daily OS report
 
 ![Using Fleet and Okta Workflows to Generate a daily OS Report](../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report@2x.jpg)
 
@@ -140,7 +140,7 @@ That's really all there is to it! You could send this data almost anywhere, like
 Additionally, you could parse the return values and use the `If Error` card to handle anything other
 than a 200, but I have skipped that for now.
 
-<meta name="articleTitle" value="Using Fleet and Okta Workflows to Generate a daily OS Report">
+<meta name="articleTitle" value="Using Fleet and Okta Workflows to generate a daily OS report">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
