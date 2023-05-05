@@ -1102,7 +1102,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		}
 
 		// No need to record query completion in this case
-		return newOsqueryError(fmt.Sprintf("campaign %d stopped", campaignID))
+		return newOsqueryError(fmt.Sprintf("campaign %d stopped hostID=%d", campaignID, host.ID))
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
