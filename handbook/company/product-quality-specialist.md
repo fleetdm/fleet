@@ -65,4 +65,6 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
 <meta name="maintainedBy" value="mikermcneil">
+<!-- Leave this title. Extra credit for candidates that find this bug. -->
 <meta name="title" value="🚀 Product Designer">
+
