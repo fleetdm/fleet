@@ -37,7 +37,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 
 - 🦉 Translate requirements into well-designed and functional software.
 - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
-- 🧪 Develop and oversee testing schedules in client server environment.
+- 🧪 Collaborate with QA team for testing software features.
 - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
 - 🛠️ Produce quality code, raising the bar for team performance and speed.
 - 📖 Mentor junior team members.
