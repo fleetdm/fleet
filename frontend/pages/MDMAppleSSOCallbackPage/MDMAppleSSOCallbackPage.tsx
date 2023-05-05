@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { WithRouterProps } from "react-router";
 
 import endpoints from "utilities/endpoints";
 
@@ -13,20 +14,19 @@ const RedirectTo = ({ url }: { url: string }) => {
   return <Spinner />;
 };
 
-// appConfig.ServerSettings.ServerURL+"/api/latest/fleet/mdm/apple/setup/eula/"
-// /api/mdm/apple/enroll?token=
+interface IEnrollmentGateProps {
+  profileToken?: string;
+  eulaToken?: string;
+}
 
-const EnrollmentGate = () => {
-  const query = new URLSearchParams(location.search);
-  const [showEULA, setShowEULA] = useState(query.has("eula_token"));
-  const profileToken = query.get("profile_token");
-  const eulaToken = query.get("eula_token") || "";
+const EnrollmentGate = ({ profileToken, eulaToken }: IEnrollmentGateProps) => {
+  const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
   if (!profileToken) {
     return <SSOError />;
   }
 
-  if (showEULA) {
+  if (showEULA && eulaToken) {
     return (
       <div className={`${baseClass}__eula-wrapper`}>
         <h3>Terms and conditions</h3>
@@ -35,7 +35,11 @@ const EnrollmentGate = () => {
           width="100%"
           title="eula"
         />
-        <Button onClick={() => setShowEULA(false)} variant="oversized">
+        <Button
+          onClick={() => setShowEULA(false)}
+          variant="oversized"
+          className={`${baseClass}__agree-btn`}
+        >
           Agree and continue
         </Button>
       </div>
@@ -47,10 +51,18 @@ const EnrollmentGate = () => {
   );
 };
 
-const MDMAppleSSOCallbackPage = () => {
+interface IMDMSSOCallbackQuery {
+  eula_token?: string;
+  profile_token?: string;
+}
+
+const MDMAppleSSOCallbackPage = (
+  props: WithRouterProps<object, IMDMSSOCallbackQuery>
+) => {
+  const { eula_token, profile_token } = props.location.query;
   return (
     <div className={baseClass}>
-      <EnrollmentGate />
+      <EnrollmentGate eulaToken={eula_token} profileToken={profile_token} />
     </div>
   );
 };
