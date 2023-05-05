@@ -40,7 +40,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🧪 Develop and oversee testing schedules in client server environment.
 - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
 - 🛠️ Produce quality code, raising the bar for team performance and speed.
-- 📖 Mentor Junior team members.
+- 📖 Mentor junior team members.
 
 ### You can "walk the walk":
 
