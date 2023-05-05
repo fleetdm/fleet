@@ -21,7 +21,8 @@ export type ButtonVariant =
   | "unstyled"
   | "unstyled-modal-query"
   | "contextual-nav-item"
-  | "small-text-icon";
+  | "small-text-icon"
+  | "oversized";
 
 export interface IButtonProps {
   autofocus?: boolean;
