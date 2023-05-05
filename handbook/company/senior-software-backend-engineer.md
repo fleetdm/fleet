@@ -45,7 +45,6 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You can "walk the walk":
 
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
-- 📈 Produce quality code, raising the bar for team performance and speed
 - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
 - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
 - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
