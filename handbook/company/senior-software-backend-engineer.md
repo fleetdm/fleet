@@ -54,7 +54,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You can "talk the talk":
 
 - 💭 3-5 years' of experience in backend/SaaS development.
-- 🦉 You are proficient in software backend development. You practice OOP design, and are comfortable in a lean software development environment. 
+- 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
 
 ## Why should you join us? 🛸
 
