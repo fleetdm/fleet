@@ -35,11 +35,11 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 
 ### You "get it":
 
-- 🧪 Translate requirements into proper design and software.
+- 🦉 Translate requirements into proper design and software.
 - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
 - 🧪 Develop and oversee testing schedules in client server environment.
-- 🛠️ Produce quality code, raising the bar for team performance and speed.
 - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+- 🛠️ Produce quality code, raising the bar for team performance and speed.
 - 📖 Mentor Junior team members.
 
 ### You can "walk the walk":
