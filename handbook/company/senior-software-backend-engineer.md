@@ -25,7 +25,7 @@ In your first 90 days:
 - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
 - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
 - 💭 Manage and optimize scalable distributed systems in the cloud.
-- 🤝 Collaborate closely with Product managers to understand requirements and translate them into work plans and software design.
+- 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
 - 🚀 Actively participating in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
 - 🌟 Contribute to the overall success of the [customer cxperience (CX)](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product group by ensuring users receive valuable new features.
 
