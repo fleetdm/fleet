@@ -34,16 +34,17 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 ### You "get it":
 
 - 🧪 Translate requirements into proper design and software.
-- 📖 Mentor Junior team members.
 - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
 - 🧪 Develop and oversee testing schedules in client server environment.
 - 🛠️ Produce quality code, raising the bar for team performance and speed.
 - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+- 📖 Mentor Junior team members.
 
 ### You can "walk the walk":
 
 - 🤝 Collaboration: You work best in a participatory, team-based environment.
-- 📈 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+- 📈 Produce quality code, raising the bar for team performance and speed
+- 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
 - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
 - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
 - 🟣 Openness: You are flexible and open to new ideas and ways of working.
