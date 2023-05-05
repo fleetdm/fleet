@@ -386,6 +386,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
+	// TODO(mna): svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -544,7 +545,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	)
 }
 
-func (svc *Service) MDMAppleSyncDEPPRofile(ctx context.Context) error {
+func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing profiles")

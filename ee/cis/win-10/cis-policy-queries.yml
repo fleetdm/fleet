@@ -3234,6 +3234,187 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Sensitive Privilege Use' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user account or service uses a sensitive privilege. A sensitive privilege includes the following user rights:
+      -  Act as part of the operating system
+      -  Back up files and directories
+      -  Create a token object
+      -  Debug programs
+      -  Enable computer and user accounts to be trusted for delegation
+      -  Generate security audits
+      -  Impersonate a client after authentication
+      -  Load and unload device drivers
+      -  Manage auditing and security log
+      -  Modify firmware environment values
+      -  Replace a process-level token
+      -  Restore files and directories
+      -  Take ownership of files or other objects
+      Auditing this subcategory will create a high volume of events. Events for this subcategory include:
+      -  4672: Special privileges assigned to new logon.
+      -  4673: A privileged service was called.
+      -  4674: An operation was attempted on a privileged object.
+      The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Privilege Use\Audit Sensitive Privilege Use'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.8.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit IPsec Driver' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on the activities of the Internet Protocol security (IPsec) driver. Events for this subcategory include:
+    -  4960: IPsec dropped an inbound packet that failed an integrity check. If this problem persists, it could indicate a network issue or that packets are being modified in transit to this computer. Verify that the packets sent from the remote computer are the same as those received by this computer. This error might also indicate interoperability problems with other IPsec implementations.
+    -  4961: IPsec dropped an inbound packet that failed a replay check. If this problem persists, it could indicate a replay attack against this computer.
+    -  4962: IPsec dropped an inbound packet that failed a replay check. The inbound packet had too low a sequence number to ensure it was not a replay.
+    -  4963: IPsec dropped an inbound clear text packet that should have been secured. This is usually due to the remote computer changing its IPsec policy without informing this computer. This could also be a spoofing attack attempt.
+    -  4965: IPsec received a packet from a remote computer with an incorrect Security Parameter Index (SPI). This is usually caused by malfunctioning hardware that is corrupting packets. If these errors persist, verify that the packets sent from the remote computer are the same as those received by this computer. This error may also indicate interoperability problems with other IPsec implementations. In that case, if connectivity is not impeded, then these events can be ignored.
+    -  5478: IPsec Services has started successfully.
+    -  5479: IPsec Services has been shut down successfully. The shutdown of IPsec Services can put the computer at greater risk of network attack or expose the computer to potential security risks.
+    -  5480: IPsec Services failed to get the complete list of network interfaces on the computer. This poses a potential security risk because some of the network interfaces may not get the protection provided by the applied IPsec filters. Use the IP Security Monitor snap-in to diagnose the problem.
+    -  5483: IPsec Services failed to initialize RPC server. IPsec Services could not be started.
+    -  5484: IPsec Services has experienced a critical failure and has been shut down. The shutdown of IPsec Services can put the computer at greater risk of network attack or expose the computer to potential security risks.
+    -  5485: IPsec Services failed to process some IPsec filters on a plug-and-play event for network interfaces. This poses a potential security risk because some of the network interfaces may not get the protection provided by the applied IPsec filters. Use the IP Security Monitor snap-in to diagnose the problem.
+    The recommended state for this setting is: Success and Failure. 
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit IPsec Driver'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditIPsecDriver</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Other System Events' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on other system events. Events for this subcategory include:
+    -  5024 : The Windows Firewall Service has started successfully.
+    -  5025 : The Windows Firewall Service has been stopped.
+    -  5027 : The Windows Firewall Service was unable to retrieve the security policy from the local storage. The service will continue enforcing the current policy.
+    -  5028 : The Windows Firewall Service was unable to parse the new security policy. The service will continue with currently enforced policy.
+    -  5029: The Windows Firewall Service failed to initialize the driver. The service will continue to enforce the current policy.
+    -  5030: The Windows Firewall Service failed to start.
+    -  5032: Windows Firewall was unable to notify the user that it blocked an application from accepting incoming connections on the network.
+    -  5033 : The Windows Firewall Driver has started successfully.
+    -  5034 : The Windows Firewall Driver has been stopped.
+    -  5035 : The Windows Firewall Driver failed to start.
+    -  5037 : The Windows Firewall Driver detected critical runtime error. Terminating.
+    -  5058: Key file operation.
+    -  5059: Key migration operation.
+    The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Other System Events'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditOtherSystemEvents</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Security State Change' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports changes in security state of the system, such as when the security subsystem starts and stops. Events for this subcategory include:
+    -  4608: Windows is starting up.
+    -  4609: Windows is shutting down.
+    -  4616: The system time was changed.
+    -  4621: Administrator recovered system from CrashOnAuditFail. Users who are not
+    administrators will now be allowed to log on. Some audit-able activity might not have been recorded.
+    The recommended state for this setting is to include: 'Success'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security State Change'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecurityStateChange</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 3 OR mdm_command_output = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Security System Extension' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports the loading of extension code such as authentication packages by the security subsystem. Events for this subcategory include:
+    -  4610: An authentication package has been loaded by the Local Security Authority.
+    -  4611: A trusted logon process has been registered with the Local Security Authority.
+    -  4614: A notification package has been loaded by the Security Account Manager.
+    -  4622: A security package has been loaded by the Local Security Authority.
+    -  4697: A service was installed in the system.
+    The recommended state for this setting is to include: Success.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security System Extension'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecuritySystemExtension</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 3 OR mdm_command_output = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit System Integrity' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on violations of integrity of the security subsystem. Events for this subcategory include:
+    -  4612 : Internal resources allocated for the queuing of audit messages have been exhausted, leading to the loss of some audits.
+    -  4615 : Invalid use of LPC port.
+    -  4618 : A monitored security event pattern has occurred.
+    -  4816 : RPC detected an integrity violation while decrypting an incoming message.
+    -  5038 : Code integrity determined that the image hash of a file is not valid. The file could be corrupt due to unauthorized modification or the invalid hash could indicate a potential disk device error.
+    -  5056: A cryptographic self test was performed.
+    -  5057: A cryptographic primitive operation failed.
+    -  5060: Verification operation failed.
+    -  5061: Cryptographic operation.
+    -  5062: A kernel-mode cryptographic self test was performed.
+    The recommended state for this setting is: Success and Failure.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit System Integrity'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSystemIntegrity</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Audit Other Policy Change Events' is set to include 'Failure'
   platforms: win10
   platform: windows
@@ -7456,6 +7637,219 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.3.11.1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off KMS Client Online AVS Validation' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The Key Management Service (KMS) is a Microsoft license activation method that entails setting up a local server to store the software licenses. The KMS server itself needs to connect to Microsoft to activate the KMS service, but subsequent on-network clients can activate Microsoft Windows OS and/or their Microsoft Office via the KMS server instead of connecting directly to Microsoft. This policy setting lets you opt-out of sending KMS client activation data to Microsoft automatically.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Software Protection Platform\Turn off KMS Client Online AVS Validation'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AVSValidationGP.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\CurrentVersion\\Software Protection Platform\NoGenTicket' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.72.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable all apps from Microsoft Store' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting configures the launch of all apps from the Microsoft Store that came pre-installed or were downloaded.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Disable all apps from Microsoft Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableStoreApps' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting denies access to the retail catalog in the Microsoft Store, but displays the private store.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting enables or disables the automatic download and installation of Microsoft Store app updates.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off Automatic Download and Install of updates'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\AutoDownload' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the offer to update to the latest version of Windows' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables or disables the Microsoft Store offer to update to the latest version of Windows.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the offer to update to the latest version of Windows'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableOSUpgrade' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting denies or allows access to the Store application.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the Store application'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RemoveWindowsStore' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow widgets' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the widgets feature is allowed on the device. The widgets feature provides information such as, weather, news, sports, stocks, traffic, and entertainment (not an inclusive list).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Widgets\Allow Widgets'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template NewsAndInterests.admx/adml that is actually NOT included with the Microsoft Windows 10 Release 21H2 Administrative Templates (more info on missing settings on Windows 10 21H2: https://4sysops.com/archives/group-policies-for-windows-11-and-10-21h2-compared/) but is included in Windows 11 2022 Update (22H2).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Dsh\AllowNewsAndInterests' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.81.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to manage the behavior of Windows Defender SmartScreen. Windows Defender SmartScreen helps keep PCs safer by warning users before running unrecognized programs downloaded from the Internet. Some information is sent to Microsoft about files and programs run on PCs with this feature enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Warn and prevent bypass':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Explorer\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
+    ) AND EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prevent bypassing Windows Defender SmartScreen prompts for sites' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether employees can override the SmartScreen Filter warnings about potentially malicious websites.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Prevent bypassing Windows Defender SmartScreen prompts for sites'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\PreventOverride' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting enables or disables the Windows Game Recording and Broadcasting features.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Game Recording and Broadcasting\Enables or disables Windows Game Recording and Broadcasting'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GameDVR.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR\AllowGameDVR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.87.1
+  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy

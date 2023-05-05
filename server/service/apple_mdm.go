@@ -90,7 +90,7 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		if !lic.IsPremium() {
 			return nil, fleet.ErrMissingLicense
 		}
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
