@@ -56,7 +56,7 @@ require (
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/kolide/kit v0.0.0-20191023141830-6312ecc11c23
 	github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2
-	github.com/macadmins/osquery-extension v0.0.7
+	github.com/macadmins/osquery-extension v0.0.14
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/micromdm/micromdm v1.9.0

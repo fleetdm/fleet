@@ -40,6 +40,7 @@ import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
+import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
@@ -98,6 +99,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>
       </Route>
