@@ -97,6 +97,9 @@ In the output you should see that package has a "signed" status.
 
 1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deloyment.
 
+> The URL must be accessible by the computer that uploads the package to Fleet.
+> * This could be your local computer or the computer that runs your CI/CD workflow.
+
 2. Choose which team you want to add the bootstrap package to.
 
 In this example, we'll add a bootstrap package to the "Workstations (canary)" team so that the package only gets installed on hosts that automatically enroll to this team.
