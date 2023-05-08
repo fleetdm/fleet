@@ -69,7 +69,7 @@ func TestDEPService(t *testing.T) {
 			return res, nil
 		}
 
-		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ string) (*fleet.MDMAppleEnrollmentProfile, error) {
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, typ)
 			res := savedProfile
 			return &res, nil
