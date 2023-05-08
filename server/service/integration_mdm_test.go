@@ -3101,7 +3101,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 
 	t.Run("TestMDMAppleSetupEndpoint", func(t *testing.T) {
 		t.Run("TestNoTeam", func(t *testing.T) {
-			acResp := appConfigResponse{}
+			var acResp appConfigResponse
 			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
 				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
@@ -3130,8 +3130,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		t.Run("TestTeam", func(t *testing.T) {
 			tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
 			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name)
-			tmResp := teamResponse{}
-
+			var tmResp teamResponse
 			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
 				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
 			tmResp = teamResponse{}
