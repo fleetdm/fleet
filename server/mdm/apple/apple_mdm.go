@@ -3,8 +3,10 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -217,6 +219,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 	}
 
 	if setupAsst != nil {
+		setupAsst.ProfileUUID = res.ProfileUUID
 		if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
 		}
@@ -241,7 +244,10 @@ func (d *DEPService) ensureDefaultSetupAssistant(ctx context.Context) (string, t
 		if err := d.CreateDefaultProfile(ctx); err != nil {
 			return "", time.Time{}, err
 		}
-		profileModTime = time.Now()
+		profileUUID, profileModTime, err = d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
+		if err != nil {
+			return "", time.Time{}, err
+		}
 	}
 	return profileUUID, profileModTime, nil
 }
@@ -281,7 +287,8 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	var customTeamID *uint
 	if appCfg.MDM.AppleBMDefaultTeam != "" {
 		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-		if err != nil && !fleet.IsNotFound(err) {
+		// NOTE: TeamByName does NOT return a not found error if it does not exist
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
 		if tm != nil {
