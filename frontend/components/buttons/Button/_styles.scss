@@ -377,4 +377,11 @@ $base-class: "button";
     display: flex;
     justify-content: space-between;
   }
+
+  &--oversized {
+    background-color: $core-fleet-black;
+    padding: $pad-large $pad-small;
+    font-size: $medium;
+    width: 100%;
+  }
 }
