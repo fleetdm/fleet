@@ -21,6 +21,10 @@ type EnterpriseOverrides struct {
 	// a team ID is provided to the UpdateMDMAppleSettings method.
 	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
 
+	// UpdateTeamMDMAppleSetup is the team-specific service method for when
+	// a team ID is provided to the UpdateTeamMDMAppleSettup method.
+	UpdateTeamMDMAppleSetup func(ctx context.Context, tm *Team, payload MDMAppleSetupPayload) error
+
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
 	// they also need to be called from the standard server/service method (e.g.
@@ -720,6 +724,10 @@ type Service interface {
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

@@ -480,6 +480,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// TODO: Abstract this into service method that can be called elsewhere (e.g. in the teams service
+	// and the apple_mdm service)
+	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
+			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
+			// TODO: Call Apple Business Manager API to define new enrollment profile with end
+			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
+		} else {
+			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
+			// TODO: Call Apple Business Manager API to define new enrollment profile without end
+			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos end user auth change")
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
@@ -498,6 +516,9 @@ func (svc *Service) validateMDM(
 	}
 	if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
+	}
+	if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
+		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -520,6 +541,10 @@ func (svc *Service) validateMDM(
 
 		if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("macos_setup.bootstrap_package",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+		if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
+			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
@@ -549,6 +574,11 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_updates", err.Error())
 		}
 	}
+
+	// // MacOSSetup validation
+	// if mdm.MacOSSetup.EnableEndUserAuthentication {
+	// 	// TODO: should we check if end user authentication is configured?
+	// }
 
 	// EndUserAuthentication
 	// only validate SSO settings if they changed

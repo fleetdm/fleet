@@ -66,6 +66,7 @@ func NewService(
 		HostFeatures:                      eeservice.HostFeatures,
 		TeamByIDOrName:                    eeservice.teamByIDOrName,
 		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
+		UpdateTeamMDMAppleSetup:           eeservice.updateTeamMDMAppleSetup,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,

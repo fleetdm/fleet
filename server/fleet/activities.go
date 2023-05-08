@@ -939,6 +939,44 @@ func (a ActivityTypeDeletedBootstrapPackage) Documentation() (activity, details,
 }`
 }
 
+type ActivityTypeEnabledMacosSetupEndUserAuth struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledMacosSetupEndUserAuth) ActivityName() string {
+	return "enabled_macos_setup_end_user_auth"
+}
+
+func (a ActivityTypeEnabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledMacosSetupEndUserAuth struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledMacosSetupEndUserAuth) ActivityName() string {
+	return "disabled_macos_setup_end_user_auth"
+}
+
+func (a ActivityTypeDisabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
 func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {

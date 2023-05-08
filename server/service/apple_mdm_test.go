@@ -1688,6 +1688,160 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 	}
 }
 
+func TestUpdateMDMAppleSetup(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team"}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, appConfig *fleet.AppConfig) error {
+		return nil
+	}
+	// TODO: Add tests for gitops and observer plus roles? (Settings endpoint test above may also need to be updated)
+	testCases := []struct {
+		name    string
+		user    *fleet.User
+		premium bool
+		teamID  *uint
+		wantErr string
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"global admin premium",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			nil,
+			"",
+		},
+		{
+			"global admin, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"global maintainer premium",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			nil,
+			"",
+		},
+		{
+			"global maintainer, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team maintainer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team id with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			ptr.Uint(1),
+			ErrMissingLicense.Error(),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			tier := fleet.TierFree
+			if tt.premium {
+				tier = fleet.TierPremium
+			}
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+			err := svc.UpdateMDMAppleSetup(ctx, fleet.MDMAppleSetupPayload{TeamID: tt.teamID})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestMDMAppleCommander(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &nanomdm_mock.Storage{}
