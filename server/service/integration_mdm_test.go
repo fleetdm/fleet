@@ -17,6 +17,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -611,25 +612,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	resp := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK)
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	require.NoError(t, err)
-	require.Contains(t, resp.Header, "Content-Disposition")
-	require.Contains(t, resp.Header, "Content-Type")
-	require.Contains(t, resp.Header, "X-Content-Type-Options")
-	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
-	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
-	require.NoError(t, err)
-	require.Equal(t, len(body), headerLen)
-
-	var profile struct {
-		PayloadIdentifier string `plist:"PayloadIdentifier"`
-	}
-	require.NoError(t, plist.Unmarshal(body, &profile))
-	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -4023,25 +4006,41 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
 
-	body, err := io.ReadAll(res.Body)
+	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
-	defer res.Body.Close()
-	require.Contains(t, res.Header, "Content-Disposition")
-	require.Contains(t, res.Header, "Content-Type")
-	require.Contains(t, res.Header, "X-Content-Type-Options")
-	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
-	require.Contains(t, res.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
-	headerLen, err := strconv.Atoi(res.Header.Get("Content-Length"))
-	require.NoError(t, err)
-	require.Equal(t, len(body), headerLen)
+	q := u.Query()
+	// without an EULA uploaded, only the profile token is provided
+	require.False(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
 
-	var profile struct {
-		PayloadIdentifier string `plist:"PayloadIdentifier"`
-	}
-	require.NoError(t, plist.Unmarshal(body, &profile))
-	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+	// upload an EULA
+	pdfBytes := []byte("%PDF-1.pdf-contents")
+	pdfName := "eula.pdf"
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	// with an EULA uploaded, both values are present
+	require.True(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
+	// the url retrieves a valid EULA
+	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
+	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
+	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	respBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, pdfBytes, respBytes)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
@@ -4050,4 +4049,27 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
+}
+
+func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string) {
+	t := s.T()
+
+	resp := s.DoRaw("GET", path, nil, http.StatusOK)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(body), headerLen)
+	var profile struct {
+		PayloadIdentifier string `plist:"PayloadIdentifier"`
+	}
+	require.NoError(t, plist.Unmarshal(body, &profile))
+	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
 }

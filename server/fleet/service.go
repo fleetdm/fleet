@@ -33,7 +33,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
-	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	MDMAppleSyncDEPProfile            func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
@@ -172,8 +172,7 @@ type Service interface {
 
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid, then responds with an enrollment profile.
-	// TODO: add support for EULAs too
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO

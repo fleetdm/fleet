@@ -90,7 +90,7 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		if !lic.IsPremium() {
 			return nil, fleet.ErrMissingLicense
 		}
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPPRofile(ctx); err != nil {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
@@ -1161,6 +1161,8 @@ type mdmAppleEnrollResponse struct {
 func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Disposition", "attachment;fleet-enrollment-profile.mobileconfig")
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -2207,44 +2209,33 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 type callbackMDMAppleSSOResponse struct {
 	Err error `json:"error,omitempty"`
 
-	// used in hijackRender for the response
-	profile []byte
+	redirectURL string
+}
+
+func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Location", r.redirectURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
-
-func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
-	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided.
-	if n, err := w.Write(r.profile); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
-}
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	auth := request.(fleet.Auth)
 
 	// validate that the SSO response is valid
-	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
+	redirectURL, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	if err != nil {
 		return callbackMDMAppleSSOResponse{Err: err}, nil
 	}
-	return callbackMDMAppleSSOResponse{profile: profile}, nil
+	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
