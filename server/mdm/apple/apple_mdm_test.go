@@ -25,7 +25,7 @@ func TestDEPService(t *testing.T) {
 		logger := log.NewNopLogger()
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger, true)
-		defaultProfile := depSvc.GetDefaultProfile()
+		defaultProfile := depSvc.getDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +100,7 @@ func TestDEPService(t *testing.T) {
 			return nil, testErr
 		}
 
-		url, err := depSvc.EnrollURL("token")
+		url, err := depSvc.enrollURL("token")
 		require.ErrorIs(t, err, testErr)
 		require.Empty(t, url)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -112,7 +112,7 @@ func TestDEPService(t *testing.T) {
 			return appCfg, nil
 		}
 
-		url, err = depSvc.EnrollURL("token")
+		url, err = depSvc.enrollURL("token")
 		require.Error(t, err)
 		require.Empty(t, url)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -124,7 +124,7 @@ func TestDEPService(t *testing.T) {
 			return appCfg, nil
 		}
 
-		url, err = depSvc.EnrollURL("token")
+		url, err = depSvc.enrollURL("token")
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
 		require.True(t, ds.AppConfigFuncInvoked)

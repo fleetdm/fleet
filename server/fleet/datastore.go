@@ -763,10 +763,10 @@ type Datastore interface {
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
-	// TODO(mna): this may have to be removed if we don't end up supporting
-	// manual enrollment via a token (currently we only support it via Fleet
-	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
+	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ string) (*MDMAppleEnrollmentProfile, error)
 
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)

@@ -600,6 +600,11 @@ func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.M
 	//
 	// TODO: this will change after #10995 where there can be a DEP profile
 	// per team.
+
+	// TODO(mna): what needs to happen here? This gets called from initiate SSO, but also
+	// from mdmAppleSyncDEPProfile, apparently when SSO settings are changed? Should this
+	// return the team/no team profile of the user, and only fallback on the default one
+	// if there is none? What if user is in multiple teams?
 	var depProf *fleet.MDMAppleEnrollmentProfile
 	for _, prof := range profiles {
 		if prof.Type == "automatic" {

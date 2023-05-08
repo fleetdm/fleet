@@ -252,7 +252,7 @@ ORDER BY created_at DESC
 
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 	var enrollment fleet.MDMAppleEnrollmentProfile
-	if err := sqlx.GetContext(ctx, ds.writer,
+	if err := sqlx.GetContext(ctx, ds.reader,
 		&enrollment,
 		`
 SELECT
@@ -273,6 +273,33 @@ WHERE
 			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by token")
+	}
+	return &enrollment, nil
+}
+
+func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ string) (*fleet.MDMAppleEnrollmentProfile, error) {
+	var enrollment fleet.MDMAppleEnrollmentProfile
+	if err := sqlx.GetContext(ctx, ds.reader,
+		&enrollment,
+		`
+SELECT
+    id,
+    token,
+    type,
+    dep_profile,
+    created_at,
+    updated_at
+FROM
+    mdm_apple_enrollment_profiles
+WHERE
+    type = ?
+`,
+		typ,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by type")
 	}
 	return &enrollment, nil
 }

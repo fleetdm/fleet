@@ -56,6 +56,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleCommands", testListMDMAppleCommands},
 		{"TestMDMAppleEULA", testMDMAppleEULA},
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
+		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 	}
 
 	for _, c := range cases {
@@ -3413,4 +3414,57 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	// delete the team assistant, no error if it doesn't exist
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm.ID)
 	require.NoError(t, err)
+}
+
+func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	_, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	_, err = ds.GetMDMAppleEnrollmentProfileByToken(ctx, "abcd")
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// add a new automatic enrollment profile
+	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
+	profAuto, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "automatic",
+		DEPProfile: &rawMsg,
+		Token:      "abcd",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, profAuto.ID)
+
+	// add a new manual enrollment profile
+	profMan, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "manual",
+		DEPProfile: &rawMsg,
+		Token:      "efgh",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, profMan.ID)
+
+	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+
+	tokens := make([]string, 2)
+	for i, p := range profs {
+		tokens[i] = p.Token
+	}
+	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
+
+	// get the automatic profile by type
+	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	require.NoError(t, err)
+	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
+	require.Equal(t, profAuto, getProf)
+
+	// get the manual profile by token
+	getProf, err = ds.GetMDMAppleEnrollmentProfileByToken(ctx, "efgh")
+	require.NoError(t, err)
+	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
+	require.Equal(t, profMan, getProf)
 }
