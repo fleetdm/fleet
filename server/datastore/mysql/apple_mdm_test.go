@@ -3419,7 +3419,7 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	_, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	_, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
@@ -3457,7 +3457,7 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
 
 	// get the automatic profile by type
-	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.NoError(t, err)
 	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
 	require.Equal(t, profAuto, getProf)

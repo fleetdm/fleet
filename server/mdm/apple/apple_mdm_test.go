@@ -58,7 +58,7 @@ func TestDEPService(t *testing.T) {
 
 		var savedProfile fleet.MDMAppleEnrollmentProfile
 		ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, p fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
-			require.Equal(t, fleet.MDMAppleEnrollmentType("automatic"), p.Type)
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, p.Type)
 			require.NotEmpty(t, p.Token)
 			res := &fleet.MDMAppleEnrollmentProfile{
 				Token:      p.Token,
@@ -70,7 +70,7 @@ func TestDEPService(t *testing.T) {
 		}
 
 		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ string) (*fleet.MDMAppleEnrollmentProfile, error) {
-			require.Equal(t, "automatic", typ)
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, typ)
 			res := savedProfile
 			return &res, nil
 		}

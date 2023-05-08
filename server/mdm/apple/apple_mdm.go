@@ -149,7 +149,7 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 
 	payload := fleet.MDMAppleEnrollmentProfilePayload{
 		Token:      token,
-		Type:       "automatic",
+		Type:       fleet.MDMAppleEnrollmentTypeAutomatic,
 		DEPProfile: ptr.RawMessage(rawDEPProfile),
 	}
 	if _, err := d.ds.NewMDMAppleEnrollmentProfile(ctx, payload); err != nil {
@@ -174,7 +174,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 
 	// must always get the default profile, because the authentication token is
 	// defined on that profile.
-	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching default profile")
 	}
@@ -271,7 +271,7 @@ func (d *DEPService) ensureCustomSetupAssistantIfExists(ctx context.Context, tmI
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	// ensure the defaut (fallback) setup assistant profile exists, registered
+	// ensure the default (fallback) setup assistant profile exists, registered
 	// with Apple DEP.
 	_, defModTime, err := d.ensureDefaultSetupAssistant(ctx)
 	if err != nil {

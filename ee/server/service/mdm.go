@@ -574,7 +574,7 @@ func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 }
 
 func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
-	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}

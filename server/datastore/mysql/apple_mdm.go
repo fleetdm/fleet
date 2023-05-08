@@ -277,7 +277,7 @@ WHERE
 	return &enrollment, nil
 }
 
-func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ string) (*fleet.MDMAppleEnrollmentProfile, error) {
+func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 	var enrollment fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.GetContext(ctx, ds.writer, // use writer as it is used just after creation in some cases
 		&enrollment,
