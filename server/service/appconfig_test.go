@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -853,27 +853,25 @@ func TestMDMAppleConfig(t *testing.T) {
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 			},
-			/*
-				}, {
-					name:        "ssoAllFields",
-					licenseTier: "premium",
-					findTeam:    true,
-					newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-						EntityID:    "fleet",
-						IssuerURI:   "http://issuer.idp.com",
-						MetadataURL: "http://isser.metadata.com",
-						IDPName:     "onelogin",
-					}}},
-					expectedMDM: fleet.MDM{
-						EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-							EntityID:    "fleet",
-							IssuerURI:   "http://issuer.idp.com",
-							MetadataURL: "http://isser.metadata.com",
-							IDPName:     "onelogin",
-						}},
-						MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-					},
-			*/
+		}, {
+			name:        "ssoAllFields",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				MetadataURL: "http://isser.metadata.com",
+				IDPName:     "onelogin",
+			}}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IssuerURI:   "http://issuer.idp.com",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
@@ -943,10 +941,14 @@ func TestMDMAppleConfig(t *testing.T) {
 				if tt.findTeam {
 					return &fleet.Team{}, nil
 				}
-				return nil, errors.New(notFoundErr)
+				return nil, sql.ErrNoRows
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+				raw := json.RawMessage("{}")
+				return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
 			}
 
 			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
