@@ -44,7 +44,7 @@ Fleet Premium offers companies of all sizes the ability to manage query sets by 
 
 <call-to-action preset="premium-upgrade"></call-to-action>
 
-<meta name="category" value="success stories">
+<meta name="category" value="case studies">
 <meta name="authorGitHubUsername" value="jarodreyes">
 <meta name="authorFullName" value="Jarod Reyes">
 <meta name="publishedOn" value="2023-05-12">

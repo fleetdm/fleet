@@ -67,12 +67,12 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy|case-studies)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy|case-studies))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
   },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
