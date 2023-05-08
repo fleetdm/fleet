@@ -63,6 +63,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
+
+	ActivityTypeEnabledMacosSetupEndUserAuth{},
+	ActivityTypeDisabledMacosSetupEndUserAuth{},
 }
 
 type ActivityDetails interface {
