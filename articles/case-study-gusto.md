@@ -20,7 +20,7 @@ William’s first job was through the software society. He has always appreciate
 
 DevOps for IT or ITOps is a trend that is accelerating. Small IT teams are expected to oversee thousands of machines and servers while being on hand to help meet audit requests or jump in on incidents. William notes that one thing different about their Client Platform team is that while not being on the escalation path, they are often brought in to help solve problems for people on the escalation path. “Without the right automation and tools, we just couldn’t do our jobs.”
 
-<blockquote purpose="quote">“Osquery just doesn’t break. It’s extremely fast …Fleet makes it the most reliable system-level tool we use to check the status of our machines.”</blockquote>
+<blockquote purpose="quote">Osquery just doesn’t break. It’s extremely fast …Fleet makes it the most reliable system-level tool we use to check the status of our machines.</blockquote>
 
 ## Instant endpoint visibility that is always available and always works
 
@@ -34,7 +34,7 @@ William described a situation where they needed to update an outdated practice o
 
 In another scenario, William told me about a time they wanted to see how many people were using a certain security product. Fleet wasn’t the obvious choice, but it was the easiest “We just ran a query on how many devices were using this software, and it made it very easy to change the seat and licensing needs when the new contract came up.
 
-<blockquote purpose="quote">“I can safely say Fleet has saved our team thousands of hours in maintenance and upkeep.”</blockquote>
+<blockquote purpose="quote">I can safely say Fleet has saved our team thousands of hours in maintenance and upkeep.</blockquote>
 
 William admits they haven’t fully tapped the potential of Fleet and the Gitops potentials of the tool. But in his estimation, Fleet has saved his team many hours of development time. When I asked him straight up the biggest value Fleet has delivered, he said, “If I had to write all those ruby scripts and log connections? And then maintain all of those tables? I can safely say Fleet has saved our team thousands of hours in maintenance and upkeep.”
 
@@ -49,4 +49,4 @@ Fleet Premium offers companies of all sizes the ability to manage query sets by 
 <meta name="authorFullName" value="Jarod Reyes">
 <meta name="publishedOn" value="2023-05-12">
 <meta name="articleTitle" value="How Gusto uses Fleet to keep their employee machines compliant and safe">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/case-study-fleet-and-gusto-800x450@2x.png">
