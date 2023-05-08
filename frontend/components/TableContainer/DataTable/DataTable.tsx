@@ -137,7 +137,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
-    // gotoPage,
+    gotoPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -284,6 +284,9 @@ const DataTable = ({
       }
     } else {
       onSort(undefined);
+    }
+    if (isClientSidePagination) {
+      gotoPage(0); // Return to page 0 after changing sort clientside
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
