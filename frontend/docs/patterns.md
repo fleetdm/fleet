@@ -7,59 +7,106 @@ follow these patterns unless a specific use case calls for something else. These
 should be discussed within the team and documented before merged.
 
 ## Table of contents
-  - [Typing](#typing)
-  - [Utilities](#utilities)
-  - [Components](#components)
-  - [React Hooks](#react-hooks)
-  - [React Context](#react-context)
-  - [Fleet API Calls](#fleet-api-calls)
-  - [Page Routing](#page-routing)
-  - [Styles](#styles)
-  - [Icons and Images](#icons)
-  - [Other](#other)
+
+- [Typing](#typing)
+- [Utilities](#utilities)
+- [Components](#components)
+- [React Hooks](#react-hooks)
+- [React Context](#react-context)
+- [Fleet API Calls](#fleet-api-calls)
+- [Page Routing](#page-routing)
+- [Styles](#styles)
+- [Icons and Images](#icons-and-images)
+- [Other](#other)
 
 ## Typing
+
 All Javascript and React files use Typescript, meaning the extensions are `.ts` and `.tsx`. Here are the guidelines on how we type at Fleet:
 
 - Use *[global entity interfaces](../README.md#interfaces)* when interfaces are used multiple times across the app
 - Use *local interfaces* when typing entities limited to the specific page or component
-- Local interfaces for page and component props
 
-  ```typescript
-  // page
-  interface IPageProps {
-    prop1: string;
-    prop2: number;
-    ...
-  }
+### Local interfaces for page, widget, or component props
 
-  // Note: Destructure props in page/component signature
-  const PageOrComponent = ({
-    prop1,
-    prop2,
-  }: IPageProps) => {
-
-    return (
-      // ...
-    );
-  };
-  ```
-
-- Local states
 ```typescript
-const [item, setItem] = useState("");
-```
+// page
+interface IPageProps {
+  prop1: string;
+  prop2: number;
+  ...
+}
 
-- Fetch function signatures (i.e. `react-query`)
-```typescript
-useQuery<IHostResponse, Error, IHost>(params)
-```
-
-- Custom functions, including callbacks
-```typescript
-const functionWithTableName = (tableName: string): boolean => {
-  // do something
+// Note: Destructure props in page/component signature
+const PageOrComponent = ({ prop1, prop2 }: IPageProps) => {
+  // ...
 };
+```
+
+### Local states with types
+
+```typescript
+// Use type inference when possible.
+const [item, setItem] = useState("");
+
+// Define the type in the useState generic when needed.
+const [user, setUser] = useState<IUser>()
+```
+
+### Fetch function signatures (i.e. `react-query`)
+
+```typescript
+// include the types for the response, error.
+const { data } = useQuery<IHostResponse, Error>(
+  'host',
+  () => hostAPI.getHost()
+)
+
+
+// include the third host data generic argument if the response data and exposed data are different.
+// This is usually the case when we use the `select` option in useQuery.
+
+// `data` here will be type IHostProfiles
+const { data } = useQuery<IHostResponse, Error, IHostProfiles>(
+  'host',
+  () => hostAPI.getHost()
+  {
+    // `data` here will be of type IHostResponse
+    select: (data) => data.profiles
+  }
+)
+```
+
+### Functions
+
+```typescript
+// Type all function arguments. Use type inference for the return value type.
+// NOTE: sometimes typescript does not get the return argument correct, in which
+// case it is ok to define the return type explicitly.
+const functionWithTableName = (tableName: string)=> {
+  // ...
+};
+```
+
+### API interfaces
+
+```typescript
+// API interfaces should live in the relevant entities file.
+// Their names should be named to clarify what they are used for when interacting
+// with the API
+
+// should be defined in service/entities/hosts.ts
+interface IHostDetailsReponse {
+  ...
+}
+interface IGetHostsQueryParams {
+  ...
+}
+
+// should be defined in service/entities/teams.ts
+interface ICreateTeamPostBody {
+  ...
+}
+
 ```
 
 ## Utilities

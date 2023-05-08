@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
-import { MacMdmProfileOperationType, MdmProfileStatus } from "interfaces/mdm";
+import { MacMdmProfileOperationType } from "interfaces/mdm";
 import MacSettingStatusCell from "./MacSettingStatusCell";
 
 describe("Mac setting status cell", () => {
   it("Correctly displays the status text of a profile", () => {
-    const status = MdmProfileStatus.VERIFYING;
+    const status = "verifying";
     const operationType: MacMdmProfileOperationType = "install";
 
     render(
@@ -17,7 +17,7 @@ describe("Mac setting status cell", () => {
   });
 
   it("Correctly displays the tooltip text for a profile", async () => {
-    const status = MdmProfileStatus.VERIFYING;
+    const status = "verifying";
     const operationType: MacMdmProfileOperationType = "install";
 
     const customRender = createCustomRenderer();
