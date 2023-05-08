@@ -135,6 +135,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+							if s.onScheduleDone != nil {
+								defer s.onScheduleDone()
+							}
 							return fleetSyncer.RunAssigner(ctx)
 						}),
 					)
@@ -350,7 +353,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.NoError(t, err)
 
 	// create and enroll a host in MDM
-	d := newDevice(s)
+	d := newDevice(&deviceOptions{s: s})
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -364,7 +367,7 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 		HardwareSerial:  d.serial,
 	})
 	require.NoError(t, err)
-	d.mdmEnroll(s)
+	d.mdmEnroll()
 
 	triggerSchedule := func() {
 		ch := make(chan bool)
@@ -552,14 +555,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
 
-	d := newDevice(s)
+	d := newDevice(&deviceOptions{s: s})
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
 
 	// enroll one of the hosts
 	d.serial = devices[0].SerialNumber
-	d.mdmEnroll(s)
+	d.mdmEnroll()
 
 	// make sure the host gets a request to install fleetd
 	var fleetdCmd *micromdm.CommandPayload
@@ -619,8 +622,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 
 	// Enroll two devices into MDM
-	deviceA := newMDMEnrolledDevice(s)
-	deviceB := newMDMEnrolledDevice(s)
+	deviceA := newDevice(&deviceOptions{s: s})
+	deviceB := newDevice(&deviceOptions{s: s})
 
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
@@ -718,7 +721,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 }
 
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
-	d := newMDMEnrolledDevice(s)
+	d := newDevice(&deviceOptions{s: s, enroll: true})
 
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
@@ -777,7 +780,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	t := s.T()
 	// enroll into mdm
-	d := newMDMEnrolledDevice(s)
+	d := newDevice(&deviceOptions{s: s, enroll: true})
 
 	// set an enroll secret
 	var applyResp applyEnrollSecretSpecResponse
@@ -1983,7 +1986,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		// always receive the "no team" profiles on mdm enrollment since it would
 		// not be part of any team yet (team assignment is done when it enrolls
 		// with orbit).
-		d := newDevice(s)
+		d := newDevice(&deviceOptions{s: s})
 
 		// enroll the device with orbit
 		var resp EnrollOrbitResponse
@@ -1998,7 +2001,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		require.NoError(t, err)
 		h.OrbitNodeKey = &orbitNodeKey
 
-		d.mdmEnroll(s)
+		d.mdmEnroll()
 
 		return h
 	}
@@ -2467,7 +2470,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	t := s.T()
 
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
-	enrolledHost := newMDMEnrolledDevice(s)
+	enrolledHost := newDevice(&deviceOptions{s: s, enroll: true})
 
 	base64Cmd := func(rawCmd string) string {
 		return base64.RawStdEncoding.EncodeToString([]byte(rawCmd))
@@ -2706,24 +2709,24 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
 	// - Pending means that the device won't enroll at all
 	noTeamDevices := []deviceWithResponse{
-		{"Acknowledge", newDevice(s)},
-		{"Acknowledge", newDevice(s)},
-		{"Acknowledge", newDevice(s)},
-		{"Error", newDevice(s)},
-		{"Offline", newDevice(s)},
-		{"Offline", newDevice(s)},
-		{"Pending", newDevice(s)},
-		{"Pending", newDevice(s)},
+		{"Acknowledge", newDevice(&deviceOptions{s: s})},
+		{"Acknowledge", newDevice(&deviceOptions{s: s})},
+		{"Acknowledge", newDevice(&deviceOptions{s: s})},
+		{"Error", newDevice(&deviceOptions{s: s})},
+		{"Offline", newDevice(&deviceOptions{s: s})},
+		{"Offline", newDevice(&deviceOptions{s: s})},
+		{"Pending", newDevice(&deviceOptions{s: s})},
+		{"Pending", newDevice(&deviceOptions{s: s})},
 	}
 
 	teamDevices := []deviceWithResponse{
-		{"Acknowledge", newDevice(s)},
-		{"Acknowledge", newDevice(s)},
-		{"Error", newDevice(s)},
-		{"Error", newDevice(s)},
-		{"Error", newDevice(s)},
-		{"Offline", newDevice(s)},
-		{"Pending", newDevice(s)},
+		{"Acknowledge", newDevice(&deviceOptions{s: s})},
+		{"Acknowledge", newDevice(&deviceOptions{s: s})},
+		{"Error", newDevice(&deviceOptions{s: s})},
+		{"Error", newDevice(&deviceOptions{s: s})},
+		{"Error", newDevice(&deviceOptions{s: s})},
+		{"Offline", newDevice(&deviceOptions{s: s})},
+		{"Pending", newDevice(&deviceOptions{s: s})},
 	}
 
 	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
@@ -2739,8 +2742,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	}
 
 	// for good measure, add a couple of manually enrolled hosts
-	_ = newMDMEnrolledDevice(s)
-	_ = newMDMEnrolledDevice(s)
+	_ = newDevice(&deviceOptions{s: s, enroll: true})
+	_ = newDevice(&deviceOptions{s: s, enroll: true})
 
 	// create a non-macOS host
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
@@ -2825,7 +2828,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
-		d.device.mdmEnroll(s)
+		d.device.mdmEnroll()
 		cmd := d.device.idle()
 		for cmd != nil {
 			// if the command is to install the bootstrap package
@@ -3374,27 +3377,39 @@ type device struct {
 	serial string
 	model  string
 
-	s        *integrationMDMTestSuite
-	scepCert *x509.Certificate
-	scepKey  *rsa.PrivateKey
+	s          *integrationMDMTestSuite
+	scepCert   *x509.Certificate
+	scepKey    *rsa.PrivateKey
+	enrollPath string
 }
 
-func newDevice(s *integrationMDMTestSuite) *device {
-	return &device{
-		uuid:   strings.ToUpper(uuid.New().String()),
-		serial: randSerial(),
-		model:  "MacBookPro16,1",
-		s:      s,
+type deviceOptions struct {
+	s          *integrationMDMTestSuite
+	enrollPath string
+	enroll     bool
+}
+
+func newDevice(opts *deviceOptions) *device {
+	d := &device{
+		uuid:       strings.ToUpper(uuid.New().String()),
+		serial:     randSerial(),
+		model:      "MacBookPro16,1",
+		s:          opts.s,
+		enrollPath: "/mdm/apple/mdm",
 	}
-}
 
-func newMDMEnrolledDevice(s *integrationMDMTestSuite) *device {
-	d := newDevice(s)
-	d.mdmEnroll(s)
+	if opts.enrollPath != "" {
+		d.enrollPath = opts.enrollPath
+	}
+
+	if opts.enroll {
+		d.mdmEnroll()
+	}
+
 	return d
 }
 
-func (d *device) mdmEnroll(s *integrationMDMTestSuite) {
+func (d *device) mdmEnroll() {
 	d.scepEnroll()
 	d.authenticate()
 	d.tokenUpdate()
@@ -3502,7 +3517,7 @@ func (d *device) request(reqType string, payload map[string]any) *http.Response 
 
 	return d.s.DoRawWithHeaders(
 		"POST",
-		"/mdm/apple/mdm",
+		d.enrollPath,
 		body,
 		200,
 		map[string]string{
@@ -3751,6 +3766,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
+	d := newDevice(&deviceOptions{s: s})
 	var lastSubmittedProfile *godep.Profile
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -3766,8 +3782,23 @@ func (s *integrationMDMTestSuite) TestSSO() {
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
 			require.NoError(t, err)
+		case "/server/devices", "/devices/sync":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.DeviceResponse{
+				Devices: []godep.Device{{SerialNumber: d.serial, Model: d.model, OS: "osx", OpType: "added"}},
+			})
+			require.NoError(t, err)
 		}
 	}))
+
+	// sync the list of ABM devices
+	ch := make(chan bool)
+	s.onScheduleDone = func() { close(ch) }
+	_, err := s.depSchedule.Trigger()
+	require.NoError(t, err)
+	<-ch
 
 	// MDM SSO fields are empty by default
 	acResp := appConfigResponse{}
@@ -3864,11 +3895,18 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
-	// without an EULA uploaded, only the profile token is provided
+	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
+	require.True(t, q.Has("enrollment_reference"))
 	// the url retrieves a valid profile
-	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
+	s.downloadAndVerifyEnrollmentProfile(
+		fmt.Sprintf(
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			q.Get("profile_token"),
+			q.Get("enrollment_reference"),
+		),
+	)
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -3881,11 +3919,18 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
-	// with an EULA uploaded, both values are present
+	// with an EULA uploaded, all values are present
 	require.True(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
+	require.True(t, q.Has("enrollment_reference"))
 	// the url retrieves a valid profile
-	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
+	prof := s.downloadAndVerifyEnrollmentProfile(
+		fmt.Sprintf(
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			q.Get("profile_token"),
+			q.Get("enrollment_reference"),
+		),
+	)
 	// the url retrieves a valid EULA
 	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
@@ -3893,6 +3938,37 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
+
+	// find the payload with the enrollment URL
+	enrollURL := ""
+	for _, p := range prof.PayloadContent {
+		if p.PayloadType == "com.apple.mdm" {
+			enrollURL = p.ServerURL
+		}
+	}
+	require.NotEmpty(t, enrollURL)
+	// extract the path and the query from the URL
+	u, err = url.Parse(enrollURL)
+	require.NoError(t, err)
+
+	// enroll the device using the provided profile
+	d.enrollPath = u.Path + "?" + u.RawQuery
+	d.mdmEnroll()
+
+	// ask for commands and verify that we get AccountConfiguration
+	var accCmd *micromdm.CommandPayload
+	cmd := d.idle()
+	for cmd != nil {
+		if cmd.Command.RequestType == "AccountConfiguration" {
+			accCmd = cmd
+		}
+		cmd = d.acknowledge(cmd.CommandUUID)
+	}
+	require.NotNil(t, accCmd)
+	require.NotNil(t, accCmd.Command)
+	require.True(t, accCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	require.Equal(t, "SSO User 1", accCmd.Command.AccountConfiguration.PrimaryAccountFullName)
+	require.Equal(t, "sso_user@example.com", accCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
@@ -3903,7 +3979,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 }
 
-func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string) {
+type enrollmenPayload struct {
+	ServerURL   string
+	PayloadType string
+}
+
+type enrollmentProfile struct {
+	PayloadIdentifier string
+	PayloadContent    []enrollmenPayload
+}
+
+func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string) *enrollmentProfile {
 	t := s.T()
 
 	resp := s.DoRaw("GET", path, nil, http.StatusOK)
@@ -3919,9 +4005,18 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
 	require.NoError(t, err)
 	require.Equal(t, len(body), headerLen)
-	var profile struct {
-		PayloadIdentifier string `plist:"PayloadIdentifier"`
-	}
+
+	var profile enrollmentProfile
 	require.NoError(t, plist.Unmarshal(body, &profile))
 	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+	for _, p := range profile.PayloadContent {
+		switch p.PayloadType {
+		case "com.apple.security.scep":
+		case "com.apple.mdm":
+			require.NotEmpty(t, p.ServerURL)
+		default:
+			require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
+		}
+	}
+	return &profile
 }

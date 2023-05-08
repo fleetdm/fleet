@@ -54,23 +54,32 @@ const (
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, MDMPath)
+	return resolveURL(serverURL, MDMPath, false)
 }
 
 func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, EnrollPath)
+	return resolveURL(serverURL, EnrollPath, false)
 }
 
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, SCEPPath)
+	// Apple's SCEP client appends a query string to the SCEP URL in the
+	// enrollment profile, without checking if the URL already has a query
+	// string. Eg: if the URL is `/test/example?foo=bar` it'll make a
+	// request to `/test/example?foo=bar?SCEPOperation=..`
+	//
+	// As a consequence we ensure that the query is always clean for the SCEP URL.
+	return resolveURL(serverURL, SCEPPath, true)
 }
 
-func resolveURL(serverURL, relPath string) (string, error) {
+func resolveURL(serverURL, relPath string, cleanQuery bool) (string, error) {
 	u, err := url.Parse(serverURL)
 	if err != nil {
 		return "", err
 	}
 	u.Path = path.Join(u.Path, relPath)
+	if cleanQuery {
+		u.RawQuery = ""
+	}
 	return u.String(), nil
 }
 
@@ -188,6 +197,19 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 		depProfile.ConfigurationWebURL = enrollURL
 	} else {
 		depProfile.ConfigurationWebURL = appConfig.ServerSettings.ServerURL + "/mdm/sso"
+		// TODO: this is necessary in order to send a command to
+		// pre-populate the fullname/username fields during account
+		// setup with the values we've got from SSO. We need to double
+		// check two things with product:
+		//
+		// 1. Should we release the device ourselves?
+		// 2. Is the auto-population feature automatically enabled if SSO is enabled?
+		depProfile.AwaitDeviceConfigured = true
+	}
+
+	// This setting only has effect if the device is supervised
+	if depProfile.AwaitDeviceConfigured {
+		depProfile.IsSupervised = true
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)

@@ -50,8 +50,13 @@ export default {
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_EULA_FILE: (token: string) =>
     `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (token: string) =>
-    `/api/mdm/apple/enroll?token=${token}`,
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
+    const query = new URLSearchParams({ token });
+    if (ref) {
+      query.append("enrollment_reference", ref);
+    }
+    return `/api/mdm/apple/enroll?${query}`;
+  },
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
