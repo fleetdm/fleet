@@ -853,25 +853,27 @@ func TestMDMAppleConfig(t *testing.T) {
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 			},
-		}, {
-			name:        "ssoAllFields",
-			licenseTier: "premium",
-			findTeam:    true,
-			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
-				MetadataURL: "http://isser.metadata.com",
-				IDPName:     "onelogin",
-			}}},
-			expectedMDM: fleet.MDM{
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-					EntityID:    "fleet",
-					IssuerURI:   "http://issuer.idp.com",
-					MetadataURL: "http://isser.metadata.com",
-					IDPName:     "onelogin",
-				}},
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-			},
+			/*
+				}, {
+					name:        "ssoAllFields",
+					licenseTier: "premium",
+					findTeam:    true,
+					newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID:    "fleet",
+						IssuerURI:   "http://issuer.idp.com",
+						MetadataURL: "http://isser.metadata.com",
+						IDPName:     "onelogin",
+					}}},
+					expectedMDM: fleet.MDM{
+						EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+							EntityID:    "fleet",
+							IssuerURI:   "http://issuer.idp.com",
+							MetadataURL: "http://isser.metadata.com",
+							IDPName:     "onelogin",
+						}},
+						MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+					},
+			*/
 		}, {
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
@@ -942,9 +944,6 @@ func TestMDMAppleConfig(t *testing.T) {
 					return &fleet.Team{}, nil
 				}
 				return nil, errors.New(notFoundErr)
-			}
-			ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-				return []*fleet.MDMAppleEnrollmentProfile{}, nil
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil

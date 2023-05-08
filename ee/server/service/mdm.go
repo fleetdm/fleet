@@ -21,7 +21,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -387,7 +386,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
-	// TODO(mna): svc.depService.RegisterProfileWithAppleDEPServer()
+	// TODO(mna): enqueue job to Define/Assign profile svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -567,31 +566,17 @@ func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 	}
 
 	if depProf == nil {
+		// CreateDefaultProfile takes care of registering the profile with Apple.
 		return svc.depService.CreateDefaultProfile(ctx)
 	}
 
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching app config")
-	}
-
-	enrollURL, err := apple_mdm.EnrollURL(depProf.Token, appCfg)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating enroll URL")
-	}
-
-	var jsonProf *godep.Profile
-	if err := json.Unmarshal(*depProf.DEPProfile, &jsonProf); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
-	}
-
-	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, jsonProf, enrollURL)
+	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
 }
 
 func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
-	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing profiles")
+	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}
 
 	// Grab the first automatic enrollment profile we find, the current
@@ -605,13 +590,6 @@ func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.M
 	// from mdmAppleSyncDEPProfile, apparently when SSO settings are changed? Should this
 	// return the team/no team profile of the user, and only fallback on the default one
 	// if there is none? What if user is in multiple teams?
-	var depProf *fleet.MDMAppleEnrollmentProfile
-	for _, prof := range profiles {
-		if prof.Type == "automatic" {
-			depProf = prof
-			break
-		}
-	}
 
-	return depProf, nil
+	return prof, nil
 }

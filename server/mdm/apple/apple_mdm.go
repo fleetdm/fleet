@@ -140,11 +140,6 @@ func (d *DEPService) CreateDefaultProfile(ctx context.Context) error {
 // https://developer.apple.com/documentation/devicemanagement/profile
 func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profile) error {
 	token := uuid.New().String()
-	enrollURL, err := d.enrollURL(token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating enroll URL")
-	}
-
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling provided profile")
@@ -155,12 +150,11 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 		Type:       "automatic",
 		DEPProfile: ptr.RawMessage(rawDEPProfile),
 	}
-
 	if _, err := d.ds.NewMDMAppleEnrollmentProfile(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "saving enrollment profile in DB")
 	}
 
-	if err := d.RegisterProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
+	if err := d.RegisterProfileWithAppleDEPServer(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "registering profile in Apple servers")
 	}
 
@@ -168,14 +162,40 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 }
 
 // RegisterProfileWithAppleDEPServer registers the enrollment profile in
-// Apple's servers via the DEP API, so it can be used for assignment.
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
-	appConfig, err := d.ds.AppConfig(ctx)
+// Apple's servers via the DEP API, so it can be used for assignment. If
+// setupAsst is nil, the default profile is registered.
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setupAsst *fleet.MDMAppleSetupAssistant) error {
+	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("get app config: %w", err)
+		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	depProfile.URL = enrollURL
+	// must always get the default profile, because the authentication token is
+	// defined on that profile.
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, "automatic")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var rawJSON json.RawMessage
+	if defaultProf.DEPProfile != nil {
+		rawJSON = *defaultProf.DEPProfile
+	}
+	if setupAsst != nil {
+		rawJSON = setupAsst.Profile
+	}
+
+	var jsonProf *godep.Profile
+	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	jsonProf.URL = enrollURL
 
 	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
 	// flow, otherwise use Fleet's enroll URL.
@@ -184,36 +204,31 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 	// always still set configuration_web_url, otherwise the request method
 	// coming from Apple changes from GET to POST, and we want to preserve
 	// backwards compatibility.
-	if appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
-		depProfile.ConfigurationWebURL = enrollURL
+	if appCfg.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
+		jsonProf.ConfigurationWebURL = enrollURL
 	} else {
-		depProfile.ConfigurationWebURL = appConfig.ServerSettings.ServerURL + "/mdm/sso"
+		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, DEPName, depProfile)
+	res, err := depClient.DefineProfile(ctx, DEPName, jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
-	// TODO(mna): this should probably return the profile UUID (or the updated depProfile)
-	// instead (or in addition? we likely won't ever use the profile as stored in nanomdm's tables).
-	if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set profile UUID")
+	if setupAsst != nil {
+		if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
+		}
+	} else {
+		// for backwards compatibility, we store the profile UUID of the default
+		// profile in the nanomdm storage.
+		if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "save default profile UUID")
+		}
 	}
 
 	return nil
-}
-
-// EnrollURL returns an URL that can be used to obtain an MDM enrollment
-// profile (xml) from Fleet.
-func (d *DEPService) enrollURL(token string) (string, error) {
-	appConfig, err := d.ds.AppConfig(context.Background())
-	if err != nil {
-		return "", fmt.Errorf("get app config: %w", err)
-	}
-
-	return EnrollURL(token, appConfig)
 }
 
 func (d *DEPService) ensureDefaultSetupAssistant(ctx context.Context) (string, time.Time, error) {
@@ -242,8 +257,9 @@ func (d *DEPService) ensureCustomSetupAssistantIfExists(ctx context.Context, tmI
 	}
 
 	if asst.ProfileUUID == "" {
-		// TODO(mna): implement the registering, which requires the token...
-		//d.registerSetupAssistantWithAppleDEPServer(ctx, asst)
+		if err := d.RegisterProfileWithAppleDEPServer(ctx, asst); err != nil {
+			return "", time.Time{}, err
+		}
 	}
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
