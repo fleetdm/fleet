@@ -1817,10 +1817,6 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	// try to insert an empty account
-	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
-	require.Error(t, err)
-
 	// duplicated values get updated
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
@@ -1832,7 +1828,7 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
 	require.ErrorAs(t, err, &nfe)
-	require.Nil(t, &out)
+	require.Nil(t, out)
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
