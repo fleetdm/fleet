@@ -1325,8 +1325,7 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 }
 
 type mdmAppleGetInstallerRequest struct {
-	Token               string `query:"token"`
-	EnrollmentReference string `query:"enrollment_reference"`
+	Token string `query:"token"`
 }
 
 func (r mdmAppleGetInstallerResponse) error() error { return r.Err }
