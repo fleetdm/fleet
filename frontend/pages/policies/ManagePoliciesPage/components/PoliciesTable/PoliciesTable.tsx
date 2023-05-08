@@ -1,7 +1,6 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { AppContext } from "context/app";
-import { noop } from "lodash";
-import paths from "router/paths";
+import PATHS from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
@@ -33,6 +32,10 @@ interface IPoliciesTableProps {
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void;
+  onQueryChange?: (newTableQuery: ITableQueryData) => void;
+  searchQuery: string;
+  page: number;
 }
 
 const PoliciesTable = ({
@@ -46,16 +49,12 @@ const PoliciesTable = ({
   currentAutomatedPolicies,
   isPremiumTier,
   isSandboxMode,
+  onQueryChange,
+  onClientSidePaginationChange,
+  searchQuery,
+  page,
 }: IPoliciesTableProps): JSX.Element => {
-  const { MANAGE_HOSTS } = paths;
-
   const { config } = useContext(AppContext);
-
-  const [searchString, setSearchString] = useState("");
-
-  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
-    setSearchString(searchQuery);
-  };
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
@@ -63,7 +62,7 @@ const PoliciesTable = ({
       header: (
         <>
           Ask yes or no questions about{" "}
-          <a href={MANAGE_HOSTS}>all your hosts</a>
+          <a href={PATHS.MANAGE_HOSTS}>all your hosts</a>
         </>
       ),
       info: (
@@ -82,7 +81,8 @@ const PoliciesTable = ({
           Ask yes or no questions about hosts assigned to{" "}
           <a
             href={
-              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
+              PATHS.MANAGE_HOSTS +
+              TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
             }
           >
             {currentTeam.name}
@@ -101,7 +101,7 @@ const PoliciesTable = ({
         </Button>
       );
     }
-    if (searchString) {
+    if (searchQuery) {
       delete emptyPolicies.iconName;
       delete emptyPolicies.primaryButton;
       emptyPolicies.header = "No policies match the current search criteria.";
@@ -112,7 +112,7 @@ const PoliciesTable = ({
     return emptyPolicies;
   };
 
-  const searchable = !(policiesList?.length === 0 && searchString === "");
+  const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
   return (
     <div
@@ -139,9 +139,12 @@ const PoliciesTable = ({
             currentAutomatedPolicies,
             config?.update_interval.osquery_policy
           )}
+          filters={{ global: searchQuery }}
           isLoading={isLoading}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
+          defaultSearchQuery={searchQuery}
+          defaultPageIndex={page}
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
@@ -160,9 +163,10 @@ const PoliciesTable = ({
           }
           disableCount={tableType === "inheritedPolicies"}
           isClientSidePagination
+          onClientSidePaginationChange={onClientSidePaginationChange}
           isClientSideFilter
           searchQueryColumn="name"
-          onQueryChange={handleSearchChange}
+          onQueryChange={onQueryChange}
           inputPlaceHolder="Search by name"
           searchable={searchable}
         />

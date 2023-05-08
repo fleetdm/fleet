@@ -20,6 +20,7 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
+  showInheritedTable?: string;
 }
 interface IRowProps extends Row {
   original: {
