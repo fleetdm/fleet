@@ -2,8 +2,6 @@
 
 ![Two people talking about Fleet](../website/assets/images/articles/case-study-fleet-and-atlassian-800x450@2x.png)
 
-Atlassian, a global software company specializing in team collaboration and productivity tools, has recently adopted Fleet, a device management platform built on osquery. In this case study, we explore how Fleet has enabled Atlassian to create a strategic trust platform, improving their security posture that facilitates enhanced communication and collaboration among their teams.
-
 **Customer:** Atlassian
 
 **Employees:** 5,000+
@@ -13,6 +11,8 @@ Atlassian, a global software company specializing in team collaboration and prod
 **Founded:** 2002
 
 **Number of Customers:** 194,000+
+
+Atlassian, a global software company specializing in team collaboration and productivity tools, has recently adopted Fleet, a device management platform built on osquery. In this case study, we explore how Fleet has enabled Atlassian to create a strategic trust platform, improving their security posture that facilitates enhanced communication and collaboration among their teams.
 
 ## The challenge: strengthening security and compliance
 
@@ -53,7 +53,7 @@ Fleet Premium offers companies of all sizes the ability to manage query sets by 
 <call-to-action preset="premium-upgrade"></call-to-action>
 
 
-<meta name="category" value="success stories">
+<meta name="category" value="case studies">
 <meta name="authorGitHubUsername" value="jarodreyes">
 <meta name="authorFullName" value="Jarod Reyes">
 <meta name="publishedOn" value="2022-05-10">
