@@ -1,6 +1,7 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
+
 interface IQuery {
   color?: Colors;
   size?: IconSizes;

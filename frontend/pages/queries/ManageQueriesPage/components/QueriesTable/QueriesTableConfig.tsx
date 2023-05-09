@@ -240,9 +240,8 @@ const generateTableHeaders = ({
                 (r: IQueryRow) => r.original.author_id === currentUser.id
               ).length === 0
             );
-          } else {
-            return false;
           }
+          return false;
         };
 
         const checkboxProps = {
