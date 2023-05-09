@@ -115,10 +115,6 @@ const PacksTable = ({
         inputPlaceHolder="Search by name"
         searchable={packs && packs.length > 0}
         disablePagination
-        // onPrimarySelectActionClick={onDeletePackClick}
-        // primarySelectActionButtonVariant="text-icon"
-        // primarySelectActionButtonIcon="delete"
-        // primarySelectActionButtonText={"Delete"}
         primarySelectAction={{
           name: "delete pack",
           buttonText: "Delete",

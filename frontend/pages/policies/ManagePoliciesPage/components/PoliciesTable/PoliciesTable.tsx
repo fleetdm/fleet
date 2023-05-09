@@ -145,10 +145,6 @@ const PoliciesTable = ({
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          // onPrimarySelectActionClick={onDeletePolicyClick}
-          // primarySelectActionButtonVariant="text-icon"
-          // primarySelectActionButtonIcon="delete"
-          // primarySelectActionButtonText={"Delete"}
           primarySelectAction={{
             name: "delete policy",
             buttonText: "Delete",

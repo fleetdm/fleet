@@ -107,10 +107,6 @@ const TableContainer = ({
   className,
   disableActionButton,
   disableMultiRowSelect = false,
-  // actionButtonText,
-  // actionButtonIcon,
-  // actionButtonVariant = "brand",
-  // onActionButtonClick,
   actionButton,
   hideActionButton,
   showMarkAllPages,
@@ -121,10 +117,6 @@ const TableContainer = ({
   disablePagination,
   disableNextPage,
   disableCount,
-  // primarySelectActionButtonVariant = "brand",
-  // primarySelectActionButtonIcon,
-  // primarySelectActionButtonText,
-  // onPrimarySelectActionClick,
   primarySelectAction,
   secondarySelectActions,
   filteredCount,
@@ -432,12 +424,6 @@ const TableContainer = ({
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={defaultPageIndex}
-                // primarySelectActionButtonVariant={
-                //   primarySelectActionButtonVariant
-                // }
-                // primarySelectActionButtonIcon={primarySelectActionButtonIcon}
-                // primarySelectActionButtonText={primarySelectActionButtonText}
-                // onPrimarySelectActionClick={onPrimarySelectActionClick}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
