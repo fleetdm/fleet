@@ -54,13 +54,37 @@ func (m *MacosSetupAssistant) Run(ctx context.Context, argsJSON json.RawMessage)
 
 	switch args.Task {
 	case MacosSetupAssistantProfileChanged:
+		return m.runProfileChanged(ctx, args)
 	case MacosSetupAssistantProfileDeleted:
+		return m.runProfileDeleted(ctx, args)
 	case MacosSetupAssistantTeamDeleted:
+		return m.runTeamDeleted(ctx, args)
 	case MacosSetupAssistantHostsTransferred:
+		return m.runHostsTransferred(ctx, args)
 	case MacosSetupAssistantUpdateAllProfiles:
+		return m.runUpdateAllProfiles(ctx, args)
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 	}
+}
+
+func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosSetupAssistantArgs) error {
+	panic("unimplemented")
+}
+
+func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosSetupAssistantArgs) error {
+	panic("unimplemented")
+}
+
+func (m *MacosSetupAssistant) runTeamDeleted(ctx context.Context, args macosSetupAssistantArgs) error {
+	panic("unimplemented")
+}
+
+func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args macosSetupAssistantArgs) error {
+	panic("unimplemented")
+}
+
+func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args macosSetupAssistantArgs) error {
 	panic("unimplemented")
 }
 

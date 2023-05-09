@@ -18,6 +18,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -488,6 +489,15 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileChanged,
+			newAsst.TeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
+		}
+
 		var teamName *string
 		if newAsst.TeamID != nil {
 			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
@@ -531,6 +541,15 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileDeleted,
+			teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
+		}
+
 		var teamName *string
 		if teamID != nil {
 			tm, err := svc.ds.Team(ctx, *teamID)
