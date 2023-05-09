@@ -190,11 +190,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
 		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleEnrollmentProfiles(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
+		_, err := svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.GetMDMAppleInstallerByID(ctx, 42)
 		checkAuthErr(t, err, shouldFailWithAuth)
@@ -808,29 +804,6 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.NotNil(t, gotHost.MDM.Profiles)
 			require.ElementsMatch(t, *c.expected, *gotHost.MDM.Profiles)
 		})
-	}
-}
-
-func TestAppleMDMEnrollmentProfile(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
-
-	// Only global admins can create enrollment profiles.
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-	require.NoError(t, err)
-
-	// All other users should not have access to the endpoints.
-	for _, user := range []*fleet.User{
-		test.UserNoRoles,
-		test.UserMaintainer,
-		test.UserObserver,
-		test.UserObserverPlus,
-		test.UserTeamAdminTeam1,
-	} {
-		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 	}
 }
 

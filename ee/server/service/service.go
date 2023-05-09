@@ -70,7 +70,7 @@ func NewService(
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
-		MDMAppleSyncDEPProfile:            eeservice.mdmAppleSyncDEPProfile,
+		MDMAppleSyncDEPProfiles:           eeservice.mdmAppleSyncDEPProfiles,
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 	})
 
