@@ -36,9 +36,7 @@ interface ITableContainerProps {
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
   defaultPageIndex?: number;
-  actionButtonText?: string;
-  actionButtonIcon?: string;
-  actionButtonVariant?: ButtonVariant;
+  actionButton?: IActionButtonProps;
   hideActionButton?: boolean;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
@@ -59,9 +57,7 @@ interface ITableContainerProps {
   // The old page controls for server-side pagination render a no results screen
   // with a back button. This fix instead disables the next button in that case.
   disableCount?: boolean;
-  primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
-  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
+  primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   filteredCount?: number;
   searchToolTipText?: string;
@@ -74,11 +70,9 @@ interface ITableContainerProps {
   // in lieu of displaying the empty component when client-side filtering yields zero results
   disableHighlightOnHover?: boolean;
   pageSize?: number;
-  onActionButtonClick?: () => void;
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
@@ -113,9 +107,11 @@ const TableContainer = ({
   className,
   disableActionButton,
   disableMultiRowSelect = false,
-  actionButtonText,
-  actionButtonIcon,
-  actionButtonVariant = "brand",
+  // actionButtonText,
+  // actionButtonIcon,
+  // actionButtonVariant = "brand",
+  // onActionButtonClick,
+  actionButton,
   hideActionButton,
   showMarkAllPages,
   isAllPagesSelected,
@@ -125,9 +121,11 @@ const TableContainer = ({
   disablePagination,
   disableNextPage,
   disableCount,
-  primarySelectActionButtonVariant = "brand",
-  primarySelectActionButtonIcon,
-  primarySelectActionButtonText,
+  // primarySelectActionButtonVariant = "brand",
+  // primarySelectActionButtonIcon,
+  // primarySelectActionButtonText,
+  // onPrimarySelectActionClick,
+  primarySelectAction,
   secondarySelectActions,
   filteredCount,
   searchToolTipText,
@@ -139,9 +137,7 @@ const TableContainer = ({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
-  onActionButtonClick,
   onQueryChange,
-  onPrimarySelectActionClick,
   customControl,
   stackControls,
   onSelectSingleRow,
@@ -333,19 +329,19 @@ const TableContainer = ({
               )}
             </span>
             <span className={"controls"}>
-              {!hideActionButton && actionButtonText && (
+              {!hideActionButton && actionButton && (
                 <Button
                   disabled={disableActionButton}
-                  onClick={onActionButtonClick}
-                  variant={actionButtonVariant}
+                  onClick={actionButton.onActionButtonClick}
+                  variant={actionButton.variant}
                   className={`${baseClass}__table-action-button`}
                 >
                   <>
-                    {actionButtonText}
-                    {actionButtonIcon && (
+                    {actionButton.buttonText}
+                    {actionButton.icon && (
                       <img
-                        src={actionButtonIcon}
-                        alt={`${actionButtonText} icon`}
+                        src={actionButton.icon}
+                        alt={`${actionButton.buttonText} icon`}
                       />
                     )}
                   </>
@@ -436,12 +432,13 @@ const TableContainer = ({
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={defaultPageIndex}
-                primarySelectActionButtonVariant={
-                  primarySelectActionButtonVariant
-                }
-                primarySelectActionButtonIcon={primarySelectActionButtonIcon}
-                primarySelectActionButtonText={primarySelectActionButtonText}
-                onPrimarySelectActionClick={onPrimarySelectActionClick}
+                // primarySelectActionButtonVariant={
+                //   primarySelectActionButtonVariant
+                // }
+                // primarySelectActionButtonIcon={primarySelectActionButtonIcon}
+                // primarySelectActionButtonText={primarySelectActionButtonText}
+                // onPrimarySelectActionClick={onPrimarySelectActionClick}
+                primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onResultsCountChange={onResultsCountChange}

@@ -145,10 +145,17 @@ const PoliciesTable = ({
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          onPrimarySelectActionClick={onDeletePolicyClick}
-          primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="delete"
-          primarySelectActionButtonText={"Delete"}
+          // onPrimarySelectActionClick={onDeletePolicyClick}
+          // primarySelectActionButtonVariant="text-icon"
+          // primarySelectActionButtonIcon="delete"
+          // primarySelectActionButtonText={"Delete"}
+          primarySelectAction={{
+            name: "delete policy",
+            buttonText: "Delete",
+            icon: "delete",
+            variant: "text-icon",
+            onActionButtonClick: onDeletePolicyClick,
+          }}
           emptyComponent={() =>
             EmptyTable({
               iconName: emptyState().iconName,
