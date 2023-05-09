@@ -403,15 +403,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
-		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
-		}
-	}
-
 	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
 		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
 		// clear bootstrap package for no team - note that we cannot call
@@ -480,9 +471,27 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
-		if err := svc.EnterpriseOverrides.UpdateMacOSSetupEnableEndUserAuth(ctx, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "set macos setup end user auth")
+	mdmEnableEndUserAuthChanged := oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	if mdmEnableEndUserAuthChanged {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
+			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+		}
+	}
+
+	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
+		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
+	// TODO: add mdmEnableEndUserAuthChanged to this condition once we have the ability to mock the
+	// ABM API for integration tests
+	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
 	}
 

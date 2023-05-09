@@ -211,20 +211,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if macOSEnableEndUserAuthUpdated {
-		// TODO: Abstract this into service method that can be called elsewhere (e.g. in the appconfig service
-		// and the apple_mdm service)
-		var act fleet.ActivityDetails
-		if team.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
-			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: &team.ID, TeamName: &team.Name}
-			// TODO: Call Apple Business Manager API to define new enrollment profile with end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		} else {
-			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: &team.ID, TeamName: &team.Name}
-			// TODO: Call Apple Business Manager API to define new enrollment profile without end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team config macos end user auth change")
+		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
 		}
 	}
 	return team, err
