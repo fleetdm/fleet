@@ -1954,6 +1954,447 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Service supporting the audio gateway role of the Bluetooth Handsfree Profile.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Bluetooth Audio Gateway Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\BTAGService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The Bluetooth service supports discovery and association of remote Bluetooth devices.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Bluetooth Support Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\bthserv\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Computer Browser (Browser)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Maintains an updated list of computers on the network and supplies this list to computers designated as browsers.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: In Windows 8.1 and Windows 10, this service is bundled with the SMB 1.0/CIFS File Sharing Support optional feature. As a result, removing that feature (highly recommended unless backward compatibility is needed to XP/2003 and older Windows OSes - see Stop using SMB1 | Storage at Microsoft) will also remediate this recommendation. The feature is not installed by default starting with Windows 10 R1709.  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or 'not installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Computer Browser'
+  query: |
+    SELECT 1 WHERE 
+        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
+        OR 
+        EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Windows service for application access to downloaded maps. This service is started on- demand by application accessing downloaded maps.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Downloaded Maps Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\MapsBroker\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service monitors the current location of the system and manages geofences (a geographical location with associated events).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Geolocation Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\lfsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed' 
+  platforms: win10
+  platform: windows
+  description: |
+    Enables the server to administer the IIS metabase. The IIS metabase stores configuration for the SMTP and FTP services.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed
+    by enabling an optional Windows feature (Internet Information Services).
+    Note #2: An organization may choose to selectively grant exceptions to web developers to allow IIS (or another web server) on their workstation, in order for them to locally test & develop web pages. However, the organization should track those machines and ensure the security controls and mitigations are kept up to date, to reduce risk of compromise.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\IIS Admin Service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Infrared monitor service (irmon)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Detects other Infrared devices that are in range and launches the file transfer application.
+    The recommended state for this setting is: Disabled or Not Installed.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Infrared monitor service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    Provides network access translation, addressing, name resolution and/or intrusion prevention services for a home or small office network.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Internet Connection Sharing (ICS)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.8
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates a Network Map, consisting of PC and device topology (connectivity) information, and metadata describing each PC and device.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Link-Layer Topology Discovery Mapper'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\lltdsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.9
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed' 
+  platforms: win10
+  platform: windows
+  description: |
+    The LXSS Manager service supports running native ELF binaries. The service provides the infrastructure necessary for ELF binaries to run on Windows.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Windows Subsystem for Linux).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.10
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables the server to be a File Transfer Protocol (FTP) server.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Internet Information Services - FTP Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.11
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Manages Internet SCSI (iSCSI) sessions from this computer to remote target devices.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft iSCSI Initiator Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\MSiSCSI\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.12
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    SSH protocol based service to provide secure encrypted communications between two untrusted hosts over an insecure network.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but it is installed by enabling an optional Windows feature (OpenSSH Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.13
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables serverless peer name resolution over the Internet using the Peer Name Resolution Protocol (PNRP).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Name Resolution Protocol'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.14
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables multi-party communication using Peer-to-Peer Grouping.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Grouping'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2psvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.15
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Provides identity services for the Peer Name Resolution Protocol (PNRP) and Peer-to-Peer Grouping services.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Identity Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2pimsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.16
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service publishes a machine name using the Peer Name Resolution Protocol. Configuration is managed via the netsh context ‘p2p pnrp peer’.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\PNRP Machine Name Publication Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPAutoReg\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.17
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service spools print jobs and handles interaction with printers.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Print Spooler'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Spooler\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.18
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides support for viewing, sending and deletion of system-level problem reports for the Problem Reports and Solutions control panel.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Problem Reports and Solutions Control Panel Support'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\wercplsupport\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.19
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates a connection to a remote network whenever a program references a remote DNS or NetBIOS name or address.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Access Auto Connection Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasAuto\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.20
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Remote Desktop Configuration service (RDCS) is responsible for all Remote Desktop related configuration and session maintenance activities that require SYSTEM context. These include per-session temporary folders, RD themes, and RD certificates.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Configuration'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SessionEnv\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.21
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Allows users to connect interactively to a remote computer. Remote Desktop and Remote Desktop Session Host Server depend on this service.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Services'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\TermService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.22
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
   platforms: win10
   platform: windows
