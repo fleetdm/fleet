@@ -83,16 +83,18 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if profile.DEPProfile != nil {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, fleet.ErrMissingLicense
-		}
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
+		/*
+			lic, err := svc.License(ctx)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get license")
+			}
+			if !lic.IsPremium() {
+				return nil, fleet.ErrMissingLicense
+			}
+			if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
+				return nil, ctxerr.Wrap(ctx, err)
+			}
+		*/
 	}
 
 	enrollmentURL, err := apple_mdm.EnrollURL(profile.Token, appConfig)

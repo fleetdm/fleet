@@ -407,7 +407,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
 	}

@@ -542,6 +542,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
 
+	// get the automatic profile to access the authentication token.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "listing profiles")
@@ -559,7 +560,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	return appConfig.ServerSettings.ServerURL + "/mdm/sso/callback?" + q.Encode(), nil
 }
 
-func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
+func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
+	// TODO(mna): all profiles must be updated: this gets called when the ServerURL or MDM
+	// SSO got modified. And then all devices part of the profile's team must be re-assigned
+	// the updated profile. Enqueue a worker job to take care of this.
+
+	// get the automatic enrollment profile to re-define it with Apple.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
@@ -573,23 +579,11 @@ func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
 	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
 }
 
+// returns the default automatic enrollment profile, or nil (without error) if none exists.
 func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
 	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}
-
-	// Grab the first automatic enrollment profile we find, the current
-	// behavior is that the last enrollment profile that was uploaded is
-	// the one assigned to newly enrolled devices.
-	//
-	// TODO: this will change after #10995 where there can be a DEP profile
-	// per team.
-
-	// TODO(mna): what needs to happen here? This gets called from initiate SSO, but also
-	// from mdmAppleSyncDEPProfile, apparently when SSO settings are changed? Should this
-	// return the team/no team profile of the user, and only fallback on the default one
-	// if there is none? What if user is in multiple teams?
-
 	return prof, nil
 }
