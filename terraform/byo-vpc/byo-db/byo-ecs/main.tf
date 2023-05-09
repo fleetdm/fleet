@@ -111,7 +111,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
-            value = var.fleet_config.database.rr_address == null ? var.fleet_config.database.address : var.fleet_config.database.rr_address
+            value = var.var.fleet_config.database.address
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
