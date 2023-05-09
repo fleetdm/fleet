@@ -163,7 +163,6 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
 		Query: `
 	SELECT
 		os.name,
