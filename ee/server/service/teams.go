@@ -134,8 +134,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 					`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 			}
-			// TODO: should we check if end user authentication is configured?
 			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			// if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			// 	// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// 	// config are available
+			// 	return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+			// 		`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+			// }
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 	}
@@ -788,7 +793,12 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
-		// TODO: should we check if end user authentication is configured?
+		// if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		// 	// TODO: update this error message to include steps to resolve the issue once docs for IdP
+		// 	// config are available
+		// 	return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+		// 		`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+		// }
 		didUpdateMacOSEndUserAuth = true
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
@@ -848,20 +858,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateMacOSEndUserAuth {
-		// TODO: Abstract this into service method that can be called elsewhere (e.g. in the appconfig service
-		// and the apple_mdm service)
-		var act fleet.ActivityDetails
-		if team.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
-			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: &team.ID, TeamName: &team.Name}
-			// TODO: Call Apple Business Manager API to define new enrollment profile with end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		} else {
-			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: &team.ID, TeamName: &team.Name}
-			// TODO: Call Apple Business Manager API to define new enrollment profile without end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for team config macos end user auth change")
+		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+			return err
 		}
 	}
 
@@ -961,20 +959,8 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			return err
 		}
 		if didUpdateMacOSEndUserAuth {
-			// TODO: Abstract this into service method that can be called elsewhere (e.g. in the appconfig service
-			// and the apple_mdm service)
-			var act fleet.ActivityDetails
-			if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
-				act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: &tm.ID, TeamName: &tm.Name}
-				// TODO: Call Apple Business Manager API to define new enrollment profile with end
-				// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-			} else {
-				act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: &tm.ID, TeamName: &tm.Name}
-				// TODO: Call Apple Business Manager API to define new enrollment profile without end
-				// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for app config macos end user auth change")
+			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &tm.ID, &tm.Name); err != nil {
+				return err
 			}
 		}
 	}

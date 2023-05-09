@@ -480,21 +480,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// TODO: Abstract this into service method that can be called elsewhere (e.g. in the teams service
-	// and the apple_mdm service)
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
-		var act fleet.ActivityDetails
-		if appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
-			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
-			// TODO: Call Apple Business Manager API to define new enrollment profile with end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		} else {
-			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
-			// TODO: Call Apple Business Manager API to define new enrollment profile without end
-			// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos end user auth change")
+		if err := svc.EnterpriseOverrides.UpdateMacOSSetupEnableEndUserAuth(ctx, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set macos setup end user auth")
 		}
 	}
 
@@ -575,11 +563,6 @@ func (svc *Service) validateMDM(
 		}
 	}
 
-	// // MacOSSetup validation
-	// if mdm.MacOSSetup.EnableEndUserAuthentication {
-	// 	// TODO: should we check if end user authentication is configured?
-	// }
-
 	// EndUserAuthentication
 	// only validate SSO settings if they changed
 	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
@@ -590,6 +573,16 @@ func (svc *Service) validateMDM(
 
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
 	}
+
+	// // MacOSSetup validation
+	// if mdm.MacOSSetup.EnableEndUserAuthentication {
+	// 	if mdm.EndUserAuthentication.IsEmpty() {
+	// 		// TODO: update this error message to include steps to resolve the issue once docs for IdP
+	// 		// config are available
+	// 		invalid.Append("macos_setup.enable_end_user_authentication",
+	// 			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+	// 	}
+	// }
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {

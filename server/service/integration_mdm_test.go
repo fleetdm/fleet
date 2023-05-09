@@ -3049,6 +3049,19 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	// var acResp appConfigResponse
+	// s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	// 	"mdm": {
+	// 		"end_user_authentication": {
+	// 			"entity_id": "https://localhost:8080",
+	// 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+	// 			"idp_name": "SimpleSAML",
+	// 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+	// 	      }
+	// 	}
+	// }`), http.StatusOK, &acResp)
+	// require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+
 	t.Run("UpdateAppConfig", func(t *testing.T) {
 		// get the initial appconfig; enable end user authentication default is false
 		acResp := appConfigResponse{}

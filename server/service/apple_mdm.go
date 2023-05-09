@@ -2085,71 +2085,11 @@ func updateMDMAppleSetupEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	// for now, assume all values require premium (this is true for the first
-	// supported setting, enable_end_user_authentication. Adjust as needed in the future
-	// if this is not always the case).
-	license, err := svc.License(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return err
-	}
-	if !license.IsPremium() {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	if payload.TeamID != nil && *payload.TeamID != 0 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
-		if err != nil {
-			return err
-		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSetup(ctx, tm, payload) // TODO: implement this
-	}
-	return svc.updateAppConfigMDMAppleSetup(ctx, payload)
-}
-
-func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
-	ac, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return err
-	}
-
-	var didUpdate, didUpdateMacOSEndUserAuth bool
-	if payload.EnableEndUserAuthentication != nil {
-		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
-			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
-			didUpdate = true
-			didUpdateMacOSEndUserAuth = true
-		}
-	}
-
-	if didUpdate {
-		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
-			return err
-		}
-		if didUpdateMacOSEndUserAuth {
-			// TODO: Abstract this into service method that can be called elsewhere (e.g. in the appconfig service
-			// and the apple_mdm service)
-			var act fleet.ActivityDetails
-			if ac.MDM.MacOSSetup.EnableEndUserAuthentication {
-				act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
-				// TODO: Call Apple Business Manager API to define new enrollment profile with end
-				// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-			} else {
-				act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
-				// TODO: Call Apple Business Manager API to define new enrollment profile without end
-				// user auth enabled (depends on https://github.com/fleetdm/fleet/issues/10995)
-			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for app config macos end user auth change")
-			}
-		}
-	}
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
