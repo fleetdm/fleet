@@ -557,8 +557,6 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 
 func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 	return [][2]string{
-		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
 		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
 		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
