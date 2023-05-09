@@ -73,6 +73,12 @@ module "main" {
   }
   redis_config = {
     name = local.customer
+    log_delivery_configuration = [{
+      destination      = "dogfood-redis-logs"
+      destination_type = "cloudwatch-logs"
+      log_format       = "json"
+      log_type         = "engine-log"
+    }]
   }
   ecs_cluster = {
     cluster_name = local.customer
@@ -105,24 +111,6 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
-    allowed_cidrs = [
-      "128.0.0.0/1",
-      "64.0.0.0/2",
-      "0.0.0.0/3",
-      "48.0.0.0/4",
-      "40.0.0.0/5",
-      "36.0.0.0/6",
-      "32.0.0.0/7",
-      "34.0.0.0/9",
-      "34.128.0.0/10",
-      "34.224.0.0/11",
-      "34.192.0.0/12",
-      "34.208.0.0/13",
-      "34.216.0.0/14",
-      "34.220.0.0/15",
-      "34.222.0.0/16",
-      "35.0.0.0/8",
-    ]
   }
 }
 
@@ -300,4 +288,10 @@ module "ses" {
   source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=main"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
+}
+
+module "waf" {
+  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=main"
+  name   = local.customer
+  lb_arn = module.main.byo-vpc.byo-db.alb.lb_arn
 }

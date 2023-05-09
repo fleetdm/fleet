@@ -77,9 +77,15 @@ interface IDataColumn {
   sortType?: string;
 }
 
+interface IGenerateTableHeaders {
+  currentUser: IUser;
+}
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
+const generateTableHeaders = ({
+  currentUser,
+}: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
   const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
     currentUser

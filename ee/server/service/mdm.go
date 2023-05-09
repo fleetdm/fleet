@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -20,7 +21,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -386,7 +386,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
-	// TODO(mna): svc.depService.RegisterProfileWithAppleDEPServer()
+	// TODO(mna): enqueue job to Define/Assign profile svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -508,7 +508,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -517,12 +517,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+		return "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
 	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
 	err = sso.ValidateAudiences(
@@ -534,55 +534,56 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	)
 
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
-	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL,
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
-	)
-}
+	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
 
-func (svc *Service) mdmAppleSyncDEPProfile(ctx context.Context) error {
-	profiles, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
+	// get the automatic profile to access the authentication token.
+	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing profiles")
-	}
-
-	// Grab the first automatic enrollment profile we find, the current
-	// behavior is that the last enrollment profile that was uploaded is
-	// the one assigned to newly enrolled devices.
-	//
-	// TODO: this will change after #10995 where there can be a DEP profile
-	// per team.
-	var depProf *fleet.MDMAppleEnrollmentProfile
-	for _, prof := range profiles {
-		if prof.Type == "automatic" {
-			depProf = prof
-			break
-		}
+		return "", ctxerr.Wrap(ctx, err, "listing profiles")
 	}
 
 	if depProf == nil {
+		return "", ctxerr.Wrap(ctx, err, "missing profile")
+	}
+
+	q := url.Values{"profile_token": {depProf.Token}}
+	if eula != nil {
+		q.Add("eula_token", eula.Token)
+	}
+
+	return appConfig.ServerSettings.ServerURL + "/mdm/sso/callback?" + q.Encode(), nil
+}
+
+func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
+	// TODO(mna): all profiles must be updated: this gets called when the ServerURL or MDM
+	// SSO got modified. And then all devices part of the profile's team must be re-assigned
+	// the updated profile. Enqueue a worker job to take care of this.
+
+	// get the automatic enrollment profile to re-define it with Apple.
+	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
+	}
+
+	if depProf == nil {
+		// CreateDefaultProfile takes care of registering the profile with Apple.
 		return svc.depService.CreateDefaultProfile(ctx)
 	}
 
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching app config")
-	}
+	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
+}
 
-	enrollURL, err := apple_mdm.EnrollURL(depProf.Token, appCfg)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+// returns the default automatic enrollment profile, or nil (without error) if none exists.
+func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.MDMAppleEnrollmentProfile, error) {
+	prof, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}
-
-	var jsonProf *godep.Profile
-	if err := json.Unmarshal(*depProf.DEPProfile, &jsonProf); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
-	}
-
-	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, jsonProf, enrollURL)
+	return prof, nil
 }

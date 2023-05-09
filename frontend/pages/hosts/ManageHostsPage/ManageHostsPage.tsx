@@ -57,6 +57,7 @@ import {
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
 } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -82,7 +83,8 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
 } from "./HostsPageConfig";
-import { isAcceptableStatus, getNextLocationPath } from "./helpers";
+import { isAcceptableStatus } from "./helpers";
+
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -502,7 +504,7 @@ const ManageHostsPage = ({
     }
     const path = location.pathname + location.search;
     if (filteredHostsPath !== path) {
-      setFilteredHostsPath(location.pathname + location.search);
+      setFilteredHostsPath(path);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
 
@@ -1434,6 +1436,7 @@ const ManageHostsPage = ({
 
     return (
       <TableContainer
+        resultsTitle="hosts"
         columns={tableColumns}
         data={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
@@ -1445,16 +1448,15 @@ const ManageHostsPage = ({
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
         pageSize={50}
-        actionButtonText={"Edit columns"}
+        actionButtonText="Edit columns"
         actionButtonIcon={EditColumnsIcon}
-        actionButtonVariant={"text-icon"}
+        actionButtonVariant="text-icon"
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        primarySelectActionButtonText={"Delete"}
-        primarySelectActionButtonIcon={"delete"}
+        primarySelectActionButtonText="Delete"
+        primarySelectActionButtonIcon="delete"
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        resultsTitle={"hosts"}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable

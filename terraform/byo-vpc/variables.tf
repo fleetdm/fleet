@@ -68,7 +68,8 @@ variable "redis_config" {
       name  = string
       value = string
     })), [])
-    tags = optional(map(string), {})
+    log_delivery_configuration = optional(list(map(any)), [])
+    tags                       = optional(map(string), {})
   })
   default = {
     name                          = "fleet"
@@ -86,6 +87,7 @@ variable "redis_config" {
     at_rest_encryption_enabled    = true
     transit_encryption_enabled    = true
     parameter                     = []
+    log_delivery_configuration    = []
     tags                          = {}
   }
 }
