@@ -338,6 +338,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		log.Print(err)
 		return
 	}
+	log.Printf("%+v", c)
 	log.Print("Applying basic config now that we have a user")
 	if err = applyConfig(c, ret.URL, token); err != nil {
 		log.Print(err)
