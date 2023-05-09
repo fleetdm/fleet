@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230426152918, Down_20230426152918)
+	MigrationClient.AddMigration(Up_20230509194738, Down_20230509194738)
 }
 
-func Up_20230426152918(tx *sql.Tx) error {
+func Up_20230509194738(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE host_software_installed_paths
 		(
@@ -23,10 +23,9 @@ func Up_20230426152918(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func Down_20230426152918(tx *sql.Tx) error {
+func Down_20230509194738(tx *sql.Tx) error {
 	return nil
 }
