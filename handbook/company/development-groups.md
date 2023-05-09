@@ -185,12 +185,11 @@ Designs have usually gone through multiple rounds of revisions, but they could e
 
 
 #### Sub-tasks
-The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
+The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **sub-task** issues ("sub-tasks").
 
 A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
 
 Sub-tasks:
-- are NOT estimated
 - can be created by anyone
 - add extra management overhead and should be used sparingly
 - do NOT have nested sub-tasks
