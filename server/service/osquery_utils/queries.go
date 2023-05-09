@@ -167,8 +167,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		Query: `
 	SELECT
 		os.name,
-		os.codename as display_version
-		os.version as windows_version
+		os.version as display_version
 
 	FROM
 		os_version os`,
@@ -180,7 +179,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["windows_version"]
+			version := rows[0]["display_version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
