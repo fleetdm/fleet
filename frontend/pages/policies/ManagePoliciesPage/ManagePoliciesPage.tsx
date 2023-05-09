@@ -161,10 +161,13 @@ const ManagePolicyPage = ({
   })();
 
   // Never set as state as URL is source of truth
-  const searchQuery = initialSearchQuery;
-  const page = initialPage;
-  const showInheritedTable = initialShowInheritedTable;
-  const inheritedPage = initialInheritedPage;
+  // State only used for handling team change
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [page, setPage] = useState(initialPage);
+  const [showInheritedTable, setShowInheritedTable] = useState(
+    initialShowInheritedTable
+  );
+  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
 
   console.log("showInheritedTable", showInheritedTable);
   useEffect(() => {
@@ -176,6 +179,8 @@ const ManagePolicyPage = ({
     if (filteredPoliciesPath !== path) {
       setFilteredPoliciesPath(path);
     }
+    setShowInheritedTable(initialShowInheritedTable);
+    setInheritedPage(initialInheritedPage);
   }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
 
   console.log("filteredPoliciesPath", filteredPoliciesPath);
@@ -263,6 +268,10 @@ const ManagePolicyPage = ({
       // setShowInheritedPolicies(false);
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      setPage(0);
+      setSearchQuery("");
+      setShowInheritedTable(false);
+      setInheritedPage(0);
     },
     [handleTeamChange]
   );
@@ -293,11 +302,11 @@ const ManagePolicyPage = ({
         newQueryParams.team_id = teamIdForApi;
       }
 
-      if (showInheritedTable !== undefined) {
+      if (showInheritedTable) {
         newQueryParams.inherited_table = showInheritedTable.toString();
       }
 
-      if (inheritedPage !== undefined) {
+      if (showInheritedTable && inheritedPage !== 0) {
         newQueryParams.inherited_page = inheritedPage;
       }
 
