@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
-import { kebabCase } from "lodash";
+import { kebabCase, noop } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { noop } from "lodash";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
