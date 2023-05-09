@@ -103,6 +103,7 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
+      position="top"
       tipContent={`
         <span>
           <b>Bundle identifier: </b>

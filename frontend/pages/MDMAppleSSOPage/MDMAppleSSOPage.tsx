@@ -4,19 +4,11 @@ import { AxiosError } from "axios";
 
 import mdmAPI from "services/entities/mdm";
 
-import DataError from "components/DataError";
+import SSOError from "components/MDM/SSOError";
 import Spinner from "components/Spinner/Spinner";
 import { IMdmSSOReponse } from "interfaces/mdm";
 
 const baseClass = "mdm-apple-sso-page";
-
-const SSOError = () => {
-  return (
-    <DataError className={`${baseClass}__sso-error`}>
-      <p>Please contact your IT admin at +1-(415)-651-2575.</p>
-    </DataError>
-  );
-};
 
 const DEPSSOLoginPage = () => {
   const { error } = useQuery<void, AxiosError, IMdmSSOReponse>(

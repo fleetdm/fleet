@@ -167,10 +167,10 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 	return nil
 }
 
-// registerProfileInDEPServe is in charge of registering the enrollment profile
-// in Apple's servers via the DEP API, so it can be used for assignment.
+// RegisterProfileWithAppleDEPServer registers the enrollment profile in
+// Apple's servers via the DEP API, so it can be used for assignment.
 func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
-	appConfig, err := d.ds.AppConfig(context.Background())
+	appConfig, err := d.ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get app config: %w", err)
 	}
@@ -191,7 +191,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(context.Background(), DEPName, depProfile)
+	res, err := depClient.DefineProfile(ctx, DEPName, depProfile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
@@ -288,6 +288,8 @@ func NewDEPService(
 				level.Info(kitlog.With(logger)).Log("msg", "no DEP hosts to add")
 			}
 
+			// TODO(mna): at this point, the hosts rows are created for the devices, with the
+			// correct team_id, so we know what team-specific profile needs to be applied.
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)
