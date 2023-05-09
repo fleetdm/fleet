@@ -18,6 +18,7 @@ describe("Policies table", () => {
         isPremiumTier
         isSandboxMode
         searchQuery=""
+        page={0}
       />
     );
 
@@ -42,6 +43,7 @@ describe("Policies table", () => {
         isPremiumTier
         isSandboxMode={false}
         searchQuery=""
+        page={0}
       />
     );
 

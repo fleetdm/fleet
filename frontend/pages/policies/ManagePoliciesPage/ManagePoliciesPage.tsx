@@ -63,7 +63,6 @@ const ManagePolicyPage = ({
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
   const queryParams = location.query;
-
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -140,11 +139,6 @@ const ManagePolicyPage = ({
   })();
 
   const initialShowInheritedTable = (() => {
-    console.log(
-      "queryParams.inherited_table",
-      queryParams.inherited_table,
-      typeof queryParams.inherited_table
-    );
     let inheritedTable = false;
     if (queryParams && queryParams.inherited_table === "true") {
       inheritedTable = true;
@@ -169,21 +163,25 @@ const ManagePolicyPage = ({
   );
   const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
 
-  console.log("showInheritedTable", showInheritedTable);
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
 
   useEffect(() => {
     const path = location.pathname + location.search;
-    if (filteredPoliciesPath !== path) {
+    if (location.search && filteredPoliciesPath !== path) {
       setFilteredPoliciesPath(path);
     }
-    setShowInheritedTable(initialShowInheritedTable);
-    setInheritedPage(initialInheritedPage);
   }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
 
-  console.log("filteredPoliciesPath", filteredPoliciesPath);
+  useEffect(() => {
+    setShowInheritedTable(initialShowInheritedTable);
+    setInheritedPage(initialInheritedPage);
+    setPage(initialPage);
+    setSearchQuery(initialSearchQuery);
+    // TODO: handle invalid values for params
+  }, [location]);
+
   const {
     data: globalPolicies,
     error: globalPoliciesError,
@@ -265,13 +263,10 @@ const ManagePolicyPage = ({
 
   const onTeamChange = useCallback(
     (teamId: number) => {
-      // setShowInheritedPolicies(false);
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
       setPage(0);
       setSearchQuery("");
-      setShowInheritedTable(false);
-      setInheritedPage(0);
     },
     [handleTeamChange]
   );
@@ -279,7 +274,6 @@ const ManagePolicyPage = ({
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
-      console.log("newTableQuery", newTableQuery);
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
@@ -298,17 +292,22 @@ const ManagePolicyPage = ({
         newQueryParams.page = 0;
       }
 
-      if (teamIdForApi !== undefined) {
-        newQueryParams.team_id = teamIdForApi;
-      }
-
       if (showInheritedTable) {
-        newQueryParams.inherited_table = showInheritedTable.toString();
+        newQueryParams.inherited_table =
+          showInheritedTable && showInheritedTable.toString();
       }
 
       if (showInheritedTable && inheritedPage !== 0) {
         newQueryParams.inherited_page = inheritedPage;
       }
+
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+        // newQueryParams.page = 0;
+        // newQueryParams.query = "";
+      }
+      console.log("teamIdForApi", teamIdForApi);
+      console.log("location", location);
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_POLICIES,
@@ -330,6 +329,7 @@ const ManagePolicyPage = ({
           query: searchQuery,
         },
       });
+
       router?.replace(locationPath);
     },
     [searchQuery] // Dependencies required for correct variable state

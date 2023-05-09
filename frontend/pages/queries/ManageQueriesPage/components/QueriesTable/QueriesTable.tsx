@@ -160,6 +160,10 @@ const QueriesTable = ({
         newQueryParams.query = newSearchQuery;
       }
 
+      console.log("page", page);
+      console.log("newPageIndex", newPageIndex);
+      console.log("searchQuery", searchQuery);
+      console.log("newSearchQuery", newSearchQuery);
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
