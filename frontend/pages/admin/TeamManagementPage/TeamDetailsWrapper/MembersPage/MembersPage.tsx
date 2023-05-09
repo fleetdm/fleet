@@ -443,8 +443,8 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
             onActionButtonClick: isGlobalAdmin
               ? toggleAddUserModal
               : toggleCreateMemberModal,
+            hideButton: memberIds.length === 0 && searchString === "",
           }}
-          hideActionButton={memberIds.length === 0 && searchString === ""}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
           emptyComponent={() =>

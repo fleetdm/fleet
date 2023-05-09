@@ -281,10 +281,8 @@ const TeamManagementPage = (): JSX.Element => {
               buttonText: "Create team",
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
+              hideButton: teams && teams.length === 0 && searchString === "",
             }}
-            hideActionButton={
-              teams && teams.length === 0 && searchString === ""
-            }
             onQueryChange={onQueryChange}
             resultsTitle={"teams"}
             emptyComponent={() =>

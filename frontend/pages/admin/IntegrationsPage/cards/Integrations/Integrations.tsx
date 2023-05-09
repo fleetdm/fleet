@@ -417,8 +417,8 @@ const Integrations = (): JSX.Element => {
             buttonText: "Add integration",
             variant: "brand",
             onActionButtonClick: toggleAddIntegrationModal,
+            hideButton: !tableData?.length,
           }}
-          hideActionButton={!tableData?.length}
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({

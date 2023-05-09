@@ -37,7 +37,6 @@ interface ITableContainerProps {
   defaultSearchQuery?: string;
   defaultPageIndex?: number;
   actionButton?: IActionButtonProps;
-  hideActionButton?: boolean;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -108,7 +107,6 @@ const TableContainer = ({
   disableActionButton,
   disableMultiRowSelect = false,
   actionButton,
-  hideActionButton,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -321,7 +319,7 @@ const TableContainer = ({
               )}
             </span>
             <span className={"controls"}>
-              {!hideActionButton && actionButton && (
+              {actionButton && !actionButton.hideButton && (
                 <Button
                   disabled={disableActionButton}
                   onClick={actionButton.onActionButtonClick}
