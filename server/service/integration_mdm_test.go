@@ -275,6 +275,14 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "test_org", getAppleBMResp.OrgName)
 	require.Equal(t, "https://example.org/mdm/apple/mdm", getAppleBMResp.MDMServerURL)
 	require.Equal(t, tm.Name, getAppleBMResp.DefaultTeam)
+
+	// simulate a bad request (eg: bad certificate)
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	res := s.Do("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(s.T(), errMsg, "failed to authenticate with configured Apple BM certificates")
 }
 
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {

@@ -21,6 +21,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/storage"
 )
@@ -64,8 +65,17 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
+
 	if err != nil {
+		var authErr *nanodep_client.AuthError
+		if err, ok := err.(*url.Error); ok && errors.As(err.Err, &authErr) {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     "failed to authenticate with configured Apple BM certificates",
+				InternalErr: err,
+			}, "getting Apple BM account details")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
+
 	}
 
 	if res.AdminID == "" {
