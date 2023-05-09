@@ -7,7 +7,7 @@ module.exports = {
     "plugin:@typescript-eslint/recommended",
     "plugin:cypress/recommended",
     "plugin:prettier/recommended",
-    "plugin:storybook/recommended",
+    // "plugin:storybook/recommended", // storybook temporarily removed
   ],
   parser: "@typescript-eslint/parser",
   plugins: ["jest", "react", "@typescript-eslint"],
