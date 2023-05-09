@@ -253,11 +253,11 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "MAX_INSTANCES"
-            value = "100"
+            value = "500"
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = "10"
+            value = "20"
           },
           {
             name  = "TF_VAR_redis_address"

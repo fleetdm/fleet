@@ -54,15 +54,27 @@ export TF_VAR_mysql_secret="arn:aws:secretsmanager:us-east-2:411315989055:secret
 terraform init -backend-config=backend.conf
 
 EXPECTED_UNCLAIMED_INSTANCES=10
-PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))')"
+PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))' | tail -n1)"
 UNCLAIMED_INSTANCES="$(get_unclaimed_instances)"
 UNCLAIMED_ARRAY=( ${UNCLAIMED_INSTANCES} )
 
-HALF_ROUND_DOWN="${UNCLAIMED_ARRAY[@]::$((${#UNCLAIMED_ARRAY[@]} / 2))}"
+# HALF_ROUND_DOWN="${UNCLAIMED_ARRAY[@]::$((${#UNCLAIMED_ARRAY[@]} / 2))}"
 
-purge_instances "${HALF_ROUND_DOWN:?}"
+# purge_instances "${HALF_ROUND_DOWN:?}"
+
+ALL_BUT_10="${UNCLAIMED_ARRAY[@]::$((${#UNCLAIMED_ARRAY[@]} - 11))}"
+
+#echo "${ALL_BUT_10}: continue?"
+#read
+
+#purge_instances "${ALL_BUT_10:?}"
+echo "PREPROVISIONER_TASK_DEFINITION_ARN=${PREPROVISIONER_TASK_DEFINITION_ARN:?}"
+read
 
 provision_new_instances
+
+echo "Break test here"
+read
 
 # If something went wrong, don't let us continue with way too few unclaimed instances
 NEW_UNCLAIMED="$(get_unclaimed_instances | wc -w)"
