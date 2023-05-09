@@ -53,6 +53,6 @@ Fleet Premium allows companies of all sizes to manage query sets by team and dev
 <meta name="category" value="case studies">
 <meta name="authorGitHubUsername" value="jarodreyes">
 <meta name="authorFullName" value="Jarod Reyes">
-<meta name="publishedOn" value="2023-05-9">
+<meta name="publishedOn" value="2023-05-09">
 <meta name="articleTitle" value="How Gusto uses Fleet to keep their employee machines compliant and safe">
 <meta name="articleImageUrl" value="../website/assets/images/articles/case-study-fleet-and-gusto-800x450@2x.png">
