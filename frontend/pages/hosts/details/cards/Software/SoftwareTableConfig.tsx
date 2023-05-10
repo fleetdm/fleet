@@ -12,6 +12,8 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
   column: {
@@ -116,6 +118,39 @@ const renderBundleTooltip = (name: string, bundle: string) => (
     </TooltipWrapper>
   </span>
 );
+
+interface IInstalledPathCellProps {
+  cell: {
+    value: string[];
+  };
+  row: {
+    original: ISoftware;
+  };
+}
+
+const condenseInstalledPaths = (installedPaths: string[]): string[] => {
+  if (!installedPaths?.length) {
+    return [];
+  }
+  const condensed =
+    installedPaths.length === 4
+      ? installedPaths.slice(-4).reverse()
+      : installedPaths.slice(-3).reverse() || [];
+  return installedPaths.length > 4
+    ? condensed.concat(`+${installedPaths.length - 3} more`) // TODO: confirm limit
+    : condensed;
+};
+
+const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={Math.random().toString().slice(2)}>
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
 
 interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[];
@@ -318,8 +353,41 @@ export const generateSoftwareTableHeaders = ({
         );
       },
       accessor: "installed_path",
-      Cell: (cellProps: IStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} />;
+      Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
+        const numInstalledPaths = cellProps.cell.value?.length || 0;
+        const installedPaths = condenseInstalledPaths(
+          cellProps.cell.value || []
+        );
+        if (installedPaths.length) {
+          const tooltipText = tooltipTextWithLineBreaks(installedPaths);
+          return (
+            <>
+              <span
+                className={`text-cell ${
+                  installedPaths.length > 1 ? "text-muted tooltip" : ""
+                }`}
+                data-tip
+                data-for={`installed_path__${cellProps.row.original.id}`}
+                data-tip-disable={installedPaths.length <= 1}
+              >
+                {numInstalledPaths === 1
+                  ? installedPaths[0]
+                  : `${numInstalledPaths} paths`}
+              </span>
+              <ReactTooltip
+                effect="solid"
+                backgroundColor={COLORS["tooltip-bg"]}
+                id={`installed_path__${cellProps.row.original.id}`}
+                data-html
+                clickable
+                delayHide={300}
+              >
+                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+              </ReactTooltip>
+            </>
+          );
+        }
+        return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
       },
     },
     {
