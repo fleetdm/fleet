@@ -1,1 +1,0 @@
-* Fixed a bug that prevented bootstrap packages and the `fleetd` agent from being installed when the server had a database replica configured.
