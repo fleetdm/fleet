@@ -93,10 +93,19 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		// profile to the hosts, nothing to do.
 		return nil
 	}
-	// TODO: get the team's mdm-enrolled hosts, assign the profile to all of that
+
+	// get the team's mdm-enrolled hosts, assign the profile to all of that
 	// team's hosts serials.
-	//m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID /* serials... */)
-	panic("unimplemented")
+	serials, err := m.Datastore.ListMDMAppleDEPSerialsInTeam(ctx, args.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
+	}
+	if len(serials) > 0 {
+		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+	}
+	return nil
 }
 
 func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosSetupAssistantArgs) error {
@@ -124,10 +133,19 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		// this should not happen, return an error
 		return ctxerr.Errorf(ctx, "default setup assistant profile uuid is empty")
 	}
-	// TODO: get the team's mdm-enrolled hosts, assign the profile to all of that
+
+	// get the team's mdm-enrolled hosts, assign the profile to all of that
 	// team's hosts serials.
-	//m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID /* serials... */)
-	panic("unimplemented")
+	serials, err := m.Datastore.ListMDMAppleDEPSerialsInTeam(ctx, args.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
+	}
+	if len(serials) > 0 {
+		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+	}
+	return nil
 }
 
 func (m *MacosSetupAssistant) runTeamDeleted(ctx context.Context, args macosSetupAssistantArgs) error {

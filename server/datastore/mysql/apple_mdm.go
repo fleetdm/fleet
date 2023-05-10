@@ -2138,3 +2138,11 @@ func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *u
 	}
 	return nil
 }
+
+func (ds *Datastore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error) {
+	panic("unimplemented")
+}
