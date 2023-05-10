@@ -573,10 +573,15 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
+	macosSetupAsst := &worker.MacosSetupAssistant{
+		Datastore: ds,
+		Log:       logger,
+	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	w.Register(jira)
 	w.Register(zendesk)
+	w.Register(macosSetupAsst)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
