@@ -1,4 +1,38 @@
 @font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Bold.eot");
+  src: local(""),
+    url("../assets/fonts/inter/Inter-Regular.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/inter/Inter-Regular.woff") format("woff"),
+    url("../assets/fonts/inter/Inter-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  src: url("../assets/fonts/inter/Inter-Bold.eot");
+  src: local(""),
+    url("../assets/fonts/inter/Inter-Bold.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/inter/Inter-Bold.woff") format("woff"),
+    url("../assets/fonts/inter/Inter-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Italic.eot");
+  src: local(""),
+    url("../assets/fonts/inter/Inter-Italic.eot?#iefix")
+      format("embedded-opentype"),
+    url("../assets/fonts/inter/Inter-Italic.woff") format("woff"),
+    url("../assets/fonts/inter/Inter-Italic.ttf") format("truetype");
+}
+
+@font-face {
   font-family: "Nunito Sans";
   font-style: normal;
   font-weight: 400;
