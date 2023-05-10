@@ -135,12 +135,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 					`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 			}
 			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			// if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
-			// 	// TODO: update this error message to include steps to resolve the issue once docs for IdP
-			// 	// config are available
-			// 	return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
-			// 		`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
-			// }
+			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+				// TODO: update this error message to include steps to resolve the issue once docs for IdP
+				// config are available
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+					`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+			}
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 	}
@@ -781,12 +781,12 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
-		// if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
-		// 	// TODO: update this error message to include steps to resolve the issue once docs for IdP
-		// 	// config are available
-		// 	return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
-		// 		`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
-		// }
+		if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+		}
 		didUpdateMacOSEndUserAuth = true
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication

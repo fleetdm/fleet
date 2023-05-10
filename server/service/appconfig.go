@@ -487,9 +487,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	// TODO: add mdmEnableEndUserAuthChanged to this condition once we have the ability to mock the
-	// ABM API for integration tests
-	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
@@ -583,15 +581,15 @@ func (svc *Service) validateMDM(
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
 	}
 
-	// // MacOSSetup validation
-	// if mdm.MacOSSetup.EnableEndUserAuthentication {
-	// 	if mdm.EndUserAuthentication.IsEmpty() {
-	// 		// TODO: update this error message to include steps to resolve the issue once docs for IdP
-	// 		// config are available
-	// 		invalid.Append("macos_setup.enable_end_user_authentication",
-	// 			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
-	// 	}
-	// }
+	// MacOSSetup validation
+	if mdm.MacOSSetup.EnableEndUserAuthentication {
+		if mdm.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			invalid.Append("macos_setup.enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
+	}
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {

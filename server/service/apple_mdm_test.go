@@ -1674,7 +1674,7 @@ func TestUpdateMDMAppleSetup(t *testing.T) {
 			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 		}
 		ds.SaveAppConfigFunc = func(ctx context.Context, appConfig *fleet.AppConfig) error {
 			return nil
