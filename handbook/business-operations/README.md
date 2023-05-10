@@ -1,8 +1,7 @@
 # Business Operations
 
-
 ## Meetings
-* At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
+* Plan to join meetings on time. At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
 * It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
 * In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
@@ -661,11 +660,15 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 ### Weekly updates
 We like to open about milestones and announcements.
-  - Every Thursday night, department heads [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
-  - Friday nights, Mike McNeil will post a short update in #general.
-Weekly update principles
-   - Each department's update is 20-40 words or less.
-   - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Friday nights, Mike McNeil will post a short update in #general including:
+    - a link to view KPIs
+    - who was on-call that week
+    - fleeties who are currently onboarding
+    - planned hires who haven't started yet
+    - fleeties who had their lady day that week
+  - The weekly update uses the format of the previous week's update, which is in the KPIs spreadsheet.  The best way to start is by copying and pasting the previous week's upfate and modifying it.
+  - After posting to #general, the weekly update is also saved in thr KPI spreadsheet.
  
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
@@ -851,6 +854,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
+| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | BizOps on-call |
 
 
 
