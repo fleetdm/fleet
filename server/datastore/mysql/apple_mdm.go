@@ -895,7 +895,8 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
-	err := sqlx.GetContext(ctx, ds.reader, &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer, &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
 		FROM nano_enrollments WHERE id = ?`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
