@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -181,19 +180,15 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 }
 
 func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args macosSetupAssistantArgs) error {
-	start := time.Now().Truncate(time.Second)
-
 	// first, ensure the default setup assistant is created
-	_, modTime, err := m.DEPService.EnsureDefaultSetupAssistant(ctx)
+	_, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ensure default setup assistant")
 	}
 	// it may have already existed (in which case the call above would not have
 	// updated it), so ensure we re-register it with Apple.
-	if modTime.Before(start) {
-		if err := m.DEPService.RegisterProfileWithAppleDEPServer(ctx, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "update and register default setup assistant with apple")
-		}
+	if err := m.DEPService.RegisterProfileWithAppleDEPServer(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "update and register default setup assistant with apple")
 	}
 
 	// then, for all teams, clear the profile uuid of their custom setup
