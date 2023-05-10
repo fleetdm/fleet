@@ -1945,6 +1945,41 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Update MDM Apple Setup
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMAppleSetupRequest struct {
+	fleet.MDMAppleSetupPayload
+}
+
+type updateMDMAppleSetupResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMAppleSetupResponse) error() error { return r.Err }
+
+func (r updateMDMAppleSetupResponse) Status() int { return http.StatusNoContent }
+
+// This endpoint is required because the UI must allow maintainers (in addition
+// to admins) to update some MDM Apple settings, while the update config/update
+// team endpoints only allow write access to admins.
+func updateMDMAppleSetupEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMAppleSetupRequest)
+	if err := svc.UpdateMDMAppleSetup(ctx, req.MDMAppleSetupPayload); err != nil {
+		return updateMDMAppleSetupResponse{Err: err}, nil
+	}
+	return updateMDMAppleSetupResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/sso
 ////////////////////////////////////////////////////////////////////////////////
 

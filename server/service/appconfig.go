@@ -403,15 +403,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
-		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
-		}
-	}
-
 	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
 		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
 		// clear bootstrap package for no team - note that we cannot call
@@ -480,6 +471,28 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	mdmEnableEndUserAuthChanged := oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	if mdmEnableEndUserAuthChanged {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
+			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+		}
+	}
+
+	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
+		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
@@ -498,6 +511,9 @@ func (svc *Service) validateMDM(
 	}
 	if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
+	}
+	if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
+		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -520,6 +536,10 @@ func (svc *Service) validateMDM(
 
 		if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("macos_setup.bootstrap_package",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+		if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
+			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
@@ -559,6 +579,16 @@ func (svc *Service) validateMDM(
 		}
 
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+	}
+
+	// MacOSSetup validation
+	if mdm.MacOSSetup.EnableEndUserAuthentication {
+		if mdm.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			invalid.Append("macos_setup.enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
 	}
 }
 

@@ -713,6 +713,10 @@ type Service interface {
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 
+	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

@@ -206,9 +206,12 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 	// always still set configuration_web_url, otherwise the request method
 	// coming from Apple changes from GET to POST, and we want to preserve
 	// backwards compatibility.
-	if appCfg.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
-		jsonProf.ConfigurationWebURL = enrollURL
-	} else {
+	jsonProf.ConfigurationWebURL = enrollURL
+	if !appCfg.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
+		// TODO: modify method signatures for this (and callers as applicable)
+		// to include a team config pointer and check enable_end_user_authenthication
+		// in the team config if not nil otherwise check enable_end_user_authenthication
+		// in the app config.
 		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
 	}
 

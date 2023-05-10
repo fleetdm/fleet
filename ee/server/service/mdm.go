@@ -154,6 +154,92 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }
 
+func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.validateMDMAppleSetupPayload(ctx, payload); err != nil {
+		return err
+	}
+
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		tm, err := svc.teamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.updateTeamMDMAppleSetup(ctx, tm, payload)
+	}
+	return svc.updateAppConfigMDMAppleSetup(ctx, payload)
+}
+
+func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	ac, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return err
+	}
+
+	var didUpdate, didUpdateMacOSEndUserAuth bool
+	if payload.EnableEndUserAuthentication != nil {
+		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
+			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
+			didUpdate = true
+			didUpdateMacOSEndUserAuth = true
+		}
+	}
+
+	if didUpdate {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return err
+		}
+		if didUpdateMacOSEndUserAuth {
+			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	// // TODO: Call Apple Business Manager API to define new enrollment profile (depends on
+	// // https://github.com/fleetdm/fleet/issues/10995)
+	// //
+	// // modify the method signature of the syncer to include a team config pointer
+	// // and check enable_end_user_authenthication in the team config if not nil
+	// // otherwise check enable_end_user_authenthication the app config.
+	// if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
+	// 	return err
+	// }
+	var act fleet.ActivityDetails
+	if enable {
+		act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
+	} else {
+		act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+	}
+	return nil
+}
+
+func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	ac, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.MDM.EnabledAndConfigured {
+		return &fleet.MDMNotConfiguredError{}
+	}
+	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication == true && ac.MDM.EndUserAuthentication.IsEmpty() {
+		// TODO: update this error message to include steps to resolve the issue once docs for IdP
+		// config are available
+		return fleet.NewInvalidArgumentError("enable_end_user_authentication",
+			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+	}
+	return nil
+}
+
 func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -505,7 +591,6 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	}
 
 	return idpURL, nil
-
 }
 
 func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
