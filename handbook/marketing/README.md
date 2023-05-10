@@ -665,6 +665,7 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 
 | Ritual                       | Frequency | Description                       | DRI               |
 |:-----------------------------|:----------|:----------------------------------|-------------------|
+| Daily ABM campaign           | Daily     | Start Ads for new accounts        | Drew Baker        |
 | Daily tweet                  | Daily     | Post Fleet content on Twitter     | Drew Baker        |
 | Daily LinkedIn post          | Daily     | Post Fleet content to LinkedIn    | Drew Baker        |
 | Check Twitter messages  | Daily     | Check and reply to messages on the Fleet Twitter account, and disregard requests unrelated to Fleet | Drew Baker | 
