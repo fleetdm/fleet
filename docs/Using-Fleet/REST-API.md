@@ -841,9 +841,25 @@ None.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1116,6 +1132,17 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "end_user_authentication": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": ""
+    },
+    "macos_setup": {
+      "bootstrap_package": "",
+      "macos_setup_assistant": "path/to/config.json"
     }
   },
   "agent_options": {
@@ -1778,11 +1805,11 @@ the `software` table.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1934,10 +1961,10 @@ Response payload with the `munki_issue_id` filter provided:
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -2269,13 +2296,14 @@ Returns the information of the specified host.
       },
       "macos_setup": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "profiles": [
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }
@@ -2473,7 +2501,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }
@@ -3022,7 +3050,7 @@ requested by a web browser.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
@@ -3410,9 +3438,9 @@ Returns a list of the hosts that belong to the specified label.
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
-| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'latest', 'pending', or 'failing'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
+| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Can be one of 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
-| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `applied`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
+| macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Can be one of `verifying`, `action_required`, `enforcing`, `failed`, or `removing_enforcement`. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Can be one of `installed`, `pending`, or `failed`. **Note: If this filter is used in Fleet Premium without a team id filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
@@ -3537,6 +3565,9 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
+- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
+- [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
@@ -3544,6 +3575,11 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
 - [Download a bootstrap package](#download-a-bootstrap-package)
+- [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
+- [Upload an EULA file](#upload-an-eula-file)
+- [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
+- [Delete an EULA file](#delete-an-eula-file)
+- [Download an EULA file](#download-an-eula-file)
 
 ### Add custom macOS setting (configuration profile)
 
@@ -3781,7 +3817,7 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 
 ```json
 {
-  "applied": 123,
+  "verifying": 123,
   "action_required": 123,
   "enforcing": 123,
   "failed": 123,
@@ -3817,8 +3853,8 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ```json
 {
-  "latest": 123,
-  "failing": 123,
+  "verifying": 123,
+  "failed": 123,
   "pending": 123
 }
 ```
@@ -3906,7 +3942,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commands?per_page=5
+`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
 
 ##### Default response
 
@@ -3926,6 +3962,98 @@ This endpoint returns the list of custom MDM commands that have been executed.
   ]
 }
 ```
+
+### Set custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Sets the custom MDM setup enrollment profile for a team or no team.
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                   |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------     |
+| team_id                   | integer | json  | The team id this custom enrollment profile applies to, or no team if omitted. |
+| name                      | string  | json  | The filename of the uploaded custom enrollment profile.                       |
+| enrollment_profile        | object  | json  | The custom enrollment profile's json, as documented in https://developer.apple.com/documentation/devicemanagement/profile. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Get custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the custom MDM setup enrollment profile for a team or no team.
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to return the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team_id": 123,
+  "name": "dep_profile.json",
+  "uploaded_at": "2023-04-04:00:00Z",
+  "enrollment_profile": {
+    "is_mandatory": true,
+    "is_mdm_removable": false
+  }
+}
+```
+
+### Delete custom MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| team_id                   | integer | query | The team id for which to delete the custom enrollment profile, or no team if omitted. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Default response
+
+`Status: 204`
 
 ### Get Apple Push Notification service (APNs)
 
@@ -4136,7 +4264,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Get a summary of bootstrap package status 
+### Get a summary of bootstrap package status
 
 _Available in Fleet Premium_
 
@@ -4166,6 +4294,125 @@ The summary can optionally be filtered by team id.
   "failed": 1,
   "pending": 4
 }
+```
+
+### Upload an EULA file 
+
+_Available in Fleet Premium_
+
+Upload an EULA that will be shown during the DEP flow.
+
+`POST /api/v1/fleet/mdm/apple/setup/eula`
+
+#### Parameters
+
+| Name | Type | In   | Description                                       |
+| ---- | ---- | ---- | ------------------------------------------------- |
+| eula | file | form | **Required**. A PDF document containing the EULA. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/setup/eula`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="eula"; filename="eula.pdf"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get metadata about an EULA file 
+
+_Available in Fleet Premium_
+
+Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "eula.pdf",
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+  "created_at": "2023-04-20T13:02:05Z"
+}
+```
+
+In the response above:
+
+- `token` is the value you can use to [download an EULA](#download-an-eula-file)
+
+### Delete an EULA file
+
+_Available in Fleet Premium_
+
+Delete an EULA file.
+
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/{token}`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| token | string | path  | **Required** The token of the EULA file. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+### Download an EULA file
+
+_Available in Fleet Premium_
+
+Download an EULA file
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| token | string | path  | **Required** The token of the EULA file. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+```
+Status: 200
+Content-Type: application/pdf
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
 ```
 
 ---
@@ -6116,9 +6363,17 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
@@ -6290,8 +6545,12 @@ _Available in Fleet Premium_
         "deadline": "2022-01-01"
       },
       "macos_settings": {
-        "custom_settings": [],
+        "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "macos_setup_assistant": "path/to/config.json"
       }
     }
   }
@@ -6661,8 +6920,8 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](Permissions.md).                                                                                                                                                                        |
-| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](Permissions.md). |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 
@@ -6778,9 +7037,9 @@ By default, the user will be forced to reset its password upon first login.
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](Permissions.md).                                                                                                                                                                        |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](Permissions.md). |
+| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 

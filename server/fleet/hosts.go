@@ -55,38 +55,14 @@ const (
 type MacOSSettingsStatus string
 
 const (
-	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
-	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
-	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
+	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
+	MacOSSettingsPending   MacOSSettingsStatus = "pending"
+	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
 )
 
 func (s MacOSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
-		return true
-	default:
-		return false
-	}
-}
-
-type MacOSDiskEncryptionStatus string
-
-const (
-	MacOSDiskEncryptionStatusApplied             = MacOSDiskEncryptionStatus("applied")
-	MacOSDiskEncryptionStatusActionRequired      = MacOSDiskEncryptionStatus("action_required")
-	MacOSDiskEncryptionStatusEnforcing           = MacOSDiskEncryptionStatus("enforcing")
-	MacOSDiskEncryptionStatusFailed              = MacOSDiskEncryptionStatus("failed")
-	MacOSDiskEncryptionStatusRemovingEnforcement = MacOSDiskEncryptionStatus("removing_enforcement")
-)
-
-func (s MacOSDiskEncryptionStatus) IsValid() bool {
-	switch s {
-	case
-		MacOSDiskEncryptionStatusApplied,
-		MacOSDiskEncryptionStatusActionRequired,
-		MacOSDiskEncryptionStatusEnforcing,
-		MacOSDiskEncryptionStatusFailed,
-		MacOSDiskEncryptionStatusRemovingEnforcement:
+	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying:
 		return true
 	default:
 		return false
@@ -163,7 +139,7 @@ type HostListOptions struct {
 
 	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// MDM profile.
-	MacOSSettingsDiskEncryptionFilter MacOSDiskEncryptionStatus
+	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
 	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
@@ -353,18 +329,32 @@ type MDMHostData struct {
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
 }
 
-type DiskEncryptionState string
+type DiskEncryptionStatus string
 
 const (
-	DiskEncryptionApplied             DiskEncryptionState = "applied"
-	DiskEncryptionActionRequired      DiskEncryptionState = "action_required"
-	DiskEncryptionEnforcing           DiskEncryptionState = "enforcing"
-	DiskEncryptionFailed              DiskEncryptionState = "failed"
-	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
+	DiskEncryptionVerifying           DiskEncryptionStatus = "verifying"
+	DiskEncryptionActionRequired      DiskEncryptionStatus = "action_required"
+	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
+	DiskEncryptionFailed              DiskEncryptionStatus = "failed"
+	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
-func (s DiskEncryptionState) addrOf() *DiskEncryptionState {
+func (s DiskEncryptionStatus) addrOf() *DiskEncryptionStatus {
 	return &s
+}
+
+func (s DiskEncryptionStatus) IsValid() bool {
+	switch s {
+	case
+		DiskEncryptionVerifying,
+		DiskEncryptionActionRequired,
+		DiskEncryptionEnforcing,
+		DiskEncryptionFailed,
+		DiskEncryptionRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
 }
 
 type ActionRequiredState string
@@ -379,14 +369,15 @@ func (s ActionRequiredState) addrOf() *ActionRequiredState {
 }
 
 type MDMHostMacOSSettings struct {
-	DiskEncryption *DiskEncryptionState `json:"disk_encryption" csv:"-"`
-	ActionRequired *ActionRequiredState `json:"action_required" csv:"-"`
+	DiskEncryption *DiskEncryptionStatus `json:"disk_encryption" csv:"-"`
+	ActionRequired *ActionRequiredState  `json:"action_required" csv:"-"`
 }
 
 type HostMDMMacOSSetup struct {
 	BootstrapPackageStatus MDMBootstrapPackageStatus `db:"bootstrap_package_status" json:"bootstrap_package_status" csv:"-"`
 	Result                 []byte                    `db:"result" json:"-" csv:"-"`
 	Detail                 string                    `db:"-" json:"detail" csv:"-"`
+	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
 // DetermineDiskEncryptionStatus determines the disk encryption status for the
@@ -408,11 +399,11 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 		switch fvprof.OperationType {
 		case MDMAppleOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					settings.DiskEncryption = DiskEncryptionApplied.addrOf()
+					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 				} else if d.rawDecryptable != nil {
 					// if a FileVault profile has been successfully installed on the host
 					// but either we didn't get an encryption key or we're not able to
@@ -442,7 +433,7 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 
 		case MDMAppleOperationTypeRemove:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
 				// successfully removed, same as if	no filevault profile was found
 
 			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
@@ -467,8 +458,8 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleD
 		return &MDMAppleDeliveryPending
 	case DiskEncryptionFailed:
 		return &MDMAppleDeliveryFailed
-	case DiskEncryptionApplied:
-		return &MDMAppleDeliveryApplied
+	case DiskEncryptionVerifying:
+		return &MDMAppleDeliveryVerifying
 	default:
 		return currStatus
 	}
@@ -928,8 +919,14 @@ type HostDiskEncryptionKey struct {
 	DecryptedValue  string    `json:"key" db:"-"`
 }
 
+// HostSoftwareInstalledPath represents where in the file system a software on a host was installed
 type HostSoftwareInstalledPath struct {
-	HostID        uint   `db:"host_id"`
-	SoftwareID    uint   `db:"software_id"`
+	// ID row id
+	ID uint `db:"id"`
+	// HostID is the id of the host where the software in question is installed
+	HostID uint `db:"host_id"`
+	// SoftwareID is the id of the software
+	SoftwareID uint `db:"software_id"`
+	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
 }

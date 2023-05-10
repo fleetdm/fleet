@@ -1,1 +1,0 @@
-* Added the `fleetctl get mdm-commands` command to get a list of MDM commands that were executed. This also adds the `GET /api/latest/fleet/mdm/apple/commands` API endpoint.

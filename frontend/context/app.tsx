@@ -21,6 +21,8 @@ enum ACTIONS {
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
+  SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
+  SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
 }
 
 interface ISetAvailableTeamsAction {
@@ -62,6 +64,16 @@ interface ISetFilteredHostsPathAction {
   filteredHostsPath: string;
 }
 
+interface ISetFilteredSoftwarePathAction {
+  type: ACTIONS.SET_FILTERED_SOFTWARE_PATH;
+  filteredSoftwarePath: string;
+}
+
+interface ISetFilteredQueriesPathAction {
+  type: ACTIONS.SET_FILTERED_QUERIES_PATH;
+  filteredQueriesPath: string;
+}
+
 type IAction =
   | ISetAvailableTeamsAction
   | ISetConfigAction
@@ -70,7 +82,9 @@ type IAction =
   | ISetEnrollSecretAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
-  | ISetFilteredHostsPathAction;
+  | ISetFilteredHostsPathAction
+  | ISetFilteredSoftwarePathAction
+  | ISetFilteredQueriesPathAction;
 
 type Props = {
   children: ReactNode;
@@ -105,6 +119,8 @@ type InitialStateType = {
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
   filteredHostsPath?: string;
+  filteredSoftwarePath?: string;
+  filteredQueriesPath?: string;
   setAvailableTeams: (
     user: IUser | null,
     availableTeams: ITeamSummary[]
@@ -116,6 +132,8 @@ type InitialStateType = {
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
+  setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
+  setFilteredQueriesPath: (filteredQueriesPath: string) => void;
 };
 
 export type IAppContext = InitialStateType;
@@ -147,6 +165,8 @@ export const initialState = {
   isObserverPlus: undefined,
   isNoAccess: undefined,
   filteredHostsPath: undefined,
+  filteredSoftwarePath: undefined,
+  filteredQueriesPath: undefined,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -155,6 +175,8 @@ export const initialState = {
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
+  setFilteredSoftwarePath: () => null,
+  setFilteredQueriesPath: () => null,
 };
 
 const detectPreview = () => {
@@ -285,6 +307,20 @@ const reducer = (state: InitialStateType, action: IAction) => {
         filteredHostsPath,
       };
     }
+    case ACTIONS.SET_FILTERED_SOFTWARE_PATH: {
+      const { filteredSoftwarePath } = action;
+      return {
+        ...state,
+        filteredSoftwarePath,
+      };
+    }
+    case ACTIONS.SET_FILTERED_QUERIES_PATH: {
+      const { filteredQueriesPath } = action;
+      return {
+        ...state,
+        filteredQueriesPath,
+      };
+    }
     default:
       return state;
   }
@@ -304,6 +340,8 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     sandboxExpiry: state.sandboxExpiry,
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
+    filteredSoftwarePath: state.filteredSoftwarePath,
+    filteredQueriesPath: state.filteredQueriesPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
@@ -354,6 +392,18 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setFilteredHostsPath: (filteredHostsPath: string) => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
+    },
+    setFilteredSoftwarePath: (filteredSoftwarePath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
+        filteredSoftwarePath,
+      });
+    },
+    setFilteredQueriesPath: (filteredQueriesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_QUERIES_PATH,
+        filteredQueriesPath,
+      });
     },
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

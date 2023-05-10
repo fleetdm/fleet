@@ -27,7 +27,8 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-import ActionButton, { IActionButtonProps } from "./ActionButton";
+import ActionButton from "./ActionButton";
+import { IActionButtonProps } from "./ActionButton/ActionButton";
 
 const baseClass = "data-table-block";
 
@@ -46,12 +47,14 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
+  defaultPageIndex?: number;
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -87,12 +90,14 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
+  defaultPageIndex,
   primarySelectActionButtonIcon,
   primarySelectActionButtonVariant,
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   disableHighlightOnHover,
   searchQuery,
@@ -132,7 +137,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
-    // gotoPage,
+    gotoPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -147,6 +152,7 @@ const DataTable = ({
         sortBy: useMemo(() => {
           return [{ id: sortHeader, desc: sortDirection === "desc" }];
         }, [sortHeader, sortDirection]),
+        pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,
       disableSortRemove: true,
@@ -215,7 +221,7 @@ const DataTable = ({
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds } = tableState;
+  const { sortBy, selectedRowIds, pageIndex } = tableState;
 
   useEffect(() => {
     if (tableFilters) {
@@ -278,6 +284,9 @@ const DataTable = ({
       }
     } else {
       onSort(undefined);
+    }
+    if (isClientSidePagination) {
+      gotoPage(0); // Return to page 0 after changing sort clientside
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
@@ -371,6 +380,7 @@ const DataTable = ({
       hideButton,
       icon,
       iconPosition,
+      indicatePremiumFeature,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -382,6 +392,7 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
+          indicatePremiumFeature={indicatePremiumFeature}
           icon={icon}
           iconPosition={iconPosition}
         />
@@ -569,14 +580,22 @@ const DataTable = ({
           <div className={`${baseClass}__pagination`}>
             <Button
               variant="unstyled"
-              onClick={() => previousPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
               disabled={!canPreviousPage}
             >
               {previousButton}
             </Button>
             <Button
               variant="unstyled"
-              onClick={() => nextPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
               disabled={!canNextPage}
             >
               {nextButton}

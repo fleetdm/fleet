@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -59,7 +60,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
 		is                fleet.InstallerStore
 		mdmStorage        nanomdm_storage.AllStorage
-		depStorage        nanodep_storage.AllStorage
+		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
 		mdmPusher         nanomdm_push.Pusher
 		mailer            fleet.MailService = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	)
@@ -104,8 +105,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		is = opts[0].Is
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
-		// allow to explicitly set DEP storage to nil
-		depStorage = opts[0].DEPStorage
+		if opts[0].DEPStorage != nil {
+			depStorage = opts[0].DEPStorage
+		}
 		// allow to explicitly set mdm pusher to nil
 		mdmPusher = opts[0].MDMPusher
 	}
@@ -158,6 +160,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			"",
+			ssoStore,
 		)
 		if err != nil {
 			panic(err)
@@ -554,8 +557,6 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 
 func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 	return [][2]string{
-		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
 		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
 		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
@@ -575,5 +576,16 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"GET", "/api/latest/fleet/mdm/apple"},
 		{"GET", apple_mdm.EnrollPath + "?token=test"},
 		{"GET", apple_mdm.InstallerPath + "?token=test"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata"},
+		// TODO: this endpoint accepts multipart/form data that gets
+		// parsed before the MDM check, we need to refactor this
+		// function to return more information to the caller, or find a
+		// better way to test these endpoints.
+		// {"POST", "/api/latest/fleet/mdm/apple/setup/eula"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},
 	}
 }

@@ -14,6 +14,7 @@ interface IHostSummaryProps {
   showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
+  isSandboxMode?: boolean;
 }
 
 const LowDiskSpaceHosts = ({
@@ -23,6 +24,7 @@ const LowDiskSpaceHosts = ({
   showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
+  isSandboxMode = false,
 }: IHostSummaryProps): JSX.Element => {
   // build the manage hosts URL filtered by low disk space only
   // currently backend cannot filter by both low disk space and label
@@ -46,6 +48,8 @@ const LowDiskSpaceHosts = ({
         title="Low disk space hosts"
         tooltip={`Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`}
         path={path}
+        isSandboxMode={isSandboxMode}
+        sandboxPremiumOnlyIcon
       />
     </div>
   );

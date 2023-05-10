@@ -163,11 +163,10 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
 		Query: `
 	SELECT
 		os.name,
-		os.codename as display_version
+		os.version as display_version
 
 	FROM
 		os_version os`,
@@ -1109,7 +1108,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
-	sPaths := make(map[string]string)
+	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
 		name := row["name"]
@@ -1174,15 +1173,17 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" {
-			sPaths[s.ToUniqueStr()] = installedPath
+			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			sPaths[key] = struct{}{}
 		}
 	}
 
-	if err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
 
-	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths); err != nil {
+	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 

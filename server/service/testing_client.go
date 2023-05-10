@@ -96,7 +96,8 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	for _, host := range hosts {
-		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		_, err := ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil)
+		require.NoError(t, err)
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
@@ -280,13 +281,27 @@ func (ts *withServer) getConfig() *appConfigResponse {
 
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
 	t := ts.s.T()
+	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return auth, string(body)
+}
+
+func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
+	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusTemporaryRedirect)
+	return res
+}
+
+func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
+	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
 	}
 
 	var resIni initiateSSOResponse
-	ts.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
+	ts.DoJSON("POST", basePath, map[string]string{}, http.StatusOK, &resIni)
 
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
@@ -324,12 +339,9 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 	auth, err := sso.DecodeAuthResponse(rawSSOResp)
 	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+q, nil, http.StatusOK)
+	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
-	defer res.Body.Close()
-	body, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	return auth, string(body)
+	return auth, res
 }
 
 // gets the latest activity and checks that it matches any provided properties.

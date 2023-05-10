@@ -177,7 +177,7 @@ If you're using the Google Chrome web browser, you can always automatically bypa
 > then be visible again.
 
 The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
-The source code can be found in the [frontend](../../frontend/) directory.
+The source code can be found in the [frontend](https://github.com/fleetdm/fleet/tree/main/frontend) directory.
 
 ## Debugging with Delve debugger
 

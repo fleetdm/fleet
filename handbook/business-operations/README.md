@@ -57,20 +57,21 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+
 ### Attending conferences or company travel
-When attending a conference or traveling for Fleet, please make a post in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP) on Slack with the following information:
-- The start and end dates for your trip.
-- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-- The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
-- The price of the admission fees if attending a conference.
-- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or who are Salesforce contacts on an open, qualified opportunity with a budget of at least $160k+ ΔARR)**.
-- Customer/Partner Facing Events:
-  - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
-The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
-We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+When attending a conference or traveling for Fleet, keep the following in mind:
+- $100 allowance per day for your own personal food and beverage. **(There are many good reasons to make exceptions to this guideline, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#intake).**
+- We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+- The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as travel.  You can [request that here](https://fleetdm.com/handbook/business-operations#intake) by providing the following information:
+  - The start and end dates for your trip.
+  - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+  - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
+  - The price of the admission fees if attending a conference.
+- Please use your personal credit card for movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
+
 
 ### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please make a post in [#g-business-opeartions](https://fleetdm.slack.com/archives/C047N5L6EGH)) on Slack with the following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -79,10 +80,15 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 ### Reimbursements
-We provide all of our team members with Brex cards for making purchases for the company. Fleet will reimburse team members who pay for work-related expenses with their personal funds.
+Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#intake).
+
+<!-- 
+No longer supported.  -mike, CEO, 2023-04-26.
+
+Fleet will reimburse team members who pay for work-related expenses with their personal funds.
 Team members can request reimbursement through [Gusto]([https://app.gusto.com/expenses](https://support.gusto.com/article/209831449100000/Get-reimbursed-for-expenses-as-an-employee)) if they're in the US or [Pilot]([https://pilot.co/](https://help.pilot.co/en/articles/4658204-how-to-request-a-reimbursement#:~:text=If%20you%20made%20a%20purchase,and%20click%20'Add%20new%20expense.)) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
->Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
+>Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll.  -->
 
 
 ## Benefits
@@ -178,7 +184,10 @@ Expectations during onboarding:
 
 
 ### Sightseeing tour
-During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
+During their first day at Fleet, new team members join a sightseeing tour call with the acting Head of People (CEO). During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+
+In this meeting, we'll take a look at:
+- Handbook: values, purpose, key pages to pay special attention to
 - GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
 - Google Calendar: the future.
@@ -191,7 +200,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Contributor experience training
-During their first week at Fleet, new team members are asked to schedule a contributor experience training call with Mike McNeil. During this call, the new team member will share their screen, and People operations will:
+During their first week at Fleet, every new team member schedules a contributor experience training call with the acting Head of People (CEO). During this call, the new team member will share their screen, and the acting Head of People will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
@@ -199,6 +208,26 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
+<!-- 
+TODO: Merge this commented-out stuff with the above
+
+Agenda:
+A 60-minute call with Mike where you will share your screen, and she will work with you to...
+Make sure Slack messages are going to get seen and responded to quickly and disable email notifications in Slack
+Make sure you know where your issues are tracked, which kanban board you use, what the columns mean
+Make sure you can succeed with submitting a PR in github.com, modifying docs or handbook, working with Markdown
+Make sure emails are going to get seen and responded to quickly (make sure inbox management is going to be productive, talk about filters, unsubscribe)
+Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
+A quick tour of the Google drive folder (access look correct? Ok. Give access to executed documents on the shared drive as needed) show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.)
+Make sure you know how to share a google doc into the folder for all fleeties to see and access.
+A high level overview of the Company values
+-->
+
+### Onboarding retrospective
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call with the acting Head of People (CEO).  Agenda: 
+> Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
+
+Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
 ### Directly responsible individuals
 Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
@@ -283,7 +312,7 @@ Capturing video from meetings with customers, prospects, and community members o
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
-To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. 
+To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
 If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
@@ -684,11 +713,11 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 ## Departures
 
 ### Communicating departures
-Although it's sad to see you go, Fleet understands that not everything is meant to be forever like open-source is. There are a few steps that we'll need to take to communicate to the team of your departure. 
-1. Direct team: The CEO will reach out to the departing teammember's direct reports in 1:1 calls.
-2. Key stakeholders: The CEO will reach out to his direct reports about the departing teammember's departure.
-3. Announcement: Mike McNeil will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
-
+Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
+1. **Departing team member's manager:** Before speaking further with the team member, inform business operations about the departure via direct message in Slack to the acting Head of People (`@mikermcneil`), who will coordinate the team member's last day, offboarding, and exit meeting.
+2. **Business Operations**: Create and begin completing [offboarding issue](https://github.com/fleetdm/confidential/issues/new/choose).
+   > After finding out at the next standup (or sooner), Business Operations will post in `#g-e` to inform the E-group of the team member's departure and ask E-group members will inform any other managers on their teams.
+3. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
 ## Adding an advisor
@@ -820,6 +849,9 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
+| Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
+| Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
+| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | BizOps on-call |
 
 
 
@@ -869,7 +901,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
 | `#g-business-operations`                | Business operations on-call
-| `#help-login`                           | Business operations on-call
 | `#help-brex`                            | Business operations on-call
 | `#help-classified` _(¶¶)_               | Business operations on-call
 | `#help-onboarding`                      | Mike McNeil

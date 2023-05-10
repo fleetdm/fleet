@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -734,12 +735,12 @@ func TestDirectIngestSoftware(t *testing.T) {
 			},
 		}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
-			return nil
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
@@ -747,9 +748,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
-			var calledWith map[string]string
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
-				calledWith = make(map[string]string)
+			var calledWith map[string]struct{}
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+				calledWith = make(map[string]struct{})
 				for k, v := range sPaths {
 					calledWith[k] = v
 				}
@@ -760,8 +761,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), data[1]["name"])
-			require.Contains(t, strings.Join(maps.Values(calledWith), " "), data[1]["installed_path"])
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -797,13 +797,13 @@ func TestDirectIngestSoftware(t *testing.T) {
 				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
 			},
 		} {
-			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 				require.Len(t, software, 1)
 				require.Equal(t, tc.expected, software[0].Vendor)
-				return nil
+				return nil, nil
 			}
 
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]string) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}

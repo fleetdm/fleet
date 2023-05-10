@@ -168,4 +168,12 @@
       font-size: $x-small;
     }
   }
+  .critical-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    .form-field--checkbox {
+      margin-bottom: 0;
+    }
+  }
 }

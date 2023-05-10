@@ -13,7 +13,7 @@ import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
-import navItems, { INavItem } from "./navItems";
+import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
   config: IConfig;
@@ -87,6 +87,7 @@ const SiteTopNav = ({
     isAnyTeamMaintainer,
     isNoAccess,
     isMdmEnabledAndConfigured, // TODO: confirm
+    isSandboxMode,
   } = useContext(AppContext);
 
   const isActiveDetailPage = isDetailPage(currentPath);
@@ -190,13 +191,14 @@ const SiteTopNav = ({
     );
   };
 
-  const userNavItems = navItems(
+  const userNavItems = getNavItems(
     currentUser,
     isGlobalAdmin,
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isSandboxMode
   );
 
   const renderNavItems = () => {
@@ -213,6 +215,7 @@ const SiteTopNav = ({
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}
+          isSandboxMode={isSandboxMode}
         />
       </div>
     );

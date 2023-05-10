@@ -11,6 +11,7 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
+import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -48,21 +49,23 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
-  DiskEncryptionStatus,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
 } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -77,9 +80,11 @@ import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
-  HOST_SELECT_STATUSES,
-} from "./constants";
-import { isAcceptableStatus, getNextLocationPath } from "./helpers";
+  DEFAULT_PAGE_INDEX,
+  getHostSelectStatuses,
+} from "./HostsPageConfig";
+import { isAcceptableStatus } from "./helpers";
+
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -101,14 +106,6 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
-}
-
-interface ITableQueryProps {
-  pageIndex: number;
-  pageSize: number;
-  searchQuery: string;
-  sortHeader: string;
-  sortDirection: string;
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -185,6 +182,16 @@ const ManageHostsPage = ({
     return query;
   })();
 
+  const initialPage = (() => {
+    let page = 0;
+
+    if (queryParams && queryParams.page) {
+      page = parseInt(queryParams.page, 10);
+    }
+
+    return page;
+  })();
+
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
@@ -207,8 +214,9 @@ const ManageHostsPage = ({
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-  const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
@@ -240,8 +248,10 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
-  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+  const diskEncryptionStatus: FileVaultProfileStatus | undefined =
     queryParams?.macos_settings_disk_encryption;
+  const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
+    queryParams?.bootstrap_package;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -372,6 +382,7 @@ const ManageHostsPage = ({
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -406,9 +417,8 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
         diskEncryptionStatus,
+        bootstrapPackageStatus,
         macSettingsStatus,
       },
     ],
@@ -494,7 +504,7 @@ const ManageHostsPage = ({
     }
     const path = location.pathname + location.search;
     if (filteredHostsPath !== path) {
-      setFilteredHostsPath(location.pathname + location.search);
+      setFilteredHostsPath(path);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
 
@@ -536,7 +546,7 @@ const ManageHostsPage = ({
         ({
           ...prevState,
           pageIndex: 0,
-        } as ITableQueryProps)
+        } as ITableQueryData)
     );
     setResetPageIndex(true);
   };
@@ -549,16 +559,18 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           policy_id: policyId,
           policy_response: response,
-        }),
+          page: 0, // resets page index
+        },
       })
     );
   };
 
   const handleChangeDiskEncryptionStatusFilter = (
-    newStatus: DiskEncryptionStatus
+    newStatus: FileVaultProfileStatus
   ) => {
     handleResetPageIndex();
 
@@ -567,9 +579,26 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: Object.assign({}, queryParams, {
+        queryParams: {
+          ...queryParams,
           macos_settings_disk_encryption: newStatus,
-        }),
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
+  const handleChangeBootstrapPackageStatusFilter = (
+    newStatus: BootstrapPackageStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, bootstrap_package: newStatus },
       })
     );
   };
@@ -582,7 +611,10 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams: undefined,
-        queryParams,
+        queryParams: {
+          ...queryParams,
+          page: 0, // resets page index
+        },
       })
     );
   };
@@ -595,7 +627,10 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, omitParams),
+        queryParams: {
+          ...omit(queryParams, omitParams),
+          page: 0, // resets page index
+        },
       })
     );
   };
@@ -608,7 +643,11 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, status: statusName },
+        queryParams: {
+          ...queryParams,
+          status: statusName,
+          page: 0, // resets page index
+        },
       })
     );
   };
@@ -623,7 +662,11 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, macos_settings: newMacSettingsStatus },
+        queryParams: {
+          ...queryParams,
+          macos_settings: newMacSettingsStatus,
+          page: 0, // resets page index
+        },
       })
     );
   };
@@ -650,11 +693,14 @@ const ManageHostsPage = ({
     if (queryParams.add_hosts === "true") {
       setShowAddHostsModal(true);
     }
-  }, [queryParams]);
+    if (queryParams.page === page) {
+      setPage(queryParams.page);
+    }
+  }, [queryParams, page]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
-    async (newTableQuery: ITableQueryProps) => {
+    async (newTableQuery: ITableQueryData) => {
       if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
         return;
       }
@@ -665,6 +711,7 @@ const ManageHostsPage = ({
         searchQuery: searchText,
         sortHeader,
         sortDirection,
+        pageIndex,
       } = newTableQuery;
 
       let sort = sortBy;
@@ -689,12 +736,16 @@ const ManageHostsPage = ({
         setSearchQuery(searchText);
       }
 
+      if (!isEqual(page, pageIndex)) {
+        setPage(pageIndex);
+      }
+
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
       if (!isEmpty(searchText)) {
         newQueryParams.query = searchText;
       }
-
+      newQueryParams.page = pageIndex;
       newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
@@ -730,7 +781,10 @@ const ManageHostsPage = ({
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
         newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+      } else if (bootstrapPackageStatus && isPremiumTier) {
+        newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }
+
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -760,10 +814,12 @@ const ManageHostsPage = ({
       osId,
       osName,
       osVersion,
+      page,
       router,
       routeTemplate,
       routeParams,
       diskEncryptionStatus,
+      bootstrapPackageStatus,
     ]
   );
 
@@ -1007,6 +1063,7 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
+      isSandboxMode={isSandboxMode}
     />
   );
 
@@ -1239,12 +1296,16 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
+    const statusDropdownClassnames = classNames(
+      `${baseClass}__status_dropdown`,
+      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
+    );
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          options={HOST_SELECT_STATUSES}
+          className={statusDropdownClassnames}
+          options={getHostSelectStatuses(isSandboxMode)}
           searchable={false}
           onChange={handleStatusDropdownChange}
         />
@@ -1335,6 +1396,7 @@ const ManageHostsPage = ({
         variant: "text-icon",
         icon: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1374,6 +1436,7 @@ const ManageHostsPage = ({
 
     return (
       <TableContainer
+        resultsTitle="hosts"
         columns={tableColumns}
         data={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
@@ -1382,18 +1445,18 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
         pageSize={50}
-        actionButtonText={"Edit columns"}
+        actionButtonText="Edit columns"
         actionButtonIcon={EditColumnsIcon}
-        actionButtonVariant={"text-icon"}
+        actionButtonVariant="text-icon"
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        primarySelectActionButtonText={"Delete"}
-        primarySelectActionButtonIcon={"delete"}
+        primarySelectActionButtonText="Delete"
+        primarySelectActionButtonIcon="delete"
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        resultsTitle={"hosts"}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
@@ -1507,6 +1570,7 @@ const ManageHostsPage = ({
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
               diskEncryptionStatus,
+              bootstrapPackageStatus,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1516,9 +1580,13 @@ const ManageHostsPage = ({
             onChangeDiskEncryptionStatusFilter={
               handleChangeDiskEncryptionStatusFilter
             }
+            onChangeBootstrapPackageStatusFilter={
+              handleChangeBootstrapPackageStatusFilter
+            }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
+            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

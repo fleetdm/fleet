@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -157,6 +158,18 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
+	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+		return nil
+	}
+	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
+		return nil
+	}
 
 	return svc, ctx, ds
 }
@@ -177,11 +190,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
 		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleEnrollmentProfiles(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
+		_, err := svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.GetMDMAppleInstallerByID(ctx, 42)
 		checkAuthErr(t, err, shouldFailWithAuth)
@@ -192,6 +201,14 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+
+		// check EULA routes
+		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -215,6 +232,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	require.NoError(t, err)
+	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.
@@ -419,38 +438,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			})
 		}
 	})
-}
-
-func TestMDMAppleEnrollURL(t *testing.T) {
-	svc := Service{}
-
-	cases := []struct {
-		appConfig   *fleet.AppConfig
-		expectedURL string
-	}{
-		{
-			appConfig: &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: "https://foo.example.com",
-				},
-			},
-			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
-		},
-		{
-			appConfig: &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: "https://foo.example.com/",
-				},
-			},
-			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
-		},
-	}
-
-	for _, tt := range cases {
-		enrollURL, err := svc.mdmAppleEnrollURL("tok", tt.appConfig)
-		require.NoError(t, err)
-		require.Equal(t, tt.expectedURL, enrollURL)
-	}
 }
 
 func TestMDMAppleConfigProfileAuthz(t *testing.T) {
@@ -683,7 +670,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 
 	expected := []fleet.HostMDMAppleProfile{
 		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryVerifying, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
 		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
 	}
 	expectedByProfileID := make(map[uint]fleet.HostMDMAppleProfile)
@@ -817,29 +804,6 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.NotNil(t, gotHost.MDM.Profiles)
 			require.ElementsMatch(t, *c.expected, *gotHost.MDM.Profiles)
 		})
-	}
-}
-
-func TestAppleMDMEnrollmentProfile(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
-
-	// Only global admins can create enrollment profiles.
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-	require.NoError(t, err)
-
-	// All other users should not have access to the endpoints.
-	for _, user := range []*fleet.User{
-		test.UserNoRoles,
-		test.UserMaintainer,
-		test.UserObserver,
-		test.UserObserverPlus,
-		test.UserTeamAdminTeam1,
-	} {
-		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 	}
 }
 
@@ -1175,7 +1139,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "InstallProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
@@ -1185,7 +1149,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "RemoveProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
@@ -2277,6 +2241,85 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
+}
+
+func TestMDMAppleSetupAssistant(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return &fleet.MDMAppleSetupAssistant{}, nil
+	}
+	ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+		return asst, nil
+	}
+	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id}, nil
+	}
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		teamID          *uint
+		shouldFailRead  bool
+		shouldFailWrite bool
+	}{
+		{"no role no team", test.UserNoRoles, nil, true, true},
+		{"no role team", test.UserNoRoles, ptr.Uint(1), true, true},
+		{"global admin no team", test.UserAdmin, nil, false, false},
+		{"global admin team", test.UserAdmin, ptr.Uint(1), false, false},
+		{"global maintainer no team", test.UserMaintainer, nil, false, false},
+		{"global maintainer team", test.UserMaintainer, ptr.Uint(1), false, false},
+		{"global observer no team", test.UserObserver, nil, true, true},
+		{"global observer team", test.UserObserver, ptr.Uint(1), true, true},
+		{"global observer+ no team", test.UserObserverPlus, nil, true, true},
+		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
+		{"global gitops no team", test.UserGitOps, nil, true, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
+		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
+		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
+		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true},
+		{"team maintainer no team", test.UserTeamMaintainerTeam1, nil, true, true},
+		{"team maintainer team", test.UserTeamMaintainerTeam1, ptr.Uint(1), false, false},
+		{"team maintainer other team", test.UserTeamMaintainerTeam2, ptr.Uint(1), true, true},
+		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true},
+		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), true, true},
+		{"team observer other team", test.UserTeamObserverTeam2, ptr.Uint(1), true, true},
+		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true},
+		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true},
+		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
+		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
+		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+				Name:    "test",
+				Profile: json.RawMessage("{}"),
+				TeamID:  tt.teamID,
+			})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.DeleteMDMAppleSetupAssistant(ctx, tt.teamID)
+			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

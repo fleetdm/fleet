@@ -99,6 +99,19 @@ func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interfa
 	return ds.NewJob(ctx, job)
 }
 
+// this defines the delays to add between retries (i.e. how the "not_before"
+// timestamp of a job will be set for the next run). Keep in mind that at a
+// minimum, the job will not be retried before the next cron run of the worker,
+// but we want to ensure a minimum delay before retries to give a chance to
+// e.g. transient network issues to resolve themselves.
+var delayPerRetry = []time.Duration{
+	1: 0, // i.e. for the first retry, do it ASAP (on the next cron run)
+	2: 5 * time.Minute,
+	3: 10 * time.Minute,
+	4: 1 * time.Hour,
+	5: 2 * time.Hour,
+}
+
 // ProcessJobs processes all queued jobs.
 func (w *Worker) ProcessJobs(ctx context.Context) error {
 	const maxNumJobs = 100
@@ -138,6 +151,9 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 				if job.Retries < maxRetries {
 					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
+					if job.Retries < len(delayPerRetry) {
+						job.NotBefore = time.Now().Add(delayPerRetry[job.Retries])
+					}
 				} else {
 					job.State = fleet.JobStateFailure
 				}

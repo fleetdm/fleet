@@ -1954,6 +1954,447 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Service supporting the audio gateway role of the Bluetooth Handsfree Profile.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Bluetooth Audio Gateway Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\BTAGService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The Bluetooth service supports discovery and association of remote Bluetooth devices.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Bluetooth Support Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\bthserv\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Computer Browser (Browser)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Maintains an updated list of computers on the network and supplies this list to computers designated as browsers.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: In Windows 8.1 and Windows 10, this service is bundled with the SMB 1.0/CIFS File Sharing Support optional feature. As a result, removing that feature (highly recommended unless backward compatibility is needed to XP/2003 and older Windows OSes - see Stop using SMB1 | Storage at Microsoft) will also remediate this recommendation. The feature is not installed by default starting with Windows 10 R1709.  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or 'not installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Computer Browser'
+  query: |
+    SELECT 1 WHERE 
+        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
+        OR 
+        EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Windows service for application access to downloaded maps. This service is started on- demand by application accessing downloaded maps.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Downloaded Maps Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\MapsBroker\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service monitors the current location of the system and manages geofences (a geographical location with associated events).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Geolocation Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\lfsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed' 
+  platforms: win10
+  platform: windows
+  description: |
+    Enables the server to administer the IIS metabase. The IIS metabase stores configuration for the SMTP and FTP services.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed
+    by enabling an optional Windows feature (Internet Information Services).
+    Note #2: An organization may choose to selectively grant exceptions to web developers to allow IIS (or another web server) on their workstation, in order for them to locally test & develop web pages. However, the organization should track those machines and ensure the security controls and mitigations are kept up to date, to reduce risk of compromise.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\IIS Admin Service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Infrared monitor service (irmon)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Detects other Infrared devices that are in range and launches the file transfer application.
+    The recommended state for this setting is: Disabled or Not Installed.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Infrared monitor service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    Provides network access translation, addressing, name resolution and/or intrusion prevention services for a home or small office network.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Internet Connection Sharing (ICS)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.8
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates a Network Map, consisting of PC and device topology (connectivity) information, and metadata describing each PC and device.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Link-Layer Topology Discovery Mapper'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\lltdsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.9
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed' 
+  platforms: win10
+  platform: windows
+  description: |
+    The LXSS Manager service supports running native ELF binaries. The service provides the infrastructure necessary for ELF binaries to run on Windows.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Windows Subsystem for Linux).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.10
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables the server to be a File Transfer Protocol (FTP) server.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but is installed by enabling an optional Windows feature (Internet Information Services - FTP Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.11
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Manages Internet SCSI (iSCSI) sessions from this computer to remote target devices.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft iSCSI Initiator Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\MSiSCSI\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.12
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' or 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    SSH protocol based service to provide secure encrypted communications between two untrusted hosts over an insecure network.
+    The recommended state for this setting is: Disabled or Not Installed.
+    Note: This service is not installed by default. It is supplied with Windows, but it is installed by enabling an optional Windows feature (OpenSSH Server).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to Disabled or Not Installed.:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd' )
+    OR 
+    EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.13
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables serverless peer name resolution over the Internet using the Peer Name Resolution Protocol (PNRP).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Name Resolution Protocol'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.14
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables multi-party communication using Peer-to-Peer Grouping.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Grouping'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2psvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.15
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Provides identity services for the Peer Name Resolution Protocol (PNRP) and Peer-to-Peer Grouping services.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Identity Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2pimsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.16
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service publishes a machine name using the Peer Name Resolution Protocol. Configuration is managed via the netsh context ‘p2p pnrp peer’.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\PNRP Machine Name Publication Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPAutoReg\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.17
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service spools print jobs and handles interaction with printers.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Print Spooler'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Spooler\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.18
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled' 
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides support for viewing, sending and deletion of system-level problem reports for the Problem Reports and Solutions control panel.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Problem Reports and Solutions Control Panel Support'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\wercplsupport\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.19
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates a connection to a remote network whenever a program references a remote DNS or NetBIOS name or address.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Access Auto Connection Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasAuto\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.20
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Remote Desktop Configuration service (RDCS) is responsible for all Remote Desktop related configuration and session maintenance activities that require SYSTEM context. These include per-session temporary folders, RD themes, and RD certificates.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Configuration'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SessionEnv\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.21
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Allows users to connect interactively to a remote computer. Remote Desktop and Remote Desktop Session Host Server depend on this service.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Services'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\TermService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.22
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -3229,6 +3670,187 @@ spec:
     AND mdm_command_output = 3;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Sensitive Privilege Use' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports when a user account or service uses a sensitive privilege. A sensitive privilege includes the following user rights:
+      -  Act as part of the operating system
+      -  Back up files and directories
+      -  Create a token object
+      -  Debug programs
+      -  Enable computer and user accounts to be trusted for delegation
+      -  Generate security audits
+      -  Impersonate a client after authentication
+      -  Load and unload device drivers
+      -  Manage auditing and security log
+      -  Modify firmware environment values
+      -  Replace a process-level token
+      -  Restore files and directories
+      -  Take ownership of files or other objects
+      Auditing this subcategory will create a high volume of events. Events for this subcategory include:
+      -  4672: Special privileges assigned to new logon.
+      -  4673: A privileged service was called.
+      -  4674: An operation was attempted on a privileged object.
+      The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Privilege Use\Audit Sensitive Privilege Use'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.8.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit IPsec Driver' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on the activities of the Internet Protocol security (IPsec) driver. Events for this subcategory include:
+    -  4960: IPsec dropped an inbound packet that failed an integrity check. If this problem persists, it could indicate a network issue or that packets are being modified in transit to this computer. Verify that the packets sent from the remote computer are the same as those received by this computer. This error might also indicate interoperability problems with other IPsec implementations.
+    -  4961: IPsec dropped an inbound packet that failed a replay check. If this problem persists, it could indicate a replay attack against this computer.
+    -  4962: IPsec dropped an inbound packet that failed a replay check. The inbound packet had too low a sequence number to ensure it was not a replay.
+    -  4963: IPsec dropped an inbound clear text packet that should have been secured. This is usually due to the remote computer changing its IPsec policy without informing this computer. This could also be a spoofing attack attempt.
+    -  4965: IPsec received a packet from a remote computer with an incorrect Security Parameter Index (SPI). This is usually caused by malfunctioning hardware that is corrupting packets. If these errors persist, verify that the packets sent from the remote computer are the same as those received by this computer. This error may also indicate interoperability problems with other IPsec implementations. In that case, if connectivity is not impeded, then these events can be ignored.
+    -  5478: IPsec Services has started successfully.
+    -  5479: IPsec Services has been shut down successfully. The shutdown of IPsec Services can put the computer at greater risk of network attack or expose the computer to potential security risks.
+    -  5480: IPsec Services failed to get the complete list of network interfaces on the computer. This poses a potential security risk because some of the network interfaces may not get the protection provided by the applied IPsec filters. Use the IP Security Monitor snap-in to diagnose the problem.
+    -  5483: IPsec Services failed to initialize RPC server. IPsec Services could not be started.
+    -  5484: IPsec Services has experienced a critical failure and has been shut down. The shutdown of IPsec Services can put the computer at greater risk of network attack or expose the computer to potential security risks.
+    -  5485: IPsec Services failed to process some IPsec filters on a plug-and-play event for network interfaces. This poses a potential security risk because some of the network interfaces may not get the protection provided by the applied IPsec filters. Use the IP Security Monitor snap-in to diagnose the problem.
+    The recommended state for this setting is: Success and Failure. 
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit IPsec Driver'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditIPsecDriver</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Other System Events' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on other system events. Events for this subcategory include:
+    -  5024 : The Windows Firewall Service has started successfully.
+    -  5025 : The Windows Firewall Service has been stopped.
+    -  5027 : The Windows Firewall Service was unable to retrieve the security policy from the local storage. The service will continue enforcing the current policy.
+    -  5028 : The Windows Firewall Service was unable to parse the new security policy. The service will continue with currently enforced policy.
+    -  5029: The Windows Firewall Service failed to initialize the driver. The service will continue to enforce the current policy.
+    -  5030: The Windows Firewall Service failed to start.
+    -  5032: Windows Firewall was unable to notify the user that it blocked an application from accepting incoming connections on the network.
+    -  5033 : The Windows Firewall Driver has started successfully.
+    -  5034 : The Windows Firewall Driver has been stopped.
+    -  5035 : The Windows Firewall Driver failed to start.
+    -  5037 : The Windows Firewall Driver detected critical runtime error. Terminating.
+    -  5058: Key file operation.
+    -  5059: Key migration operation.
+    The recommended state for this setting is: 'Success and Failure'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Other System Events'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditOtherSystemEvents</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Security State Change' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports changes in security state of the system, such as when the security subsystem starts and stops. Events for this subcategory include:
+    -  4608: Windows is starting up.
+    -  4609: Windows is shutting down.
+    -  4616: The system time was changed.
+    -  4621: Administrator recovered system from CrashOnAuditFail. Users who are not
+    administrators will now be allowed to log on. Some audit-able activity might not have been recorded.
+    The recommended state for this setting is to include: 'Success'.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security State Change'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecurityStateChange</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 3 OR mdm_command_output = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Security System Extension' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports the loading of extension code such as authentication packages by the security subsystem. Events for this subcategory include:
+    -  4610: An authentication package has been loaded by the Local Security Authority.
+    -  4611: A trusted logon process has been registered with the Local Security Authority.
+    -  4614: A notification package has been loaded by the Security Account Manager.
+    -  4622: A security package has been loaded by the Local Security Authority.
+    -  4697: A service was installed in the system.
+    The recommended state for this setting is to include: Success.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit Security System Extension'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSecuritySystemExtension</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 3 OR mdm_command_output = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit System Integrity' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports on violations of integrity of the security subsystem. Events for this subcategory include:
+    -  4612 : Internal resources allocated for the queuing of audit messages have been exhausted, leading to the loss of some audits.
+    -  4615 : Invalid use of LPC port.
+    -  4618 : A monitored security event pattern has occurred.
+    -  4816 : RPC detected an integrity violation while decrypting an incoming message.
+    -  5038 : Code integrity determined that the image hash of a file is not valid. The file could be corrupt due to unauthorized modification or the invalid hash could indicate a potential disk device error.
+    -  5056: A cryptographic self test was performed.
+    -  5057: A cryptographic primitive operation failed.
+    -  5060: Verification operation failed.
+    -  5061: Cryptographic operation.
+    -  5062: A kernel-mode cryptographic self test was performed.
+    The recommended state for this setting is: Success and Failure.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\System\Audit System Integrity'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/System_AuditSystemIntegrity</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.9.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -5896,6 +6518,306 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow access to BitLocker-protected removable data drives from earlier versions of Windows' is set to 'Disabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether or not removable data drives formatted with the FAT file system can be unlocked and viewed on computers running Windows Server 2008 (non-R2), Windows Vista, Windows XP with Service Pack 3 (SP3), or Windows XP with Service Pack 2 (SP2) operating systems.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Allow access to BitLocker-protected removable data drives from earlier versions of Windows'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVDiscoveryVolumeType' AND data = '<none>');
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    The "Allow data recovery agent" check box is used to specify whether a Data Recovery Agent can be used with BitLocker-protected removable data drives. Before a Data Recovery Agent can be used it must be added from the Public Key Policies item in either the Group Policy Management Console or the Local Group Policy Editor. Consult the BitLocker Drive Encryption Deployment Guide on Microsoft TechNet for more information about adding Data Recovery Agents.
+    In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
+    Select "Omit recovery options from the BitLocker setup wizard" to prevent users from specifying recovery options when they enable BitLocker on a drive. This means that you will not be able to specify which recovery option to use when you enable BitLocker, instead BitLocker recovery options for the drive are determined by the policy setting.
+    In "Save BitLocker recovery information to Active Directory Domain Services" choose which BitLocker recovery information to store in AD DS for removable data drives. If you select "Backup recovery password and key package", both the BitLocker recovery password and key package are stored in AD DS. If you select "Backup recovery password only", only the recovery password is stored in AD DS.
+    Select the "Do not enable BitLocker until recovery information is stored in AD DS for removable data drives" check box if you want to prevent users from enabling BitLocker unless the computer is connected to the domain and the backup of BitLocker recovery information to AD DS succeeds.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecovery' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Allow data recovery agent' is set to 'Enabled: True'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    The "Allow data recovery agent" check box is used to specify whether a Data Recovery Agent can be used with BitLocker-protected removable data drives. Before a Data Recovery Agent can be used it must be added from the Public Key Policies item in either the Group Policy Management Console or the Local Group Policy Editor. Consult the BitLocker Drive Encryption Deployment Guide on Microsoft TechNet for more information about adding Data Recovery Agents.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: True (checked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Allow data recovery agent'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVManageDRA' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Password' is set to 'Enabled: Do not allow 48- digit recovery password'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Do not allow 48-digit recovery password':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Recovery Password'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecoveryPassword' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Key' is set to 'Enabled: Do not allow 256-bit recovery key'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Do not allow 256-bit recovery key':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Recovery Key'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRecoveryKey' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    Select "Omit recovery options from the BitLocker setup wizard" to prevent users from specifying recovery options when they enable BitLocker on a drive. This means that you will not be able to specify which recovery option to use when you enable BitLocker, instead BitLocker recovery options for the drive are determined by the policy setting.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: True (checked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Omit recovery options from the BitLocker setup wizard'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVHideRecoveryPage' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Save BitLocker recovery information to AD DS for removable data drives' is set to 'Enabled: False'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    In "Save BitLocker recovery information to Active Directory Domain Services" choose which BitLocker recovery information to store in AD DS for removable data drives. If you select "Backup recovery password and key package", both the BitLocker recovery password and key package are stored in AD DS. If you select "Backup recovery password only", only the recovery password is stored in AD DS.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: False (unchecked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Save BitLocker recovery information to AD DS for removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVActiveDirectoryBackup' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Configure storage of BitLocker recovery information to AD DS:' is set to 'Enabled: Backup recovery passwords and key packages'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    In "Save BitLocker recovery information to Active Directory Domain Services" choose which BitLocker recovery information to store in AD DS for removable data drives. If you select "Backup recovery password and key package", both the BitLocker recovery password and key package are stored in AD DS. If you select "Backup recovery password only", only the recovery password is stored in AD DS.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Backup recovery passwords and key packages':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Configure storage of BitLocker recovery information to AD DS:'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVActiveDirectoryInfoToStore' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.8
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for removable data drives' is set to 'Enabled: False'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control how BitLocker-protected removable data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
+    Select the "Do not enable BitLocker until recovery information is stored in AD DS for removable data drives" check box if you want to prevent users from enabling BitLocker unless the computer is connected to the domain and the backup of BitLocker recovery information to AD DS succeeds.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: False (unchecked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Choose how BitLocker-protected removable drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVRequireActiveDirectoryBackup' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.9
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure use of hardware-based encryption for removable data drives' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to manage BitLocker's use of hardware-based encryption on removable data drives and specify which encryption algorithms it can use with hardware- based encryption. Using hardware-based encryption can improve performance of drive operations that involve frequent reading or writing of data to the drive.
+    You can specify additional options that control whether BitLocker software-based encryption is used instead of hardware-based encryption on computers that do not support hardware-based encryption and whether you want to restrict the encryption algorithms and cipher suites used with hardware-based encryption.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Configure use of hardware-based encryption for removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVHardwareEncryption' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.10
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure use of passwords for removable data drives' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to specify whether a password is required to unlock BitLocker-protected removable data drives.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Configure use of passwords for removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVPassphrase' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.11
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure use of smart cards on removable data drives' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether smart cards can be used to authenticate user access to BitLocker-protected removable data drives on a computer.
+    Smart cards can be used to authenticate user access to the drive. You can require smart card authentication by selecting the "Require use of smart cards on removable data drives" check box.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Configure use of smart cards on removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVAllowUserCert' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.12
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure use of smart cards on removable data drives: Require use of smart cards on removable data drives' is set to 'Enabled: True'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether smart cards must be used to authenticate user access to BitLocker-protected removable data drives on a computer.
+    Smart cards can be used to authenticate user access to the drive. You can require smart card authentication by selecting the "Require use of smart cards on removable data drives" check box.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: True (checked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Configure use of smart cards on removable data drives: Require use of smart cards on removable data drives'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVEnforceUserCert' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.13
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization' is set to 'Enabled: False'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether the computer will be able to write data to BitLocker- protected removable drives that were configured in another organization.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: False (unchecked)':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\RDVDenyCrossOrg' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.15
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable new DMA devices when this computer is locked' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to block direct memory access (DMA) for all hot pluggable PCI downstream ports until a user logs into Windows.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Disable new DMA devices when this computer is locked'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\DisableExternalDMAUnderLock' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow Use of Camera' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -6794,6 +7716,114 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Prevent downloading of enclosures' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting prevents the user from having enclosures (file attachments) downloaded from an RSS feed to the user's computer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\RSS Feeds\Prevent downloading of enclosures'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Feeds\\DisableEnclosureDownload' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.66.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Cloud Search' is set to 'Enabled: Disable Cloud Search'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows search and Cortana to search cloud sources like OneDrive and SharePoint.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled', then 'Disable Cloud Search':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow Cloud Search'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowCloudSearch' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Cortana' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether Cortana is allowed on the device.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow Cortana'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowCortana' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.3
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Cortana above lock screen' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether or not the user can interact with Cortana using speech while the system is locked.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowCortanaAboveLock' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.4
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow indexing of encrypted files' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether encrypted items are allowed to be indexed.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow indexing of encrypted files'
+  query: |
+    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowIndexingEncryptedStoresOrItems' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.5
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow search and Cortana to use location' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether search and Cortana can provide location aware search and Cortana results.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Search\Allow search and Cortana to use location'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\AllowSearchToUseLocation' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.67.6
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Do not allow passwords to be saved' is set to 'Enabled'
   platforms: win10
   platform: windows
@@ -7048,6 +8078,219 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.3.11.1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off KMS Client Online AVS Validation' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The Key Management Service (KMS) is a Microsoft license activation method that entails setting up a local server to store the software licenses. The KMS server itself needs to connect to Microsoft to activate the KMS service, but subsequent on-network clients can activate Microsoft Windows OS and/or their Microsoft Office via the KMS server instead of connecting directly to Microsoft. This policy setting lets you opt-out of sending KMS client activation data to Microsoft automatically.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Software Protection Platform\Turn off KMS Client Online AVS Validation'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template AVSValidationGP.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\CurrentVersion\\Software Protection Platform\NoGenTicket' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.72.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable all apps from Microsoft Store' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting configures the launch of all apps from the Microsoft Store that came pre-installed or were downloaded.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Disable all apps from Microsoft Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableStoreApps' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting denies access to the retail catalog in the Microsoft Store, but displays the private store.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting enables or disables the automatic download and installation of Microsoft Store app updates.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off Automatic Download and Install of updates'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\AutoDownload' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the offer to update to the latest version of Windows' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Enables or disables the Microsoft Store offer to update to the latest version of Windows.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the offer to update to the latest version of Windows'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableOSUpgrade' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting denies or allows access to the Store application.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Turn off the Store application'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WinStoreUI.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates, or by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RemoveWindowsStore' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.75.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow widgets' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the widgets feature is allowed on the device. The widgets feature provides information such as, weather, news, sports, stocks, traffic, and entertainment (not an inclusive list).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Widgets\Allow Widgets'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template NewsAndInterests.admx/adml that is actually NOT included with the Microsoft Windows 10 Release 21H2 Administrative Templates (more info on missing settings on Windows 10 21H2: https://4sysops.com/archives/group-policies-for-windows-11-and-10-21h2-compared/) but is included in Windows 11 2022 Update (22H2).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Dsh\AllowNewsAndInterests' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.81.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to manage the behavior of Windows Defender SmartScreen. Windows Defender SmartScreen helps keep PCs safer by warning users before running unrecognized programs downloaded from the Internet. Some information is sent to Microsoft about files and programs run on PCs with this feature enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Warn and prevent bypass':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Explorer\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
+    ) AND EXISTS (
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prevent bypassing Windows Defender SmartScreen prompts for sites' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting lets you decide whether employees can override the SmartScreen Filter warnings about potentially malicious websites.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Prevent bypassing Windows Defender SmartScreen prompts for sites'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\PreventOverride' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.85.2.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting enables or disables the Windows Game Recording and Broadcasting features.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Game Recording and Broadcasting\Enables or disables Windows Game Recording and Broadcasting'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GameDVR.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR\AllowGameDVR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.87.1
+  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy

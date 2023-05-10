@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 )
 
@@ -34,14 +35,11 @@ const (
 	MaskedPassword = "********"
 )
 
-// SSOSettings wire format for SSO settings
-type SSOSettings struct {
+type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id"`
 	// IssuerURI is the uri that identifies the identity provider
 	IssuerURI string `json:"issuer_uri"`
-	// IDPImageURL is a link to a logo or other image that is used for UX
-	IDPImageURL string `json:"idp_image_url"`
 	// Metadata contains IDP metadata XML
 	Metadata string `json:"metadata"`
 	// MetadataURL is a URL provided by the IDP which can be used to download
@@ -49,6 +47,18 @@ type SSOSettings struct {
 	MetadataURL string `json:"metadata_url"`
 	// IDPName is a human friendly name for the IDP
 	IDPName string `json:"idp_name"`
+}
+
+func (s SSOProviderSettings) IsEmpty() bool {
+	return s == (SSOProviderSettings{})
+}
+
+// SSOSettings wire format for SSO settings
+type SSOSettings struct {
+	SSOProviderSettings
+
+	// IDPImageURL is a link to a logo or other image that is used for UX
+	IDPImageURL string `json:"idp_image_url"`
 	// EnableSSO flag to determine whether or not to enable SSO
 	EnableSSO bool `json:"enable_sso"`
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
@@ -129,9 +139,10 @@ type MDM struct {
 	// the server starts.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
-	MacOSSettings MacOSSettings `json:"macos_settings"`
-	MacOSSetup    MacOSSetup    `json:"macos_setup"`
+	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
+	MacOSSettings         MacOSSettings            `json:"macos_settings"`
+	MacOSSetup            MacOSSetup               `json:"macos_setup"`
+	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -247,7 +258,17 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage string `json:"bootstrap_package"`
+	BootstrapPackage    optjson.String `json:"bootstrap_package"`
+	MacOSSetupAssistant optjson.String `json:"macos_setup_assistant"`
+}
+
+// MDMEndUserAuthentication contains settings related to end user authentication
+// to gate certain MDM features (eg: enrollment)
+type MDMEndUserAuthentication struct {
+	// SSOSettings configure the IdP integration. Note that all keys under
+	// SSOProviderSettings are top-level keys under this struct, that's why
+	// it's embedded.
+	SSOProviderSettings
 }
 
 // AppConfig holds server configuration that can be changed via the API.

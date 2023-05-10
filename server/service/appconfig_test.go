@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,12 +12,15 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -347,11 +350,13 @@ func TestNeedFieldsPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
 		SSOSettings: fleet.SSOSettings{
-			EnableSSO:   true,
-			EntityID:    "fleet",
-			IssuerURI:   "http://issuer.idp.com",
-			MetadataURL: "http://isser.metadata.com",
-			IDPName:     "onelogin",
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				MetadataURL: "http://isser.metadata.com",
+				IDPName:     "onelogin",
+			},
 		},
 	}
 	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
@@ -362,12 +367,14 @@ func TestShortIDPName(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	config := fleet.AppConfig{
 		SSOSettings: fleet.SSOSettings{
-			EnableSSO:   true,
-			EntityID:    "fleet",
-			IssuerURI:   "http://issuer.idp.com",
-			MetadataURL: "http://isser.metadata.com",
-			// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
-			IDPName: "SSO",
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				MetadataURL: "http://isser.metadata.com",
+				// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
+				IDPName: "SSO",
+			},
 		},
 	}
 	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
@@ -379,9 +386,11 @@ func TestMissingMetadata(t *testing.T) {
 	config := fleet.AppConfig{
 		SSOSettings: fleet.SSOSettings{
 			EnableSSO: true,
-			EntityID:  "fleet",
-			IssuerURI: "http://issuer.idp.com",
-			IDPName:   "onelogin",
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:  "fleet",
+				IssuerURI: "http://issuer.idp.com",
+				IDPName:   "onelogin",
+			},
 		},
 	}
 	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
@@ -394,11 +403,13 @@ func TestJITProvisioning(t *testing.T) {
 	config := fleet.AppConfig{
 		SSOSettings: fleet.SSOSettings{
 			EnableSSO:             true,
-			EntityID:              "fleet",
-			IssuerURI:             "http://issuer.idp.com",
-			IDPName:               "onelogin",
-			MetadataURL:           "http://isser.metadata.com",
 			EnableJITProvisioning: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				IDPName:     "onelogin",
+				MetadataURL: "http://isser.metadata.com",
+			},
 		},
 	}
 
@@ -413,11 +424,13 @@ func TestJITProvisioning(t *testing.T) {
 	config = fleet.AppConfig{
 		SSOSettings: fleet.SSOSettings{
 			EnableSSO:         true,
-			EntityID:          "fleet",
-			IssuerURI:         "http://issuer.idp.com",
-			IDPName:           "onelogin",
-			MetadataURL:       "http://isser.metadata.com",
 			EnableJITRoleSync: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				IDPName:     "onelogin",
+				MetadataURL: "http://isser.metadata.com",
+			},
 		},
 	}
 
@@ -755,10 +768,22 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
 }
 
-func TestService_ModifyAppConfig_MDM(t *testing.T) {
+func TestMDMAppleConfig(t *testing.T) {
 	ds := new(mock.Store)
+	depStorage := new(nanodep_mock.Storage)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "xyz"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
 
 	const licenseErr = "missing or invalid license"
 	const notFoundErr = "not found"
@@ -774,6 +799,9 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
+			expectedMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
@@ -795,20 +823,104 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
 		}, {
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
+		}, {
+			name:          "ssoFree",
+			licenseTier:   "free",
+			findTeam:      true,
+			newMDM:        fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
+			expectedError: licenseErr,
+		}, {
+			name:        "ssoFreeNoChanges",
+			licenseTier: "free",
+			findTeam:    true,
+			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
+			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
+				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
+		}, {
+			name:        "ssoAllFields",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				MetadataURL: "http://isser.metadata.com",
+				IDPName:     "onelogin",
+			}}},
+			expectedMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IssuerURI:   "http://issuer.idp.com",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+			},
+		}, {
+			name:        "ssoShortEntityID",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "f",
+				IssuerURI:   "http://issuer.idp.com",
+				MetadataURL: "http://isser.metadata.com",
+				IDPName:     "onelogin",
+			}}},
+			expectedError: "validation failed: entity_id must be 5 or more characters",
+		}, {
+			name:        "ssoMissingMetadata",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:  "fleet",
+				IssuerURI: "http://issuer.idp.com",
+				IDPName:   "onelogin",
+			}}},
+			expectedError: "either metadata or metadata_url must be defined",
+		}, {
+			name:        "ssoMultiMetadata",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:    "fleet",
+				IssuerURI:   "http://issuer.idp.com",
+				Metadata:    "not-empty",
+				MetadataURL: "not-empty",
+				IDPName:     "onelogin",
+			}}},
+			expectedError: "metadata both metadata and metadata_url are defined, only one is allowed",
+		}, {
+			name:        "ssoIdPName",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:  "fleet",
+				IssuerURI: "http://issuer.idp.com",
+				Metadata:  "not-empty",
+			}}},
+			expectedError: "idp_name required",
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}, DEPStorage: depStorage})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -829,7 +941,26 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 				if tt.findTeam {
 					return &fleet.Team{}, nil
 				}
-				return nil, errors.New(notFoundErr)
+				return nil, sql.ErrNoRows
+			}
+			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+				raw := json.RawMessage("{}")
+				return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
+			}
+
+			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+				return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+			}
+
+			depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+				return &nanodep_client.OAuth1Tokens{}, nil
+			}
+
+			depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+				return nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
