@@ -189,7 +189,8 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 		rawJSON = setupAsst.Profile
 	}
 
-	var jsonProf *godep.Profile
+	var jsonProf godep.Profile
+	jsonProf.IsMDMRemovable = true // the default value is true
 	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
@@ -213,7 +214,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, DEPName, jsonProf)
+	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
