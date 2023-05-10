@@ -73,7 +73,7 @@ Keeping up with Slack is tough enough, even more so if you’re the CEO. That’
 
 - Non-urgent
   - "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
-  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
+  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Tee Lucas monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
 - Urgent
   - “Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
 - Emergency
@@ -96,7 +96,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 > DISCUSS -mike, 2023-03
 
-Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month Tee will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -111,17 +111,30 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
+### Post all hands
+
+The EA / CEO will post the link to the All hands meeting in #general slack channel
+Template to use:
+Thanks to everyone who contributed to today's "All hands" call.
+
+:tv: If you weren't able to attend, please **watch the recording** _(1.5x playback supported)_.
+
+You can also grab a copy of the [original slides](https://fleetdm.com/handbook/business-operations#all-hands)
+ 
+ Include instructions for decorating that template with the link to the Gong recording, including a generic screenshot demonstrating how to generate it
+ Include example screenshot of how the Slack post is supposed to look
+ include instructions about attaching a PDF of slides
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. Tee will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
   3. Context that helps the CEO to understand the purpose of meeting at a glance
   4. Share the document with meeting participants
 
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the `#-meetings` channel.**
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Tee in the `#-meetings` channel.**
 
-**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
+**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Tee in the `#-meetings` channel in Slack.**
 
 ### 💻 Sid : Mike document preparation
 Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
@@ -135,7 +148,7 @@ The day before the meeting, Mike will prepare the "Vision" section of the origin
 
 ### Investor and advisor updates
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+  - Tee tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
 
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
@@ -154,7 +167,7 @@ Whereas agendas are good when it's all about action items / decisions / discussi
 ## Tasks as assigned
 
 ### Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask Tee to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.
