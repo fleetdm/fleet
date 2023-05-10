@@ -309,6 +309,20 @@ export const generateSoftwareTableHeaders = ({
       sortType: "dateStrings",
     },
     {
+      title: "File path",
+      Header: () => {
+        return (
+          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+            File path
+          </TooltipWrapper>
+        );
+      },
+      accessor: "installed_path",
+      Cell: (cellProps: IStringCellProps) => {
+        return <TextCell value={cellProps.cell.value} />;
+      },
+    },
+    {
       title: "",
       Header: "",
       disableSortBy: true,
