@@ -9,11 +9,5 @@ func IsValidMacOSName(fileName string) bool {
 		return false
 	}
 
-	for _, char := range InvalidMacOSChars {
-		if strings.ContainsRune(fileName, char) {
-			return false
-		}
-	}
-
-	return true
+	return !strings.ContainsAny(fileName, string(InvalidMacOSChars))
 }
