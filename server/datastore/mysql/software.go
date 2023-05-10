@@ -112,8 +112,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
-// getHostSoftwareInstalledPaths returns all SoftwareInstalledPaths for the given hostID grouped by
-// 'grouper'.
+// getHostSoftwareInstalledPaths returns all HostSoftwareInstalledPath for the given hostID.
 func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
