@@ -433,7 +433,7 @@ type Datastore interface {
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
-	// *DEPRECATED use HostVulnSummariesBySoftwareIDs instead* HostVulnSummariesBySoftwareIDs
+	// *DEPRECATED use HostVulnSummariesBySoftwareIDs instead* HostsByCVE
 	// returns a list of all hosts that have at least one software suceptible to the provided CVE.
 	// Includes the path were the software was installed.
 	HostsByCVE(ctx context.Context, cve string) ([]HostVulnerabilitySummary, error)
