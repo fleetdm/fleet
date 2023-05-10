@@ -2186,7 +2186,7 @@ FROM
 	%s
 WHERE
 	h.hardware_serial != '' AND
-	h.id IN (?)
+	h.id IN (?) AND
 	hmdm.name = ? AND
 	-- hmdm.enrolled can be either 0 or 1, does not matter
 	hmdm.installed_from_dep = 1 AND
