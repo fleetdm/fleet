@@ -154,7 +154,7 @@ module.exports.custom = {
     'free-for-all': '*',
 
     // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-    'cold-outbound-strategy.md': ['mikermcneil'],
+    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],
 
     // Boilerplate
     'README.md': ['mikermcneil'],

@@ -133,7 +133,7 @@ Good user stories are short, with clear, unambiguous language.
 #### Is it actually a story?
 User stories are small and independently valuable.
 - Is it small enough? Will this task be likely to fit in 1 sprint when estimated?
-- Is it valuable enough? Will this task drive business value when released, indepenent of other tasks?
+- Is it valuable enough? Will this task drive business value when released, independent of other tasks?
 
 
 #### Defining "done"
