@@ -2,15 +2,11 @@
 
 ![Two people talking about Fleet](../website/assets/images/articles/case-study-fleet-and-gusto-800x450@2x.png)
 
-**Customer:** Gusto
-
-**Employees:** 2,220+
-
-**Champion/Interviewee:** William Theaker, Client Platform Engineering
-
-**Deployment:** On-prem with Docker. 3,100 hosts. All laptops, mostly MacBooks, and Mac mini servers. 97% macOS.
-
-**Plan:** Fleet Premium w/ Premium Support
+**Customer:** Gusto<br>
+**Employees:** 2,220+<br>
+**Champion/Interviewee:** William Theaker, Client Platform Engineering<br>
+**Deployment:** On-prem with Docker. 3,100 hosts. All laptops, mostly MacBooks, and Mac mini servers. 97% macOS.<br>
+**Plan:** Fleet Premium w/ Premium Support<br>
 
 A few years ago, William Theaker came across osquery and immediately put it to work inside the startup he was working at. We caught up with him four years later to learn how Fleet and osquery have been helping him manage thousands of machines for Gusto.
 
