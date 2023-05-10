@@ -58,6 +58,7 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    isSandboxMode,
     setConfig,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -89,7 +90,8 @@ const ManagePolicyPage = ({
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
-      observer: false,
+      observer: true,
+      observer_plus: true,
     },
   });
 
@@ -123,7 +125,7 @@ const ManagePolicyPage = ({
       return globalPoliciesAPI.loadAll();
     },
     {
-      enabled: isRouteOk && !teamIdForApi,
+      enabled: isRouteOk,
       select: (data) => data.policies,
       staleTime: 5000,
     }
@@ -329,7 +331,6 @@ const ManagePolicyPage = ({
       currentAutomatedPolicies = webhook?.policy_ids || [];
     }
   }
-
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
@@ -346,6 +347,7 @@ const ManagePolicyPage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
@@ -416,6 +418,8 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
               />
             ))}
           {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -432,6 +436,8 @@ const ManagePolicyPage = ({
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
               />
             ))}
         </div>

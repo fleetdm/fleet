@@ -12,6 +12,7 @@ const (
 	RoleMaintainer   = "maintainer"
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
+	RoleGitOps       = "gitops"
 )
 
 type TeamPayload struct {
@@ -30,6 +31,7 @@ type TeamPayload struct {
 type TeamPayloadMDM struct {
 	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings *MacOSSettings `json:"macos_settings"`
+	MacOSSetup    *MacOSSetup    `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -143,6 +145,7 @@ type TeamWebhookSettings struct {
 type TeamMDM struct {
 	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
 	MacOSSettings MacOSSettings `json:"macos_settings"`
+	MacOSSetup    MacOSSetup    `json:"macos_setup"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 }
 
@@ -155,6 +158,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]interface{} `json:"macos_settings"`
+	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -201,10 +205,12 @@ var teamRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
@@ -213,39 +219,23 @@ func ValidTeamRole(role string) bool {
 	return ok
 }
 
-// ValidTeamRoles returns the list of valid roles for a team user.
-func ValidTeamRoles() []string {
-	var roles []string
-	for role := range teamRoles {
-		roles = append(roles, role)
-	}
-	return roles
-}
-
 var globalRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleAdmin:        {},
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
 func ValidGlobalRole(role string) bool {
 	_, ok := globalRoles[role]
 	return ok
-}
-
-// ValidGlobalRoles returns the list of valid roles for a global user.
-func ValidGlobalRoles() []string {
-	var roles []string
-	for role := range globalRoles {
-		roles = append(roles, role)
-	}
-	return roles
 }
 
 // ValidateRole returns nil if the global and team roles combination is a valid
@@ -274,21 +264,31 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	return nil
 }
 
-func ValidateRoleForLicense(globalRole *string, teamUsers *[]UserTeam, license LicenseInfo) error {
+// ValidateUserRoles verifies the roles to be applied to a new or existing user.
+//
+// Argument createNew sets whether the user is being created (true) or is being modified (false).
+func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo) error {
 	var teamUsers_ []UserTeam
-	if teamUsers != nil {
-		teamUsers_ = *teamUsers
+	if payload.Teams != nil {
+		teamUsers_ = *payload.Teams
 	}
-	if err := ValidateRole(globalRole, teamUsers_); err != nil {
+	if err := ValidateRole(payload.GlobalRole, teamUsers_); err != nil {
 		return err
 	}
 	premiumRolesPresent := false
-	if globalRole != nil {
-		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+	gitOpsRolePresent := false
+	if payload.GlobalRole != nil {
+		if *payload.GlobalRole == RoleGitOps {
+			gitOpsRolePresent = true
+		}
+		if _, ok := premiumGlobalRoles[*payload.GlobalRole]; ok {
 			premiumRolesPresent = true
 		}
 	}
 	for _, teamUser := range teamUsers_ {
+		if teamUser.Role == RoleGitOps {
+			gitOpsRolePresent = true
+		}
 		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
 			premiumRolesPresent = true
 		}
@@ -296,6 +296,14 @@ func ValidateRoleForLicense(globalRole *string, teamUsers *[]UserTeam, license L
 	if !license.IsPremium() && premiumRolesPresent {
 		return ErrMissingLicense
 	}
+	if gitOpsRolePresent &&
+		// New user is not API only.
+		((createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
+			// Removing API only status from existing user.
+			(!createNew && payload.APIOnly != nil && !*payload.APIOnly)) {
+		return NewErrorf(ErrAPIOnlyRole, "role GitOps can only be set for API only users")
+	}
+
 	return nil
 }
 
@@ -356,6 +364,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
+	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	return &TeamSpec{
 		Name:         t.Name,
 		AgentOptions: agentOptions,

@@ -49,11 +49,11 @@ The following is the subset of proposed engineering meetings. Each group is free
 
 ### Eng Together
 
-This is to promote cohesion across groups within the engineering team. Disseminate engineering-wide announcements. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-This includes all of engineering.
+Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -764,7 +764,7 @@ To start a preview without starting the simulated hosts, use the `--no-hosts` fl
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
 
-For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
+For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups.md#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
 
 ### Bug process
 
@@ -884,13 +884,13 @@ The following rituals are engaged in by the directly responsible individual (DRI
 
 | Ritual                        | Frequency           | Description                                                                                                                            | DRI            |
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Zach Wasserman |
+| Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
+| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
-| Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Luke Heath |
+| Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
+| Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Luke Heath |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 | Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |

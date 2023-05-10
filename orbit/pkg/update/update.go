@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
@@ -60,6 +61,14 @@ type Options struct {
 	LocalStore client.LocalStore
 	// Targets holds the targets the Updater keeps track of.
 	Targets Targets
+	// ServerCertificatePath is the TLS certificate CA file path to use for certificate
+	// verification.
+	//
+	// If not set, then the OS CA certificate store is used.
+	ServerCertificatePath string
+	// ClientCertificate is the client TLS certificate to use to authenticate
+	// to the update server.
+	ClientCertificate *tls.Certificate
 }
 
 // Targets is a map of target name and its tracking information.
@@ -108,9 +117,23 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	tlsConfig := &tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
-	}))
+	}
+
+	if opt.ServerCertificatePath != "" {
+		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
+		if err != nil {
+			return nil, fmt.Errorf("loading server root CA: %w", err)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+
+	if opt.ClientCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
+	}
+
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
 
 	remoteOpt := &client.HTTPRemoteOptions{
 		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),

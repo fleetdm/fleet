@@ -149,15 +149,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /platform': {
-    action: 'view-platform',
-    locals: {
-      currentSection: 'platform',
-      pageTitleForMeta: 'Platform | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
-    }
-  },
-
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
@@ -283,31 +274,10 @@ module.exports.routes = {
   },
 
 
-  'GET /experimental/okta-webflow': {
-    action: 'experimental/view-okta-webflow',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-      optimizeForAppleWebview: true,
-    }
-  },
-
-
-
-
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
   //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
   'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
-
-  'GET /imagine/launch-party': {
-    action: 'imagine/view-launch-party',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
-      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
-      headerCTAHidden: true,
-    }
-  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -369,6 +339,8 @@ module.exports.routes = {
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/product-groups': '/handbook/company/development-groups',
+  'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
+  'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -401,6 +373,7 @@ module.exports.routes = {
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
 
   // Sitemap
   // =============================================================================================================

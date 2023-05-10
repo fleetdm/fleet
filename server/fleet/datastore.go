@@ -756,21 +756,27 @@ type Datastore interface {
 	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
+	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
-	// TODO(mna): this may have to be removed if we don't end up supporting
-	// manual enrollment via a token (currently we only support it via Fleet
-	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
+	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
 
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
+	// executed, based on the provided options.
+	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
@@ -800,8 +806,9 @@ type Datastore interface {
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
-	// not already enrolled in Fleet.
-	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error)
+	// not already enrolled in Fleet. It returns the number of hosts created, the team id that they
+	// joined (nil for no team), and an error.
+	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error)
 
 	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
@@ -842,11 +849,8 @@ type Datastore interface {
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
-	// and the status is "applied" (i.e. successfully removed).
+	// and the status is "verifying" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
-
-	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
-	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
@@ -854,7 +858,7 @@ type Datastore interface {
 	// GetMDMAppleHostsProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
@@ -863,6 +867,47 @@ type Datastore interface {
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of
+	// the status of the bootstrap package for hosts in a team.
+	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackageSummary, error)
+
+	// RecordHostBootstrapPackage records a command used to install a
+	// bootstrap package in a host.
+	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
+
+	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
+	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
+
+	// MDMAppleGetEULAMetadata returns metadata information about the EULA
+	// filed stored in the database.
+	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	// MDMAppleGetEULABytes returns the bytes of the EULA file stored in
+	// the database. A token is required since this file is publicly
+	// accessible by anyone with the token.
+	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	// MDMAppleInsertEULA inserts a new EULA in the database
+	MDMAppleInsertEULA(ctx context.Context, eula *MDMAppleEULA) error
+	// MDMAppleDeleteEULA deletes the EULA file from the database
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
+
+	// Create or update the MDM Apple Setup Assistant for a team or no team.
+	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
+	// Get the MDM Apple Setup Assistant for the provided team or no team.
+	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// Delete the MDM Apple Setup Assistant for the provided team or no team.
+	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+	// Set the profile UUID generated by the call to Apple's DefineProfile API of
+	// the setup assistant for a team or no team.
+	SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error
 }
 
 const (

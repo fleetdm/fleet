@@ -17,15 +17,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 	"github.com/kolide/kit/version"
 )
 
-// //////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
-// //////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 type appConfigResponse struct {
 	fleet.AppConfig
@@ -163,17 +164,7 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
-	}
-
-	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = fleet.MaskedPassword
-	}
-
-	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = fleet.MaskedPassword
-	}
+	ac.Obfuscate()
 
 	return ac, nil
 }
@@ -198,10 +189,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
+
 	loggingConfig, err := svc.LoggingConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -238,10 +228,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
 
 	oldSmtpSettings := appConfig.SMTPSettings
 	oldAgentOptions := ""
@@ -332,11 +320,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// ignore AppleBMTermsExpired and Enabled if provided in the modify
-	// payload we don't return an error in this case because it would
-	// prevent using the output of fleetctl get config as input to fleetctl
-	// apply or this endpoint.
+	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
+	// if provided in the modify payload we don't return an error in this case because it would
+	// prevent using the output of fleetctl get config as input to fleetctl apply or this endpoint.
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
+	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
@@ -404,16 +392,48 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
+		// clear macos setup assistant for no team - note that we cannot call
+		// svc.DeleteMDMAppleSetupAssistant here as it would call the (non-premium)
+		// current service implementation. We have to go through the Enterprise
+		// extensions.
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
+		}
+	}
+
+	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
+		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
+	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
+		}
+	}
+
+	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
+		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
+		// clear bootstrap package for no team - note that we cannot call
+		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
+		// current service implementation. We have to go through the Enterprise
+		// extensions.
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+		}
+	}
+
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfigObfuscated(ctx)
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	obfuscatedAppConfig.Obfuscate()
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
-	if obfuscatedConfig.AgentOptions != nil {
-		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	if obfuscatedAppConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.ds.NewActivity(
@@ -460,7 +480,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	return obfuscatedConfig, nil
+	return obfuscatedAppConfig, nil
 }
 
 func (svc *Service) validateMDM(
@@ -472,6 +492,12 @@ func (svc *Service) validateMDM(
 ) {
 	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	}
+	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
+	}
+	if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -485,6 +511,16 @@ func (svc *Service) validateMDM(
 		if mdm.MacOSSettings.EnableDiskEncryption {
 			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
+			invalid.Append("macos_setup.macos_setup_assistant",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
+			invalid.Append("macos_setup.bootstrap_package",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
 
@@ -513,32 +549,47 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_updates", err.Error())
 		}
 	}
+
+	// EndUserAuthentication
+	// only validate SSO settings if they changed
+	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
+		if !license.IsPremium() {
+			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
+			return
+		}
+
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+	}
+}
+
+func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
+	if incoming.Metadata == "" && incoming.MetadataURL == "" {
+		if existing.Metadata == "" && existing.MetadataURL == "" {
+			invalid.Append("metadata", "either metadata or metadata_url must be defined")
+		}
+	}
+	if incoming.Metadata != "" && incoming.MetadataURL != "" {
+		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
+	}
+	if incoming.EntityID == "" {
+		if existing.EntityID == "" {
+			invalid.Append("entity_id", "required")
+		}
+	} else if len(incoming.EntityID) < 5 {
+		invalid.Append("entity_id", "must be 5 or more characters")
+	}
+	if incoming.IDPName == "" {
+		if existing.IDPName == "" {
+			invalid.Append("idp_name", "required")
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
 	if p.SSOSettings.EnableSSO {
-		if p.SSOSettings.Metadata == "" && p.SSOSettings.MetadataURL == "" {
-			if existing.SSOSettings.Metadata == "" && existing.SSOSettings.MetadataURL == "" {
-				invalid.Append("metadata", "either metadata or metadata_url must be defined")
-			}
-		}
-		if p.SSOSettings.Metadata != "" && p.SSOSettings.MetadataURL != "" {
-			invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
-		}
-		if p.SSOSettings.EntityID == "" {
-			if existing.SSOSettings.EntityID == "" {
-				invalid.Append("entity_id", "required")
-			}
-		} else {
-			if len(p.SSOSettings.EntityID) < 5 {
-				invalid.Append("entity_id", "must be 5 or more characters")
-			}
-		}
-		if p.SSOSettings.IDPName == "" {
-			if existing.SSOSettings.IDPName == "" {
-				invalid.Append("idp_name", "required")
-			}
-		}
+
+		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existing.SSOSettings.SSOProviderSettings, invalid)
+
 		if !license.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
@@ -645,7 +696,7 @@ func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) Version(ctx context.Context) (*version.Info, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Version{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

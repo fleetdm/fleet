@@ -2,6 +2,7 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import CriticalPolicy from "./CriticalPolicy";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
@@ -16,8 +17,8 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
-import Pending from "./Pending";
 import PremiumFeature from "./PremiumFeature";
+import Query from "./Query";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -30,15 +31,17 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 
-import Policy from "./Policy";
-
 // Encircled
 import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 
-import Error from "./Error";
+// Status Icons
 import Success from "./Success";
+import SuccessPartial from "./SuccessPartial";
+import Pending from "./Pending";
+import PendingPartial from "./PendingPartial";
+import Error from "./Error";
 
 import Clipboard from "./Clipboard";
 import Eye from "./Eye";
@@ -52,6 +55,7 @@ import FilePython from "./FilePython";
 import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
+import FilePkg from "./FilePkg";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -59,6 +63,7 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  "critical-policy": CriticalPolicy,
   "down-caret": DownCaret,
   ex: Ex,
   "empty-hosts": EmptyHosts,
@@ -76,12 +81,15 @@ export const ICON_MAP = {
   lightbulb: Lightbulb,
   issue: Issue,
   plus: Plus,
+  query: Query,
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
-  pending: Pending,
   trash: TrashCan,
   success: Success,
+  "success-partial": SuccessPartial,
+  pending: Pending,
+  "pending-partial": PendingPartial,
   error: Error,
   darwin: Apple,
   macOS: Apple,
@@ -92,7 +100,6 @@ export const ICON_MAP = {
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
-  policy: Policy,
   "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
@@ -103,6 +110,7 @@ export const ICON_MAP = {
   "file-python": FilePython,
   "file-zsh": FileZsh,
   "file-bash": FileBash,
+  "file-pkg": FilePkg,
   "file-generic": FileGeneric,
   refresh: Refresh,
 };

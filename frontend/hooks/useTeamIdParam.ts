@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 import { findLastIndex, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
+import { TableContext } from "context/table";
 import {
   API_NO_TEAM_ID,
   API_ALL_TEAMS_ID,
@@ -103,16 +104,23 @@ const getDefaultTeam = ({
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
-  let defaultTeam: ITeamSummary | undefined;
   if (permissions.isOnGlobalTeam(currentUser)) {
+    let defaultTeam: ITeamSummary | undefined;
     if (includeAllTeams) {
       defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
     }
     if (!defaultTeam && includeNoTeam) {
       defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
     }
+
+    return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
   }
-  return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+
+  return (
+    userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
+    userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
+    userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+  );
 };
 
 const getTeamIdForApi = ({
@@ -201,6 +209,7 @@ export const useTeamIdParam = ({
   includeAllTeams,
   includeNoTeam,
   permittedAccessByTeamRole,
+  resetSelectedRowsOnTeamChange = true,
 }: {
   location?: {
     pathname: string;
@@ -212,6 +221,7 @@ export const useTeamIdParam = ({
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   permittedAccessByTeamRole?: Record<IUserRole, boolean>;
+  resetSelectedRowsOnTeamChange?: boolean;
 }) => {
   const { hash, pathname, query, search } = location;
   const {
@@ -222,6 +232,8 @@ export const useTeamIdParam = ({
     isPremiumTier,
     setCurrentTeam: setContextTeam,
   } = useContext(AppContext);
+
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const userTeams = useMemo(
     () =>
@@ -248,13 +260,24 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      if (resetSelectedRowsOnTeamChange) {
+        setResetSelectedRows(true);
+      }
+
       router.replace(
         pathname
           .concat(rebuildQueryStringWithTeamId(search, teamId))
           .concat(hash || "")
       );
     },
-    [pathname, search, hash, router]
+    [
+      resetSelectedRowsOnTeamChange,
+      router,
+      pathname,
+      search,
+      hash,
+      setResetSelectedRows,
+    ]
   );
 
   // reconcile router location and redirect to default team as applicable

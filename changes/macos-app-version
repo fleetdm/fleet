@@ -1,1 +1,0 @@
-* Improve version detection for macOS apps. This fixes some false positives in macOS vulnerability detection.

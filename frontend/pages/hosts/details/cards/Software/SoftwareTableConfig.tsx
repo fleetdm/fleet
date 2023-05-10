@@ -103,6 +103,7 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
+      position="top"
       tipContent={`
         <span>
           <b>Bundle identifier: </b>
@@ -120,6 +121,13 @@ interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[];
 }
 
+interface ISoftwareTableHeadersProps {
+  deviceUser?: boolean;
+  setFilteredSoftwarePath: (path: string) => void;
+  router?: InjectedRouter;
+  pathname: string;
+}
+
 export const generateSoftwareTableData = (
   software: ISoftware[]
 ): ISoftwareTableData[] => {
@@ -133,10 +141,12 @@ export const generateSoftwareTableData = (
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateSoftwareTableHeaders = (
+export const generateSoftwareTableHeaders = ({
   deviceUser = false,
-  router?: InjectedRouter
-): IDataColumn[] => {
+  setFilteredSoftwarePath,
+  router,
+  pathname,
+}: ISoftwareTableHeadersProps): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
@@ -162,7 +172,7 @@ export const generateSoftwareTableHeaders = (
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-
+          setFilteredSoftwarePath(pathname);
           router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
         };
 

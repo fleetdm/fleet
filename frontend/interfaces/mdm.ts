@@ -22,6 +22,8 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
+export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
+
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
@@ -68,31 +70,32 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export type MacMdmProfileStatus = "applied" | "pending" | "failed";
+export type MdmProfileStatus = "verifying" | "pending" | "failed";
+
 export type MacMdmProfileOperationType = "remove" | "install";
 
 export interface IHostMacMdmProfile {
   profile_id: number;
   name: string;
   operation_type: MacMdmProfileOperationType;
-  status: MacMdmProfileStatus;
+  status: MdmProfileStatus;
   detail: string;
 }
-export type IMacSettings = IHostMacMdmProfile[];
-export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
-export interface IAggregateMacSettingsStatus {
-  latest: number;
-  pending: number;
-  failing: number;
-}
-
-export interface IDiskEncryptionStatusAggregate {
-  applied: number;
+export interface IFileVaultSummaryResponse {
+  verifying: number;
   action_required: number;
   enforcing: number;
   failed: number;
   removing_enforcement: number;
+}
+
+export enum FileVaultProfileStatus {
+  VERIFYING = "verifying",
+  ACTION_REQUIRED = "action_required",
+  ENFORCING = "enforcing",
+  FAILED = "failed",
+  REMOVING_ENFORCEMENT = "removing_enforcement",
 }
 
 // TODO: update when we have API
@@ -104,4 +107,28 @@ export interface IMdmScript {
   errors: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface IMdmSSOReponse {
+  url: string;
+}
+
+export interface IBootstrapPackageMetadata {
+  name: string;
+  team_id: number;
+  sha256: string;
+  token: string;
+  created_at: string;
+}
+
+export interface IBootstrapPackageAggregate {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
+export enum BootstrapPackageStatus {
+  INSTALLED = "installed",
+  PENDING = "pending",
+  FAILED = "failed",
 }

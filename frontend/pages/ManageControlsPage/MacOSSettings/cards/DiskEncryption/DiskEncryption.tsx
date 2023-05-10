@@ -18,10 +18,14 @@ import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
 const baseClass = "disk-encryption";
 interface IDiskEncryptionProps {
-  currentTeamId?: number;
+  currentTeamId: number;
+  onMutation: () => void;
 }
 
-const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
+const DiskEncryption = ({
+  currentTeamId,
+  onMutation,
+}: IDiskEncryptionProps) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -56,11 +60,11 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
 
   useQuery<ILoadTeamResponse, Error, ITeamConfig>(
     ["team", currentTeamId],
-    () => teamsAPI.load(currentTeamId ?? 0),
+    () => teamsAPI.load(currentTeamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
-      enabled: Boolean(currentTeamId),
+      enabled: currentTeamId !== 0,
       select: (res) => res.team,
       onSuccess: (res) => {
         const enableDiskEncryption =
@@ -79,6 +83,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
         "success",
         "Successfully updated disk encryption enforcement!"
       );
+      onMutation();
       setShowAggregate(diskEncryptionEnabled);
       if (currentTeamId === 0) {
         getUpdatedAppConfig();
@@ -99,7 +104,9 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
     <div className={baseClass}>
       <h2>Disk encryption</h2>
       {!isPremiumTier ? (
-        <PremiumFeatureMessage />
+        <PremiumFeatureMessage
+          className={`${baseClass}__premium-feature-message`}
+        />
       ) : (
         <>
           {isLoadingTeam ? (
@@ -121,7 +128,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
                 encryption keys will be stored in Fleet.{" "}
                 <CustomLink
                   text="Learn more"
-                  url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#disk-encryption"
+                  url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"
                   newTab
                 />
               </p>

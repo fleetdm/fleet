@@ -26,6 +26,7 @@ import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
+import Spinner from "components/Spinner/Spinner";
 import CustomLink from "components/CustomLink";
 import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
 import { DEFAULT_POLICY } from "pages/policies/constants";
@@ -57,6 +58,7 @@ const PolicyPage = ({
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
+    policyTeamId,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     setLastEditedQueryId,
@@ -69,7 +71,13 @@ const PolicyPage = ({
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
-  const { isRouteOk, teamIdForApi } = useTeamIdParam({
+  const {
+    isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamObserver,
+    teamIdForApi,
+  } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -77,9 +85,33 @@ const PolicyPage = ({
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
-      observer: false,
+      observer: true,
+      observer_plus: true,
     },
   });
+
+  // // TODO(Sarah): What should happen if a user without save permissions tries to directly navigate
+  // // to the new policy page? Should we redirect to the manage policies page?
+  // const hasSavePermissions =
+  //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  //
+  // useEffect(() => {
+  //   if (!isRouteOk) {
+  //     return;
+  //   }
+  //   if (trimEnd(location.pathname, "/").endsWith("/new")) {
+  //     !hasSavePermissions && router.push(paths.MANAGE_POLICIES);
+  //   }
+  // }, [hasSavePermissions, isRouteOk, location.pathname, router]);
+
+  useEffect(() => {
+    if (!isRouteOk) {
+      return;
+    }
+    if (policyTeamId !== teamIdForApi) {
+      setPolicyTeamId(teamIdForApi || 0);
+    }
+  }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
 
   useEffect(() => {
     if (lastEditedQueryBody === "") {
@@ -113,10 +145,7 @@ const PolicyPage = ({
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () =>
-      teamIdForApi
-        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+    () => globalPoliciesAPI.load(policyId as number), // Note: Team members have access to policies through global API
     {
       enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
       refetchOnWindowFocus: false,
@@ -219,6 +248,9 @@ const PolicyPage = ({
       showOpenSchemaActionText,
       storedPolicy,
       isStoredPolicyLoading,
+      isTeamAdmin,
+      isTeamMaintainer,
+      isTeamObserver,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,
@@ -266,6 +298,10 @@ const PolicyPage = ({
     isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
+
+  if (!isRouteOk) {
+    return <Spinner />;
+  }
 
   return (
     <>

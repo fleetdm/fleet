@@ -109,7 +109,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 		name       string
 		rawDecrypt *int
 		fvProf     *fleet.HostMDMAppleProfile
-		wantState  fleet.DiskEncryptionState
+		wantState  fleet.DiskEncryptionStatus
 		wantAction fleet.ActionRequiredState
 		wantStatus *fleet.MDMAppleDeliveryStatus
 	}{
@@ -121,7 +121,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
@@ -134,7 +134,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
@@ -147,7 +147,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
@@ -160,12 +160,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
-			fleet.DiskEncryptionApplied,
+			fleet.DiskEncryptionVerifying,
 			"",
-			&fleet.MDMAppleDeliveryApplied,
+			&fleet.MDMAppleDeliveryVerifying,
 		},
 		{
 			"pending install, decryptable",
@@ -277,12 +277,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryVerifying,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			"",
 			"",
-			&fleet.MDMAppleDeliveryApplied,
+			&fleet.MDMAppleDeliveryVerifying,
 		},
 	}
 	for _, c := range cases {
@@ -525,11 +525,6 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 
-	// anyone can list hosts
-	hosts, err = svc.ListHosts(test.UserContext(ctx, test.UserNoRoles), fleet.HostListOptions{})
-	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-
 	// a user is required
 	_, err = svc.ListHosts(ctx, fleet.HostListOptions{})
 	require.Error(t, err)
@@ -567,9 +562,6 @@ func TestGetHostSummary(t *testing.T) {
 	require.Nil(t, summary.LowDiskSpaceCount)
 	require.Len(t, summary.BuiltinLabels, 1)
 	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)
-
-	_, err = svc.GetHostSummary(test.UserContext(ctx, test.UserNoRoles), nil, nil, nil)
-	require.NoError(t, err)
 
 	// a user is required
 	_, err = svc.GetHostSummary(ctx, nil, nil, nil)

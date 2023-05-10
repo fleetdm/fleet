@@ -123,7 +123,12 @@ const ManageSchedulePage = ({
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
-  const { isOnGlobalTeam, isPremiumTier, isFreeTier } = useContext(AppContext);
+  const {
+    isOnGlobalTeam,
+    isPremiumTier,
+    isFreeTier,
+    isSandboxMode,
+  } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -141,6 +146,7 @@ const ManageSchedulePage = ({
       admin: true,
       maintainer: true,
       observer: false,
+      observer_plus: false,
     },
   });
 
@@ -180,7 +186,7 @@ const ManageSchedulePage = ({
     Error,
     IScheduledQuery[]
   >(["globalScheduledQueries"], () => globalScheduledQueriesAPI.loadAll(), {
-    enabled: isRouteOk && !teamIdForApi,
+    enabled: isRouteOk,
     select: (data) => data.global_schedule,
   });
 
@@ -408,6 +414,7 @@ const ManageSchedulePage = ({
                       selectedTeamId={currentTeamId}
                       currentUserTeams={userTeams || []}
                       onChange={handleTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&

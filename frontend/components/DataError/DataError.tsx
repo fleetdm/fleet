@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
@@ -8,11 +9,18 @@ const baseClass = "data-error";
 interface IDataErrorProps {
   children?: JSX.Element | string;
   card?: boolean;
+  className?: string;
 }
 
-const DataError = ({ children, card }: IDataErrorProps): JSX.Element => {
+const DataError = ({
+  children,
+  card,
+  className,
+}: IDataErrorProps): JSX.Element => {
+  const classes = classnames(baseClass, className);
+
   return (
-    <div className={`${baseClass}`}>
+    <div className={classes}>
       <div className={`${baseClass}__${card ? "card" : "inner"}`}>
         <div className="info">
           <span className="info__header">

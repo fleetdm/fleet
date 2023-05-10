@@ -7,6 +7,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/storage"
 )
@@ -23,6 +25,8 @@ type Service struct {
 	depStorage        storage.AllStorage
 	mdmAppleCommander fleet.MDMAppleCommandIssuer
 	mdmPushCertTopic  string
+	ssoSessionStore   sso.SessionStore
+	depService        *apple_mdm.DEPService
 }
 
 func NewService(
@@ -35,6 +39,7 @@ func NewService(
 	depStorage storage.AllStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	mdmPushCertTopic string,
+	sso sso.SessionStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -51,6 +56,8 @@ func NewService(
 		depStorage:        depStorage,
 		mdmAppleCommander: mdmAppleCommander,
 		mdmPushCertTopic:  mdmPushCertTopic,
+		ssoSessionStore:   sso,
+		depService:        apple_mdm.NewDEPService(ds, depStorage, logger, false),
 	}
 
 	// Override methods that can't be easily overriden via
@@ -61,6 +68,9 @@ func NewService(
 		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
+		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
+		MDMAppleSyncDEPProfiles:           eeservice.mdmAppleSyncDEPProfiles,
+		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 	})
 
 	return eeservice, nil

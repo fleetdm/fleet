@@ -2746,25 +2746,11 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
-
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
 This section is a reference for the configuration required to turn on MDM features in production.
 
 If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
-
-##### mdm.apple_enable
-
-This is the second feature flag required to turn on MDM features. This environment variable flag must be set to `1` (or `true` in the `yaml`) at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_ENABLE`
-- Config file format:
-  ```
-  mdm:
-    apple_enable: true
-  ```
 
 ##### mdm.apple_apns_cert_bytes
 
@@ -2907,54 +2893,6 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm.okta_server_url
-
-This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_SERVER_URL`
-- Config file format:
-  ```
-  mdm:
-    okta_server_url: https://example.okta.com
-```
-
-##### mdm.okta_client_id
-
-This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_ID`
-- Config file format:
-  ```
-  mdm:
-    okta_client_id: 9oa4eoxample2rpdi1087
-```
-
-##### mdm.okta_client_secret
-
-This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_SECRET`
-- Config file format:
-  ```
-  mdm:
-    okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
-```
-
-##### mdm.eula_url
-
-An URL containing a PDF file that will be used as an EULA during DEP onboarding.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_EULA_URL`
-- Config file format:
-  ```
-  mdm:
-    eula_url: https://example.com/eula.pdf
-```
-
 ##### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
@@ -2966,25 +2904,6 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   mdm:
     apple_dep_sync_periodicity: 10m
   ```
-
-##### Example YAML
-
-```yaml
-mdm:
-  apple_enable: true
-  apple_apns_cert: /path/to/apns_cert
-  apple_apns_key: /path/to/apns_key
-  apple_scep_cert: /path/to/scep_cert
-  apple_scep_key: /path/to/scep_key
-  apple_scep_challenge: scepchallenge
-  apple_bm_server_token: /path/to/server_token.p7m
-  apple_bm_cert: /path/to/bm_cert
-  apple_bm_key: /path/to/private_key
-  okta_server_url: https://example.okta.com
-  okta_client_id: 9oa4eoxample2rpdi1087
-  okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
-  eula_url: https://example.com/eula.pdf
-```
 
 ## Managing osquery configurations
 

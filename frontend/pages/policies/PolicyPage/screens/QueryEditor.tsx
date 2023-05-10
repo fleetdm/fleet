@@ -22,6 +22,9 @@ interface IQueryEditorProps {
   storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
+  isTeamAdmin: boolean;
+  isTeamMaintainer: boolean;
+  isTeamObserver: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -37,6 +40,9 @@ const QueryEditor = ({
   storedPolicyError,
   showOpenSchemaActionText,
   isStoredPolicyLoading,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
   createPolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -189,6 +195,9 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
+        isTeamAdmin={isTeamAdmin}
+        isTeamMaintainer={isTeamMaintainer}
+        isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
       />
     </div>

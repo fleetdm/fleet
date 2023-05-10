@@ -45,6 +45,7 @@ export default PropTypes.shape({
   mdm: PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
+    apple_bm_enabled_and_configured: PropTypes.bool,
     macos_updates: PropTypes.shape({
       minimum_version: PropTypes.string,
       deadline: PropTypes.string,
@@ -78,6 +79,13 @@ export default PropTypes.shape({
       }),
     }),
   }),
+  email: PropTypes.shape({
+    backend: PropTypes.string,
+    config: PropTypes.shape({
+      region: PropTypes.string,
+      source_arn: PropTypes.string,
+    }),
+  }),
 });
 
 export interface ILicense {
@@ -91,6 +99,7 @@ export interface ILicense {
 export interface IMdmConfig {
   enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
+  apple_bm_enabled_and_configured: boolean;
   macos_updates: {
     minimum_version: string;
     deadline: string;
@@ -232,6 +241,13 @@ export interface IConfig {
         enable_log_rotation: boolean;
         enable_log_compression: boolean;
       };
+    };
+  };
+  email?: {
+    backend: string;
+    config: {
+      region: string;
+      source_arn: string;
     };
   };
   mdm: IMdmConfig;
