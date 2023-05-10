@@ -2140,9 +2140,67 @@ func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *u
 }
 
 func (ds *Datastore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
-	panic("unimplemented")
+	var args []any
+	teamCond := `h.team_id IS NULL`
+	if teamID != nil {
+		teamCond = `h.team_id = ?`
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	hardware_serial
+FROM
+	hosts h
+	-- mdm join
+	%s
+WHERE
+	h.hardware_serial != '' AND
+	-- team_id condition
+	%s AND
+	hmdm.name = ? AND
+	-- hmdm.enrolled can be either 0 or 1, does not matter
+	hmdm.installed_from_dep = 1 AND
+	NOT COALESCE(hmdm.is_server, false)
+`, hostMDMJoin, teamCond)
+	args = append(args, fleet.WellKnownMDMFleet)
+
+	var serials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &serials, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	}
+	return serials, nil
 }
 
 func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error) {
-	panic("unimplemented")
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	hardware_serial
+FROM
+	hosts h
+	-- mdm join
+	%s
+WHERE
+	h.hardware_serial != '' AND
+	h.id IN (?)
+	hmdm.name = ? AND
+	-- hmdm.enrolled can be either 0 or 1, does not matter
+	hmdm.installed_from_dep = 1 AND
+	NOT COALESCE(hmdm.is_server, false)
+`, hostMDMJoin)
+
+	stmt, args, err := sqlx.In(stmt, hostIDs, fleet.WellKnownMDMFleet)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var serials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &serials, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	}
+	return serials, nil
 }
