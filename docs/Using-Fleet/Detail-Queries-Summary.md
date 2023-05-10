@@ -313,7 +313,7 @@ SELECT * FROM os_version LIMIT 1
 ```sql
 SELECT
 		os.name,
-		os.codename as display_version
+		os.version as display_version
 
 	FROM
 		os_version os
@@ -331,7 +331,7 @@ SELECT
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
+		os.version as display_version
 
 	FROM
 		os_version os,
