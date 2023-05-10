@@ -207,6 +207,12 @@
           display: table-cell;
         }
 
+        .installed_path__cell {
+          .tooltip {
+            display: inline; // center tooltip with hovered text
+          }
+        }
+
         .linkToFilteredHosts__cell {
           width: 120px;
         }
