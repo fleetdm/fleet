@@ -334,7 +334,6 @@ func NewDEPService(
 	ds fleet.Datastore,
 	depStorage nanodep_storage.AllStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) *DEPService {
 	depClient := NewDEPClient(depStorage, ds, logger)
 	depSvc := &DEPService{

@@ -44,7 +44,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NoError(t, err)
 
 		logger := log.NewNopLogger()
-		return apple_mdm.NewDEPService(ds, depStorage, logger, true)
+		return apple_mdm.NewDEPService(ds, depStorage, logger)
 	}
 
 	t.Run("no custom profiles, no devices", func(t *testing.T) {

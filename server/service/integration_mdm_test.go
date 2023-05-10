@@ -123,7 +123,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, true)
+					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
 					depSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),

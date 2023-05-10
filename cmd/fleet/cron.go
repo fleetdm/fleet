@@ -35,6 +35,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/nanodep/godep"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -545,6 +546,7 @@ func newWorkerIntegrationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	depStorage *mysql.NanoDEPStorage,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -573,9 +575,20 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
+	var depSvc *apple_mdm.DEPService
+	var depCli *godep.Client
+	// depStorage could be nil if mdm is not configured for fleet, in which case
+	// we leave depSvc and deCli nil and macos setup assistants jobs will be
+	// no-ops.
+	if depStorage != nil {
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
+	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
-		Datastore: ds,
-		Log:       logger,
+		Datastore:  ds,
+		Log:        logger,
+		DEPService: depSvc,
+		DEPClient:  depCli,
 	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
@@ -899,11 +912,10 @@ func newAppleMDMDEPProfileAssigner(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, loggingDebug)
+	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),

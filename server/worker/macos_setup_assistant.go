@@ -52,6 +52,12 @@ type macosSetupAssistantArgs struct {
 
 // Run executes the macos_setup_assistant job.
 func (m *MacosSetupAssistant) Run(ctx context.Context, argsJSON json.RawMessage) error {
+	// if DEPService is nil, then mdm is not enabled, so just return without
+	// error so we clean up any pending macos setup assistant jobs.
+	if m.DEPService == nil {
+		return nil
+	}
+
 	var args macosSetupAssistantArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
