@@ -858,18 +858,21 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	installedPaths, err := ds.getHostSoftwareInstalledPaths(
 		ctx,
 		host.ID,
-		func(s fleet.Software) string { return fmt.Sprint(s.ID) },
 	)
 	if err != nil {
 		return err
 	}
 
+	lookup := make(map[uint][]string)
+	for _, ip := range installedPaths {
+		lookup[ip.SoftwareID] = append(lookup[ip.SoftwareID], ip.InstalledPath)
+	}
+
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
 	for _, s := range software {
-		iPath := installedPaths[fmt.Sprint(s.ID)]
 		host.Software = append(host.Software, fleet.HostSoftwareEntry{
-			Software:      s,
-			InstalledPath: iPath.InstalledPath,
+			Software:       s,
+			InstalledPaths: lookup[s.ID],
 		})
 	}
 	return nil

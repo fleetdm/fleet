@@ -78,7 +78,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
 		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},
 	}
-	
+
 	getHostSoftware := func(h *fleet.Host) []fleet.Software {
 		var software []fleet.Software
 		for _, s := range h.Software {
@@ -1206,11 +1206,12 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		require.True(t, inserted)
 	}
 
-	s1Paths := make(map[string]string)
+	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		s1Paths[s.ToUniqueStr()] = fmt.Sprintf("/some/path/%s", s.Name)
+		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		s1Paths[key] = struct{}{}
 	}
-	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, nil))
 
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 }

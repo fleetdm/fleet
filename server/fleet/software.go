@@ -88,7 +88,7 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPath string `json:"installed_path,omitempty" db:"installed_path"`
+	InstalledPaths []string `json:"installed_paths,omitempty"`
 }
 
 // HostSoftware is the set of software installed on a specific host
