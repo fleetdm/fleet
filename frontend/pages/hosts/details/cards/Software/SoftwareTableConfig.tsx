@@ -353,30 +353,7 @@ export const generateSoftwareTableHeaders = ({
         );
       },
       accessor: "installed_path",
-      Cell: (cellProps1: IInstalledPathCellProps): JSX.Element => {
-        const randomizePaths = () => {
-          const items = [
-            [
-              "three/path/found",
-              "directory/dir/example/of",
-              "three/different/paths",
-            ],
-            undefined,
-            ["example/of/a/single/path"],
-            [
-              "4/four",
-              "directory/dir/different/paths",
-              "installed/various",
-              "places/ohmy/wow/ok/bye",
-            ],
-            ["root/cool/2paths/here", "cool/byebye"],
-          ];
-          return items[Math.floor(Math.random() * items.length)];
-        };
-
-        const cellProps = {
-          cell: { value: randomizePaths() },
-        };
+      Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
         const numInstalledPaths = cellProps.cell.value?.length || 0;
         const installedPaths = condenseInstalledPaths(
           cellProps.cell.value || []
@@ -390,7 +367,7 @@ export const generateSoftwareTableHeaders = ({
                   installedPaths.length > 1 ? "text-muted tooltip" : ""
                 }`}
                 data-tip
-                data-for={`installed_path__${cellProps1.row.original.id}`}
+                data-for={`installed_path__${cellProps.row.original.id}`}
                 data-tip-disable={installedPaths.length <= 1}
               >
                 {numInstalledPaths === 1
@@ -400,7 +377,7 @@ export const generateSoftwareTableHeaders = ({
               <ReactTooltip
                 effect="solid"
                 backgroundColor={COLORS["tooltip-bg"]}
-                id={`installed_path__${cellProps1.row.original.id}`}
+                id={`installed_path__${cellProps.row.original.id}`}
                 data-html
                 clickable
                 delayHide={300}
