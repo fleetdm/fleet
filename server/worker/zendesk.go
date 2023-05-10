@@ -275,6 +275,8 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	var err error
 
 	// Default to deprecated method in case we are processing an 'old' job payload
+	// we are deprecating this because of performance reasons - querying by software_id should be
+	// way more efficient than by CVE.
 	if len(vargs.AffectedSoftwareIDs) == 0 {
 		hosts, err = z.Datastore.HostsByCVE(ctx, vargs.CVE)
 	} else {
