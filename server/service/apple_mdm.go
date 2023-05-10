@@ -17,6 +17,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1775,6 +1776,12 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 	}
 
 	decoded.Package = r.MultipartForm.File["package"][0]
+	if !file.IsValidMacOSName(decoded.Package.Filename) {
+		return nil, &fleet.BadRequestError{
+			Message:     "package name contains invalid characters",
+			InternalErr: ctxerr.New(ctx, "package name contains invalid characters"),
+		}
+	}
 
 	// default is no team
 	decoded.TeamID = 0
