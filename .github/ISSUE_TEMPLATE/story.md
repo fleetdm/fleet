@@ -44,3 +44,48 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 1. 
 2. 
 -->
+
+
+## Test plan
+
+- [ ] Requires load testing TODO <!-- User story has performance implications that require load testing. Otherwise, remove this checkbox. -->
+## Risk assessment
+
+Risk level: Low / Medium / High TODO <!-- Choose one. -->
+
+Risk description: TODO <!-- If risk level is medium or high, explain why. If low, remove. -->
+
+#### Automated:
+
+- Fleet: Covered / Will not cover / Scoped <!-- Choose one. >
+- QAWolf: Covered / Will not cover / Scoped <!-- Choose one. >
+
+## Manual testing steps
+<!-- Add detailed manual testing steps for all affected user roles. -->
+
+Admin: TODO
+1. Step 1
+2. Step 2
+3. Step 3
+
+Maintainer: TODO
+1. Step 1
+2. Step 2
+3. Step 3
+
+Observer: TODO
+1. Step 1
+2. Step 2
+3. Step 3
+
+## Testing notes
+<!-- Any additional testing notes relevant to this story. -->
+
+## Tools required
+<!-- Any additional tools required (local TUF service, API testing, specific software or VM) -->
+
+## Confirmation
+<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
+
+1. [ ] Engineer (@____): Added comment to user story confirming succesful completion of testing plan.
+2. [ ] QA (@____): Added comment to user story confirming succesful completion of testing plan.
