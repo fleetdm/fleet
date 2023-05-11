@@ -465,6 +465,7 @@ const ManagePolicyPage = ({
       currentAutomatedPolicies = webhook?.policy_ids || [];
     }
   }
+
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (

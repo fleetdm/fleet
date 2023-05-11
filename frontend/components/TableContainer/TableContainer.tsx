@@ -20,7 +20,7 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  showInheritedTable?: string;
+  showInheritedTable?: boolean; // Only used for policies tables
 }
 interface IRowProps extends Row {
   original: {
