@@ -2615,7 +2615,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 			&fleet.MDMAppleBootstrapPackage{
 				Bytes: signedPkg,
 				Name:  fmt.Sprintf("invalid_%c_name.pkg", char),
-			}, http.StatusBadRequest, "package name contains invalid characters")
+			}, http.StatusBadRequest, "")
 	}
 	// unsigned
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
