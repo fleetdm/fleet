@@ -360,6 +360,24 @@ endif
 	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/ Nudge.app
 	rm -r $(TMP_DIR)
 
+# Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
+#
+# Usage:
+# make swift-dialog-app-tar-gz version=2.1.0 build=4148 out-path=.
+swift-dialog-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://github.com/bartreardon/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
+	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/usr/local/bin/dialog --version
+	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/usr/local bin
+	rm -rf $(TMP_DIR)
+
 # Build and generate desktop.app.tar.gz bundle.
 #
 # Usage:
