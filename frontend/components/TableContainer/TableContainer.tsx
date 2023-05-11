@@ -36,6 +36,7 @@ interface ITableContainerProps {
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
   defaultPageIndex?: number;
+  /** Button visible above the table container next to search bar */
   actionButton?: IActionButtonProps;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
@@ -56,17 +57,21 @@ interface ITableContainerProps {
   // The old page controls for server-side pagination render a no results screen
   // with a back button. This fix instead disables the next button in that case.
   disableCount?: boolean;
+  /** Main button after selecting a row */
   primarySelectAction?: IActionButtonProps;
-  secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
+  /** Secondary button/s after selecting a row */
+  secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
   filteredCount?: number;
   searchToolTipText?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
-  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
+  /** Used to set URL to correct path and include page query param */
+  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
-  isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
-  // in lieu of displaying the empty component when client-side filtering yields zero results
+  /** isMultiColumnFilter is used to preserve the table headers
+  in lieu of displaying the empty component when client-side filtering yields zero results */
+  isMultiColumnFilter?: boolean;
   disableHighlightOnHover?: boolean;
   pageSize?: number;
   onQueryChange?:
