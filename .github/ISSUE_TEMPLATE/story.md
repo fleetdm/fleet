@@ -49,6 +49,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Test plan
 
 - [ ] Requires load testing TODO <!-- User story has performance implications that require load testing. Otherwise, remove this checkbox. -->
+
 ## Risk assessment
 
 Risk level: Low / Medium / High TODO <!-- Choose one. -->
