@@ -852,6 +852,7 @@ None.
     },
     "end_user_authentication": {
       "entity_id": "",
+      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
