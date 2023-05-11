@@ -122,10 +122,12 @@ export default {
 
     return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
   },
+
   deleteBootstrapPackage: (teamId: number) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
     return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
   },
+
   getBootstrapPackageAggregate: (teamId?: number) => {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 
@@ -135,4 +137,12 @@ export default {
 
     return sendRequest("GET", path);
   },
+
+  getEULAMetadata: (token: string) => {},
+
+  uploadEULA: (file: File) => {},
+
+  deleteEULA: (token: string) => {},
+
+  downloadEULA: (token: string) => {},
 };
