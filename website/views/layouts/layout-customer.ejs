@@ -105,6 +105,7 @@
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */
     else { %>
+    <script type="text/javascript" id="hs-script-loader" async defer src="//js-na1.hs-scripts.com/24385138.js"></script>
     <meta name="robots" content="noindex">
     <% } %>
     <% /*
@@ -171,8 +172,8 @@
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% /* Chat (Papercups) */ %>
-    <script>window.Papercups = { config: { accountId: '5b59eeac-1578-4fdb-b946-e17c1dca0c51', primaryColor:'#6A67FE', requireEmailUpfront: true } };</script>
-    <script type="text/javascript" async defer src="https://app.papercups.io/widget.js"></script>
+<!--     <script>window.Papercups = { config: { accountId: '5b59eeac-1578-4fdb-b946-e17c1dca0c51', primaryColor:'#6A67FE', requireEmailUpfront: true } };</script>
+    <script type="text/javascript" async defer src="https://app.papercups.io/widget.js"></script> -->
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
@@ -249,7 +250,6 @@
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
-    <script src="/js/pages/experimental/okta-webflow.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/get-started.page.js"></script>
