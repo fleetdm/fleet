@@ -5,6 +5,9 @@ import { renderWithSetup } from "test/test-utils";
 
 import LoginForm from "./LoginForm";
 
+const [validEmail, invalidEmail] = ["hi@thegnar.co", "invalid-email"];
+const password = "p@ssw0rd";
+
 describe("LoginForm - component", () => {
   const settings = { sso_enabled: false };
   const submitSpy = jest.fn();
@@ -35,7 +38,49 @@ describe("LoginForm - component", () => {
     expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();
   });
 
-  it("it does not submit the form when the form fields have not been filled out", async () => {
+  it("rejects an empty or invalid email field without submitting", async () => {
+    const { user } = renderWithSetup(
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
+    );
+
+    // enter a valid password
+    await user.type(screen.getByPlaceholderText("Password"), password);
+
+    // try to log in
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    expect(
+      screen.getByText("Email field must be completed")
+    ).toBeInTheDocument();
+    expect(submitSpy).not.toHaveBeenCalled();
+
+    // enter an invalid email
+    await user.type(screen.getByPlaceholderText("Email"), invalidEmail);
+
+    // try to log in again
+    await user.click(screen.getByRole("button", { name: "Login" }));
+    expect(
+      screen.getByText("Email must be a valid email address")
+    ).toBeInTheDocument();
+    expect(submitSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty password field without submitting", async () => {
+    const { user } = renderWithSetup(
+      <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "Email" }), validEmail);
+
+    // try to log in without entering a password
+    await user.click(screen.getByRole("button", { name: "Login" }));
+
+    expect(
+      screen.getByText("Password field must be completed")
+    ).toBeInTheDocument();
+    expect(submitSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not submit the form when both fields are empty", async () => {
     const { user } = renderWithSetup(
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
@@ -43,26 +88,20 @@ describe("LoginForm - component", () => {
     await user.click(screen.getByRole("button", { name: "Login" }));
 
     expect(submitSpy).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Email field must be completed")
-    ).toBeInTheDocument();
   });
 
-  it("submits the form data when form is submitted", async () => {
+  it("submits the form data when valid form data is submitted", async () => {
     const { user } = renderWithSetup(
       <LoginForm handleSubmit={submitSpy} ssoSettings={settings} />
     );
 
-    await user.type(
-      screen.getByRole("textbox", { name: "Email" }),
-      "my@email.com"
-    );
-    await user.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
+    await user.type(screen.getByRole("textbox", { name: "Email" }), validEmail);
+    await user.type(screen.getByPlaceholderText("Password"), password);
     await user.click(screen.getByRole("button", { name: "Login" }));
 
     expect(submitSpy).toHaveBeenCalledWith({
-      email: "my@email.com",
-      password: "p@ssw0rd",
+      email: validEmail,
+      password,
     });
   });
 });

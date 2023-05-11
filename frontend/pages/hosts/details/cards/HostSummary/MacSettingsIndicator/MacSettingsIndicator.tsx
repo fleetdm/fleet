@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import { IHostMacMdmProfile, MdmProfileStatus } from "interfaces/mdm";
+import { IHostMacMdmProfile } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -40,10 +40,10 @@ const getMacSettingsStatus = (
   hostMacSettings?: IHostMacMdmProfile[]
 ): MacSettingsStatus => {
   const statuses = hostMacSettings?.map((setting) => setting.status);
-  if (statuses?.includes(MdmProfileStatus.FAILED)) {
+  if (statuses?.includes("failed")) {
     return "Failing";
   }
-  if (statuses?.includes(MdmProfileStatus.PENDING)) {
+  if (statuses?.includes("pending")) {
     return "Pending";
   }
   return "Verifying";

@@ -17,6 +17,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -611,25 +612,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
 
 	// valid token downloads the profile
-	resp := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK)
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	require.NoError(t, err)
-	require.Contains(t, resp.Header, "Content-Disposition")
-	require.Contains(t, resp.Header, "Content-Type")
-	require.Contains(t, resp.Header, "X-Content-Type-Options")
-	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
-	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
-	require.NoError(t, err)
-	require.Equal(t, len(body), headerLen)
-
-	var profile struct {
-		PayloadIdentifier string `plist:"PayloadIdentifier"`
-	}
-	require.NoError(t, plist.Unmarshal(body, &profile))
-	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/device/" + token + "/mdm/apple/manual_enrollment_profile")
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
@@ -3028,6 +3011,267 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 }
 
+func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
+	t := s.T()
+
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// setup test data
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "https://localhost:8080",
+				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		      }
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		raw      string
+		expected bool
+	}{
+		{
+			raw:      `"mdm": {}`,
+			expected: false,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {}
+			}`,
+			expected: false,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}`,
+			expected: true,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}`,
+			expected: false,
+		},
+	}
+
+	t.Run("UpdateAppConfig", func(t *testing.T) {
+		acResp := appConfigResponse{}
+		path := "/api/latest/fleet/config"
+		fmtJSON := func(s string) json.RawMessage {
+			return json.RawMessage(fmt.Sprintf(`{
+				%s
+			}`, s))
+		}
+
+		// get the initial appconfig; enable end user authentication default is false
+		s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
+		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		for i, c := range cases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				acResp = appConfigResponse{}
+				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
+				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+				acResp = appConfigResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
+				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+	})
+
+	t.Run("UpdateTeamConfig", func(t *testing.T) {
+		path := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		fmtJSON := `{
+			"name": %q,
+			%s
+		}`
+
+		// get the initial team config; enable end user authentication default is false
+		teamResp := teamResponse{}
+		s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
+		require.False(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+		for i, c := range cases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				teamResp = teamResponse{}
+				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
+				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+				teamResp = teamResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
+				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+	})
+
+	t.Run("TestMDMAppleSetupEndpoint", func(t *testing.T) {
+		t.Run("TestNoTeam", func(t *testing.T) {
+			var acResp appConfigResponse
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+			acResp = appConfigResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}.ActivityName(),
+				`{"team_id": null, "team_name": null}`, 0)
+
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+			acResp = appConfigResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}.ActivityName(),
+				``, lastActivityID) // no new activity
+
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+			acResp = appConfigResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
+				`{"team_id": null, "team_name": null}`, 0), lastActivityID)
+		})
+
+		t.Run("TestTeam", func(t *testing.T) {
+			tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name)
+			var tmResp teamResponse
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+			tmResp = teamResponse{}
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}.ActivityName(),
+				expectedActivityDetail, 0)
+
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+			tmResp = teamResponse{}
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}.ActivityName(),
+				``, lastActivityID) // no new activity
+
+			s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+			tmResp = teamResponse{}
+			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
+				expectedActivityDetail, 0), lastActivityID)
+		})
+	})
+
+	t.Run("ValidateEnableEndUserAuthentication", func(t *testing.T) {
+		// ensure the test is setup correctly
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "https://localhost:8080",
+					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+
+		// ok to disable end user authentication without a configured IdP
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"issuer_uri": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
+		require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+		// can't enable end user authentication without a configured IdP
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"issuer_uri": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`), http.StatusUnprocessableEntity, &acResp)
+
+		// can't use setup endpoint to enable end user authentication on no team without a configured IdP
+		s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+			fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+
+		// can't enable end user authentication on team config without a configured IdP already on app config
+		var teamResp teamResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+			"name": %q,
+			"mdm": {
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`, tm.Name)), http.StatusUnprocessableEntity, &teamResp)
+
+		// can't use setup endpoint to enable end user authentication on team without a configured IdP
+		s.Do("PATCH", "/api/latest/fleet/mdm/apple/setup",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+
+		// ensure IdP is empty for the rest of the tests
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"issuer_uri": "",
+					"idp_name": "",
+					"metadata_url": ""
+				}
+			}
+		}`), http.StatusOK, &acResp)
+		require.Empty(t, acResp.MDM.EndUserAuthentication)
+	})
+}
+
 func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	ctx := context.Background()
 	t := s.T()
@@ -3875,25 +4119,41 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
 
-	body, err := io.ReadAll(res.Body)
+	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
-	defer res.Body.Close()
-	require.Contains(t, res.Header, "Content-Disposition")
-	require.Contains(t, res.Header, "Content-Type")
-	require.Contains(t, res.Header, "X-Content-Type-Options")
-	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
-	require.Contains(t, res.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
-	headerLen, err := strconv.Atoi(res.Header.Get("Content-Length"))
-	require.NoError(t, err)
-	require.Equal(t, len(body), headerLen)
+	q := u.Query()
+	// without an EULA uploaded, only the profile token is provided
+	require.False(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
 
-	var profile struct {
-		PayloadIdentifier string `plist:"PayloadIdentifier"`
-	}
-	require.NoError(t, plist.Unmarshal(body, &profile))
-	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
+	// upload an EULA
+	pdfBytes := []byte("%PDF-1.pdf-contents")
+	pdfName := "eula.pdf"
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	// with an EULA uploaded, both values are present
+	require.True(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile("/api/mdm/apple/enroll?token=" + q.Get("profile_token"))
+	// the url retrieves a valid EULA
+	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
+	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
+	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	respBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, pdfBytes, respBytes)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
@@ -3902,4 +4162,27 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
+}
+
+func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string) {
+	t := s.T()
+
+	resp := s.DoRaw("GET", path, nil, http.StatusOK)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(body), headerLen)
+	var profile struct {
+		PayloadIdentifier string `plist:"PayloadIdentifier"`
+	}
+	require.NoError(t, plist.Unmarshal(body, &profile))
+	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
 }

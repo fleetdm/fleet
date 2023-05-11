@@ -1,5 +1,3 @@
-import React from "react";
-import ReactTooltip from "react-tooltip";
 import {
   isEmpty,
   flatMap,
@@ -8,15 +6,18 @@ import {
   size,
   memoize,
   reduce,
-  uniqueId,
+  trim,
+  trimEnd,
+  union,
 } from "lodash";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
   formatDuration,
-  intlFormat,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -822,6 +823,46 @@ export const wrapFleetHelper = (
   value: string
 ): string => {
   return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
+};
+
+interface ILocationParams {
+  pathPrefix?: string;
+  routeTemplate?: string;
+  routeParams?: { [key: string]: string };
+  queryParams?: { [key: string]: string | number | undefined };
+}
+
+type RouteParams = Record<string, string>;
+
+const createRouteString = (routeTemplate: string, routeParams: RouteParams) => {
+  let routeString = "";
+  if (!isEmpty(routeParams)) {
+    routeString = reduce(
+      routeParams,
+      (string, value, key) => {
+        return string.replace(`:${key}`, encodeURIComponent(value));
+      },
+      routeTemplate
+    );
+  }
+  return routeString;
+};
+
+export const getNextLocationPath = ({
+  pathPrefix = "",
+  routeTemplate = "",
+  routeParams = {},
+  queryParams = {},
+}: ILocationParams): string => {
+  const routeString = createRouteString(routeTemplate, routeParams);
+  const queryString = buildQueryStringFromParams(queryParams);
+
+  const nextLocation = trimEnd(
+    union(trim(pathPrefix, "/").split("/"), routeString.split("/")).join("/"),
+    "/"
+  );
+
+  return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
 export default {

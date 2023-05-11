@@ -36,119 +36,6 @@ import (
 	"github.com/micromdm/nanomdm/mdm"
 )
 
-type createMDMAppleEnrollmentProfileRequest struct {
-	Type       fleet.MDMAppleEnrollmentType `json:"type"`
-	DEPProfile *json.RawMessage             `json:"dep_profile"`
-}
-
-type createMDMAppleEnrollmentProfileResponse struct {
-	EnrollmentProfile *fleet.MDMAppleEnrollmentProfile `json:"enrollment_profile"`
-	Err               error                            `json:"error,omitempty"`
-}
-
-func (r createMDMAppleEnrollmentProfileResponse) error() error { return r.Err }
-
-func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*createMDMAppleEnrollmentProfileRequest)
-
-	enrollmentProfile, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
-		Type:       req.Type,
-		DEPProfile: req.DEPProfile,
-	})
-	if err != nil {
-		return createMDMAppleEnrollmentProfileResponse{
-			Err: err,
-		}, nil
-	}
-	return createMDMAppleEnrollmentProfileResponse{
-		EnrollmentProfile: enrollmentProfile,
-	}, nil
-}
-
-func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	// generate a token for the profile
-	enrollmentPayload.Token = uuid.New().String()
-
-	profile, err := svc.ds.NewMDMAppleEnrollmentProfile(ctx, enrollmentPayload)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	if profile.DEPProfile != nil {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, fleet.ErrMissingLicense
-		}
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfile(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-	}
-
-	enrollmentURL, err := apple_mdm.EnrollURL(profile.Token, appConfig)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	profile.EnrollmentURL = enrollmentURL
-
-	return profile, nil
-}
-
-type listMDMAppleEnrollmentProfilesRequest struct{}
-
-type listMDMAppleEnrollmentProfilesResponse struct {
-	EnrollmentProfiles []*fleet.MDMAppleEnrollmentProfile `json:"enrollment_profiles"`
-	Err                error                              `json:"error,omitempty"`
-}
-
-func (r listMDMAppleEnrollmentProfilesResponse) error() error { return r.Err }
-
-func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	enrollmentProfiles, err := svc.ListMDMAppleEnrollmentProfiles(ctx)
-	if err != nil {
-		return listMDMAppleEnrollmentProfilesResponse{
-			Err: err,
-		}, nil
-	}
-	return listMDMAppleEnrollmentProfilesResponse{
-		EnrollmentProfiles: enrollmentProfiles,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	enrollments, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	for i := range enrollments {
-		enrollURL, err := apple_mdm.EnrollURL(enrollments[i].Token, appConfig)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-		enrollments[i].EnrollmentURL = enrollURL
-	}
-	return enrollments, nil
-}
-
 type getMDMAppleCommandResultsRequest struct {
 	CommandUUID string `query:"command_uuid,optional"`
 }
@@ -1161,6 +1048,8 @@ type mdmAppleEnrollResponse struct {
 func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Disposition", "attachment;fleet-enrollment-profile.mobileconfig")
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -2056,6 +1945,41 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Update MDM Apple Setup
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMAppleSetupRequest struct {
+	fleet.MDMAppleSetupPayload
+}
+
+type updateMDMAppleSetupResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMAppleSetupResponse) error() error { return r.Err }
+
+func (r updateMDMAppleSetupResponse) Status() int { return http.StatusNoContent }
+
+// This endpoint is required because the UI must allow maintainers (in addition
+// to admins) to update some MDM Apple settings, while the update config/update
+// team endpoints only allow write access to admins.
+func updateMDMAppleSetupEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMAppleSetupRequest)
+	if err := svc.UpdateMDMAppleSetup(ctx, req.MDMAppleSetupPayload); err != nil {
+		return updateMDMAppleSetupResponse{Err: err}, nil
+	}
+	return updateMDMAppleSetupResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/sso
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2112,44 +2036,33 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 type callbackMDMAppleSSOResponse struct {
 	Err error `json:"error,omitempty"`
 
-	// used in hijackRender for the response
-	profile []byte
+	redirectURL string
+}
+
+func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Location", r.redirectURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (r callbackMDMAppleSSOResponse) error() error { return r.Err }
-
-func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
-	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided.
-	if n, err := w.Write(r.profile); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
-}
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	auth := request.(fleet.Auth)
 
 	// validate that the SSO response is valid
-	profile, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
+	redirectURL, err := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	if err != nil {
 		return callbackMDMAppleSSOResponse{Err: err}, nil
 	}
-	return callbackMDMAppleSSOResponse{profile: profile}, nil
+	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) ([]byte, error) {
+func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

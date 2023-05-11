@@ -1,7 +1,11 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Detail Queries Summary
 
-Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
+Detail queries are the osquery queries that run for each host and populate it's
+device details. If you run into issues with the host device data being incorrect or missing you can debug this by
+overriding these with this confguration option [detail_query_overrides](https://fleetdm.com/docs/using-fleet/detail-queries-summary#battery).
+
+Following is a summary of the default detail queries hardcoded in Fleet:
 
 ## battery
 

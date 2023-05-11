@@ -11,6 +11,7 @@ interface ILinkCellProps {
   path: string;
   title?: string;
   classes?: string;
+  customOnClick?: () => void;
 }
 
 const LinkCell = ({
@@ -18,8 +19,10 @@ const LinkCell = ({
   path,
   title,
   classes,
+  customOnClick,
 }: ILinkCellProps): JSX.Element => {
   const onClick = (): void => {
+    customOnClick && customOnClick();
     browserHistory.push(path);
   };
 
