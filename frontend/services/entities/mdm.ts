@@ -4,6 +4,12 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+export interface IEulaMetadataResponse {
+  name: string;
+  token: string;
+  created_at: string;
+}
+
 export default {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
@@ -138,11 +144,27 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getEULAMetadata: (token: string) => {},
+  getEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    return sendRequest("GET", MDM_EULA_METADATA);
+  },
 
-  uploadEULA: (file: File) => {},
+  uploadEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
 
-  deleteEULA: (token: string) => {},
+    const formData = new FormData();
+    formData.append("eula", file);
 
-  downloadEULA: (token: string) => {},
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
+  },
+
+  deleteEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("DELETE", MDM_EULA(token));
+  },
+
+  downloadEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("GET", MDM_EULA(token));
+  },
 };

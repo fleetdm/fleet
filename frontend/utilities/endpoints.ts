@@ -62,8 +62,7 @@ export default {
   MDM_EULA: (token: string) =>
     `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,
-  MDM_EULA_METADATA: (token: string) =>
-    `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}/metadata`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/apple/setup/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,

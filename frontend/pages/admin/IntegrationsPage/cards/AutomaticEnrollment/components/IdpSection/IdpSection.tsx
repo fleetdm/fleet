@@ -10,13 +10,13 @@ import Button from "components/buttons/Button/Button";
 import validateUrl from "components/forms/validators/valid_url";
 import ReactTooltip from "react-tooltip";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 const baseClass = "idp-section";
 
 type IIdpFormData = {
   idpName: string;
   entityId: string;
-  issuerUri: string;
   metadataUrl: string;
 };
 
@@ -27,12 +27,12 @@ const validateMetadataUrl = (val: string) => {
 };
 
 const IdpSection = () => {
+  const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [formData, setFormData] = useState<IIdpFormData>({
-    idpName: "",
-    entityId: "",
-    issuerUri: "",
-    metadataUrl: "",
+    idpName: config?.mdm.end_user_authentication?.idp_name || "",
+    entityId: config?.mdm.end_user_authentication?.entity_id || "",
+    metadataUrl: config?.mdm.end_user_authentication?.metadata_url || "",
   });
 
   // we only validate this one input so just going to use simple boolean to
@@ -59,20 +59,16 @@ const IdpSection = () => {
     try {
       await configAPI.update({
         mdm: {
-          automatic_enrollment: {
-            identity_provider_name: formData.idpName,
+          end_user_authentication: {
+            idp_name: formData.idpName,
             entity_id: formData.entityId,
-            issuer_url: formData.issuerUri,
             metadata_url: formData.metadataUrl,
           },
         },
       });
-      renderFlash(
-        "success",
-        "Successfully updated identity provider settings."
-      );
+      renderFlash("success", "Successfully updated end user authentication!");
     } catch (err) {
-      renderFlash("error", "Could not update identity provider settings.");
+      renderFlash("error", "Could not update. Please try again.");
     }
   };
 
@@ -104,14 +100,6 @@ const IdpSection = () => {
           value={formData.entityId}
           parseTarget
           tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
-        />
-        <InputField
-          label="Issuer URI"
-          onChange={onInputChange}
-          name="issuerUri"
-          value={formData.issuerUri}
-          parseTarget
-          tooltip="The issuer URI supplied by the identity provider."
         />
         <InputField
           label="Metadata URL"
