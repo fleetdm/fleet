@@ -122,37 +122,16 @@ const ManagePolicyPage = ({
   const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
   const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
 
-  const initialSearchQuery = (() => {
-    let query = "";
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-    return query;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams?.page, 10) || 0;
-    }
-    return page;
-  })();
-
-  const initialShowInheritedTable = (() => {
-    let inheritedTable = false;
-    if (queryParams && queryParams.inherited_table === "true") {
-      inheritedTable = true;
-    }
-    return inheritedTable;
-  })();
-
-  const initialInheritedPage = (() => {
-    let inheritedPage = 0;
-    if (queryParams && queryParams.inherited_page) {
-      inheritedPage = parseInt(queryParams?.inherited_page, 10) || 0;
-    }
-    return inheritedPage;
-  })();
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams.query ?? "")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const initialShowInheritedTable = (() =>
+    queryParams && queryParams.inherited_table === "true")();
+  const initialInheritedPage = (() =>
+    queryParams && queryParams.inherited_page
+      ? parseInt(queryParams?.inherited_page, 10)
+      : 0)();
 
   // Never set as state as URL is source of truth
   // State only used for handling team change
@@ -303,11 +282,7 @@ const ManagePolicyPage = ({
 
       if (teamIdForApi !== undefined) {
         newQueryParams.team_id = teamIdForApi;
-        // newQueryParams.page = 0;
-        // newQueryParams.query = "";
       }
-      console.log("teamIdForApi", teamIdForApi);
-      console.log("location", location);
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_POLICIES,

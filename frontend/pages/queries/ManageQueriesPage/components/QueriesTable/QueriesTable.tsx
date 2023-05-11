@@ -87,54 +87,18 @@ const QueriesTable = ({
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
-  const initialSearchQuery = (() => {
-    let query = "";
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-    return query;
-  })();
-
-  const initialSortHeader = (() => {
-    let sortHeader = "updated_at";
-    if (
-      queryParams &&
-      (queryParams.order_key === "name" ||
-        queryParams.order_key === "author_name")
-    ) {
-      sortHeader = queryParams.order_key;
-    }
-    return sortHeader;
-  })();
-
-  const initialSortDirection = ((): "asc" | "desc" | undefined => {
-    let sortDirection = "asc";
-    if (queryParams && queryParams.order_direction) {
-      sortDirection = queryParams.order_direction;
-    }
-    return sortDirection as "asc" | "desc" | undefined;
-  })();
-
-  const initialPlatform = (() => {
-    let platformSelected = "all";
-    if (
-      queryParams &&
-      (queryParams.platform === "windows" ||
-        queryParams.platform === "linux" ||
-        queryParams.platform === "darwin")
-    ) {
-      platformSelected = queryParams.platform;
-    }
-    return platformSelected;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams?.page, 10) || 0;
-    }
-    return page;
-  })();
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams?.query ?? "")();
+  const initialSortHeader = (() =>
+    (queryParams?.order_key as "updated_at" | "name" | "author") ??
+    "updated_at")();
+  const initialSortDirection = (() =>
+    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+  const initialPlatform = (() =>
+    (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
+    "all")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Never set as state as URL is source of truth
   const searchQuery = initialSearchQuery;
@@ -160,10 +124,6 @@ const QueriesTable = ({
         newQueryParams.query = newSearchQuery;
       }
 
-      console.log("page", page);
-      console.log("newPageIndex", newPageIndex);
-      console.log("searchQuery", searchQuery);
-      console.log("newSearchQuery", newSearchQuery);
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;

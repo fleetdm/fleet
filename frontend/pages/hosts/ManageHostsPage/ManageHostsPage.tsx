@@ -159,6 +159,7 @@ const ManageHostsPage = ({
     ? JSON.parse(hostHiddenColumns)
     : null;
 
+  // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
     let direction = DEFAULT_SORT_DIRECTION;
@@ -171,26 +172,9 @@ const ManageHostsPage = ({
 
     return [{ key, direction }];
   })();
-
-  const initialQuery = (() => {
-    let query = "";
-
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-
-    return query;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams.page, 10);
-    }
-
-    return page;
-  })();
+  const initialQuery = (() => queryParams.query ?? "")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
