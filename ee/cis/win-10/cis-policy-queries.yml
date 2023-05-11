@@ -8639,7 +8639,11 @@ spec:
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
+<<<<<<< HEAD
       AND EXISTS (
+=======
+    AND EXISTS (
+>>>>>>> 65a32b274 (Fix 4 queries, continue testing before merging)
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
     );
   purpose: Informational
@@ -9093,9 +9097,8 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 3':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage end user experience\Configure Automatic Updates'
   query: |
-    SELECT EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\NoAutoUpdate' AND data = 0)
-    ) AND EXISTS (
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\NoAutoUpdate' AND data = 0)
+    AND EXISTS (
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\AUOptions' AND data = 3)
     );
   purpose: Informational
@@ -9115,9 +9118,8 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to '0 - Every day':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage end user experience\Configure Automatic Updates: Scheduled install day'
   query: |
-    SELECT EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\NoAutoUpdate' AND data = 0)
-    ) AND EXISTS (
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\NoAutoUpdate' AND data = 0)
+    AND EXISTS (
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\\ScheduledInstallDay' AND data = 0)
     );
   purpose: Informational
@@ -9173,9 +9175,8 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 180 or more days':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage updates offered from Windows Update\Windows Update for Business\Select when Preview Builds and Feature Updates are received'
   query: |
-    SELECT EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdates' AND data = 1)
-    ) AND EXISTS (
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdates' AND data = 1)
+    AND EXISTS (
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdatesPeriodInDays' AND data >= 180)
     );
   purpose: Informational
@@ -9195,9 +9196,8 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 0 days':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Windows Update for Business\Select when Quality Updates are received'
   query: |
-    SELECT EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferQualityUpdates' AND data = 1)
-    ) AND EXISTS (
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferQualityUpdates' AND data = 1)
+    AND EXISTS (
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferQualityUpdatesPeriodInDays' AND data = 0)
     );
   purpose: Informational
