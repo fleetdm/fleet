@@ -217,7 +217,7 @@ type Host struct {
 	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
 	Build          string        `json:"build" csv:"build"`
 	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
-	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
+	CodeName       string        `json:"os_version" db:"os_version" csv:"os_version"`
 	Uptime         time.Duration `json:"uptime" csv:"uptime"`
 	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory" csv:"memory"`
 	// system_info fields

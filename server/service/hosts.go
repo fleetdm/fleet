@@ -1359,7 +1359,7 @@ type osVersionsRequest struct {
 	TeamID   *uint   `query:"team_id,optional"`
 	Platform *string `query:"platform,optional"`
 	Name     *string `query:"os_name,optional"`
-	Version  *string `query:"os_name,optional"`
+	Version  *string `query:"os_version,optional"`
 }
 
 type osVersionsResponse struct {
