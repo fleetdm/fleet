@@ -57,8 +57,8 @@ Risk description: TODO <!-- If risk level is medium or high, explain why. If low
 
 #### Automated:
 
-- Fleet: Covered / Will not cover / Scoped <!-- Choose one. >
-- QAWolf: Covered / Will not cover / Scoped <!-- Choose one. >
+- Fleet: Covered / Will not cover / Scoped <!-- Choose one. -->
+- QAWolf: Covered / Will not cover / Scoped <!-- Choose one. -->
 
 ## Manual testing steps
 <!-- Add detailed manual testing steps for all affected user roles. -->
