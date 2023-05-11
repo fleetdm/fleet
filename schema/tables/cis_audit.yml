@@ -1,7 +1,7 @@
 name: cis_audit
 platforms:
   - windows
-description: Enables querying CIS item values.
+description: Enables querying CIS items values.
 columns:
   - name: item
     type: text
