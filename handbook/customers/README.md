@@ -57,7 +57,7 @@ This workflow outlines the process that sales and customer success can follow wh
         - Any proof of concept (POC) notes that are relevant
         - Customer expectations for timeline
         - Server deployment type
-4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+4. (CS) The CSM kicks off the CS responsibilities in the 'New Sale Issue'
     - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
     - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
     - Create the customer Slack channel
