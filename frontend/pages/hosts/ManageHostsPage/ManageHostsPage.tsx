@@ -1448,14 +1448,22 @@ const ManageHostsPage = ({
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
         pageSize={50}
-        actionButtonText="Edit columns"
-        actionButtonIcon={EditColumnsIcon}
-        actionButtonVariant="text-icon"
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        primarySelectActionButtonText="Delete"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonVariant={"text-icon"}
+        actionButton={{
+          name: "edit columns",
+          buttonText: "Edit columns",
+          icon: EditColumnsIcon,
+          variant: "text-icon",
+          onActionButtonClick: toggleEditColumnsModal,
+        }}
+        primarySelectAction={{
+          name: "delete host",
+          buttonText: "Delete",
+          icon: "delete",
+          variant: "text-icon",
+          onActionButtonClick: onDeleteHostsClick,
+        }}
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
@@ -1469,8 +1477,6 @@ const ManageHostsPage = ({
           })
         }
         customControl={renderCustomControls}
-        onActionButtonClick={toggleEditColumnsModal}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         resetPageIndex={resetPageIndex}
