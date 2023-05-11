@@ -692,8 +692,6 @@ const ManageSoftwarePage = ({
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
-              disableActionButton
-              hideActionButton
               disableMultiRowSelect
               onSelectSingleRow={handleRowSelect}
             />

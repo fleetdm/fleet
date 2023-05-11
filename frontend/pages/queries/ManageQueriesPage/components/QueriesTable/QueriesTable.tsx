@@ -301,10 +301,13 @@ const QueriesTable = ({
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter
-        onPrimarySelectActionClick={onDeleteQueryClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText="Delete"
+        primarySelectAction={{
+          name: "delete query",
+          buttonText: "Delete",
+          icon: "delete",
+          variant: "text-icon",
+          onActionButtonClick: onDeleteQueryClick,
+        }}
         selectedDropdownFilter={platform}
       />
     </div>
