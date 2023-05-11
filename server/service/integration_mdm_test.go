@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -2608,6 +2609,14 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required")
 	// invalid
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type")
+	// invalid names
+	for _, char := range file.InvalidMacOSChars {
+		s.uploadBootstrapPackage(
+			&fleet.MDMAppleBootstrapPackage{
+				Bytes: signedPkg,
+				Name:  fmt.Sprintf("invalid_%c_name.pkg", char),
+			}, http.StatusBadRequest, "")
+	}
 	// unsigned
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
 	// wrong TOC
