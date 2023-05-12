@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
-	"github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/valyala/fasthttp"
 )
 
@@ -235,8 +234,8 @@ type agent struct {
 
 	scheduledQueries []string
 
-	// mdmDevice simulates a device running the MDM protocol (client side).
-	mdmDevice *mdmtest.TestMDMClient
+	// mdmClient simulates a device running the MDM protocol (client side).
+	mdmClient *mdmtest.TestMDMClient
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -298,16 +297,16 @@ func newAgent(
 		serialNumber = ""
 	}
 	uuid := strings.ToUpper(uuid.New().String())
-	var mdmDevice *mdmtest.TestMDMClient
+	var mdmClient *mdmtest.TestMDMClient
 	if rand.Float64() <= mdmProb {
-		mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmClient = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
 		})
 		// Have the osquery agent match the MDM device serial number and UUID.
-		serialNumber = mdmDevice.SerialNumber
-		uuid = mdmDevice.UUID
+		serialNumber = mdmClient.SerialNumber
+		uuid = mdmClient.UUID
 	}
 	return &agent{
 		agentIndex:      agentIndex,
@@ -332,7 +331,7 @@ func newAgent(
 		UUID:               uuid,
 		SerialNumber:       serialNumber,
 
-		mdmDevice: mdmDevice,
+		mdmClient: mdmClient,
 	}
 }
 
@@ -373,8 +372,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runOrbitLoop()
 	}
 
-	if a.mdmDevice != nil {
-		if err := a.mdmDevice.Enroll(); err != nil {
+	if a.mdmClient != nil {
+		if err := a.mdmClient.Enroll(); err != nil {
 			log.Printf("MDM enroll failed: %s\n", err)
 			a.stats.IncrementMDMErrors()
 			return
@@ -530,19 +529,22 @@ func (a *agent) runOrbitLoop() {
 func (a *agent) runMDMLoop() {
 	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
-	var mdmCommandPayload *mdm.CommandPayload
 	for range mdmCheckInTicker {
-		var err error
-		if mdmCommandPayload == nil {
-			mdmCommandPayload, err = a.mdmDevice.Idle()
-		} else {
-			// This MDM device acknowledges every command.
-			a.stats.IncrementMDMCommandsReceived()
-			mdmCommandPayload, err = a.mdmDevice.Acknowledge(mdmCommandPayload.CommandUUID)
-		}
+		mdmCommandPayload, err := a.mdmClient.Idle()
 		if err != nil {
-			log.Printf("MDM request failed: %s\n", err)
+			log.Printf("MDM Idle request failed: %s\n", err)
 			a.stats.IncrementMDMErrors()
+			continue
+		}
+	INNER_FOR_LOOP:
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMCommandsReceived()
+			mdmCommandPayload, err = a.mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			if err != nil {
+				log.Printf("MDM Acknowledge request failed: %s\n", err)
+				a.stats.IncrementMDMErrors()
+				break INNER_FOR_LOOP
+			}
 		}
 	}
 }
@@ -990,7 +992,7 @@ func (a *agent) mdmMac() []map[string]string {
 		}
 	}
 	return []map[string]string{
-		{"enrolled": "true", "server_url": a.mdmDevice.EnrollInfo.MDMURL, "installed_from_dep": "false"},
+		{"enrolled": "true", "server_url": a.mdmClient.EnrollInfo.MDMURL, "installed_from_dep": "false"},
 	}
 }
 
