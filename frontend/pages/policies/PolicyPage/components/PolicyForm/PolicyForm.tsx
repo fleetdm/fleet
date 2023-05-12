@@ -169,7 +169,10 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
+    (isTeamMaintainer && policyTeamId === storedPolicy?.team_id); // team maintainer cannot save global policy
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -519,37 +522,39 @@ const PolicyForm = ({
         {isEditMode && isPremiumTier && renderCriticalPolicy()}
         {renderLiveQueryWarning()}
         <div className={`${baseClass}__button-wrap`}>
-          <span
-            className={`${baseClass}__button-wrap--tooltip`}
-            data-tip
-            data-for={`${baseClass}__button-wrap--tooltip`}
-            data-tip-disable={!isEditMode || isAnyPlatformSelected}
-          >
-            {hasSavePermissions && (
-              <Button
-                variant="brand"
-                onClick={promptSavePolicy()}
-                disabled={isEditMode && !isAnyPlatformSelected}
-                className="save-loading"
-                isLoading={isUpdatingPolicy}
+          {hasSavePermissions && (
+            <>
+              <span
+                className={`${baseClass}__button-wrap--tooltip`}
+                data-tip
+                data-for={`${baseClass}__button-wrap--tooltip`}
+                data-tip-disable={!isEditMode || isAnyPlatformSelected}
               >
-                Save
-              </Button>
-            )}
-          </span>
-          <ReactTooltip
-            className={`${baseClass}__button-wrap--tooltip`}
-            place="bottom"
-            effect="solid"
-            id={`${baseClass}__button-wrap--tooltip`}
-            backgroundColor="#3e4771"
-          >
-            Select the platform(s) this
-            <br />
-            policy will be checked on
-            <br />
-            to save or run the policy.
-          </ReactTooltip>
+                <Button
+                  variant="brand"
+                  onClick={promptSavePolicy()}
+                  disabled={isEditMode && !isAnyPlatformSelected}
+                  className="save-loading"
+                  isLoading={isUpdatingPolicy}
+                >
+                  Save
+                </Button>
+              </span>
+              <ReactTooltip
+                className={`${baseClass}__button-wrap--tooltip`}
+                place="bottom"
+                effect="solid"
+                id={`${baseClass}__button-wrap--tooltip`}
+                backgroundColor="#3e4771"
+              >
+                Select the platform(s) this
+                <br />
+                policy will be checked on
+                <br />
+                to save or run the policy.
+              </ReactTooltip>
+            </>
+          )}
           <span
             className={`${baseClass}__button-wrap--tooltip`}
             data-tip
