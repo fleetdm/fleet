@@ -77,8 +77,10 @@ parasails.registerPage('homepage', {
       tweetsDiv.scrollBy(amountToScroll, 0);
     },
 
-    clickChatButton: function() {
-      window.HubSpotConversations.widget.open();
+    clickOpenChatWidget: function() {
+      if(window.HubSpotConversations && window.HubSpotConversations.widget){
+        window.HubSpotConversations.widget.open()
+      }
     },
   }
 });
