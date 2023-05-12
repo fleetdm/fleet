@@ -175,7 +175,7 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredSoftwarePath
   const backToPoliciesPath = () => {
-    return filteredPoliciesPath || PATHS.MANAGE_QUERIES;
+    return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
   };
 
   return (
