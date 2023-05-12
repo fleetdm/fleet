@@ -108,6 +108,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
+<<<<<<< HEAD
 | View hosts                                                                                                                       | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅             | ✅              | ✅               | ✅          |             |
 | Target hosts using labels                                                                                                        | ✅             | ✅              | ✅               | ✅          |             |
@@ -140,6 +141,41 @@ Users that are members of multiple teams can be assigned different roles for eac
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          |             |
 | Enable/disable MDM macOS setup end user authentication                                                                                            |               |                | ✅              | ✅          |             |
+=======
+| View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
+| Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
+| Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
+| Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
+| Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |
+| Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
+| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
+| Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
+| View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
+| Add, edit, and remove queries from the schedule                                                                                  |               |                | ✅              | ✅         | ✅          |
+| View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
+| View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
+| Run global (inherited) policies as a live policy                                                                                 |               |                | ✅              | ✅         |             |
+| Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
+| Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
+| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅         | ✅          |
+| Add and remove team members                                                                                                      |               |                |                 | ✅         | ✅          |
+| Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
+| Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
+| Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
+| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅         | ✅          |
+| Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
+| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅            | ✅             | ✅              | ✅         |             |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅              | ✅         | ✅          |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅              | ✅         |             |
+| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅              | ✅         |             |
+| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅            | ✅             | ✅              | ✅         |             |
+| Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
+| View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅         |             |
+| Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅         |             |
+| Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         |             |
+>>>>>>> 2e27f71ce (Add run policies permissions for team roles, specify team roles can only create update and delete TEAM policies)
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
