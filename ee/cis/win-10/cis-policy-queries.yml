@@ -2051,7 +2051,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed' 
+  name: CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed'
   platforms: win10
   platform: windows
   description: |
@@ -2098,7 +2098,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled' 
+  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -2136,7 +2136,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed' 
+  name: CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed'
   platforms: win10
   platform: windows
   description: |
@@ -2319,7 +2319,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled' 
+  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -3728,7 +3728,7 @@ spec:
     -  5483: IPsec Services failed to initialize RPC server. IPsec Services could not be started.
     -  5484: IPsec Services has experienced a critical failure and has been shut down. The shutdown of IPsec Services can put the computer at greater risk of network attack or expose the computer to potential security risks.
     -  5485: IPsec Services failed to process some IPsec filters on a plug-and-play event for network interfaces. This poses a potential security risk because some of the network interfaces may not get the protection provided by the applied IPsec filters. Use the IP Security Monitor snap-in to diagnose the problem.
-    The recommended state for this setting is: Success and Failure. 
+    The recommended state for this setting is: Success and Failure.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success and Failure:
@@ -8226,9 +8226,8 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Explorer\Configure Windows Defender SmartScreen'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    SELECT EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
-    ) AND EXISTS (
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
+      AND EXISTS (
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
     );
   purpose: Informational
