@@ -4503,7 +4503,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DoHPolicy' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.4.1
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -4674,7 +4674,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_StdDomainUserSetLocation' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.11.4
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -5152,7 +5152,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_domain_joined_required, CIS_bullet_18.8.21.5
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -6911,11 +6911,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
-  query:
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = 1);
+  query: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -6990,7 +6989,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -7157,7 +7156,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\DisableOneSettingsDownloads' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.3
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -7232,7 +7231,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -7670,7 +7669,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.1.2
-  contributors: marcosd4h    
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -7727,7 +7726,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine\\EnableFileHashComputation' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.6.1
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -7808,7 +7807,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection\\DisableScriptScanning' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.9.4
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -8122,7 +8121,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fDisableLocationRedir' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.3.3.4
-  contributors: marcosd4h    
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -8639,11 +8638,7 @@ spec:
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsExplorer.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableSmartScreen' AND data = 1)
-<<<<<<< HEAD
       AND EXISTS (
-=======
-    AND EXISTS (
->>>>>>> 65a32b274 (Fix 4 queries, continue testing before merging)
       SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\ShellSmartScreenLevel' AND data = 'Block')
     );
   purpose: Informational
@@ -9439,7 +9434,7 @@ spec:
     SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\CloudContent\DisableSpotlightCollectionOnDesktop' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.5
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
