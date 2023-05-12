@@ -258,8 +258,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage    optjson.String `json:"bootstrap_package"`
-	MacOSSetupAssistant optjson.String `json:"macos_setup_assistant"`
+	BootstrapPackage            optjson.String `json:"bootstrap_package"`
+	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
+	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
 }
 
 // MDMEndUserAuthentication contains settings related to end user authentication

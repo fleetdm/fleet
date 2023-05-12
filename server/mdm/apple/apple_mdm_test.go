@@ -3,7 +3,6 @@ package apple_mdm
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +24,7 @@ func TestDEPService(t *testing.T) {
 		logger := log.NewNopLogger()
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger, true)
-		defaultProfile := depSvc.GetDefaultProfile()
+		defaultProfile := depSvc.getDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +44,8 @@ func TestDEPService(t *testing.T) {
 				got.URL = ""
 				got.ConfigurationWebURL = ""
 				require.Equal(t, defaultProfile, &got)
+			default:
+				require.Fail(t, "unexpected path: %s", r.URL.Path)
 			}
 		}))
 		t.Cleanup(srv.Close)
@@ -55,12 +56,23 @@ func TestDEPService(t *testing.T) {
 			return appCfg, nil
 		}
 
+		var savedProfile fleet.MDMAppleEnrollmentProfile
 		ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, p fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
-			require.Equal(t, fleet.MDMAppleEnrollmentType("automatic"), p.Type)
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, p.Type)
 			require.NotEmpty(t, p.Token)
-			//require.JSONEq
-			return &fleet.MDMAppleEnrollmentProfile{}, nil
+			res := &fleet.MDMAppleEnrollmentProfile{
+				Token:      p.Token,
+				Type:       p.Type,
+				DEPProfile: p.DEPProfile,
+			}
+			savedProfile = *res
+			return res, nil
+		}
 
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, typ)
+			res := savedProfile
+			return &res, nil
 		}
 
 		ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
@@ -84,50 +96,18 @@ func TestDEPService(t *testing.T) {
 		err := depSvc.CreateDefaultProfile(ctx)
 		require.NoError(t, err)
 		require.True(t, ds.NewMDMAppleEnrollmentProfileFuncInvoked)
+		require.True(t, ds.GetMDMAppleEnrollmentProfileByTypeFuncInvoked)
 		require.True(t, depStorage.RetrieveConfigFuncInvoked)
 		require.True(t, depStorage.StoreAssignerProfileFuncInvoked)
 	})
 
 	t.Run("EnrollURL", func(t *testing.T) {
-		ds := new(mock.Store)
-		logger := log.NewNopLogger()
-		depStorage := new(nanodep_mock.Storage)
-		depSvc := NewDEPService(ds, depStorage, logger, true)
-		testErr := errors.New("test")
-		serverURL := "https://example.com/"
+		const serverURL = "https://example.com/"
 
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return nil, testErr
-		}
-
-		url, err := depSvc.EnrollURL("token")
-		require.ErrorIs(t, err, testErr)
-		require.Empty(t, url)
-		require.True(t, ds.AppConfigFuncInvoked)
-		ds.AppConfigFuncInvoked = false
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.ServerSettings.ServerURL = " http://foo.com"
-			return appCfg, nil
-		}
-
-		url, err = depSvc.EnrollURL("token")
-		require.Error(t, err)
-		require.Empty(t, url)
-		require.True(t, ds.AppConfigFuncInvoked)
-		ds.AppConfigFuncInvoked = false
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.ServerSettings.ServerURL = serverURL
-			return appCfg, nil
-		}
-
-		url, err = depSvc.EnrollURL("token")
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = serverURL
+		url, err := EnrollURL("token", appCfg)
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
-		require.True(t, ds.AppConfigFuncInvoked)
-
 	})
 }

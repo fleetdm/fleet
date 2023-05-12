@@ -18,6 +18,8 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import SandboxGate from "components/Sandbox/SandboxGate";
+import SandboxMessage from "components/Sandbox/SandboxMessage";
 
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
@@ -254,62 +256,76 @@ const TeamManagementPage = (): JSX.Element => {
       <p className={`${baseClass}__page-description`}>
         Create, customize, and remove teams from Fleet.
       </p>
-      {loadingTeamsError ? (
-        <TableDataError />
-      ) : (
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={isFetchingTeams}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
-          actionButtonText={"Create team"}
-          actionButtonVariant={"brand"}
-          hideActionButton={teams && teams.length === 0 && searchString === ""}
-          onActionButtonClick={toggleCreateTeamModal}
-          onQueryChange={onQueryChange}
-          resultsTitle={"teams"}
-          emptyComponent={() =>
-            EmptyTable({
-              iconName: "empty-teams",
-              header: emptyState().header,
-              info: emptyState().info,
-              additionalInfo: emptyState().additionalInfo,
-              primaryButton: emptyState().primaryButton,
-            })
-          }
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          searchable={teams && teams.length > 0 && searchString !== ""}
-          isClientSidePagination
-        />
-      )}
-      {showCreateTeamModal && (
-        <CreateTeamModal
-          onCancel={toggleCreateTeamModal}
-          onSubmit={onCreateSubmit}
-          backendValidators={backendValidators}
-          isUpdatingTeams={isUpdatingTeams}
-        />
-      )}
-      {showDeleteTeamModal && (
-        <DeleteTeamModal
-          onCancel={toggleDeleteTeamModal}
-          onSubmit={onDeleteSubmit}
-          name={teamEditing?.name || ""}
-          isUpdatingTeams={isUpdatingTeams}
-        />
-      )}
-      {showEditTeamModal && (
-        <EditTeamModal
-          onCancel={toggleEditTeamModal}
-          onSubmit={onEditSubmit}
-          defaultName={teamEditing?.name || ""}
-          backendValidators={backendValidators}
-          isUpdatingTeams={isUpdatingTeams}
-        />
-      )}
+      <SandboxGate
+        fallbackComponent={() => (
+          <SandboxMessage
+            variant="sales"
+            message="Teams is only available in Fleet premium."
+            utmSource="fleet-ui-teams-page"
+            className={`${baseClass}__sandbox-message`}
+          />
+        )}
+      >
+        {loadingTeamsError ? (
+          <TableDataError />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={tableData}
+            isLoading={isFetchingTeams}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"asc"}
+            inputPlaceHolder={"Search"}
+            actionButton={{
+              name: "create team",
+              buttonText: "Create team",
+              variant: "brand",
+              onActionButtonClick: toggleCreateTeamModal,
+              hideButton: teams && teams.length === 0 && searchString === "",
+            }}
+            onQueryChange={onQueryChange}
+            resultsTitle={"teams"}
+            emptyComponent={() =>
+              EmptyTable({
+                iconName: "empty-teams",
+                header: emptyState().header,
+                info: emptyState().info,
+                additionalInfo: emptyState().additionalInfo,
+                primaryButton: emptyState().primaryButton,
+              })
+            }
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            searchable={teams && teams.length > 0 && searchString !== ""}
+            isClientSidePagination
+          />
+        )}
+        {showCreateTeamModal && (
+          <CreateTeamModal
+            onCancel={toggleCreateTeamModal}
+            onSubmit={onCreateSubmit}
+            backendValidators={backendValidators}
+            isUpdatingTeams={isUpdatingTeams}
+          />
+        )}
+        {showDeleteTeamModal && (
+          <DeleteTeamModal
+            onCancel={toggleDeleteTeamModal}
+            onSubmit={onDeleteSubmit}
+            name={teamEditing?.name || ""}
+            isUpdatingTeams={isUpdatingTeams}
+          />
+        )}
+        {showEditTeamModal && (
+          <EditTeamModal
+            onCancel={toggleEditTeamModal}
+            onSubmit={onEditSubmit}
+            defaultName={teamEditing?.name || ""}
+            backendValidators={backendValidators}
+            isUpdatingTeams={isUpdatingTeams}
+          />
+        )}
+      </SandboxGate>
     </div>
   );
 };

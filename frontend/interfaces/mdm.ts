@@ -22,6 +22,8 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
+export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
+
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
@@ -68,11 +70,7 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export enum MdmProfileStatus {
-  VERIFYING = "verifying",
-  PENDING = "pending",
-  FAILED = "failed",
-}
+export type MdmProfileStatus = "verifying" | "pending" | "failed";
 
 export type MacMdmProfileOperationType = "remove" | "install";
 
@@ -113,4 +111,24 @@ export interface IMdmScript {
 
 export interface IMdmSSOReponse {
   url: string;
+}
+
+export interface IBootstrapPackageMetadata {
+  name: string;
+  team_id: number;
+  sha256: string;
+  token: string;
+  created_at: string;
+}
+
+export interface IBootstrapPackageAggregate {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
+export enum BootstrapPackageStatus {
+  INSTALLED = "installed",
+  PENDING = "pending",
+  FAILED = "failed",
 }

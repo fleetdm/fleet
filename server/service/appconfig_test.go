@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -941,13 +941,14 @@ func TestMDMAppleConfig(t *testing.T) {
 				if tt.findTeam {
 					return &fleet.Team{}, nil
 				}
-				return nil, errors.New(notFoundErr)
-			}
-			ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-				return []*fleet.MDMAppleEnrollmentProfile{}, nil
+				return nil, sql.ErrNoRows
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+				raw := json.RawMessage("{}")
+				return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
 			}
 
 			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {

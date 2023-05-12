@@ -677,9 +677,9 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newIntegrationsSchedule(ctx, instanceID, ds, logger)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger)
 			}); err != nil {
-				initFatal(err, "failed to register integrations schedule")
+				initFatal(err, "failed to register worker integrations schedule")
 			}
 
 			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {

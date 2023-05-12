@@ -109,6 +109,12 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           margin-left: $pad-small;
+          .manage-hosts__status-dropdown-sandbox {
+            width: auto;
+            .Select-control {
+              width: 182px;
+            }
+          }
         }
       }
     }
@@ -135,7 +141,7 @@
         }
       }
 
-      .table-container__header-left {
+      &__header-left {
         order: 2;
         display: flex;
         flex-direction: column;
@@ -154,11 +160,18 @@
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
+              max-width: 366px;
               flex: 1;
             }
 
             .manage-hosts__status_dropdown {
               width: auto;
+            }
+
+            .manage-hosts__status-dropdown-sandbox {
+              .Select-control {
+                width: 100%;
+              }
             }
           }
         }

@@ -11,6 +11,7 @@ dist
 assets/bundle*.*
 assets/*@*.svg
 assets/*@*.png
+assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
@@ -64,6 +65,7 @@ desktop.app.tar.gz
 osqueryd.app.tar.gz
 desktop.tar.gz
 nudge.app.tar.gz
+swiftDialog.app.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv

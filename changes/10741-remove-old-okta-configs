@@ -1,1 +1,0 @@
-* Removed old Okta configuration that was only documented for internal usage. These configs are being replaced for a genral approach to gate profiles behind SSO.

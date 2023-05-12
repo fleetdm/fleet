@@ -930,13 +930,18 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 		return sql, params
 	}
 
-	subquery := `SELECT 1 
-        FROM 
-            host_mdm_apple_bootstrap_packages hmabp 
-        LEFT JOIN 
+	subquery := `SELECT 1
+	-- we need to JOIN on hosts again to account for 'pending' hosts that
+	-- haven't been enrolled yet, and thus don't have an uuid nor a matching
+	-- entry in nano_command_results.
+        FROM
+            hosts hh
+        LEFT JOIN
+            host_mdm_apple_bootstrap_packages hmabp ON hmabp.host_uuid = hh.uuid
+        LEFT JOIN
             nano_command_results ncr ON ncr.command_uuid = hmabp.command_uuid
         WHERE
-	        h.id = hmdm.host_id AND h.uuid = hmabp.host_uuid AND hmdm.installed_from_dep = 1`
+	      hh.id = h.id AND hmdm.installed_from_dep = 1`
 
 	// NOTE: The approach below assumes that there is only one bootstrap package per host. If this
 	// is not the case, then the query will need to be updated to use a GROUP BY and HAVING
@@ -2798,7 +2803,9 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 	var hmdm fleet.HostMDMCheckinInfo
-	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer, &hmdm, `
 		SELECT
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
@@ -2815,9 +2822,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithMessage(hostUUID))
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with UUID: %s", hostUUID)))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_uuid %s", hostUUID)
+		return nil, ctxerr.Wrapf(ctx, err, "host mdm checkin info for host UUID %s", hostUUID)
 	}
 	return &hmdm, nil
 }

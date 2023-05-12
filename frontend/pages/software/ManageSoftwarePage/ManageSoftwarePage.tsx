@@ -52,7 +52,7 @@ import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
@@ -67,7 +67,7 @@ interface IManageSoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
-      page?: number;
+      page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
@@ -176,7 +176,7 @@ const ManageSoftwarePage = ({
     let page = 0;
 
     if (queryParams && queryParams.page) {
-      page = queryParams.page;
+      page = parseInt(queryParams.page, 10);
     }
 
     return page;
@@ -208,16 +208,16 @@ const ManageSoftwarePage = ({
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   useEffect(() => {
-    setFilterVuln(location?.query?.vulnerable === "true" || false);
-    setPage(location?.query?.page || 0);
-    setSearchQuery(location?.query?.query || "");
+    setFilterVuln(initialVulnFilter);
+    setPage(initialPage);
+    setSearchQuery(initialQuery);
     // TODO: handle invalid values for params
   }, [location]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
     if (filteredSoftwarePath !== path) {
-      setFilteredSoftwarePath(location.pathname + location.search);
+      setFilteredSoftwarePath(path);
     }
   }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
@@ -380,6 +380,10 @@ const ManageSoftwarePage = ({
 
       newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_SOFTWARE,
         routeTemplate,
@@ -389,15 +393,17 @@ const ManageSoftwarePage = ({
     },
     [
       isRouteOk,
+      teamIdForApi,
       tableQueryData,
-      sortHeader,
-      sortDirection,
-      searchQuery,
       page,
-      filterVuln,
-      router,
-      routeTemplate,
+      searchQuery,
+      sortDirection,
       isPremiumTier,
+      sortHeader,
+      DEFAULT_SORT_HEADER,
+      filterVuln,
+      routeTemplate,
+      router,
     ]
   );
 
@@ -566,8 +572,7 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !isAnyTeamSelected &&
-    !page &&
+    page === 0 &&
     !software?.software &&
     software?.counts_updated_at === null;
 
@@ -578,8 +583,14 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier, currentTeamId),
-    [isPremiumTier, router, currentTeamId]
+    () =>
+      generateSoftwareTableHeaders(
+        router,
+        isPremiumTier,
+        isSandboxMode,
+        currentTeamId
+      ),
+    [isPremiumTier, isSandboxMode, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -618,6 +629,7 @@ const ManageSoftwarePage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
@@ -680,8 +692,6 @@ const ManageSoftwarePage = ({
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
-              disableActionButton
-              hideActionButton
               disableMultiRowSelect
               onSelectSingleRow={handleRowSelect}
             />

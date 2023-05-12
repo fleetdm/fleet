@@ -123,6 +123,7 @@ module.exports.custom = {
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
+    'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
@@ -139,8 +140,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
   },
 
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
@@ -153,7 +154,7 @@ module.exports.custom = {
     'free-for-all': '*',
 
     // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-    'cold-outbound-strategy.md': ['mikermcneil'],
+    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],
 
     // Boilerplate
     'README.md': ['mikermcneil'],
@@ -186,6 +187,7 @@ module.exports.custom = {
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+  // datadogApiKey: '…',
 
   //…
 

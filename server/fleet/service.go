@@ -29,7 +29,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
-	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
@@ -168,8 +168,7 @@ type Service interface {
 
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid, then responds with an enrollment profile.
-	// TODO: add support for EULAs too
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -601,13 +600,6 @@ type Service interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
-	// Such enrollment profiles allow devices to enroll to Fleet MDM.
-	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
-
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
@@ -700,12 +692,30 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
+	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// the given token.
+	//
+	// A token is required as the means of authentication for this resource
+	// since it can be publicly accessed with anyone with a valid token.
+	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	// MDMAppleGetEULABytes returns metadata about the EULA file that can
+	// be used by clients to display information.
+	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	// MDMAppleCreateEULA adds a new EULA file.
+	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	// MDMAppleDelete EULA removes an EULA entry.
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
+
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
 	// Get the MDM Apple Setup Assistant for the provided team or no team.
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

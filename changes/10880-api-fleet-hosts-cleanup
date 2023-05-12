@@ -1,1 +1,0 @@
-* Fix a HTTP 500 on `GET /api/_version_/fleet/hosts` returned when `mdm_enrollment_status` is invalid.

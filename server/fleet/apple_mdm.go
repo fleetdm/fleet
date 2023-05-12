@@ -432,6 +432,18 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 	return "mdm_apple_settings"
 }
 
+// MDMAppleSetupPayload describes the payload accepted by the endpoint to
+// update specific MDM macos setup values for a team (or no team).
+type MDMAppleSetupPayload struct {
+	TeamID                      *uint `json:"team_id"`
+	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (p MDMAppleSetupPayload) AuthzType() string {
+	return "mdm_apple_settings" // TODO: add mdm_apple_setup to rego?
+}
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -486,11 +498,12 @@ type MDMAppleCommand struct {
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
 // or no team.
 type MDMAppleSetupAssistant struct {
-	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"team_id" db:"team_id"`
-	Name       string          `json:"name" db:"name"`
-	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
-	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
+	ID          uint            `json:"-" db:"id"`
+	TeamID      *uint           `json:"team_id" db:"team_id"`
+	Name        string          `json:"name" db:"name"`
+	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
+	ProfileUUID string          `json:"-" db:"profile_uuid"`
+	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.

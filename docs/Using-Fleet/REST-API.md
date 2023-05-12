@@ -859,6 +859,7 @@ None.
     },
     "macos_setup": {
       "bootstrap_package": "",
+      "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
     }
   },
@@ -934,16 +935,6 @@ None.
   },
   "integrations": {
     "jira": null
-  },
-  "mdm": {
-    "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
-    "enabled_and_configured": false,
-    "apple_bm_default_team": "",
-    "macos_updates": {
-      "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
-    }
   },
   "logging": {
     "debug": false,
@@ -1047,6 +1038,7 @@ Modifies the Fleet's configuration with the supplied information.
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1142,6 +1134,7 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "macos_setup": {
       "bootstrap_package": "",
+      "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
     }
   },
@@ -2294,7 +2287,8 @@ Returns the information of the specified host.
       },
       "macos_setup": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "profiles": [
         {
@@ -3571,6 +3565,11 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
 - [Download a bootstrap package](#download-a-bootstrap-package)
+- [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
+- [Upload an EULA file](#upload-an-eula-file)
+- [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
+- [Delete an EULA file](#delete-an-eula-file)
+- [Download an EULA file](#download-an-eula-file)
 
 ### Add custom macOS setting (configuration profile)
 
@@ -4285,6 +4284,157 @@ The summary can optionally be filtered by team id.
   "failed": 1,
   "pending": 4
 }
+```
+
+### Turn on end user authentication for macOS setup
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/setup`
+
+#### Parameters
+
+| Name                           | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_end_user_authentication | boolean | body  | Whether end user authentication should be enabled for new macOS devices that automatically enroll to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/setup`
+
+##### Request body
+
+```json
+{
+  "team_id": 1,
+  "enabled_end_user_authentication": true
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+
+
+### Upload an EULA file 
+
+_Available in Fleet Premium_
+
+Upload an EULA that will be shown during the DEP flow.
+
+`POST /api/v1/fleet/mdm/apple/setup/eula`
+
+#### Parameters
+
+| Name | Type | In   | Description                                       |
+| ---- | ---- | ---- | ------------------------------------------------- |
+| eula | file | form | **Required**. A PDF document containing the EULA. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/setup/eula`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="eula"; filename="eula.pdf"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get metadata about an EULA file 
+
+_Available in Fleet Premium_
+
+Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "eula.pdf",
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+  "created_at": "2023-04-20T13:02:05Z"
+}
+```
+
+In the response above:
+
+- `token` is the value you can use to [download an EULA](#download-an-eula-file)
+
+### Delete an EULA file
+
+_Available in Fleet Premium_
+
+Delete an EULA file.
+
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/{token}`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| token | string | path  | **Required** The token of the EULA file. |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+### Download an EULA file
+
+_Available in Fleet Premium_
+
+Download an EULA file
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
+
+#### Parameters
+
+| Name  | Type   | In    | Description                              |
+| ----- | ------ | ----- | ---------------------------------------- |
+| token | string | path  | **Required** The token of the EULA file. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+```
+Status: 200
+Content-Type: application/pdf
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
 ```
 
 ---
@@ -6245,6 +6395,7 @@ _Available in Fleet Premium_
       },
       "macos_setup": {
         "bootstrap_package": "",
+        "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json"
       }
     }
@@ -6357,6 +6508,8 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
+| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication).                                                                                      |
 
 
 #### Example (add users to a team)
@@ -6422,6 +6575,7 @@ _Available in Fleet Premium_
       },
       "macos_setup": {
         "bootstrap_package": "",
+        "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json"
       }
     }
@@ -6792,8 +6946,8 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
-| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](Permissions.md).                                                                                                                                                                        |
-| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](Permissions.md). |
+| global_role           | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
+| teams                 | array  | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 
@@ -6909,9 +7063,9 @@ By default, the user will be forced to reset its password upon first login.
 | password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
-| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](Permissions.md).                                                                                                                                                                        |
+| global_role | string | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `global_role` is specified, `teams` cannot be specified. For more information, see [Permissions](./Permissions.md).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
-| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](Permissions.md). |
+| teams                          | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). In Fleet 4.30.0 and 4.31.0, the `observer_plus` and `gitops` roles were introduced respectively. If `teams` is specified, `global_role` cannot be specified. For more information, see [Permissions](./Permissions.md). |
 
 #### Example
 

@@ -527,7 +527,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
-- [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
+- [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
+- [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 
 ### Generate Apple DEP Key Pair
 
@@ -601,6 +602,61 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 ##### Default response
 
 `204`
+
+### Initiate SSO during DEP enrollment
+
+This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
+
+`POST /api/v1/fleet/mdm/sso`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/sso`
+
+##### Default response
+
+```
+{
+  "url": "https://idp-provider.com/saml?SAMLRequest=...",
+}
+```
+
+### Complete SSO during DEP enrollment
+
+This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
+
+`POST /api/v1/fleet/mdm/sso/callback`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                                 |
+| ------------ | ------ | ---- | ----------------------------------------------------------- |
+| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/sso/callback`
+
+##### Request body
+
+```json
+{
+  "SAMLResponse": "<SAML response from IdP>"
+}
+```
+
+##### Default response
+
+`Status: 302`
+
+If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
+
+- `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
+- `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
 
 ## Get or apply configuration files
 
@@ -2249,7 +2305,8 @@ Returns the host information about the device that makes the request.
       },
       "macos_setup": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "profiles": [
         {

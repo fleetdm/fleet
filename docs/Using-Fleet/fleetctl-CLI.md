@@ -1,31 +1,12 @@
 # fleetctl CLI
 
-- [Introduction](#introduction)
-- [Using fleetctl](#using-fleetctl)
-  - [Available commands](#available-commands)
-  - [Get more info about a command](#get-more-info-about-a-command)
-- [Setting Up Fleet](#setting-up-fleet)
-  - [Running Fleet](#running-fleet)
-  - [`fleetctl config`](#fleetctl-config)
-  - [`fleetctl setup`](#fleetctl-setup)
-  - [Query hosts](#query-hosts)
-- [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance)
-- [Using fleetctl to configure Fleet](#using-fleetctl-to-configure-fleet)
-- [Using fleetctl with an API-only user](#using-fleetctl-with-an-api-only-user)
-- [File carving](#file-carving)
-  - [Configuration](#configuration)
-  - [Usage](#usage)
-  - [Troubleshooting](#troubleshooting)
-
-## Introduction
-
 Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, generate osquery installers, etc.
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
-You can find and download the latest version of `fleetctl` in [GitHub](https://github.com/fleetdm/fleet/releases).
-
 ## Using fleetctl
+
+To install the latest version of `fleetctl` run `npm install -g fleetctl` or download the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
 You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
 
@@ -35,27 +16,9 @@ You can use `fleetctl` to accomplish many tasks you would typically need to do t
 
 ### Available commands
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate agent (fleetd) installers to add new hosts, get information about existing hosts, and more!
 
-   | Command                    | Description                                                        |
-   |:---------------------------|:-------------------------------------------------------------------|
-   | apply                      | Apply files to declaratively manage osquery configurations         |
-   | delete                     | Specify files to declaratively batch delete osquery configurations |
-   | setup                      | Set up a Fleet instance                                            |
-   | login                      | Login to Fleet                                                     |
-   | logout                     | Log out of Fleet                                                   |
-   | query                      | Run a live query                                                   |
-   | get                        | Get/list resources                                                 |
-   | config                     | Modify Fleet server connection settings                            |
-   | goquery                    | Start the goquery interface                                        |
-   | user                       | Manage Fleet users                                                 |
-   | debug                      | Tools for debugging Fleet                                          |
-   | preview                    | Start a preview deployment of the Fleet server                     |
-   | updates                    | Manage client updates                                              |
-   | hosts                      | Manage Fleet hosts                                                 |
-   | vulnerability-data-stream  | Download the vulnerability data stream                             |
-   | package                    | Create an Orbit installer package                                  |
-   | help, h                    | Shows a list of commands or help for one command                   |
+To see the commands you can run with fleetctl, run the `fleetctl --help` command.
 
 ### Get more info about a command
 
@@ -257,6 +220,8 @@ On Fleet Premium, use the `--team` flag setting `team_id:role` to create an API-
 fleetctl user create --name "API Team Maintainer User" --email apimaintainer@example.com --password temp#pass --team 4:maintainer
 ```
 
+Assigning the [GitOps role](https://fleetdm.com/docs/using-fleet/permissions#gitops) to a user is also completed using this method because GitOps is an API-only role.  
+
 ### Changing permissions of an API-only user
 
 To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
@@ -320,6 +285,10 @@ Password:
 ```
 
 Running a command with no context will use the default profile.
+
+## MDM commands
+
+With fleetctl, you can run MDM commands to take some action on your macOS hosts, like restart the host, remotely. Learn how [here](./MDM-commands.md). 
 
 ## File carving
 
