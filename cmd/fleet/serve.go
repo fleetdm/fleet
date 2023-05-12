@@ -621,7 +621,7 @@ the way that the Fleet server works.
 
 			instanceID, err := server.GenerateRandomText(64)
 			if err != nil {
-				initFatal(errors.New("Error generating random instance identifier"), "")
+				initFatal(errors.New("Generating random instance identifier"), "")
 			}
 			level.Info(logger).Log("instanceID", instanceID)
 
