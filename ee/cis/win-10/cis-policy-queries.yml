@@ -6911,7 +6911,8 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
-  query: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = 1);
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE\RDVDenyWriteAccess' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_BitLocker, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.11.3.14
   contributors: marcosd4h
