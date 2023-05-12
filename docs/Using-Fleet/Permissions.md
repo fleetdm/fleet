@@ -47,7 +47,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅        | ✅         | ✅          | ✅     |        |
 | Filter software by team\*                                                                                                                  | ✅        | ✅         | ✅          | ✅     |        |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |           |            | ✅     | ✅      |
-| Run only designated, **observer can run**, queries as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
+| Run queries designated "**observer can run**" as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅          | ✅     |        |
 | Create, edit, and delete queries                                                                                                           |          |           | ✅          | ✅     | ✅      |
 | View all queries\**                                                                                                                        | ✅        | ✅         | ✅          | ✅     |        |
@@ -81,6 +81,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |           |            | ✅     |         |
 | View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
 | Edit/upload MDM macOS setup assistant\*                                                                                                    |          |           | ✅          | ✅     |       |
+| Enable/disable MDM macOS setup end user authentication\*                                                                                                    |          |           | ✅          | ✅     |       |
 
 \* Applies only to Fleet Premium
 
@@ -114,7 +115,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
-| Run only designated, **observer can run**, queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
+| Run queries designated "**observer can run**" as live queries against hosts                                              | ✅             | ✅              | ✅               | ✅          |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
 | View all queries\**                                                                                                              | ✅             | ✅              | ✅               | ✅          |             |
@@ -138,6 +139,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          |             |
+| Enable/disable MDM macOS setup end user authentication                                                                                            |               |                | ✅              | ✅          |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

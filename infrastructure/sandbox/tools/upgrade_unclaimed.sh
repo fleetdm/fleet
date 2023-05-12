@@ -53,8 +53,9 @@ export TF_VAR_mysql_secret="arn:aws:secretsmanager:us-east-2:411315989055:secret
 
 terraform init -backend-config=backend.conf
 
+# This should probably be calculated rather than static at some point.
 EXPECTED_UNCLAIMED_INSTANCES=10
-PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))')"
+PREPROVISIONER_TASK_DEFINITION_ARN="$(aws ecs list-task-definitions | jq -r '.taskDefinitionArns[] | select(contains("sandbox-prod-preprovisioner"))' | tail -n1)"
 UNCLAIMED_INSTANCES="$(get_unclaimed_instances)"
 UNCLAIMED_ARRAY=( ${UNCLAIMED_INSTANCES} )
 

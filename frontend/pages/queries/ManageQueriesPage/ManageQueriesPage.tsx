@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
+import { RouteProps, InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
 
@@ -20,8 +20,6 @@ import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -30,40 +28,25 @@ import DeleteQueryModal from "./components/DeleteQueryModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
+  route: RouteProps;
   router: InjectedRouter; // v3
+  location: {
+    pathname?: string;
+    query: {
+      platform?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+    search: string;
+  };
 }
 
 interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-
-const PLATFORM_FILTER_OPTIONS = [
-  {
-    disabled: false,
-    label: "All platforms",
-    value: "all",
-    helpText: "All queries.",
-  },
-  {
-    disabled: false,
-    label: "Linux",
-    value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
-  },
-  {
-    disabled: false,
-    label: "macOS",
-    value: "darwin",
-    helpText: "Queries that are compatible with macOS operating systems.",
-  },
-  {
-    disabled: false,
-    label: "Windows",
-    value: "windows",
-    helpText: "Queries that are compatible with Windows operating systems.",
-  },
-];
 
 const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
   const { platforms } = checkPlatformCompatibility(queryString);
@@ -83,17 +66,24 @@ const enhanceQuery = (q: IQuery) => {
 
 const ManageQueriesPage = ({
   router,
+  location,
 }: IManageQueriesPageProps): JSX.Element => {
-  const { isOnlyObserver, isObserverPlus, isAnyTeamObserverPlus } = useContext(
-    AppContext
-  );
+  const queryParams = location.query;
+
+  const {
+    isOnlyObserver,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
+    setFilteredQueriesPath,
+    filteredQueriesPath,
+  } = useContext(AppContext);
+
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
@@ -126,6 +116,13 @@ const ManageQueriesPage = ({
       setQueriesList(enhancedQueriesList);
     }
   }, [enhancedQueriesList, isFetchingFleetQueries]);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (filteredQueriesPath !== path) {
+      setFilteredQueriesPath(path);
+    }
+  }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
   const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
@@ -164,18 +161,6 @@ const ManageQueriesPage = ({
       setIsUpdatingQueries(false);
     }
   }, [refetchFleetQueries, selectedQueryIds, toggleDeleteQueryModal]);
-
-  const renderPlatformDropdown = () => {
-    return (
-      <Dropdown
-        value={selectedDropdownFilter}
-        className={`${baseClass}__platform_dropdown`}
-        options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
-        onChange={setSelectedDropdownFilter}
-      />
-    );
-  };
 
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
@@ -216,11 +201,11 @@ const ManageQueriesPage = ({
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onDeleteQueryClick={onDeleteQueryClick}
-              customControl={renderPlatformDropdown}
-              selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
               isObserverPlus={isObserverPlus}
               isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
+              router={router}
+              queryParams={queryParams}
             />
           )}
         </div>

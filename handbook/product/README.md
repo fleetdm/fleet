@@ -303,8 +303,8 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🗣️ Product feature requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
 | Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
-| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Noah Talerman |
-| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Zay Hanlon |
+| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
+| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |
 | ⚗️ Sprint release notes kickoff | Tri-weekly | Product provides recommended features to highlight for the current sprint to enable the Marketing team to start writing release notes | Mo Zhu |
 

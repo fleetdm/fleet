@@ -63,6 +63,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
+
+	ActivityTypeEnabledMacosSetupEndUserAuth{},
+	ActivityTypeDisabledMacosSetupEndUserAuth{},
 }
 
 type ActivityDetails interface {
@@ -934,6 +937,44 @@ func (a ActivityTypeDeletedBootstrapPackage) Documentation() (activity, details,
 - "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
 - "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.`, `{
   "package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEnabledMacosSetupEndUserAuth struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledMacosSetupEndUserAuth) ActivityName() string {
+	return "enabled_macos_setup_end_user_auth"
+}
+
+func (a ActivityTypeEnabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledMacosSetupEndUserAuth struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledMacosSetupEndUserAuth) ActivityName() string {
+	return "disabled_macos_setup_end_user_auth"
+}
+
+func (a ActivityTypeDisabledMacosSetupEndUserAuth) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`

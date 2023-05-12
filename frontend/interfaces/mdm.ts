@@ -22,6 +22,8 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
+export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
+
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
@@ -68,11 +70,7 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export enum MdmProfileStatus {
-  VERIFYING = "verifying",
-  PENDING = "pending",
-  FAILED = "failed",
-}
+export type MdmProfileStatus = "verifying" | "pending" | "failed";
 
 export type MacMdmProfileOperationType = "remove" | "install";
 

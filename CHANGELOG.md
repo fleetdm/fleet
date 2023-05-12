@@ -1,3 +1,7 @@
+## Fleet 4.31.1 (May 10, 2023)
+
+* Fixed a bug that prevented bootstrap packages and the `fleetd` agent from being installed when the server had a database replica configured.
+
 ## Fleet 4.31.0 (May 1, 2023)
 
 * Added `gitops` user role to Fleet. GitOps users are users that can manage configuration.

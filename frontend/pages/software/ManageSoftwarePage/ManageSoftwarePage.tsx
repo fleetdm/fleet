@@ -52,7 +52,7 @@ import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
@@ -217,7 +217,7 @@ const ManageSoftwarePage = ({
   useEffect(() => {
     const path = location.pathname + location.search;
     if (filteredSoftwarePath !== path) {
-      setFilteredSoftwarePath(location.pathname + location.search);
+      setFilteredSoftwarePath(path);
     }
   }, [filteredSoftwarePath, location, setFilteredSoftwarePath]);
 
@@ -692,8 +692,6 @@ const ManageSoftwarePage = ({
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
-              disableActionButton
-              hideActionButton
               disableMultiRowSelect
               onSelectSingleRow={handleRowSelect}
             />
