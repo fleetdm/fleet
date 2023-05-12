@@ -6,6 +6,8 @@ import { AppContext } from "context/app";
 import { IMdmApple } from "interfaces/mdm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
@@ -18,24 +20,22 @@ const baseClass = "automatic-enrollment";
 const AutomaticEnrollment = () => {
   const { config, isPremiumTier } = useContext(AppContext);
 
-  const {
-    data: appleAPNInfo,
-    isLoading: isLoadingMdmApple,
-    error: errorMdmApple,
-  } = useQuery<IMdmApple, AxiosError>(
-    ["appleAPNInfo"],
-    () => mdmAppleAPI.getAppleAPNInfo(),
-    {
-      refetchOnWindowFocus: false,
-      retry: (tries, error) => error.status !== 404 && tries <= 3,
-      enabled: config?.mdm.enabled_and_configured,
-    }
-  );
+  const { isLoading: isLoadingMdmApple, error: errorMdmApple } = useQuery<
+    IMdmApple,
+    AxiosError
+  >(["appleAPNInfo"], () => mdmAppleAPI.getAppleAPNInfo(), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: config?.mdm.enabled_and_configured,
+  });
 
   if (!isPremiumTier) return <PremiumFeatureMessage />;
 
-  // TODO: figure out correct condition
-  if (!appleAPNInfo) {
+  if (isLoadingMdmApple) {
+    return <Spinner />;
+  }
+
+  if (errorMdmApple?.status === 404) {
     return (
       <EmptyTable
         header="Automatic enrollment for macOS hosts"
@@ -44,6 +44,10 @@ const AutomaticEnrollment = () => {
         className={`${baseClass}__connect-message`}
       />
     );
+  }
+
+  if (errorMdmApple) {
+    return <DataError />;
   }
 
   return (

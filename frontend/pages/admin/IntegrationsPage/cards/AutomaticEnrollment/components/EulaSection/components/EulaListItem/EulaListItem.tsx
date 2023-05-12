@@ -1,9 +1,11 @@
+import React from "react";
+import { formatDistanceToNow } from "date-fns";
+
+import endpoints from "utilities/endpoints";
+import { IEulaMetadataResponse } from "services/entities/mdm";
+
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { formatDistanceToNow } from "date-fns";
-import React from "react";
-
-import { IEulaMetadataResponse } from "services/entities/mdm";
 
 const baseClass = "eula-list-item";
 
@@ -13,6 +15,10 @@ interface IEulaListItemProps {
 }
 
 const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
+  const onOpenEula = () => {
+    window.open(`/api/${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
+  };
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__value-group ${baseClass}__list-item-data`}>
@@ -35,8 +41,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
         <Button
           className={`${baseClass}__list-item-button`}
           variant="text-icon"
-          // onClick={() => window.open(eulaData, "_blank")}
-          onClick={() => console.log("opening")}
+          onClick={onOpenEula}
         >
           <Icon
             name="external-link"
