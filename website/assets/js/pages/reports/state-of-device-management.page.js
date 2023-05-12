@@ -350,7 +350,7 @@ parasails.registerPage('state-of-device-management', {
 
     clickOpenChatWidget: function() {
       if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open()
+        window.HubSpotConversations.widget.open();
       }
     },
 
