@@ -2324,12 +2324,15 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	var profiles []*fleet.MDMAppleConfigProfile
 	for _, es := range enrollSecrets {
 		if es.Secret == "" {
+			var msg string
+			if es.TeamID != nil {
+				msg += fmt.Sprintf("team_id %d doesn't have an enroll secret, ", *es.TeamID)
+			}
 			if globalSecret == "" {
-				logger.Log("err", "team_id %d doesn't have an enroll secret, and couldn't find a global enroll secret, skipping the creation of a com.fleetdm.fleetd.config profile")
+				logger.Log("err", msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
 				continue
 			}
-
-			logger.Log("err", "team_id %d doesn't have an enroll secret, using a global enroll secret")
+			logger.Log("err", msg+"using a global enroll secret for com.fleetdm.fleetd.config profile")
 			es.Secret = globalSecret
 		}
 
