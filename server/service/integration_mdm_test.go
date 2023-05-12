@@ -4047,3 +4047,38 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	require.NoError(t, plist.Unmarshal(body, &profile))
 	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
 }
+
+func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
+	t := s.T()
+	ctx := context.Background()
+	token := "token_test_migration"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Zero(t, *getDesktopResp.FailingPolicies)
+	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+
+	// simulate that the device is enrolled in a third-party MDM and DEP capable
+	err := s.ds.SetOrUpdateMDMData(
+		ctx,
+		host.ID,
+		false,
+		true,
+		"https://simplemdm.com",
+		true,
+		fleet.WellKnownMDMSimpleMDM,
+	)
+	require.NoError(t, err)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Zero(t, *getDesktopResp.FailingPolicies)
+	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+}

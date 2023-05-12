@@ -48,8 +48,8 @@ func (svc *Service) DisableAuthForPing(ctx context.Context) {
 /////////////////////////////////////////////////////////////////////////////////
 
 type fleetDesktopResponse struct {
-	Err             error `json:"error,omitempty"`
-	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
+	Err error `json:"error,omitempty"`
+	fleet.DesktopSummary
 }
 
 func (r fleetDesktopResponse) error() error { return r.Err }
@@ -65,19 +65,19 @@ func (r *getFleetDesktopRequest) deviceAuthToken() string {
 // getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
 // endpoint should not include any kind of identifying information about the host.
 func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
-
-	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return fleetDesktopResponse{Err: err}, nil
-	}
-
-	r, err := svc.FailingPoliciesCount(ctx, host)
+	sum, err := svc.GetFleetDesktopSummary(ctx)
 	if err != nil {
 		return fleetDesktopResponse{Err: err}, nil
 	}
+	return fleetDesktopResponse{DesktopSummary: sum}, nil
+}
 
-	return fleetDesktopResponse{FailingPolicies: &r}, nil
+func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSummary, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.DesktopSummary{}, fleet.ErrMissingLicense
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -294,14 +294,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
-}
-
-func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return 0, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

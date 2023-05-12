@@ -114,8 +114,14 @@ func main() {
 		versionItem.Disable()
 		systray.AddSeparator()
 
+		migrateMDMItem := systray.AddMenuItem("Migrate to Fleet", "")
+		migrateMDMItem.Disable()
+		// this item is only shown if certain conditions are met below.
+		migrateMDMItem.Hide()
+
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
+
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
 
@@ -153,6 +159,8 @@ func main() {
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
+			migrateMDMItem.Disable()
+			migrateMDMItem.Hide()
 		}
 
 		// checkToken performs API test calls to enable the "My device" item as
@@ -167,7 +175,7 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
+					_, err := client.DesktopSummary(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
@@ -221,7 +229,7 @@ func main() {
 
 			for {
 				<-tic.C
-				failingPolicies, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
+				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
@@ -235,6 +243,11 @@ func main() {
 				default:
 					log.Error().Err(err).Msg("get failing policies")
 					continue
+				}
+
+				failingPolicies := 0
+				if sum.FailingPolicies != nil {
+					failingPolicies = int(*sum.FailingPolicies)
 				}
 
 				if failingPolicies > 0 {
@@ -257,7 +270,16 @@ func main() {
 					}
 				}
 				myDeviceItem.Enable()
+
+				if sum.Notifications.NeedsFleetMDMMigration {
+					migrateMDMItem.Enable()
+					migrateMDMItem.Show()
+				} else {
+					migrateMDMItem.Disable()
+					migrateMDMItem.Hide()
+				}
 			}
+
 		}()
 
 		go func() {
@@ -272,6 +294,15 @@ func main() {
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
+					}
+				case <-migrateMDMItem.ClickedCh:
+					// TODO: we should be signaling Orbit to show
+					// swiftDialog instead. To be done in a
+					// follow up.
+					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+					if err := open.Browser(openURL); err != nil {
+						log.Error().Err(err).Msg("open browser to migrate MDM")
+
 					}
 				}
 			}
