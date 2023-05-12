@@ -906,7 +906,7 @@ func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, false)
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
@@ -920,7 +920,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	ctx context.Context,
 	rawBase64Cmd string,
 	deviceIDs []string,
-	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
 	premiumCommands := map[string]bool{
 		"EraseDevice": true,
@@ -2548,5 +2547,6 @@ func ReconcileProfiles(
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
+
 	return nil
 }

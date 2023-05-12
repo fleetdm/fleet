@@ -59,10 +59,6 @@ func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, MDMPath)
 }
 
-func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, EnrollPath)
-}
-
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, SCEPPath)
 }
