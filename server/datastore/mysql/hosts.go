@@ -1660,8 +1660,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.installed_from_dep,
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name,
-      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested
+      COALESCE(mdms.name, ?) AS name
     FROM
       host_device_auth hda
     INNER JOIN
