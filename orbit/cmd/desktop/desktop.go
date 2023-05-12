@@ -271,7 +271,7 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				if sum.Notifications.NeedsFleetMDMMigration {
+				if sum.Notifications.NeedsMDMMigration {
 					migrateMDMItem.Enable()
 					migrateMDMItem.Show()
 				} else {
