@@ -239,6 +239,12 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 // is created and registered with Apple, and returns its profile UUID. It does
 // not re-define the profile if it already exists.
 func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context) (string, time.Time, error) {
+	defProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	// TODO(mna): if it does not exist, create it but do not register it in
+	// Apple, this is just so that the token gets generated and saved. Then,
+	// check in default setup assistant table for a profile UUID, and if it's
+	// missing, register with Apple using the team/no-team config.
+
 	profileUUID, profileModTime, err := d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
 	if err != nil {
 		return "", time.Time{}, err
