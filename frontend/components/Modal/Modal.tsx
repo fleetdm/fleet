@@ -4,7 +4,7 @@ import { NotificationContext } from "context/notification";
 
 const baseClass = "modal";
 
-type ModalWidth = "m" | "l" | "xl";
+type ModalWidth = "m" | "l" | "xl" | "auto";
 
 export interface IModalProps {
   title: string | JSX.Element;
@@ -60,7 +60,8 @@ const Modal = ({
     `${baseClass}__modal_container`,
     className,
     { [`${baseClass}__modal_container__l`]: width === "l" },
-    { [`${baseClass}__modal_container__xl`]: width === "xl" }
+    { [`${baseClass}__modal_container__xl`]: width === "xl" },
+    { [`${baseClass}__modal_container__auto`]: width === "auto" }
   );
 
   return (

@@ -73,8 +73,14 @@
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
 
-    &__wide {
+    &__l {
       width: 800px;
+    }
+    &__xl {
+      width: 850px;
+    }
+    &__auto {
+      width: auto;
     }
   }
 }
