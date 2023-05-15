@@ -35,17 +35,13 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
-        with:
-          repository: fleetdm/fleet
-
       - name: Apply configuration profiles and updates
-        uses: fleetdm/fleet-mdm-gitops@f733749565c313a60c81c00ec19162933955d97e
+        uses: fleetdm/fleet-mdm-gitops@ccd567e9ca242d345b5e678c423d3263d3cdf1dd
         with:
           FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
           FLEET_URL: $DOGFOOD_URL
           FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
+          MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
           MAC_OS_MIN_VERSION: 13.3.1
           MAC_OS_VERSION_DEADLINE: 2023-05-15
