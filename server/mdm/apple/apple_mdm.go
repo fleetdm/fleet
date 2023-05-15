@@ -174,7 +174,8 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 
 // RegisterProfileWithAppleDEPServer registers the enrollment profile in
 // Apple's servers via the DEP API, so it can be used for assignment. If
-// setupAsst is nil, the default profile is registered.
+// setupAsst is nil, the default profile is registered. It assigns the
+// up-to-date dynamic settings such as the server URL and MDM SSO URL.
 func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setupAsst *fleet.MDMAppleSetupAssistant) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
@@ -201,7 +202,8 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 		rawJSON = setupAsst.Profile
 	}
 
-	var jsonProf *godep.Profile
+	var jsonProf godep.Profile
+	jsonProf.IsMDMRemovable = true // the default value is true
 	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
@@ -225,7 +227,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, DEPName, jsonProf)
+	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
@@ -246,7 +248,10 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setu
 	return nil
 }
 
-func (d *DEPService) ensureDefaultSetupAssistant(ctx context.Context) (string, time.Time, error) {
+// EnsureDefaultSetupAssistant ensures that the default Setup Assistant profile
+// is created and registered with Apple, and returns its profile UUID. It does
+// not re-define the profile if it already exists.
+func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context) (string, time.Time, error) {
 	profileUUID, profileModTime, err := d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
 	if err != nil {
 		return "", time.Time{}, err
@@ -264,7 +269,12 @@ func (d *DEPService) ensureDefaultSetupAssistant(ctx context.Context) (string, t
 	return profileUUID, profileModTime, nil
 }
 
-func (d *DEPService) ensureCustomSetupAssistantIfExists(ctx context.Context, tmID *uint) (string, time.Time, error) {
+// EnsureCustomSetupAssistantIfExists ensures that the custom Setup Assistant
+// profile associated with the provided team (or no team) is registered with
+// Apple, and returns its profile UUID. It does not re-define the profile if it
+// is already registered. If no custom setup assistant exists, it returns an
+// empty string and timestamp and no error.
+func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tmID *uint) (string, time.Time, error) {
 	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -285,7 +295,7 @@ func (d *DEPService) ensureCustomSetupAssistantIfExists(ctx context.Context, tmI
 func (d *DEPService) RunAssigner(ctx context.Context) error {
 	// ensure the default (fallback) setup assistant profile exists, registered
 	// with Apple DEP.
-	_, defModTime, err := d.ensureDefaultSetupAssistant(ctx)
+	_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx)
 	if err != nil {
 		return err
 	}
@@ -307,7 +317,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			customTeamID = &tm.ID
 		}
 	}
-	customUUID, customModTime, err := d.ensureCustomSetupAssistantIfExists(ctx, customTeamID)
+	customUUID, customModTime, err := d.EnsureCustomSetupAssistantIfExists(ctx, customTeamID)
 	if err != nil {
 		return err
 	}
@@ -338,7 +348,6 @@ func NewDEPService(
 	ds fleet.Datastore,
 	depStorage nanodep_storage.AllStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) *DEPService {
 	depClient := NewDEPClient(depStorage, ds, logger)
 	depSvc := &DEPService{
@@ -383,12 +392,12 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	}
 
 	// get profile uuid of tmID or default
-	profUUID, _, err := d.ensureCustomSetupAssistantIfExists(ctx, tmID)
+	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, tmID)
 	if err != nil {
 		return fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
 	}
 	if profUUID == "" {
-		profUUID, _, err = d.ensureDefaultSetupAssistant(ctx)
+		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx)
 		if err != nil {
 			return fmt.Errorf("ensure default setup assistant: %w", err)
 		}

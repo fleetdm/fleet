@@ -19,6 +19,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -473,7 +474,6 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
-	// TODO(mna): enqueue job to Define/Assign profile svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -489,6 +489,15 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileChanged,
+			newAsst.TeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
+		}
+
 		var teamName *string
 		if newAsst.TeamID != nil {
 			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
@@ -532,6 +541,15 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileDeleted,
+			teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
+		}
+
 		var teamName *string
 		if teamID != nil {
 			tm, err := svc.ds.Team(ctx, *teamID)
@@ -672,22 +690,10 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	// TODO(mna): all profiles must be updated: this gets called when the ServerURL or MDM
-	// SSO got modified. And then all devices part of the profile's team must be re-assigned
-	// the updated profile. Enqueue a worker job to take care of this.
-
-	// get the automatic enrollment profile to re-define it with Apple.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
-
-	if depProf == nil {
-		// CreateDefaultProfile takes care of registering the profile with Apple.
-		return svc.depService.CreateDefaultProfile(ctx)
-	}
-
-	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
+	return nil
 }
 
 // returns the default automatic enrollment profile, or nil (without error) if none exists.
