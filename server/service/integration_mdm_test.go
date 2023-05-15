@@ -368,6 +368,8 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 		<-ch
 	}
 
+	origPush := s.pushProvider.PushFunc
+	defer func() { s.pushProvider.PushFunc = origPush }()
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
 		require.Equal(t, pushes[0].PushMagic, "pushmagic"+mdmDevice.SerialNumber)
