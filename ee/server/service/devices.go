@@ -41,8 +41,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	if appCfg.MDM.EnabledAndConfigured &&
-		// TODO: integrate when this config is ready
-		// appCfg.MDM.MacOSMigration.Enabled &&
+		appCfg.MDM.MacOSMigration.Enable &&
 		host.IsOsqueryEnrolled() &&
 		host.MDMInfo.IsDEPCapable() &&
 		host.MDMInfo.IsEnrolledInThirdPartyMDM() {
