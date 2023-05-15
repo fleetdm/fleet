@@ -425,23 +425,7 @@ This is the callback endpoint that the identity provider will use to send securi
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet as well as additional meta data
-for pagination. The following types of activity are included:
-
-- Created pack
-- Edited pack
-- Deleted pack
-- Applied pack with fleetctl
-- Created policy
-- Edited policy
-- Deleted policy
-- Applied policy with fleetctl
-- Created saved query
-- Edited saved query
-- Deleted saved query
-- Applied query with fleetctl
-- Ran live query
-- Created team - _Available in Fleet Premium_
-- Deleted team - _Available in Fleet Premium_
+for pagination. For a comprehensive list of activity types and detailed information, please see [Audit activities](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
