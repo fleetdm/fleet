@@ -62,7 +62,7 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 
 	t.Run("with flag to enable MDM migration", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusOK
-		mockRequestDoer.resBody = `{"failing_policies_count": 15, "notifications": {"needs_fleet_mdm_migration": true}}`
+		mockRequestDoer.resBody = `{"failing_policies_count": 15, "notifications": {"needs_mdm_migration": true}}`
 		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
 		require.EqualValues(t, 15, *result.FailingPolicies)
