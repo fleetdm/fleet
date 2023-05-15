@@ -859,6 +859,7 @@ None.
     },
     "macos_setup": {
       "bootstrap_package": "",
+      "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
     }
   },
@@ -934,16 +935,6 @@ None.
   },
   "integrations": {
     "jira": null
-  },
-  "mdm": {
-    "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
-    "enabled_and_configured": false,
-    "apple_bm_default_team": "",
-    "macos_updates": {
-      "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
-    }
   },
   "logging": {
     "debug": false,
@@ -1047,6 +1038,7 @@ Modifies the Fleet's configuration with the supplied information.
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1142,6 +1134,7 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "macos_setup": {
       "bootstrap_package": "",
+      "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json"
     }
   },
@@ -4293,6 +4286,38 @@ The summary can optionally be filtered by team id.
 }
 ```
 
+### Turn on end user authentication for macOS setup
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/setup`
+
+#### Parameters
+
+| Name                           | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_end_user_authentication | boolean | body  | Whether end user authentication should be enabled for new macOS devices that automatically enroll to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/setup`
+
+##### Request body
+
+```json
+{
+  "team_id": 1,
+  "enabled_end_user_authentication": true
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+
+
 ### Upload an EULA file 
 
 _Available in Fleet Premium_
@@ -6370,6 +6395,7 @@ _Available in Fleet Premium_
       },
       "macos_setup": {
         "bootstrap_package": "",
+        "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json"
       }
     }
@@ -6482,6 +6508,8 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
+| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication).                                                                                      |
 
 
 #### Example (add users to a team)
@@ -6547,6 +6575,7 @@ _Available in Fleet Premium_
       },
       "macos_setup": {
         "bootstrap_package": "",
+        "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json"
       }
     }

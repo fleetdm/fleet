@@ -64,7 +64,7 @@ docker push "${FLEET_ECR_IMAGE:?}"
 # and apply.
 
 ${SED:?} -i '/name  = "imageTag"/!b;n;c\    value = "'${ECR_IMAGE_VERSION:?}'"' PreProvisioner/lambda/deploy_terraform/main.tf
-${SED:?} -i 's/^\(  fleet_tag = \).*/\1"fleet-'${ECR_IMAGE_VERSION:?}'"/g' JITProvisioner/jitprovisioner.tf
+${SED:?} -i 's/^\(  fleet_tag = \).*/\1"'${ECR_IMAGE_VERSION:?}'"/g' JITProvisioner/jitprovisioner.tf
 
 # Before running terraform, clean up the deprovisioner just in case
 rm -rf ./JITProvisioner/deprovisioner/deploy_terraform/.terraform

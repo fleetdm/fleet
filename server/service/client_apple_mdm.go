@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,6 +16,10 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	var commandPayload map[string]interface{}
 	if _, err := plist.Unmarshal(rawPlist, &commandPayload); err != nil {
 		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
+	}
+
+	if commandPayload == nil {
+		return nil, errors.New("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.")
 	}
 
 	// generate a random command UUID

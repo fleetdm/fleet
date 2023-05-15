@@ -29,7 +29,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
-	MDMAppleSyncDEPProfile            func(ctx context.Context) error
+	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
@@ -600,13 +600,6 @@ type Service interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
-	// Such enrollment profiles allow devices to enroll to Fleet MDM.
-	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
-
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
@@ -655,7 +648,7 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.
-	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (status int, result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
@@ -719,6 +712,10 @@ type Service interface {
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

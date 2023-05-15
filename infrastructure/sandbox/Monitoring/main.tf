@@ -215,7 +215,7 @@ resource "aws_cloudwatch_metric_alarm" "unclaimed" {
   namespace           = "Fleet/sandbox"
   period              = "900"
   statistic           = "Average"
-  threshold           = "5"
+  threshold           = "10"
   alarm_actions       = [module.notify_slack.slack_topic_arn]
   ok_actions          = [module.notify_slack.slack_topic_arn]
   treat_missing_data  = "breaching"
