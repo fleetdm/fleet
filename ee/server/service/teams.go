@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -414,8 +415,12 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
 	}
 	hostIDs := make([]uint, 0, len(hosts))
+	mdmHostSerials := make([]string, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() || host.MDMInfo.IsDEPFleetEnrolled() {
+			mdmHostSerials = append(mdmHostSerials, host.HardwareSerial)
+		}
 	}
 
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
@@ -428,6 +433,18 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
 		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
+	}
+
+	if len(mdmHostSerials) > 0 {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantTeamDeleted,
+			nil,
+			mdmHostSerials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant team deleted job")
+		}
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
