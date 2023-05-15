@@ -49,11 +49,14 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // bodyParser: (function _configureBodyParser(){
-    //   var skipper = require('skipper');
-    //   var middlewareFn = skipper({ strict: true });
-    //   return middlewareFn;
-    // })(),
+    bodyParser: (function _configureBodyParser(){
+      var skipper = require('skipper');
+      var middlewareFn = skipper({
+        strict: true,
+        limit: '2mb',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
+      });
+      return middlewareFn;
+    })(),
 
   },
 
