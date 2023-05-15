@@ -238,7 +238,7 @@ func (c *Client) CheckPremiumMDMEnabled() error {
 	if err != nil {
 		return err
 	}
-	if appCfg.License == nil || appCfg.License.Tier != fleet.TierPremium {
+	if appCfg.License == nil || !appCfg.License.IsPremium() {
 		return errors.New("missing or invalid license")
 	}
 	if !appCfg.MDM.EnabledAndConfigured {

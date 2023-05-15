@@ -814,6 +814,16 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
+	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
+	// specified team (or no team if teamID is nil).
+	ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error)
+
+	// ListMDMAppleDEPSerialsInHostIDs returns a list of serial numbers of hosts
+	// that are enrolled or pending enrollment in Fleet's MDM via DEP in the
+	// specified list of host IDs.
+	ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
