@@ -208,7 +208,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		response.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
 
-	if license.Tier != "premium" || response.FleetDesktop.TransparencyURL == "" {
+	if (!license.IsPremium()) || response.FleetDesktop.TransparencyURL == "" {
 		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
 	}
 
@@ -258,7 +258,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
-		if license.Tier != "premium" {
+		if !license.IsPremium() {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -383,7 +383,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if license.Tier != "premium" {
+	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
@@ -487,7 +487,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
