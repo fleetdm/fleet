@@ -72,10 +72,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple mobile device management (MDM) certificate information                                                                          |          |           |            | ✅     |        |
 | View Apple business manager (BM) information                                                                                               |          |           |            | ✅     |        |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |           |            | ✅     |        |
-| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                           | ✅        | ✅         | ✅          | ✅     |        |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          |           | ✅          | ✅     | ✅      |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM***                                                                                |          |           | ✅          | ✅     |        |
-| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM***                                                               | ✅        | ✅         | ✅          | ✅     |        |
+| View disk encryption key for macOS hosts                                                                           | ✅        | ✅         | ✅          | ✅     |        |
+| Create edit and delete configuration profiles for macOS hosts                                                     |          |           | ✅          | ✅     | ✅      |
+| Execute MDM commands on macOS hosts***                                                                                |          |           | ✅          | ✅     |        |
+| View results of MDM commands executed on macOS hosts***                                                               | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
 | View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
@@ -129,11 +129,11 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Read agent options\*                                                                                                             | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅          | ✅           |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅               | ✅          |             |
-| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅             | ✅              | ✅               | ✅          |             |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          | ✅           |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results*                                            |               |                | ✅               | ✅          |             |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM*                                                                      |               |                | ✅               | ✅          |             |
-| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM*                                                     | ✅             | ✅              | ✅               | ✅          |             |
+| View disk encryption key for macOS hosts                                                                 | ✅             | ✅              | ✅               | ✅          |             |
+| Create edit and delete configuration profiles for macOS hosts                                            |               |                | ✅               | ✅          | ✅           |
+| Execute MDM commands on macOS hosts, and read command results*                                            |               |                | ✅               | ✅          |             |
+| Execute MDM commands on macOS hosts*                                                                      |               |                | ✅               | ✅          |             |
+| View results of MDM commands executed on macOS hosts*                                                     | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          | ✅           |
