@@ -117,6 +117,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
+	if config.OrgInfo.ContactURL == "" {
+		config.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
+	}
+
 	features := config.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
@@ -295,6 +299,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
+	if appConfig.OrgInfo.ContactURL == "" {
+		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -588,6 +596,29 @@ func (svc *Service) validateMDM(
 			// config are available
 			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
+	}
+
+	updatingMacOSMigration := mdm.MacOSMigration.Enable != oldMdm.MacOSMigration.Enable ||
+		mdm.MacOSMigration.Mode != oldMdm.MacOSMigration.Mode ||
+		mdm.MacOSMigration.WebhookURL != oldMdm.MacOSMigration.WebhookURL
+
+	// MacOSMigration validation
+	if updatingMacOSMigration {
+		if mdm.MacOSMigration.Enable {
+			if license.Tier != fleet.TierPremium {
+				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
+				return
+			}
+			if !mdm.MacOSMigration.Mode.IsValid() {
+				invalid.Append("macos_migration.mode", "mode must be one of 'voluntary' or 'forced'")
+			}
+			// TODO: improve url validation generally
+			if u, err := url.ParseRequestURI(mdm.MacOSMigration.WebhookURL); err != nil {
+				invalid.Append("macos_migration.webhook_url", err.Error())
+			} else if u.Scheme != "https" {
+				invalid.Append("macos_migration.webhook_url", "webhook_url must be https")
+			}
 		}
 	}
 }
