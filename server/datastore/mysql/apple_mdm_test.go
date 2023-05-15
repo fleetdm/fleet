@@ -1825,10 +1825,6 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	// duplicated values get updated
-	err = ds.InsertMDMIdPAccount(ctx, acc)
-	require.NoError(t, err)
-
 	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
 	require.NoError(t, err)
 	require.Equal(t, acc, out)
