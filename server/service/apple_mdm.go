@@ -906,7 +906,7 @@ func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, false)
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
@@ -920,7 +920,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	ctx context.Context,
 	rawBase64Cmd string,
 	deviceIDs []string,
-	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
 	premiumCommands := map[string]bool{
 		"EraseDevice": true,
@@ -2324,12 +2323,15 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	var profiles []*fleet.MDMAppleConfigProfile
 	for _, es := range enrollSecrets {
 		if es.Secret == "" {
+			var msg string
+			if es.TeamID != nil {
+				msg += fmt.Sprintf("team_id %d doesn't have an enroll secret, ", *es.TeamID)
+			}
 			if globalSecret == "" {
-				logger.Log("err", "team_id %d doesn't have an enroll secret, and couldn't find a global enroll secret, skipping the creation of a com.fleetdm.fleetd.config profile")
+				logger.Log("err", msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
 				continue
 			}
-
-			logger.Log("err", "team_id %d doesn't have an enroll secret, using a global enroll secret")
+			logger.Log("err", msg+"using a global enroll secret for com.fleetdm.fleetd.config profile")
 			es.Secret = globalSecret
 		}
 
@@ -2545,5 +2547,6 @@ func ReconcileProfiles(
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
 		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
+
 	return nil
 }
