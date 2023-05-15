@@ -18,6 +18,7 @@ import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
+import Query from "./Query";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -80,6 +81,7 @@ export const ICON_MAP = {
   lightbulb: Lightbulb,
   issue: Issue,
   plus: Plus,
+  query: Query,
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,

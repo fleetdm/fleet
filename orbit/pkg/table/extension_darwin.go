@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
+	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
@@ -50,6 +51,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("mdm", mdm.MDMInfoColumns(), mdm.MDMInfoGenerate),
 		table.NewPlugin("munki_info", munki.MunkiInfoColumns(), munki.MunkiInfoGenerate),
 		table.NewPlugin("munki_installs", munki.MunkiInstallsColumns(), munki.MunkiInstallsGenerate),
+		table.NewPlugin("macos_rsr", macosrsr.MacOSRsrColumns(), macosrsr.MacOSRsrGenerate),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),

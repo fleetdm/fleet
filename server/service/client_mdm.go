@@ -11,7 +11,9 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -139,15 +141,39 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 }
 
 func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBootstrapPackage, error) {
-	if err := c.CheckMDMEnabled(); err != nil {
+	if err := c.CheckPremiumMDMEnabled(); err != nil {
 		return nil, err
 	}
 
 	return downloadRemoteMacosBootstrapPackage(url)
 }
 
-func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPackage, error) {
-	resp, err := http.Get(url) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
+func extractFilenameFromPath(p string) string {
+	u, err := url.Parse(p)
+	if err != nil {
+		return ""
+	}
+
+	invalid := map[string]struct{}{
+		"":  {},
+		".": {},
+		"/": {},
+	}
+
+	b := path.Base(u.Path)
+	if _, ok := invalid[b]; ok {
+		return ""
+	}
+
+	if _, ok := invalid[path.Ext(b)]; ok {
+		return b + ".pkg"
+	}
+
+	return b
+}
+
+func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstrapPackage, error) {
+	resp, err := http.Get(pkgURL) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
 	if err != nil {
 		return nil, fmt.Errorf("downloading bootstrap package: %w", err)
 	}
@@ -166,6 +192,13 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 			filename = params["filename"]
 		}
 	}
+
+	// if it fails, try to extract it from the URL
+	if filename == "" {
+		filename = extractFilenameFromPath(pkgURL)
+	}
+
+	// if all else fails, use a default name
 	if filename == "" {
 		filename = "bootstrap-package.pkg"
 	}
@@ -183,7 +216,7 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 		case errors.Is(err, file.ErrInvalidType):
 			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-setup")
+			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-sign-the-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}

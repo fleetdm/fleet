@@ -123,6 +123,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
+	mdmPushCertTopic := ""
+	if len(opts) > 0 && opts[0].APNSTopic != "" {
+		mdmPushCertTopic = opts[0].APNSTopic
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -143,7 +148,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		"",
+		mdmPushCertTopic,
 		cronSchedulesService,
 	)
 	if err != nil {
@@ -262,6 +267,7 @@ type TestServerOpts struct {
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
 	UseMailService      bool
+	APNSTopic           string
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -557,8 +563,6 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 
 func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 	return [][2]string{
-		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
 		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
 		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
@@ -578,6 +582,14 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"GET", "/api/latest/fleet/mdm/apple"},
 		{"GET", apple_mdm.EnrollPath + "?token=test"},
 		{"GET", apple_mdm.InstallerPath + "?token=test"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token"},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata"},
+		// TODO: this endpoint accepts multipart/form data that gets
+		// parsed before the MDM check, we need to refactor this
+		// function to return more information to the caller, or find a
+		// better way to test these endpoints.
+		// {"POST", "/api/latest/fleet/mdm/apple/setup/eula"},
 		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
 		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},

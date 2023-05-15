@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMDMAppleConfigProfile(t *testing.T) {
+func TestMDMApple(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -54,7 +54,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
 		{"TestListMDMAppleCommands", testListMDMAppleCommands},
+		{"TestMDMAppleEULA", testMDMAppleEULA},
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
+		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 	}
 
 	for _, c := range cases {
@@ -442,9 +444,10 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	}
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk")
 
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
 	require.Equal(t, int64(3), n) // 3 new hosts ("abc", "xyz", "ijk")
+	require.Nil(t, tmID)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, len(wantSerials))
 	gotSerials := []string{}
@@ -467,8 +470,9 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "def", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
+	require.Nil(t, tmID)
 	require.Equal(t, int64(2), n)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 2)
@@ -492,9 +496,11 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
+	require.NotNil(t, tmID)
+	require.Equal(t, team.ID, *tmID)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
 	for _, h := range hosts {
@@ -513,9 +519,10 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "jqk", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	n, tmID, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
 	require.EqualValues(t, n, 1)
+	require.Nil(t, tmID)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 4)
 	for _, h := range hosts {
@@ -637,11 +644,12 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	testModel := "MacBook Pro"
 
 	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
+	require.Nil(t, tmID)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	// hosts that are first ingested via DEP will have a serial number but not a UUID because UUID
@@ -683,11 +691,12 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
 	// no effect if same host appears in DEP sync
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(0), n)
+	require.Nil(t, tmID)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -3219,6 +3228,47 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testMDMAppleEULA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	eula := &fleet.MDMAppleEULA{
+		Token: uuid.New().String(),
+		Name:  "eula.pdf",
+		Bytes: []byte("contents"),
+	}
+
+	err := ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.ErrorAs(t, err, &ae)
+
+	gotEULA, err := ds.MDMAppleGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotEULA.CreatedAt)
+	require.Equal(t, eula.Token, gotEULA.Token)
+	require.Equal(t, eula.Name, gotEULA.Name)
+
+	gotEULABytes, err := ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.NoError(t, err)
+	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
+	require.Equal(t, eula.Name, gotEULABytes.Name)
+
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.NoError(t, err)
+
+	var nfe fleet.NotFoundError
+	_, err = ds.MDMAppleGetEULAMetadata(ctx)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMAppleInsertEULA(ctx, eula)
+	require.NoError(t, err)
+}
+
 func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3284,6 +3334,70 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	require.Equal(t, "test3", noTeamAsst2.Name)
 	require.JSONEq(t, `{"x": 3}`, string(noTeamAsst2.Profile))
 
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team no change, uploaded at timestamp does not change
+	tmAsst3, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst2, tmAsst3)
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "abcd")
+	require.NoError(t, err)
+
+	// get for team returns the same data, but now with a profile uuid
+	getAsst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, "abcd", getAsst.ProfileUUID)
+	getAsst.ProfileUUID = ""
+	require.Equal(t, tmAsst3, getAsst)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert again the team with no change, uploaded at timestamp does not change nor does the profile uuid
+	tmAsst4, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":2}`)})
+	require.NoError(t, err)
+	require.Equal(t, "abcd", tmAsst4.ProfileUUID)
+	tmAsst4.ProfileUUID = ""
+	require.Equal(t, tmAsst3, tmAsst4)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team with a change, clears the profile uuid and updates the uploaded at timestamp
+	tmAsst5, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst4.ID, tmAsst5.ID)
+	require.True(t, tmAsst5.UploadedAt.After(tmAsst4.UploadedAt))
+	require.Equal(t, tmAsst4.TeamID, tmAsst5.TeamID)
+	require.Equal(t, "test2", tmAsst5.Name)
+	require.Empty(t, tmAsst5.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst5.Profile))
+
+	// set a profile uuid for the team assistant
+	err = ds.SetMDMAppleSetupAssistantProfileUUID(ctx, &tm.ID, "efgh")
+	require.NoError(t, err)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert again the team with no change
+	tmAsst6, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test2", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, "efgh", tmAsst6.ProfileUUID)
+	tmAsst6.ProfileUUID = ""
+	require.Equal(t, tmAsst5, tmAsst6)
+
+	time.Sleep(time.Second) // ensures the timestamp checks are not by chance
+
+	// upsert team with a name change
+	tmAsst7, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID, Name: "test3", Profile: json.RawMessage(`{"x":3}`)})
+	require.NoError(t, err)
+	require.Equal(t, tmAsst6.ID, tmAsst7.ID)
+	require.True(t, tmAsst7.UploadedAt.After(tmAsst6.UploadedAt))
+	require.Equal(t, tmAsst6.TeamID, tmAsst7.TeamID)
+	require.Equal(t, "test3", tmAsst7.Name)
+	require.Empty(t, tmAsst7.ProfileUUID)
+	require.JSONEq(t, `{"x": 3}`, string(tmAsst7.Profile))
+
 	// delete no team
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, nil)
 	require.NoError(t, err)
@@ -3300,4 +3414,57 @@ func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	// delete the team assistant, no error if it doesn't exist
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm.ID)
 	require.NoError(t, err)
+}
+
+func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	_, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	_, err = ds.GetMDMAppleEnrollmentProfileByToken(ctx, "abcd")
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// add a new automatic enrollment profile
+	rawMsg := json.RawMessage(`{"allow_pairing": true}`)
+	profAuto, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "automatic",
+		DEPProfile: &rawMsg,
+		Token:      "abcd",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, profAuto.ID)
+
+	// add a new manual enrollment profile
+	profMan, err := ds.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       "manual",
+		DEPProfile: &rawMsg,
+		Token:      "efgh",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, profMan.ID)
+
+	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+
+	tokens := make([]string, 2)
+	for i, p := range profs {
+		tokens[i] = p.Token
+	}
+	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
+
+	// get the automatic profile by type
+	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.NoError(t, err)
+	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
+	require.Equal(t, profAuto, getProf)
+
+	// get the manual profile by token
+	getProf, err = ds.GetMDMAppleEnrollmentProfileByToken(ctx, "efgh")
+	require.NoError(t, err)
+	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
+	require.Equal(t, profMan, getProf)
 }

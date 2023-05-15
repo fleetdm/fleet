@@ -536,6 +536,8 @@ type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayloa
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
 
+type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
+
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error)
@@ -558,7 +560,7 @@ type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
-type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
+type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, *uint, error)
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
@@ -602,11 +604,21 @@ type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
+type MDMAppleGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMAppleEULA, error)
+
+type MDMAppleGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error)
+
+type MDMAppleInsertEULAFunc func(ctx context.Context, eula *fleet.MDMAppleEULA) error
+
+type MDMAppleDeleteEULAFunc func(ctx context.Context, token string) error
+
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
+
+type SetMDMAppleSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *uint, profileUUID string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1389,6 +1401,9 @@ type DataStore struct {
 	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
 	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
 
+	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
+	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
+
 	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
 	ListMDMAppleEnrollmentProfilesFuncInvoked bool
 
@@ -1488,6 +1503,18 @@ type DataStore struct {
 	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
 	GetHostMDMMacOSSetupFuncInvoked bool
 
+	MDMAppleGetEULAMetadataFunc        MDMAppleGetEULAMetadataFunc
+	MDMAppleGetEULAMetadataFuncInvoked bool
+
+	MDMAppleGetEULABytesFunc        MDMAppleGetEULABytesFunc
+	MDMAppleGetEULABytesFuncInvoked bool
+
+	MDMAppleInsertEULAFunc        MDMAppleInsertEULAFunc
+	MDMAppleInsertEULAFuncInvoked bool
+
+	MDMAppleDeleteEULAFunc        MDMAppleDeleteEULAFunc
+	MDMAppleDeleteEULAFuncInvoked bool
+
 	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
 	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
 
@@ -1496,6 +1523,9 @@ type DataStore struct {
 
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
+
+	SetMDMAppleSetupAssistantProfileUUIDFunc        SetMDMAppleSetupAssistantProfileUUIDFunc
+	SetMDMAppleSetupAssistantProfileUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3320,6 +3350,13 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, token)
 }
 
+func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAppleEnrollmentProfileByTypeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleEnrollmentProfileByTypeFunc(ctx, typ)
+}
+
 func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
 	s.mu.Lock()
 	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
@@ -3397,7 +3434,7 @@ func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	return s.MDMAppleListDevicesFunc(ctx)
 }
 
-func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error) {
 	s.mu.Lock()
 	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
 	s.mu.Unlock()
@@ -3551,6 +3588,34 @@ func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fle
 	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
 }
 
+func (s *DataStore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	s.mu.Lock()
+	s.MDMAppleGetEULAMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleGetEULAMetadataFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	s.mu.Lock()
+	s.MDMAppleGetEULABytesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleGetEULABytesFunc(ctx, token)
+}
+
+func (s *DataStore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	s.mu.Lock()
+	s.MDMAppleInsertEULAFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleInsertEULAFunc(ctx, eula)
+}
+
+func (s *DataStore) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	s.mu.Lock()
+	s.MDMAppleDeleteEULAFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDeleteEULAFunc(ctx, token)
+}
+
 func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	s.mu.Lock()
 	s.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = true
@@ -3570,4 +3635,11 @@ func (s *DataStore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+	s.mu.Lock()
+	s.SetMDMAppleSetupAssistantProfileUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMAppleSetupAssistantProfileUUIDFunc(ctx, teamID, profileUUID)
 }

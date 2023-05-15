@@ -3,8 +3,10 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -57,10 +59,6 @@ func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, MDMPath)
 }
 
-func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, EnrollPath)
-}
-
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, SCEPPath)
 }
@@ -87,8 +85,8 @@ type DEPService struct {
 	logger     kitlog.Logger
 }
 
-// GetDefaultProfile returns a godep.Profile with default values set.
-func (d *DEPService) GetDefaultProfile() *godep.Profile {
+// getDefaultProfile returns a godep.Profile with default values set.
+func (d *DEPService) getDefaultProfile() *godep.Profile {
 	return &godep.Profile{
 		ProfileName:           "FleetDM default enrollment profile",
 		AllowPairing:          true,
@@ -127,7 +125,7 @@ func (d *DEPService) GetDefaultProfile() *godep.Profile {
 // CreateDefaultProfile creates a new DEP enrollment profile with default
 // values in the database and registers it in Apple's servers.
 func (d *DEPService) CreateDefaultProfile(ctx context.Context) error {
-	if err := d.createProfile(ctx, d.GetDefaultProfile()); err != nil {
+	if err := d.createProfile(ctx, d.getDefaultProfile()); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating profile")
 	}
 	return nil
@@ -140,11 +138,6 @@ func (d *DEPService) CreateDefaultProfile(ctx context.Context) error {
 // https://developer.apple.com/documentation/devicemanagement/profile
 func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profile) error {
 	token := uuid.New().String()
-	enrollURL, err := d.EnrollURL(token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating enroll URL")
-	}
-
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling provided profile")
@@ -152,30 +145,55 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 
 	payload := fleet.MDMAppleEnrollmentProfilePayload{
 		Token:      token,
-		Type:       "automatic",
+		Type:       fleet.MDMAppleEnrollmentTypeAutomatic,
 		DEPProfile: ptr.RawMessage(rawDEPProfile),
 	}
-
 	if _, err := d.ds.NewMDMAppleEnrollmentProfile(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "saving enrollment profile in DB")
 	}
 
-	if err := d.RegisterProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
+	if err := d.RegisterProfileWithAppleDEPServer(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "registering profile in Apple servers")
 	}
 
 	return nil
 }
 
-// registerProfileInDEPServe is in charge of registering the enrollment profile
-// in Apple's servers via the DEP API, so it can be used for assignment.
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
-	appConfig, err := d.ds.AppConfig(context.Background())
+// RegisterProfileWithAppleDEPServer registers the enrollment profile in
+// Apple's servers via the DEP API, so it can be used for assignment. If
+// setupAsst is nil, the default profile is registered.
+func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, setupAsst *fleet.MDMAppleSetupAssistant) error {
+	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("get app config: %w", err)
+		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	depProfile.URL = enrollURL
+	// must always get the default profile, because the authentication token is
+	// defined on that profile.
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+
+	var rawJSON json.RawMessage
+	if defaultProf.DEPProfile != nil {
+		rawJSON = *defaultProf.DEPProfile
+	}
+	if setupAsst != nil {
+		rawJSON = setupAsst.Profile
+	}
+
+	var jsonProf *godep.Profile
+	if err := json.Unmarshal(rawJSON, &jsonProf); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
+	}
+
+	jsonProf.URL = enrollURL
 
 	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
 	// flow, otherwise use Fleet's enroll URL.
@@ -184,65 +202,117 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, depP
 	// always still set configuration_web_url, otherwise the request method
 	// coming from Apple changes from GET to POST, and we want to preserve
 	// backwards compatibility.
-	if appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
-		depProfile.ConfigurationWebURL = enrollURL
-	} else {
-		depProfile.ConfigurationWebURL = appConfig.ServerSettings.ServerURL + "/mdm/sso"
+	jsonProf.ConfigurationWebURL = enrollURL
+	if !appCfg.MDM.EndUserAuthentication.SSOProviderSettings.IsEmpty() {
+		// TODO: modify method signatures for this (and callers as applicable)
+		// to include a team config pointer and check enable_end_user_authenthication
+		// in the team config if not nil otherwise check enable_end_user_authenthication
+		// in the app config.
+		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
 	}
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(context.Background(), DEPName, depProfile)
+	res, err := depClient.DefineProfile(ctx, DEPName, jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
-	if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set profile UUID")
+	if setupAsst != nil {
+		setupAsst.ProfileUUID = res.ProfileUUID
+		if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "save setup assistant profile UUID")
+		}
+	} else {
+		// for backwards compatibility, we store the profile UUID of the default
+		// profile in the nanomdm storage.
+		if err := d.depStorage.StoreAssignerProfile(ctx, DEPName, res.ProfileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "save default profile UUID")
+		}
 	}
 
 	return nil
 }
 
-// EnrollURL returns an URL that can be used to obtain an MDM enrollment
-// profile (xml) from Fleet.
-func (d *DEPService) EnrollURL(token string) (string, error) {
-	appConfig, err := d.ds.AppConfig(context.Background())
+func (d *DEPService) ensureDefaultSetupAssistant(ctx context.Context) (string, time.Time, error) {
+	profileUUID, profileModTime, err := d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
 	if err != nil {
-		return "", fmt.Errorf("get app config: %w", err)
+		return "", time.Time{}, err
+	}
+	if profileUUID == "" {
+		d.logger.Log("msg", "default DEP profile not set, creating")
+		if err := d.CreateDefaultProfile(ctx); err != nil {
+			return "", time.Time{}, err
+		}
+		profileUUID, profileModTime, err = d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+	}
+	return profileUUID, profileModTime, nil
+}
+
+func (d *DEPService) ensureCustomSetupAssistantIfExists(ctx context.Context, tmID *uint) (string, time.Time, error) {
+	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// no error, no custom setup assistant for that team
+			return "", time.Time{}, nil
+		}
+		return "", time.Time{}, err
 	}
 
-	return EnrollURL(token, appConfig)
+	if asst.ProfileUUID == "" {
+		if err := d.RegisterProfileWithAppleDEPServer(ctx, asst); err != nil {
+			return "", time.Time{}, err
+		}
+	}
+	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	profileUUID, profileModTime, err := d.depStorage.RetrieveAssignerProfile(ctx, DEPName)
+	// ensure the default (fallback) setup assistant profile exists, registered
+	// with Apple DEP.
+	_, defModTime, err := d.ensureDefaultSetupAssistant(ctx)
 	if err != nil {
 		return err
 	}
-	if profileUUID == "" {
-		d.logger.Log("msg", "DEP profile not set, creating one with default values")
 
-		// Note: This is likely to change once
-		// https://github.com/fleetdm/fleet/issues/10518 is defined and
-		// ready to develop. We'll have different DEP profiles per
-		// team, and we'll have to grab the right DEP profile for whatever
-		// AppConfig.MDM.AppleBMDefaultTeam is.
-		//
-		// I'm thinking that the default profile will be created along with
-		// the team, but that still TBD based on the designs of the CLI
-		// and the API.
-		if err := d.CreateDefaultProfile(ctx); err != nil {
+	// get the Apple BM default team and if it has a custom setup assistant,
+	// ensure it is registered with Apple DEP.
+	appCfg, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	var customTeamID *uint
+	if appCfg.MDM.AppleBMDefaultTeam != "" {
+		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
+		// NOTE: TeamByName does NOT return a not found error if it does not exist
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		profileModTime = time.Now()
+		if tm != nil {
+			customTeamID = &tm.ID
+		}
 	}
+	customUUID, customModTime, err := d.ensureCustomSetupAssistantIfExists(ctx, customTeamID)
+	if err != nil {
+		return err
+	}
+
+	// get the modification timestamp of the effective profile (custom or default)
+	effectiveProfModTime := defModTime
+	if customUUID != "" {
+		effectiveProfModTime = customModTime
+	}
+
 	cursor, cursorModTime, err := d.depStorage.RetrieveCursor(ctx, DEPName)
 	if err != nil {
 		return err
 	}
-	// If the DEP Profile was changed since last sync then we clear
+
+	// If the effective profile was changed since last sync then we clear
 	// the cursor and perform a full sync of all devices and profile assigning.
-	if cursor != "" && profileModTime.After(cursorModTime) {
+	if cursor != "" && effectiveProfModTime.After(cursorModTime) {
 		d.logger.Log("msg", "clearing device syncer cursor")
 		if err := d.depStorage.StoreCursor(ctx, DEPName, ""); err != nil {
 			return err
@@ -258,26 +328,19 @@ func NewDEPService(
 	loggingDebug bool,
 ) *DEPService {
 	depClient := NewDEPClient(depStorage, ds, logger)
-	assignerOpts := []depsync.AssignerOption{
-		depsync.WithAssignerLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
+	depSvc := &DEPService{
+		depStorage: depStorage,
+		logger:     logger,
+		ds:         ds,
 	}
-	if loggingDebug {
-		assignerOpts = append(assignerOpts, depsync.WithDebug())
-	}
-	assigner := depsync.NewAssigner(
-		depClient,
-		DEPName,
-		depStorage,
-		assignerOpts...,
-	)
 
-	syncer := depsync.NewSyncer(
+	depSvc.syncer = depsync.NewSyncer(
 		depClient,
 		DEPName,
 		depStorage,
 		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
+			n, teamID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
 			switch {
 			case err != nil:
 				level.Error(kitlog.With(logger)).Log("err", err)
@@ -288,16 +351,112 @@ func NewDEPService(
 				level.Info(kitlog.With(logger)).Log("msg", "no DEP hosts to add")
 			}
 
-			return assigner.ProcessDeviceResponse(ctx, resp)
+			// at this point, the hosts rows are created for the devices, with the
+			// correct team_id, so we know what team-specific profile needs to be applied.
+			return depSvc.processDeviceResponse(ctx, depClient, resp, teamID)
 		}),
 	)
 
-	return &DEPService{
-		syncer:     syncer,
-		depStorage: depStorage,
-		logger:     logger,
-		ds:         ds,
+	return depSvc
+}
+
+// processDeviceResponse processes the device response from the device sync
+// DEP API endpoints and assigns the profile UUID associated with the DEP
+// client DEP name.
+func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep.Client, resp *godep.DeviceResponse, tmID *uint) error {
+	if len(resp.Devices) < 1 {
+		// no devices means we can't assign anything
+		return nil
 	}
+
+	// get profile uuid of tmID or default
+	profUUID, _, err := d.ensureCustomSetupAssistantIfExists(ctx, tmID)
+	if err != nil {
+		return fmt.Errorf("ensure setup assistant for team %v: %w", tmID, err)
+	}
+	if profUUID == "" {
+		profUUID, _, err = d.ensureDefaultSetupAssistant(ctx)
+		if err != nil {
+			return fmt.Errorf("ensure default setup assistant: %w", err)
+		}
+	}
+
+	if profUUID == "" {
+		level.Debug(d.logger).Log("msg", "empty assigner profile UUID")
+		return nil
+	}
+
+	var serials []string
+	for _, device := range resp.Devices {
+		level.Debug(d.logger).Log(
+			"msg", "device",
+			"serial_number", device.SerialNumber,
+			"device_assigned_by", device.DeviceAssignedBy,
+			"device_assigned_date", device.DeviceAssignedDate,
+			"op_date", device.OpDate,
+			"op_type", device.OpType,
+			"profile_assign_time", device.ProfileAssignTime,
+			"push_push_time", device.ProfilePushTime,
+			"profile_uuid", device.ProfileUUID,
+		)
+		// We currently only listen for an op_type of "added", the other
+		// op_types are ambiguous and it would be needless to assign the
+		// profile UUID every single time we get an update.
+		if strings.ToLower(device.OpType) == "added" ||
+			// The op_type field is only applicable with the SyncDevices API call,
+			// Empty op_type come from the first call to FetchDevices without a cursor,
+			// and we do want to assign profiles to them.
+			strings.ToLower(device.OpType) == "" {
+			serials = append(serials, device.SerialNumber)
+		}
+	}
+
+	logger := kitlog.With(d.logger, "profile_uuid", profUUID)
+
+	if len(serials) < 1 {
+		level.Debug(logger).Log(
+			"msg", "no serials to assign",
+			"devices", len(resp.Devices),
+		)
+		return nil
+	}
+
+	apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, serials...)
+	if err != nil {
+		level.Info(logger).Log(
+			"msg", "assign profile",
+			"devices", len(serials),
+			"err", err,
+		)
+		return fmt.Errorf("assign profile: %w", err)
+	}
+
+	logs := []interface{}{
+		"msg", "profile assigned",
+		"devices", len(serials),
+	}
+	logs = append(logs, logCountsForResults(apiResp.Devices)...)
+	level.Info(logger).Log(logs...)
+
+	return nil
+}
+
+// logCountsForResults tries to aggregate the result types and log the counts.
+func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
+	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "other": 0}
+	for _, result := range deviceResults {
+		l := strings.ToLower(result)
+		if _, ok := results[l]; !ok {
+			l = "other"
+		}
+		results[l] += 1
+	}
+	for k, v := range results {
+		if v > 0 {
+			out = append(out, k, v)
+		}
+	}
+	return
 }
 
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided

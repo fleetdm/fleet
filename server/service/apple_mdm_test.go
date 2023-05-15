@@ -35,7 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
+func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 		MDMStorage:  mdmStorage,
 		DEPStorage:  depStorage,
 		MDMPusher:   pusher,
-		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		License:     license,
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -158,12 +158,24 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
+	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+		return &fleet.MDMAppleEULA{}, nil
+	}
+	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+		return nil
+	}
+	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
+		return nil
+	}
 
 	return svc, ctx, ds
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -178,11 +190,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
 		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleEnrollmentProfiles(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
+		_, err := svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.GetMDMAppleInstallerByID(ctx, 42)
 		checkAuthErr(t, err, shouldFailWithAuth)
@@ -193,6 +201,14 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+
+		// check EULA routes
+		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		checkAuthErr(t, err, shouldFailWithAuth)
+		err = svc.MDMAppleDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -216,6 +232,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	require.NoError(t, err)
+	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.
@@ -285,7 +303,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		for _, c := range enqueueCmdCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
-				_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids, false)
+				_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})
 		}
@@ -306,7 +324,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
-		_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"}, false)
+		_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 	})
@@ -423,7 +441,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 }
 
 func TestMDMAppleConfigProfileAuthz(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	testCases := []struct {
 		name             string
@@ -597,7 +615,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	mcBytes := mcBytesForTest("Foo", "Bar", "UUID")
@@ -647,7 +665,7 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 }
 
 func TestHostDetailsMDMProfiles(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	expected := []fleet.HostMDMAppleProfile{
@@ -789,31 +807,8 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 }
 
-func TestAppleMDMEnrollmentProfile(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
-
-	// Only global admins can create enrollment profiles.
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-	require.NoError(t, err)
-
-	// All other users should not have access to the endpoints.
-	for _, user := range []*fleet.User{
-		test.UserNoRoles,
-		test.UserMaintainer,
-		test.UserObserver,
-		test.UserObserverPlus,
-		test.UserTeamAdminTeam1,
-	} {
-		ctx := test.UserContext(ctx, user)
-		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
-	}
-}
-
 func TestMDMCommandAuthz(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
@@ -1226,7 +1221,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 }
 
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
@@ -1513,7 +1508,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 }
 
 func TestUpdateMDMAppleSettings(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
@@ -1664,6 +1659,163 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestUpdateMDMAppleSetup(t *testing.T) {
+	setupTest := func(tier string) (fleet.Service, context.Context, *mock.Store) {
+		svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: tier})
+		ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Name: "team"}, nil
+		}
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			return team, nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, appConfig *fleet.AppConfig) error {
+			return nil
+		}
+		return svc, ctx, ds
+	}
+
+	type testCase struct {
+		name    string
+		user    *fleet.User
+		teamID  *uint
+		wantErr string
+	}
+	// TODO: Add tests for gitops and observer plus roles? (Settings endpoint test above may also need to be updated)
+
+	t.Run("FreeTier", func(t *testing.T) {
+		freeTestCases := []testCase{
+			{
+				"global admin",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				nil,
+				"Requires Fleet Premium license",
+			},
+			{
+				"global maintainer",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				nil,
+				"Requires Fleet Premium license",
+			},
+			{
+				"team id with free license",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				ptr.Uint(1),
+				"Requires Fleet Premium license",
+			},
+		}
+		svc, ctx, _ := setupTest(fleet.TierFree)
+		for _, tt := range freeTestCases {
+			t.Run(tt.name, func(t *testing.T) {
+				// prepare the context with the user and license
+				ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+				err := svc.UpdateMDMAppleSetup(ctx, fleet.MDMAppleSetupPayload{TeamID: tt.teamID})
+				if tt.wantErr == "" {
+					require.NoError(t, err)
+					return
+				}
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+			})
+		}
+	})
+	t.Run("PremiumTier", func(t *testing.T) {
+		premiumTestCases := []testCase{
+			{
+				"global admin premium",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				nil,
+				"",
+			},
+			{
+				"global admin, team",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				ptr.Uint(1),
+				"",
+			},
+			{
+				"global maintainer premium",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				nil,
+				"",
+			},
+			{
+				"global maintainer, team",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+				ptr.Uint(1),
+				"",
+			},
+			{
+				"global observer",
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				nil,
+				authz.ForbiddenErrorMessage,
+			},
+			{
+				"team admin, DOES belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+				ptr.Uint(1),
+				"",
+			},
+			{
+				"team admin, DOES NOT belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+				ptr.Uint(1),
+				authz.ForbiddenErrorMessage,
+			},
+			{
+				"team maintainer, DOES belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				ptr.Uint(1),
+				"",
+			},
+			{
+				"team maintainer, DOES NOT belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+				ptr.Uint(1),
+				authz.ForbiddenErrorMessage,
+			},
+			{
+				"team observer, DOES belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+				ptr.Uint(1),
+				authz.ForbiddenErrorMessage,
+			},
+			{
+				"team observer, DOES NOT belong to team",
+				&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+				ptr.Uint(1),
+				authz.ForbiddenErrorMessage,
+			},
+			{
+				"user no roles",
+				&fleet.User{ID: 1337},
+				nil,
+				authz.ForbiddenErrorMessage,
+			},
+		}
+		svc, ctx, _ := setupTest(fleet.TierPremium)
+		for _, tt := range premiumTestCases {
+			t.Run(tt.name, func(t *testing.T) {
+				// prepare the context with the user and license
+				ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+				err := svc.UpdateMDMAppleSetup(ctx, fleet.MDMAppleSetupPayload{TeamID: tt.teamID})
+				if tt.wantErr == "" {
+					require.NoError(t, err)
+					return
+				}
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+			})
+		}
+	})
 }
 
 func TestMDMAppleCommander(t *testing.T) {
@@ -2249,7 +2401,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 }
 
 func TestMDMAppleSetupAssistant(t *testing.T) {
-	svc, ctx, ds := setupAppleMDMService(t)
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil

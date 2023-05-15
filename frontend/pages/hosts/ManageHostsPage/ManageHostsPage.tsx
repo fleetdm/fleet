@@ -57,6 +57,7 @@ import {
   HOSTS_SEARCH_BOX_TOOLTIP,
   PolicyResponse,
 } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -82,7 +83,8 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
 } from "./HostsPageConfig";
-import { isAcceptableStatus, getNextLocationPath } from "./helpers";
+import { isAcceptableStatus } from "./helpers";
+
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -157,6 +159,7 @@ const ManageHostsPage = ({
     ? JSON.parse(hostHiddenColumns)
     : null;
 
+  // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
     let direction = DEFAULT_SORT_DIRECTION;
@@ -169,26 +172,9 @@ const ManageHostsPage = ({
 
     return [{ key, direction }];
   })();
-
-  const initialQuery = (() => {
-    let query = "";
-
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-
-    return query;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams.page, 10);
-    }
-
-    return page;
-  })();
+  const initialQuery = (() => queryParams.query ?? "")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
@@ -502,7 +488,7 @@ const ManageHostsPage = ({
     }
     const path = location.pathname + location.search;
     if (filteredHostsPath !== path) {
-      setFilteredHostsPath(location.pathname + location.search);
+      setFilteredHostsPath(path);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
 
@@ -1434,6 +1420,7 @@ const ManageHostsPage = ({
 
     return (
       <TableContainer
+        resultsTitle="hosts"
         columns={tableColumns}
         data={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
@@ -1445,16 +1432,23 @@ const ManageHostsPage = ({
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
         pageSize={50}
-        actionButtonText={"Edit columns"}
-        actionButtonIcon={EditColumnsIcon}
-        actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        primarySelectActionButtonText={"Delete"}
-        primarySelectActionButtonIcon={"delete"}
-        primarySelectActionButtonVariant={"text-icon"}
+        actionButton={{
+          name: "edit columns",
+          buttonText: "Edit columns",
+          icon: EditColumnsIcon,
+          variant: "text-icon",
+          onActionButtonClick: toggleEditColumnsModal,
+        }}
+        primarySelectAction={{
+          name: "delete host",
+          buttonText: "Delete",
+          icon: "delete",
+          variant: "text-icon",
+          onActionButtonClick: onDeleteHostsClick,
+        }}
         secondarySelectActions={secondarySelectActions}
-        resultsTitle={"hosts"}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
@@ -1467,8 +1461,6 @@ const ManageHostsPage = ({
           })
         }
         customControl={renderCustomControls}
-        onActionButtonClick={toggleEditColumnsModal}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         resetPageIndex={resetPageIndex}

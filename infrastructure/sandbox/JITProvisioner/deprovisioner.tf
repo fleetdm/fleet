@@ -275,7 +275,8 @@ resource "aws_sfn_state_machine" "main" {
           ]
         }
       },
-      "Next": "Idle"
+      "Next": "Idle",
+      "ResultPath": null
     },
     "Idle": {
       "Type": "Wait",
