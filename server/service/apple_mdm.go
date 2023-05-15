@@ -2169,15 +2169,25 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				svc.logger.Log("info", "got an enroll_reference", "host_uuid", r.ID, "ref", ref)
 				appCfg, err := svc.ds.AppConfig(r.Context)
 				if err != nil {
-					return err
+					return fmt.Errorf("getting app config: %w", err)
 				}
 
 				acct, err := svc.ds.GetMDMIdPAccount(r.Context, ref)
 				if err != nil {
-					return err
+					return fmt.Errorf("getting idp account details for enroll reference %s: %w", ref, err)
 				}
 
-				if !appCfg.MDM.EndUserAuthentication.IsEmpty() {
+				ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+				if info.TeamID != 0 {
+					team, err := svc.ds.Team(r.Context, info.TeamID)
+					if err != nil {
+
+						return fmt.Errorf("fetch team to send AccountConfiguration: %w", err)
+					}
+					ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+				}
+
+				if ssoEnabled {
 					svc.logger.Log("info", "setting username and fullname", "host_uuid", r.ID)
 					if err := svc.commander.AccountConfiguration(
 						r.Context,
