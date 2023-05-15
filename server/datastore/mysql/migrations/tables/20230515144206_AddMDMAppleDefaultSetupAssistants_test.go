@@ -9,10 +9,6 @@ import (
 func TestUp_20230515144206(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	r, err := db.Exec(`INSERT INTO mdm_apple_default_setup_assistants (profile_uuid) VALUES (?)`, "abc")
-	require.NoError(t, err)
-	id, _ := r.LastInsertId()
-
 	// Apply current migration.
 	applyNext(t, db)
 
@@ -21,6 +17,11 @@ func TestUp_20230515144206(t *testing.T) {
 		ProfileUUID string `db:"profile_uuid"`
 	}
 	var asst assistant
+
+	r, err := db.Exec(`INSERT INTO mdm_apple_default_setup_assistants (profile_uuid) VALUES (?)`, "abc")
+	require.NoError(t, err)
+	id, _ := r.LastInsertId()
+
 	err = db.Get(&asst, `SELECT id, profile_uuid FROM mdm_apple_default_setup_assistants WHERE id = ?`, id)
 	require.NoError(t, err)
 	require.Equal(t, assistant{ID: uint(id), ProfileUUID: "abc"}, asst)
