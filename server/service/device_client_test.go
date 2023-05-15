@@ -47,7 +47,7 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		mockRequestDoer.resBody = `{}`
 		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
-		require.EqualValues(t, uint(0), result.FailingPolicies)
+		require.EqualValues(t, 0, *result.FailingPolicies)
 		require.False(t, result.Notifications.NeedsMDMMigration)
 	})
 
@@ -56,7 +56,7 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		mockRequestDoer.resBody = `{"failing_policies_count": 1}`
 		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
-		require.EqualValues(t, uint(1), result.FailingPolicies)
+		require.EqualValues(t, 1, *result.FailingPolicies)
 		require.False(t, result.Notifications.NeedsMDMMigration)
 	})
 
@@ -65,7 +65,7 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		mockRequestDoer.resBody = `{"failing_policies_count": 15, "notifications": {"needs_fleet_mdm_migration": true}}`
 		result, err := client.DesktopSummary(token)
 		require.NoError(t, err)
-		require.EqualValues(t, uint(15), result.FailingPolicies)
+		require.EqualValues(t, 15, *result.FailingPolicies)
 		require.True(t, result.Notifications.NeedsMDMMigration)
 	})
 }
