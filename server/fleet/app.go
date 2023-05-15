@@ -557,7 +557,6 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
-	// TODO: How is this supposed to work? Should we set org_info.contact_url here? It doesn't seem to make a difference.
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
