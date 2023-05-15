@@ -333,7 +333,7 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 

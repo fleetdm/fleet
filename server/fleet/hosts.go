@@ -725,6 +725,16 @@ func (h *HostMDM) IsDEPCapable() bool {
 	return !h.IsServer && h.InstalledFromDep
 }
 
+// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
+func (h *HostMDM) IsDEPFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`

@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
@@ -70,6 +71,7 @@ type integrationMDMTestSuite struct {
 	profileSchedule      *schedule.Schedule
 	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
 	mdmStorage           *mysql.NanoMDMStorage
+	worker               *worker.Worker
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -123,7 +125,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, true)
+					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
 					depSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
@@ -165,6 +167,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
 	s.mdmStorage = mdmStorage
+
+	macosJob := &worker.MacosSetupAssistant{
+		Datastore:  s.ds,
+		Log:        kitlog.NewJSONLogger(os.Stdout),
+		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, kitlog.NewJSONLogger(os.Stdout)),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, kitlog.NewJSONLogger(os.Stdout)),
+	}
+	workr := worker.NewWorker(s.ds, kitlog.NewJSONLogger(os.Stdout))
+	workr.TestIgnoreUnknownJobs = true
+	workr.Register(macosJob)
+	s.worker = workr
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -209,6 +222,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	// deleting the fleet-specific ones.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
+		return err
+	})
+	// clear any pending worker job
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM jobs")
 		return err
 	})
 }
@@ -3964,6 +3982,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
 
+	// trigger the worker to process the job and wait for result before continuing.
+	s.runWorker()
+
 	// check that the last submitted DEP profile has been updated accordingly
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
@@ -3975,6 +3996,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		"mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	s.runWorker()
 
 	// patch with explicitly empty mdm sso settings fields, would remove
 	// them but this is a dry-run
@@ -3991,6 +4014,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
 
+	s.runWorker()
+
 	// patch with explicitly empty mdm sso settings fields, removes them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4004,6 +4029,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		}
 	}`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
+
+	s.runWorker()
 	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
 
 	// set-up valid settings
@@ -4019,6 +4046,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		      }
 		}
 	}`), http.StatusOK, &acResp)
+
+	s.runWorker()
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
@@ -4064,6 +4093,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
                 "server_settings": {"server_url": "https://example.com"}
 	}`), http.StatusOK, &acResp)
+
+	s.runWorker()
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 }
@@ -4124,4 +4155,12 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Zero(t, *getDesktopResp.FailingPolicies)
 	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+}
+
+func (s *integrationMDMTestSuite) runWorker() {
+	err := s.worker.ProcessJobs(context.Background())
+	require.NoError(s.T(), err)
+	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pending)
 }
