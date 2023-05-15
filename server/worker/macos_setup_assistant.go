@@ -15,7 +15,7 @@ import (
 // Name of the macos setup assistant job as registered in the worker. Note that
 // although it is a single job, it processes a number of different-but-related
 // tasks, identified by the Task field in the job's payload.
-const macosSetupAssistantJobName = "macos_setup_assistant"
+const macosSetupAssistantJobName = "macos_setup_assistant" //nolint: gosec // somehow it detects this as credentials
 
 type MacosSetupAssistantTask string
 
