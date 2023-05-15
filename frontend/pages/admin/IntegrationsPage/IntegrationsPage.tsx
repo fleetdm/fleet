@@ -8,10 +8,14 @@ import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
 const baseClass = "integrations";
 
 interface IIntegrationSettingsPageProps {
+  router: any;
   params: Params;
 }
 
-const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
+const IntegrationsPage = ({
+  router,
+  params,
+}: IIntegrationSettingsPageProps) => {
   const { isSandboxMode } = useContext(AppContext);
   const { section } = params;
   const navItems = getFilteredIntegrationSettingsNavItems(isSandboxMode);
@@ -31,7 +35,7 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
         className={`${baseClass}__side-nav`}
         navItems={navItems}
         activeItem={currentSection.urlSection}
-        CurrentCard={<CurrentCard />}
+        CurrentCard={<CurrentCard router={router} />}
       />
     </div>
   );

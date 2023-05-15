@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { IMdmApple } from "interfaces/mdm";
 import mdmAppleAPI from "services/entities/mdm_apple";
@@ -17,7 +18,11 @@ import EulaSection from "./components/EulaSection/EulaSection";
 
 const baseClass = "automatic-enrollment";
 
-const AutomaticEnrollment = () => {
+interface IAutomaticEnrollment {
+  router: any;
+}
+
+const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
   const { isLoading: isLoadingMdmApple, error: errorMdmApple } = useQuery<
@@ -28,6 +33,10 @@ const AutomaticEnrollment = () => {
     retry: false,
     enabled: config?.mdm.enabled_and_configured,
   });
+
+  const onClickConnect = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
 
   if (!isPremiumTier) return <PremiumFeatureMessage />;
 
@@ -40,7 +49,7 @@ const AutomaticEnrollment = () => {
       <EmptyTable
         header="Automatic enrollment for macOS hosts"
         info="Connect Fleet to the Apple Push Certificates Portal to get started."
-        primaryButton={<Button>Connect</Button>}
+        primaryButton={<Button onClick={onClickConnect}>Connect</Button>}
         className={`${baseClass}__connect-message`}
       />
     );

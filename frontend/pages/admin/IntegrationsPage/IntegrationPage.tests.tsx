@@ -13,7 +13,7 @@ describe("Integrations Page", () => {
       },
     });
 
-    render(<IntegrationsPage params={{ section: "mdm" }} />);
+    render(<IntegrationsPage router={{}} params={{ section: "mdm" }} />);
 
     expect(
       screen.getByText("Mobile device management (MDM)")
