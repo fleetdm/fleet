@@ -4096,7 +4096,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NotNil(t, accCmd.Command)
 	require.True(t, accCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	require.Equal(t, "SSO User 1", accCmd.Command.AccountConfiguration.PrimaryAccountFullName)
-	require.Equal(t, "sso_user@example.com", accCmd.Command.AccountConfiguration.PrimaryAccountUserName)
+	require.Equal(t, "sso_user", accCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}

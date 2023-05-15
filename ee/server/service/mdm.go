@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -622,12 +623,20 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
-	// store information for automatic account population/creation
-	// TODO: check with customers/product: what SSO attributes do we want
-	// to use? for now, using email + displayname
+	// Store information for automatic account population/creation
+	//
+	// For now, we just grab whatever comes before the `@` in UserID, which
+	// must be an email.
+	//
+	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username, _, found := strings.Cut(auth.UserID(), "@")
+	if !found {
+		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		username = auth.UserID()
+	}
 	idpAcc := fleet.MDMIdPAccount{
 		UUID:     uuid.New().String(),
-		Username: auth.UserID(),
+		Username: username,
 		Fullname: auth.UserDisplayName(),
 	}
 	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
