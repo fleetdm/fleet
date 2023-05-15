@@ -20,6 +20,7 @@ import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
+import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 
 interface IABMKeys {
   decodedPublic: string;
@@ -299,6 +300,11 @@ const Mdm = (): JSX.Element => {
         <div className={`${baseClass}__section`}>
           <h2>Apple Business Manager</h2>
           {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
+        </div>
+      )}
+      {isPremiumTier && (
+        <div className={`${baseClass}__section`}>
+          <EndUserMigrationSection />
         </div>
       )}
       {showRequestCSRModal && (

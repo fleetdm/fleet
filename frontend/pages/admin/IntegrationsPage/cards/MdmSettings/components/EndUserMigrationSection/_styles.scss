@@ -1,0 +1,9 @@
+.end-user-migration-section {
+  > p {
+    font-size: $x-small;
+  }
+
+  &__end-user-migration-form.disabled {
+    opacity: 0.4;
+  }
+}
