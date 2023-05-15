@@ -2666,6 +2666,49 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, listCmdResp.Results[0])
 }
 
+func (s *integrationMDMTestSuite) TestAppConfigMDMMacOSMigration() {
+	t := s.T()
+
+	checkDefaultAppConfig := func() {
+		var ac appConfigResponse
+		s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &ac)
+		require.False(t, ac.MDM.MacOSMigration.Enable)
+		require.Empty(t, ac.MDM.MacOSMigration.Mode)
+		require.Empty(t, ac.MDM.MacOSMigration.WebhookURL)
+	}
+	checkDefaultAppConfig()
+
+	var acResp appConfigResponse
+	// missing webhook_url
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "" } }
+  	}`), http.StatusUnprocessableEntity, &acResp)
+	checkDefaultAppConfig()
+
+	// invalid url scheme for webhook_url
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "http://example.com" } }
+	}`), http.StatusUnprocessableEntity, &acResp)
+	checkDefaultAppConfig()
+
+	// invalid mode
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_migration": { "enable": true, "mode": "foobar", "webhook_url": "https://example.com" } }
+  	}`), http.StatusUnprocessableEntity, &acResp)
+	checkDefaultAppConfig()
+
+	// valid request
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
+	}`), http.StatusOK, &acResp)
+
+	// confirm new app config
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSMigration.Enable)
+	require.Equal(t, fleet.MacOSMigrationModeVoluntary, acResp.MDM.MacOSMigration.Mode)
+	require.Equal(t, "https://example.com", acResp.MDM.MacOSMigration.WebhookURL)
+}
+
 func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	t := s.T()
 
