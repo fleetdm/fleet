@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Apply configuration profiles and updates
-        uses: fleetdm/fleet-mdm-gitops@ccd567e9ca242d345b5e678c423d3263d3cdf1dd
+        uses: fleetdm/fleet-mdm-gitops@05889a234beea9a887d2f50c6c6db20260382856
         with:
           FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
           FLEET_URL: $DOGFOOD_URL
