@@ -130,6 +130,15 @@
         tbody {
           .name__cell {
             max-width: $col-lg;
+
+            .children-wrapper {
+              display: flex;
+              gap: $pad-xsmall;
+
+              .observer-can-run-tooltip {
+                font-weight: $regular;
+              }
+            }
           }
 
           @media (max-width: $break-990) {

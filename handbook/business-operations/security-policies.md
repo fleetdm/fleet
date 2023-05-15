@@ -415,9 +415,9 @@ The Security Incident Response Team (SIRT) is responsible for
 
 Current members of the Fleet SIRT:
 
-* Head of Security
 * CTO
 * CEO
+* VP of Customer Success
 
 #### Incident Management Process
 Fleet's incident response classifies security-related events into the following categories:
@@ -472,23 +472,23 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 1. Immediately upon observation, Fleet members report suspected and known
    Events, Precursors, Indications, and Incidents in one of the following ways:
 
-    1. Direct report to management, the Head of Security, CTO, CEO, or
+    1. Direct report to management, CTO, CEO, or
        other
     2. Email
     3. Phone call
     4. Slack
 
 2. The individual receiving the report facilitates the collection of additional
-   information about the incident, as needed, and notifies the Head of Security
+   information about the incident, as needed, and notifies the CTO
    (if not already done).
 
-3. The Head of Security determines if the issue is an Event, Precursor,
+3. The CTO determines if the issue is an Event, Precursor,
    Indication, or Incident.
 
-   1. If the issue is an event, indication, or precursor, the Head of Security
+   1. If the issue is an event, indication, or precursor, the CTO
       forwards it to the appropriate resource for resolution.
 
-      1. Non-Technical Event (minor infringement): the Head of Security of the
+      1. Non-Technical Event (minor infringement): the CTO of the
          designee creates an appropriate issue in GitHub and further investigates
          the incident as needed.
       2. Technical Event: Assign the issue to a technical resource for
@@ -496,7 +496,7 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
          technical resource in the event of a lack of resource or expertise in
          the area.
 
-   2. If the issue is a security incident, the Head of Security activates the
+   2. If the issue is a security incident, the CTO activates the
       Security Incident Response Team (SIRT) and notifies senior leadership by
       email.
 
@@ -523,10 +523,19 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
              the [SANS Security Incident Forms templates](https://www.sans.org/score/incident-forms/),
              as appropriate.
 
-3. The Head of Security, Privacy Officer, or Fleet representative appointed
+3. The CTO, Privacy Officer, or Fleet representative appointed
    notifies any affected Customers and Partners. If no Customers and Partners
    are affected, notification is at the discretion of the Security and Privacy
    Officer.
+   
+   Fleet’s incident response policy is to report significant cyber incidents within 
+   24 hours.
+    - Reporting Timeline – 24 hours after determining a cyber incident has occurred.
+    - Definitions – Significant cyber incidents are defined as an incident or group 
+         of incidents that are likely to result in demonstrable harm to Fleet or Fleet’s 
+         customers.
+    - Reporting Mechanism – Reports to be provided to customers via email 
+         correspondence and Slack.
 
 4. In the case of a threat identified, the Head of Security is to form a team to
    investigate and involve necessary resources, both internal to Fleet and
@@ -627,7 +636,7 @@ been corrected.
        phase.
     6. Apprise Senior Management of progress.
     7. Continue to notify affected Customers and Partners with relevant updates
-       as needed.
+       as needed. 
     8. Move to Phase V, Follow-up.
 
 #### V - Post-Incident Analysis (Technical and Non-Technical)
@@ -682,7 +691,7 @@ Fleet Device Management is committed to conducting business in compliance with a
 
 | Role                                            | Responsibilities                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Board of directors                              | Oversight over risk and internal control for information security, privacy, and compliance<br/> Consults with executive leadership and head of security to understand Fleet's security mission and risks and provides guidance to bring them into alignment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Board of directors                              | Oversight over risk and internal control for information security, privacy, and compliance<br/> Consults with executive leadership to understand Fleet's security mission and risks and provides guidance to bring them into alignment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Executive leadership                            | Approves capital expenditures for information security<br/> Oversight over the execution of the information security risk management program<br/> Communication path to Fleet's board of directors. Meets with the board regularly, including at least one official meeting a year<br/> Aligns information security policy and posture based on Fleet's mission, strategic objectives, and risk appetite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 CTO                                             | Oversight over information security in the software development process<br/>  Responsible for the design, development, implementation, operation, maintenance and monitoring of development and commercial cloud hosting security controls<br/> Responsible for oversight over policy development <br/>Responsible for implementing risk management in the development process                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Head of security                                | Oversight over the implementation of information security controls for infrastructure and IT processes<br/>  Responsible for the design, development, implementation, operation, maintenance, and monitoring of IT security controls<br/> Communicate information security risks to executive leadership<br/> Report information security risks annually to Fleet's leadership and gains approvals to bring risks to acceptable levels<br/>  Coordinate the development and maintenance of information security policies and standards<br/> Work with applicable executive leadership to establish an information security framework and awareness program<br/>  Serve as liaison to the board of directors, law enforcement and legal department.<br/>  Oversight over identity management and access control processes |

@@ -31,7 +31,7 @@ const TAGGED_TEMPLATES = {
 };
 interface IScheduleTableProps {
   router: InjectedRouter; // v3
-  onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
+  onRemoveScheduledQueryClick?: (selectedIds: number[]) => void;
   onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
   onShowQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
   allScheduledQueriesList: IScheduledQuery[];
@@ -198,10 +198,13 @@ const ScheduleTable = ({
         isAllPagesSelected={false}
         inputPlaceHolder="Search"
         searchable={false}
-        onPrimarySelectActionClick={onRemoveScheduledQueryClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="remove"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectAction={{
+          name: "remove scheduled query",
+          buttonText: "Remove",
+          icon: "remove",
+          variant: "text-icon",
+          onActionButtonClick: onRemoveScheduledQueryClick,
+        }}
         emptyComponent={() =>
           EmptyTable({
             iconName: emptyState().iconName,

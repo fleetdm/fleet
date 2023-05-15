@@ -47,7 +47,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅        | ✅         | ✅          | ✅     |        |
 | Filter software by team\*                                                                                                                  | ✅        | ✅         | ✅          | ✅     |        |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |           |            | ✅     | ✅      |
-| Run only designated, **observer can run**, queries as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
+| Run queries designated "**observer can run**" as live queries against all hosts                                                       | ✅        | ✅         | ✅          | ✅     |        |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅          | ✅     |        |
 | Create, edit, and delete queries                                                                                                           |          |           | ✅          | ✅     | ✅      |
 | View all queries\**                                                                                                                        | ✅        | ✅         | ✅          | ✅     |        |
@@ -72,15 +72,16 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple mobile device management (MDM) certificate information                                                                          |          |           |            | ✅     |        |
 | View Apple business manager (BM) information                                                                                               |          |           |            | ✅     |        |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |           |            | ✅     |        |
-| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                           | ✅        | ✅         | ✅          | ✅     |        |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |          |           | ✅          | ✅     | ✅      |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                                |          |           | ✅          | ✅     |        |
-| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                               | ✅        | ✅         | ✅          | ✅     |        |
+| View disk encryption key for macOS hosts                                                                           | ✅        | ✅         | ✅          | ✅     |        |
+| Create edit and delete configuration profiles for macOS hosts                                                     |          |           | ✅          | ✅     | ✅      |
+| Execute MDM commands on macOS hosts***                                                                                |          |           | ✅          | ✅     |        |
+| View results of MDM commands executed on macOS hosts***                                                               | ✅        | ✅         | ✅          | ✅     |        |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |           |            | ✅     | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |           |            | ✅     | ✅      |
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |           |            | ✅     |         |
 | View/download MDM macOS setup assistant\*                                                                                                  |          |           | ✅          | ✅     |        |
 | Edit/upload MDM macOS setup assistant\*                                                                                                    |          |           | ✅          | ✅     |       |
+| Enable/disable MDM macOS setup end user authentication\*                                                                                                    |          |           | ✅          | ✅     |       |
 
 \* Applies only to Fleet Premium
 
@@ -114,7 +115,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) | ✅             | ✅              | ✅               | ✅          |             |
 | Filter hosts by software                                                                                                         | ✅             | ✅              | ✅               | ✅          |             |
 | Filter software                                                                                                                  | ✅             | ✅              | ✅               | ✅          |             |
-| Run only designated, **observer can run**, queries as live queries against all hosts                                             | ✅             | ✅              | ✅               | ✅          |             |
+| Run queries designated "**observer can run**" as live queries against hosts                                              | ✅             | ✅              | ✅               | ✅          |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅              | ✅               | ✅          |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅               | ✅          | ✅           |
 | View all queries\**                                                                                                              | ✅             | ✅              | ✅               | ✅          |             |
@@ -130,14 +131,15 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Read agent options\*                                                                                                             | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅          | ✅           |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅               | ✅          |             |
-| View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅             | ✅              | ✅               | ✅          |             |
-| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               |                | ✅               | ✅          | ✅           |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM, and read command results                                            |               |                | ✅               | ✅          |             |
-| Execute MDM commands on macOS hosts enrolled in Fleet's MDM                                                                      |               |                | ✅               | ✅          |             |
-| View results of MDM commands executed on macOS hosts enrolled in Fleet's MDM                                                     | ✅             | ✅              | ✅               | ✅          |             |
+| View disk encryption key for macOS hosts                                                                 | ✅             | ✅              | ✅               | ✅          |             |
+| Create edit and delete configuration profiles for macOS hosts                                            |               |                | ✅               | ✅          | ✅           |
+| Execute MDM commands on macOS hosts, and read command results*                                            |               |                | ✅               | ✅          |             |
+| Execute MDM commands on macOS hosts*                                                                      |               |                | ✅               | ✅          |             |
+| View results of MDM commands executed on macOS hosts*                                                     | ✅             | ✅              | ✅               | ✅          |             |
 | Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅          | ✅           |
 | View/download MDM macOS setup assistant                                                                                          |               |                | ✅              | ✅          |              |
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅          |             |
+| Enable/disable MDM macOS setup end user authentication                                                                                            |               |                | ✅              | ✅          |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
