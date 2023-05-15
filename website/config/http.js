@@ -54,6 +54,10 @@ module.exports.http = {
       var middlewareFn = skipper({
         strict: true,
         limit: '1mb',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
+        onBodyParserError: (err, req, res)=>{
+          // If an error occurs while parsing an incoming request body, return the statusCode and error message from the body parser
+          return res.status(err.status).send(err.message);
+        }
       });
       return middlewareFn;
     })(),
