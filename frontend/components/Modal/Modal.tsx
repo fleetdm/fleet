@@ -4,7 +4,7 @@ import { NotificationContext } from "context/notification";
 
 const baseClass = "modal";
 
-type ModalWidth = "m" | "l" | "xl" | "auto";
+type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 
 export interface IModalProps {
   title: string | JSX.Element;
@@ -20,7 +20,7 @@ const Modal = ({
   children,
   onExit,
   onEnter,
-  width = "m",
+  width = "medium",
   className,
 }: IModalProps): JSX.Element => {
   const { hideFlash } = useContext(NotificationContext);
@@ -59,8 +59,8 @@ const Modal = ({
   const modalContainerClassName = classnames(
     `${baseClass}__modal_container`,
     className,
-    { [`${baseClass}__modal_container__l`]: width === "l" },
-    { [`${baseClass}__modal_container__xl`]: width === "xl" },
+    { [`${baseClass}__modal_container__l`]: width === "large" },
+    { [`${baseClass}__modal_container__xl`]: width === "xlarge" },
     { [`${baseClass}__modal_container__auto`]: width === "auto" }
   );
 

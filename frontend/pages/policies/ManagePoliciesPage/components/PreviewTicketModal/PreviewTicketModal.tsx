@@ -45,7 +45,7 @@ const PreviewTicketModal = ({
       title={"Example ticket"}
       onExit={onCancel}
       className={baseClass}
-      width="l"
+      width="large"
     >
       <div className={`${baseClass}`}>
         <p className="automations-learn-more">

@@ -17,7 +17,7 @@ const AutoEnrollMdmModal = ({
       title="Turn on MDM"
       onExit={onCancel}
       className={baseClass}
-      width="xl"
+      width="xlarge"
     >
       <div>
         <p className={`${baseClass}__description`}>

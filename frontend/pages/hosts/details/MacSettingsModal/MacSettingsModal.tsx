@@ -20,7 +20,7 @@ const MacSettingsModal = ({
       title="macOS settings"
       onExit={onClose}
       className={baseClass}
-      width="l"
+      width="large"
     >
       <>
         <MacSettingsTable hostMacSettings={hostMacSettings} />

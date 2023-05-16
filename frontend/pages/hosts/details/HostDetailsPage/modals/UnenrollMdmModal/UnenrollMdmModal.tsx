@@ -68,7 +68,7 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
       title="Turn off MDM"
       onExit={onClose}
       className={baseClass}
-      width="l"
+      width="large"
     >
       {renderModalContent()}
     </Modal>

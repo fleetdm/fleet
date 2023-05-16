@@ -44,7 +44,7 @@ const PreviewTicketModal = ({
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
-      width="l"
+      width="large"
     >
       <>
         <p className="automations-learn-more">

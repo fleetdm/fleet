@@ -342,7 +342,7 @@ const ManageAutomationsModal = ({
       onExit={onExit}
       title={"Manage automations"}
       className={baseClass}
-      width="l"
+      width="large"
     >
       <>
         <div className={`${baseClass}__software-select-items`}>

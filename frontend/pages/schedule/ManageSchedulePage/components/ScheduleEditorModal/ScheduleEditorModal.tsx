@@ -230,7 +230,7 @@ const ScheduleEditorModal = ({
       onExit={onClose}
       onEnter={onFormSubmit}
       className={baseClass}
-      width="l"
+      width="large"
     >
       <form className={`${baseClass}__form`}>
         {!editQuery && (

@@ -87,7 +87,7 @@ const AddPolicyModal = ({
       title="Add a policy"
       onExit={onCancel}
       className={baseClass}
-      width="xl"
+      width="xlarge"
     >
       <>
         <div className={`${baseClass}__create-policy`}>
