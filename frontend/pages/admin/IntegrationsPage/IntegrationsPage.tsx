@@ -1,6 +1,6 @@
 import { AppContext } from "context/app";
 import React, { useContext } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import SideNav from "../components/SideNav";
 import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
@@ -8,7 +8,7 @@ import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
 const baseClass = "integrations";
 
 interface IIntegrationSettingsPageProps {
-  router: any;
+  router: InjectedRouter;
   params: Params;
 }
 
