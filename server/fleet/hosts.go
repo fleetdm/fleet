@@ -281,6 +281,17 @@ type Host struct {
 	// other host fields, it is not filled in by all host-returning datastore
 	// methods.
 	MDMInfo *HostMDM `json:"-" csv:"-"`
+
+	// RefetchCriticalQueriesUntil can be set to a timestamp up to which the
+	// "critical" queries will be constantly reported to the host that checks in
+	// to be re-executed until a condition is met (or the timestamp expires). The
+	// notion of "critical query" is voluntarily loosely defined so that future
+	// requirements may use this mechanism. The difference with RefetchRequested
+	// is that the latter is a one-time request, while this one is a persistent
+	// until the timestamp expires. The initial use-case is to check for a host
+	// to be enrolled from its old MDM solution, in the "migrate to Fleet MDM"
+	// workflow.
+	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
 }
 
 type MDMHostData struct {
