@@ -14,7 +14,8 @@ import validateUrl from "components/forms/validators/valid_url";
 
 const baseClass = "end-user-migration-section";
 
-const VOLUNTARY_MODE_DESCRIPTION = "voluntary mode description";
+const VOLUNTARY_MODE_DESCRIPTION =
+  "The end user sees the above window when they select Migrate to Fleet in the Fleet Desktop menu. If they’re unenrolled from your old MDM, the window appears every 15 minutes.";
 const FORCED_MODE_DESCRIPTION =
   "The end user sees the above window every 15 minutes.";
 
@@ -29,7 +30,13 @@ interface IEndUserMigrationFormData {
 }
 
 const EndUserMigrationSection = () => {
+  const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+  // const [formData, setFormData] = useState<IEndUserMigrationFormData>({
+  //   isEnabled: config?.mdm.macos_migration.enable || false,
+  //   mode: config?.mdm.macos_migration.mode || "voluntary",
+  //   webhookUrl: config?.mdm.macos_migration.webhook_url || "",
+  // });
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: false,
     mode: "voluntary",
@@ -68,14 +75,14 @@ const EndUserMigrationSection = () => {
     try {
       await configAPI.update({
         mdm: {
-          end_user_authentication: {
-            idp_name: formData.idpName,
-            entity_id: formData.entityId,
-            metadata_url: formData.metadataUrl,
+          macos_migration: {
+            enable: formData.isEnabled,
+            mode: formData.mode,
+            webhook_url: formData.webhookUrl,
           },
         },
       });
-      renderFlash("success", "Successfully updated end user authentication!");
+      renderFlash("success", "Successfully updated end user migration!");
     } catch (err) {
       renderFlash("error", "Could not update. Please try again.");
     }
@@ -101,35 +108,40 @@ const EndUserMigrationSection = () => {
           onChange={toggleMigrationEnabled}
           activeText="Enabled"
           inactiveText="Diabled"
+          className={`${baseClass}__enabled-slider`}
         />
         <div className={formClasses}>
-          <span>Mode</span>
-          <Radio
-            disabled={!formData.isEnabled}
-            checked={formData.mode === "voluntary"}
-            value="voluntary"
-            id="voluntary"
-            label="Voluntary"
-            onChange={onChangeMode}
-          />
-          <Radio
-            disabled={!formData.isEnabled}
-            checked={formData.mode === "forced"}
-            value="forced"
-            id="forced"
-            label="Forced"
-            onChange={onChangeMode}
-          />
-          <p>
-            {formData.mode === "voluntary"
-              ? VOLUNTARY_MODE_DESCRIPTION
-              : FORCED_MODE_DESCRIPTION}
-          </p>
-          <p>
-            To edit the organization name, avatar (logo), and contact link, head
-            to the <b>Organization settings</b> &gt; <b>Organization info</b>{" "}
-            page.
-          </p>
+          <div className={`${baseClass}__mode-field`}>
+            <span>Mode</span>
+            <Radio
+              disabled={!formData.isEnabled}
+              checked={formData.mode === "voluntary"}
+              value="voluntary"
+              id="voluntary"
+              label="Voluntary"
+              onChange={onChangeMode}
+              className={`${baseClass}__voluntary-radio`}
+            />
+            <Radio
+              disabled={!formData.isEnabled}
+              checked={formData.mode === "forced"}
+              value="forced"
+              id="forced"
+              label="Forced"
+              onChange={onChangeMode}
+              className={`${baseClass}__forced-radio`}
+            />
+            <p>
+              {formData.mode === "voluntary"
+                ? VOLUNTARY_MODE_DESCRIPTION
+                : FORCED_MODE_DESCRIPTION}
+            </p>
+            <p>
+              To edit the organization name, avatar (logo), and contact link,
+              head to the <b>Organization settings</b> &gt;{" "}
+              <b>Organization info</b> page.
+            </p>
+          </div>
 
           <InputField
             disabled={!formData.isEnabled}

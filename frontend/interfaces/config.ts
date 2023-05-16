@@ -7,6 +7,7 @@ import {
 } from "interfaces/webhook";
 import PropTypes from "prop-types";
 import { IIntegrations } from "./integration";
+import { I } from "msw/lib/glossary-dc3fd077";
 
 export default PropTypes.shape({
   org_name: PropTypes.string,
@@ -96,6 +97,12 @@ export interface ILicense {
   organization: string;
 }
 
+export interface IMacOsMigrationSettings {
+  enable: boolean;
+  mode: "voluntary" | "forced";
+  webhook_url: string;
+}
+
 export interface IMdmConfig {
   enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
@@ -108,6 +115,7 @@ export interface IMdmConfig {
     custom_settings: null; // TODO: type?
     enable_disk_encryption: boolean;
   };
+  macos_migration: IMacOsMigrationSettings;
 }
 
 export interface IDeviceGlobalConfig {
