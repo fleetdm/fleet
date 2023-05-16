@@ -2705,7 +2705,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMMacOSMigration() {
 
 	// invalid url scheme for webhook_url
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "http://example.com" } }
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "ftp://example.com" } }
 	}`), http.StatusUnprocessableEntity, &acResp)
 	checkDefaultAppConfig()
 
@@ -3199,11 +3199,22 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	}))
 	defer webhookSrv.Close()
 
-	// expect error if webhook url is not set in app config
+	// expect error if macos migration is not configured
+	var acResp fleet.AppConfig
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprint(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": false,
+				"mode": "voluntary",
+				"webhook_url": ""
+		      }
+		}
+	}`)), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.MacOSMigration.Enable)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadGateway)
 
 	// patch app config with webhook url
-	var acResp fleet.AppConfig
+	acResp = fleet.AppConfig{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
 			"macos_migration": {
@@ -3213,10 +3224,10 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 		      }
 		}
 	}`, webhookSrv.URL)), http.StatusOK, &acResp)
-	require.True(t, true, acResp.MDM.MacOSMigration.Enable)
+	require.True(t, acResp.MDM.MacOSMigration.Enable)
 
 	// good token
-	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusOK)
 
 	// bad token
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)

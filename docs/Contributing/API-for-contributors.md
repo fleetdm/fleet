@@ -2551,7 +2551,11 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{}
+```
 
 ---
 

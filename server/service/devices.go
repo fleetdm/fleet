@@ -476,8 +476,6 @@ type deviceMigrateMDMResponse struct {
 
 func (r deviceMigrateMDMResponse) error() error { return r.Err }
 
-func (r deviceMigrateMDMResponse) Status() int { return http.StatusNoContent }
-
 func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {

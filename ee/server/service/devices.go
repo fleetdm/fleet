@@ -38,8 +38,11 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	if !ac.MDM.EnabledAndConfigured {
 		return fleet.NewMDMNotConfiguredError()
 	}
+	if !ac.MDM.MacOSMigration.Enable {
+		return fleet.NewBadGatewayError("macos_migration", ctxerr.New(ctx, "not enabled"))
+	}
 	if ac.MDM.MacOSMigration.WebhookURL == "" {
-		return fleet.NewBadGatewayError("migrate mdm webhook", ctxerr.New(ctx, "no webhook URL configured"))
+		return fleet.NewBadGatewayError("macos_migration", ctxerr.New(ctx, "no webhook URL configured"))
 	}
 
 	p := migrateMDMDevicePayload{}
