@@ -23,13 +23,10 @@ import (
 )
 
 func main() {
-	// Required flags
-	flagVerMajor := flag.Int("major", 0, "FileVersion.Major")
-	flagVerMinor := flag.Int("minor", 0, "FileVersion.Minor")
-	flagVerPatch := flag.Int("patch", 0, "FileVersion.Patch")
-	flagVerBuild := flag.Int("build", 0, "FileVersion.Build")
-	flagCmdDir := flag.String("cmd-dir", "", "Path to the directory containing the utility to build")
-	flagOutputBinary := flag.String("output-bin", "", "Path to the output binary")
+	// Input flags
+	flagVersion := flag.String("version", "0.0.1", "Version string")
+	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
+	flagOutputBinary := flag.String("output", "", "Path to the output binary")
 
 	flag.Usage = func() {
 		zlog.Fatal().Msgf("Usage: %s [flags]\n\nPossible flags:\n", os.Args[0])
@@ -37,8 +34,8 @@ func main() {
 	}
 	flag.Parse()
 
-	// check if command line arguments were provided
-	if flag.NArg() != 1 {
+	// checking input flags are not empty
+	if *flagCmdDir == "" || *flagOutputBinary == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -51,16 +48,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// build version string from flags
-	// this might change in the future as it could receive a version string as a flag
-	version := fmt.Sprintf("%d.%d.%d.%d", *flagVerMajor, *flagVerMinor, *flagVerPatch, *flagVerBuild)
-
 	// now we need to create the 'resource.syso' metadata file which contains versioninfo data
 
 	// lets start with sanitizing the version data
-	vParts, err := sanitizeVersion(version)
+	vParts, err := sanitizeVersion(*flagVersion)
 	if err != nil {
-		zlog.Fatal().Err(err).Msgf("invalid version: %s", version)
+		zlog.Fatal().Err(err).Msgf("invalid version: %s", *flagVersion)
 		os.Exit(1)
 	}
 
@@ -83,6 +76,7 @@ func main() {
 	vi.Build()
 	vi.Walk()
 
+	// resource.syso is the resource file that is going to be picked up by golang compiler
 	outPath := filepath.Join(*flagCmdDir, "resource.syso")
 	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
 		zlog.Fatal().Err(err).Msg("creating syso file")
@@ -91,7 +85,7 @@ func main() {
 	defer os.Remove(outPath)
 
 	// now we can build the binary
-	if err := buildTargetBinary(*flagCmdDir, *flagOutputBinary); err != nil {
+	if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary); err != nil {
 		zlog.Fatal().Err(err).Msg("error building binary")
 		os.Exit(1)
 	}
@@ -211,22 +205,29 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 }
 
 // Build the target binary for Windows
-func buildTargetBinary(cmdDir string, binaryPath string) error {
+func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
 	var buildExec *exec.Cmd
+
+	// convert relative to full output path
+	outputBinary, err := filepath.Abs(binaryPath)
+	if err != nil {
+		return fmt.Errorf("error converting binary path to absolute: %w", err)
+	}
 
 	// check if cmdDir contains desktop
 	// if it does, add -ldflags "-H=windowsgui" to exec.Command
 	if strings.Contains(cmdDir, "desktop") {
-		buildExec = exec.Command("go", "build", "-ldflags", "-H=windowsgui", "-o", binaryPath)
+		linkFlags := fmt.Sprintf("-H=windowsgui -X=main.version=%s", version)
+		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	} else {
-		buildExec = exec.Command("go", "build", "-o", binaryPath)
+		linkFlags := fmt.Sprintf("-X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
+		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	}
 	buildExec.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 	buildExec.Dir = cmdDir
 
-	zlog.Info().Str("command", buildExec.String()).Msg("build orbit executable")
 	if err := buildExec.Run(); err != nil {
 		return fmt.Errorf("compile orbit: %w", err)
 	}
