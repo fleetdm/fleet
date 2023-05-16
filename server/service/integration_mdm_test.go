@@ -3167,6 +3167,61 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 }
 
+func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
+	t := s.T()
+
+	h := createHostAndDeviceToken(t, s.ds, "good-token")
+
+	webhookSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/test_mdm_migration":
+			var payload struct {
+				Timestamp time.Time `json:"timestamp"`
+				Host      struct {
+					ID             uint   `json:"id"`
+					UUID           string `json:"uuid"`
+					HardwareSerial string `json:"hardware_serial"`
+				} `json:"host"`
+			}
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(b, &payload)
+			require.NoError(t, err)
+
+			require.Equal(t, h.ID, payload.Host.ID)
+			require.Equal(t, h.UUID, payload.Host.UUID)
+			require.Equal(t, h.HardwareSerial, payload.Host.HardwareSerial)
+
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer webhookSrv.Close()
+
+	// expect error if webhook url is not set in app config
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadGateway)
+
+	// patch app config with webhook url
+	var acResp fleet.AppConfig
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": true,
+				"mode": "voluntary",
+				"webhook_url": "%s/test_mdm_migration"
+		      }
+		}
+	}`, webhookSrv.URL)), http.StatusOK, &acResp)
+	require.True(t, true, acResp.MDM.MacOSMigration.Enable)
+
+	// good token
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+
+	// bad token
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)
+}
+
 func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	t := s.T()
 

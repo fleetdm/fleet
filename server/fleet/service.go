@@ -717,6 +717,10 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
 
+	// TriggerMigrateMDMDevice posts a webhook request to the URL configured
+	// for MDM macOS migration.
+	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

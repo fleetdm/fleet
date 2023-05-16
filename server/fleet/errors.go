@@ -294,6 +294,11 @@ func (e passwordResetRequiredError) StatusCode() int {
 // without having MDM correctly configured.
 type MDMNotConfiguredError struct{}
 
+// NewMDMNotConfiguredError returns a MDMNotConfiguredError.
+func NewMDMNotConfiguredError() *MDMNotConfiguredError {
+	return &MDMNotConfiguredError{}
+}
+
 // Status implements the kithttp.StatusCoder interface so we can customize the
 // HTTP status code of the response returning this error.
 func (e *MDMNotConfiguredError) StatusCode() int {

@@ -2216,6 +2216,12 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	var reqCSRResp requestMDMAppleCSRResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
+
+	// Device authenticated endpoints
+	createHostAndDeviceToken(t, s.ds, "some-token")
+	res := s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, fleet.ErrMDMNotConfigured.StatusCode())
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

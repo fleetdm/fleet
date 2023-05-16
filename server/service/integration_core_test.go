@@ -4531,6 +4531,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+
+	// device migrate mdm endpoint returns an error if not premium
+	createHostAndDeviceToken(t, s.ds, "some-token")
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
