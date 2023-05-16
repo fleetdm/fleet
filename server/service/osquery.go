@@ -1068,6 +1068,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 
 	fmt.Fprintf(os.Stderr, "live_query: received result campaign %d hostID=%d\n", campaignID, host.ID)
 	err = svc.resultStore.WriteResult(res)
+	fmt.Fprintf(os.Stderr, "live_query: wrote result campaign %d err=%s hostID=%d\n", campaignID, err, host.ID)
 	if err != nil {
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
