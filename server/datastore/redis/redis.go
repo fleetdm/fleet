@@ -345,8 +345,14 @@ func isClusterDisabled(err error) bool {
 // On GCP Memorystore the CLUSTER command is entirely unavailable and fails with
 // this error. See
 // https://cloud.google.com/memorystore/docs/redis/product-constraints#blocked_redis_commands
+//
+// At some point it seems like the error message changed from wrapping the
+// command name with backticks to single quotes.
 func isClusterCommandUnknown(err error) bool {
-	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`")
+	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`") ||
+		strings.Contains(err.Error(), "ERR unknown command 'CLUSTER'") ||
+		strings.Contains(err.Error(), "ERR unknown command CLUSTER") ||
+		strings.Contains(err.Error(), `ERR unknown command "CLUSTER"`)
 }
 
 func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error) {
