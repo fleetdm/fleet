@@ -141,6 +141,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
           },
           {
+            name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
+            value = "5"
+          },
+          {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
             value = module.aurora_mysql.rds_cluster_master_username
           },
@@ -151,6 +155,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
             value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
+          },
+          {
+            name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
+            value = "5"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"

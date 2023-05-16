@@ -23,7 +23,7 @@ func TestDEPService(t *testing.T) {
 		ctx := context.Background()
 		logger := log.NewNopLogger()
 		depStorage := new(nanodep_mock.Storage)
-		depSvc := NewDEPService(ds, depStorage, logger, true)
+		depSvc := NewDEPService(ds, depStorage, logger)
 		defaultProfile := depSvc.getDefaultProfile()
 		serverURL := "https://example.com/"
 

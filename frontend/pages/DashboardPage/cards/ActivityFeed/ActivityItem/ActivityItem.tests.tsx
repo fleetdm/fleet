@@ -570,4 +570,68 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
 });

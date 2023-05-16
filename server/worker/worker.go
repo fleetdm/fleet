@@ -60,6 +60,9 @@ type Worker struct {
 	ds  fleet.Datastore
 	log kitlog.Logger
 
+	// For tests only, allows ignoring unknown jobs instead of failing them.
+	TestIgnoreUnknownJobs bool
+
 	registry map[string]Job
 }
 
@@ -176,6 +179,9 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	j, ok := w.registry[job.Name]
 	if !ok {
+		if w.TestIgnoreUnknownJobs {
+			return nil
+		}
 		return ctxerr.Errorf(ctx, "unknown job: %s", job.Name)
 	}
 
