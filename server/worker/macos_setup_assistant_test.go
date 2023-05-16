@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -103,8 +104,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 			err = json.Unmarshal(b, &reqProf)
 			require.NoError(t, err)
 
-			// use the profile name as profile uuid
-			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: reqProf.ProfileName})
+			// use the profile name as profile uuid, and append "+sso" if it was
+			// registered with the sso url (end-user auth enabled).
+			profUUID := reqProf.ProfileName
+			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
+				profUUID += "+sso"
+			}
+			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID})
 			require.NoError(t, err)
 
 		case "/profile/devices":
@@ -208,6 +214,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 		"serial-5": defaultProfileName,
 	}, serialsToProfile)
 
+	// enable end-user auth for team 2
+	tm2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	tm2, err = ds.SaveTeam(ctx, tm2)
+	require.NoError(t, err)
+
+	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	require.NoError(t, err)
+	runCheckDone()
+
+	require.Equal(t, map[string]string{
+		"serial-0": defaultProfileName,
+		"serial-1": defaultProfileName,
+		"serial-2": "team1",
+		"serial-3": "team1",
+		"serial-4": defaultProfileName + "+sso",
+		"serial-5": defaultProfileName + "+sso",
+	}, serialsToProfile)
+
 	// create a custom setup assistant for teams 2 and 3, delete the one for team 1 and process the jobs
 	tm2Asst, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 		TeamID:  &tm2.ID,
@@ -230,6 +254,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm3.ID)
 	require.NoError(t, err)
 	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileDeleted, &tm1.ID)
+	require.NoError(t, err)
+	runCheckDone()
+
+	require.Equal(t, map[string]string{
+		"serial-0": defaultProfileName,
+		"serial-1": defaultProfileName,
+		"serial-2": defaultProfileName,
+		"serial-3": defaultProfileName,
+		"serial-4": "team2+sso",
+		"serial-5": "team2+sso",
+	}, serialsToProfile)
+
+	// disable end-user auth for team 2
+	tm2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+	tm2, err = ds.SaveTeam(ctx, tm2)
+	require.NoError(t, err)
+
+	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
