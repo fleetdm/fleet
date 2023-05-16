@@ -62,6 +62,8 @@ a {
   padding: $pad-xlarge;
   border-radius: 3px;
   background-color: $core-white;
+  // desired default line-height for text is 1.5x the font size.
+  line-height: 1.5;
 }
 
 .has-sidebar {
