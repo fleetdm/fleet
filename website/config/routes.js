@@ -383,7 +383,7 @@ module.exports.routes = {
 
   // Fleet UI
   // =============================================================================================================
-  // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the 
+  // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the
   // original sources to help avoid broken links.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
 
