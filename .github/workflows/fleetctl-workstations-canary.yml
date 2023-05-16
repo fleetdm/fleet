@@ -7,7 +7,7 @@ name: Apply latest MDM profiles (Canary) (Test)
 on:
   push:
     branches:
-      - revise-gitops-workflow
+      - main
     paths:
       - "mdm_profiles/**.mobileconfig"
   workflow_dispatch: # Manual
