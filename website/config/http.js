@@ -53,10 +53,15 @@ module.exports.http = {
       var skipper = require('skipper');
       var middlewareFn = skipper({
         strict: true,
-        limit: '1mb',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
+        limit: '1MB',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
         onBodyParserError: (err, req, res)=>{
-          // If an error occurs while parsing an incoming request body, return the statusCode and error message from the body parser
-          return res.status(err.status).send(err.message);
+          // If an error occurs while parsing an incoming request body, we'll return a badRequest response if error.statusCode is between 400-500
+          if (_.isNumber(err.statusCode) && err.statusCode >= 400 && err.statusCode <500) {
+            return res.status(400).send(err.message);
+          } else { // If the error doesn't have a statusCode or the statusCode is above 500, return a 500 error.
+            sails.log.error('Sending 500 ("Server Error") response: \n', err);
+            return res.status(500).send();
+          }
         }
       });
       return middlewareFn;
