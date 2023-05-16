@@ -1071,6 +1071,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 		require.Equal(t, idpAcc.UUID, uuid)
 		return idpAcc, nil
 	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		tm := &fleet.Team{}
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		return tm, nil
+	}
 
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
