@@ -103,9 +103,9 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 				case res := <-readChan:
 					switch res := res.(type) {
 					case fleet.DistributedQueryResult:
-						results = append(results, fleet.QueryResult{HostID: res.Host.ID, Rows: res.Rows, Error: res.Error})
+						results = append(results, fleet.QueryResult{HostID: res.HostID, Rows: res.Rows, Error: res.Error})
 						counterMutex.Lock()
-						respondedHostIDs[res.Host.ID] = struct{}{}
+						respondedHostIDs[res.HostID] = struct{}{}
 						counterMutex.Unlock()
 					case error:
 						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error())}
