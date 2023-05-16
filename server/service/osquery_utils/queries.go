@@ -1214,6 +1214,12 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	// TODO(mna): if host is now unenrolled, clear the RefetchCriticalQueriesUntil
+	// timestamp (no need to save the host here, it will be saved as part of the
+	// distributed write request - it is always saved to update the last seen time).
+	// Hmm not quite, the host is only saved for queries ingested by updating the host
+	// struct, not the direct ingest ones, so we may need to save it here.
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
