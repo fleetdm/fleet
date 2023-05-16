@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -16,6 +17,27 @@ func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
 		return nil, err
 	}
 	return responseBody.Teams, nil
+}
+
+// CreateTeam creates a new team.
+func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) {
+	req := createTeamRequest{
+		TeamPayload: teamPayload,
+	}
+	verb, path := "POST", "/api/latest/fleet/teams"
+	var responseBody teamResponse
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Team, nil
+}
+
+// DeleteTeam deletes a team.
+func (c *Client) DeleteTeam(teamID uint) error {
+	verb, path := "DELETE", "/api/latest/fleet/teams/"+strconv.FormatUint(uint64(teamID), 10)
+	var responseBody deleteTeamResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
 
 // ApplyTeams sends the list of Teams to be applied to the
