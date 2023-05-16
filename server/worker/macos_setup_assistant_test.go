@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -142,9 +143,8 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// no default profile registered yet
-	profUUID, _, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.Empty(t, profUUID)
+	_, err = ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	start := time.Now().Truncate(time.Second)
 
@@ -154,10 +154,17 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// all devices are assigned the default profile
-	profUUID, modTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+	autoProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.NoError(t, err)
-	require.Equal(t, defaultProfileName, profUUID)
-	require.False(t, modTime.Before(start))
+	require.NotEmpty(t, autoProf.Token)
+
+	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID), ptr.Uint(tm3.ID)}
+	for _, tmID := range tmIDs {
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.Equal(t, defaultProfileName, profUUID)
+		require.False(t, modTime.Before(start))
+	}
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
 		"serial-1": defaultProfileName,
@@ -180,11 +187,12 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// default profile is unchanged
-	prevProfUUID, prevModTime := profUUID, modTime
-	profUUID, modTime, err = depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.Equal(t, prevProfUUID, profUUID)
-	require.Equal(t, prevModTime, modTime)
+	for _, tmID := range tmIDs {
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.Equal(t, defaultProfileName, profUUID)
+		require.False(t, modTime.Before(start))
+	}
 
 	// team 1 setup assistant is registered
 	tm1Asst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
@@ -285,9 +293,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	runCheckDone()
 
-	_, modTime, err = depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.True(t, modTime.After(reset))
+	// team 2 got deleted, update the list of team IDs
+	tmIDs = []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm3.ID)}
+	for _, tmID := range tmIDs {
+		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.True(t, modTime.After(reset))
+	}
 
 	require.Equal(t, map[string]string{
 		"serial-0": "no-team",
