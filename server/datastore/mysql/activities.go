@@ -112,10 +112,15 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			if !ok {
 				continue
 			}
+
+			email := r.Email
+			gravatar := r.GravatarUrl
+			name := r.Name
+
 			for _, idx := range entries {
-				activities[idx].ActorEmail = &r.Email
-				activities[idx].ActorGravatar = &r.GravatarUrl
-				activities[idx].ActorFullName = &r.Name
+				activities[idx].ActorEmail = &email
+				activities[idx].ActorGravatar = &gravatar
+				activities[idx].ActorFullName = &name
 			}
 		}
 	}
