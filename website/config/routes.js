@@ -278,7 +278,13 @@ module.exports.routes = {
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
   //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
   'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
-
+  'GET /imagine/higher-education': {
+    action: 'imagine/view-higher-education',
+    locals: {
+      pageTitleForMeta: 'Fleet for higher education',
+      pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -374,6 +380,12 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
+
+  // Fleet UI
+  // =============================================================================================================
+  // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the
+  // original sources to help avoid broken links.
+  'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
 
   // Sitemap
   // =============================================================================================================

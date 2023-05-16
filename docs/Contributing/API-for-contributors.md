@@ -2373,7 +2373,7 @@ Same as [Get host's mobile device management and Munki information](https://flee
 #### Get Fleet Desktop information
 _Available in Fleet Premium_
 
-Gets all information required by Fleet Desktop to notify the user if there are any failing policies.
+Gets all information required by Fleet Desktop, this includes things like the number of failed policies or notifications to show/hide menu items.
 
 `GET /api/v1/fleet/device/{token}/desktop`
 
@@ -2393,9 +2393,16 @@ Gets all information required by Fleet Desktop to notify the user if there are a
 
 ```json
 {
-  "failing_policies_count": 3
+  "failing_policies_count": 3,
+  "notifications": {
+    "needs_mdm_migration": true
+  }
 }
 ```
+
+In regards to the `notifications` key:
+
+- `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 
 
 
