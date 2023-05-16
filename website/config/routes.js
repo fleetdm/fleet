@@ -285,6 +285,14 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
     }
   },
+  'GET /imagine/mdm-demo': {
+    action: 'imagine/view-mdm-demo',
+    locals: {
+      pageTitleForMeta: 'TODO',
+      pageDescriptionForMeta: 'TODO',
+    }
+  },
+
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗

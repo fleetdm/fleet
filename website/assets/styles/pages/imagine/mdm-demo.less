@@ -1,0 +1,518 @@
+#mdm-demo {
+  background: linear-gradient(180deg, #E8F1F7 3.37%, #FFFFFF 60%);
+  h1 {
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 36px;
+  }
+  h2 {
+    font-weight: 800;
+    font-size: 32px;
+    line-height: 38px;
+    margin-bottom: 40px;
+  }
+  h3 {
+    font-weight: 800;
+    font-size: 24px;
+    line-height: 32px;
+  }
+  h4 {
+    font-family: 'Roboto Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 24px;
+    color: @core-fleet-black-75;
+    margin-bottom: 4px;
+  }
+  p {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  @keyframes blinkFade {
+    0% {
+      opacity: 1;
+    }
+    16.66% {
+      opacity: 0;
+    }
+    33.33% {
+      opacity: 1;
+    }
+    49.99% {
+      opacity: 0;
+    }
+    66.66% {
+      opacity: 1;
+    }
+    83.33% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  .deploying {
+    animation: blinkFade 1s linear;
+    opacity: 0;
+  }
+  [purpose='deploying-message']{
+    margin-top: 100px;
+    padding: 4px 8px;
+    background: #63C740;
+    border-radius: 8px;
+    font-size: 24px;
+    color: #FFF;
+
+  }
+  #arrowOne {
+    opacity: 0;
+    position: absolute;
+    height: 100px;
+    width: auto;
+    top: 110px;
+    right: 33%;
+    img {
+      height: 100px;
+    }
+    filter: hue-rotate(160deg);
+  }
+
+  #arrowTwo {
+    position: absolute;
+    opacity: 0;
+    height: 100px;
+    width: auto;
+    top: 250px;
+    right: 35%;
+    img {
+      height: auto;
+      width: 85px;
+    }
+    filter: hue-rotate(90deg);
+  }
+
+  #arrowThree {
+    opacity: 0;
+    filter: hue-rotate(-90deg);
+    position: absolute;
+    right: 33%;
+    bottom: 115px;
+    img {
+      height: 100px;
+    }
+  }
+
+  #fileOne {
+    height: 100px;
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    cursor: pointer;
+  }
+  #fileTwo {
+    height: 100px;
+    position: absolute;
+    top: 200px;
+    left: 75px;
+    cursor: pointer;
+  }
+  #fileThree {
+    height: 100px;
+    position: absolute;
+    top: 350px;
+    left: 50px;
+    cursor: pointer;
+  }
+  [purpose='timer'] {
+    h4 {
+      margin-bottom: 0px;
+    }
+    border-radius: 8px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    height: 50px;
+    width: 120px;
+    font-size: 24px;
+    background-color: #FFF;
+    border: 1px solid @border-lt-gray;
+    position: absolute;
+    top: 25px;
+    left: 325px;
+  }
+  [purpose='counter'] {
+    margin-left: 24px;
+    border-radius: 6px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    height: 50px;
+    width: 50px;
+    font-size: 24px;
+    background-color: #FFF;
+    border: 1px solid @border-lt-gray;
+  }
+  #hostOne {
+    width: 200px;
+    height: 100px;
+    position: absolute;
+    top: 50px;
+    right: 50px;
+    filter: hue-rotate(160deg);
+  }
+  #hostTwo {
+    width: 200px;
+    height: 100px;
+    position: absolute;
+    top: 200px;
+    right: 75px;
+    filter: hue-rotate(90deg);
+  }
+  #hostThree {
+    width: 200px;
+    height: 100px;
+    position: absolute;
+    top: 350px;
+    right: 50px;
+    filter: hue-rotate(-90deg);
+  }
+  #gitops {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    top: 200px;
+    right: 350px;
+    z-index: 3;
+  }
+  [purpose='mdm-demo-container'] {
+    position: relative;
+    border: 1px solid #515774;
+    width: 800px;
+    background-color: @bg-lt-gray;
+    height: 500px;
+    border-radius: 8px;
+    img {
+      height: 100px;
+      width: auto;
+    }
+  }
+
+  [purpose='hero-background'] {
+    background: linear-gradient(180deg, #E8F1F7 3.37%, #FFFFFF 60%);
+    padding-top: 120px;
+    padding-bottom: 40px;
+  }
+  [purpose='hero-container'] {
+    max-width: 1200px;
+  }
+  [purpose='hero-text'] {
+    text-align: center;
+    max-width: 940px;
+    padding: 0 40px;
+    h1 {
+      margin-bottom: 32px;
+    }
+    p {
+      font-size: 18px;
+      line-height: 27px;
+      max-width: 640px;
+      margin: 0 auto 32px;
+    }
+  }
+
+ [purpose='button-row'] {
+    a {
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 24px;
+    }
+    [purpose='cta-button'] {
+      cursor: pointer;
+      margin-right: 32px;
+      background: @core-vibrant-red;
+      border-radius: 8px;
+      padding-left: 32px;
+      padding-right: 32px;
+      height: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      position: relative;
+      text-decoration: none;
+    }
+    [purpose='cta-button']::before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 50%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+    }
+    [purpose='cta-button']:hover:before {
+      opacity: 0;
+      left: 160px;
+      width: 110%;
+    }
+
+    [purpose='animated-arrow-button-red'] {
+      display: inline;
+      padding-right: 40px;
+      cursor: pointer;
+      position: relative;
+      width: fit-content;
+      min-width: 125px;
+      font-weight: bold;
+      user-select: none;
+      transition: 0.2s ease-in-out;
+      -o-transition: 0.2s ease-in-out;
+      -ms-transition: 0.2s ease-in-out;
+      -moz-transition: 0.2s ease-in-out;
+      -webkit-transition: 0.2s ease-in-out;
+      color: @core-fleet-black;
+      text-decoration: none;
+      &:after {
+      content: url('/images/arrow-right-red-16x16@2x.png');
+      transform: scale(0.5);
+      position: absolute;
+      top: -5px;
+      left: 80%; // <--- here
+      transition: 0.2s ease-in-out;
+      -o-transition: 0.2s ease-in-out;
+      -ms-transition: 0.2s ease-in-out;
+      -moz-transition: 0.2s ease-in-out;
+      -webkit-transition: 0.2s ease-in-out;
+      /*   opacity: 0; */
+      }
+      &:hover:after {
+      left: 82%; // <--- here
+      transition: 0.2s ease-in-out;
+      -o-transition: 0.2s ease-in-out;
+      -ms-transition: 0.2s ease-in-out;
+      -moz-transition: 0.2s ease-in-out;
+      -webkit-transition: 0.2s ease-in-out;
+      /*   opacity:1; */
+      }
+    }
+  }
+
+  [purpose='page-container'] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 120px;
+  }
+
+  [purpose='feature'] {
+    margin-top: 120px;
+    max-width: 960px;
+    h3 {
+      margin-bottom: 24px;
+    }
+    div {
+      max-width: 480px;
+    }
+  }
+
+  [purpose='feature-image'] {
+    img {
+      max-height: 300px;
+    }
+  }
+  [purpose='large-feature-image'] {
+    img {
+      max-height: 250px;
+    }
+  }
+
+  [purpose='checklists'] {
+    margin-top: 40px;
+    margin-bottom: 80px;
+  }
+  [purpose='checklist'] {
+    p {
+      padding-left: 28px;
+      text-indent: -28px;
+    }
+    p::before {
+      content: ' ';
+      background-image: url('/images/icon-checkmark-circle.svg');
+      background-size: 16px 16px;
+      display: inline-block;
+      position: relative;
+      top: 2px;
+      margin-right: 12px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  [purpose='tweets-container'] {
+    padding-top: 120px;
+    padding-bottom: 120px;
+  }
+
+  [purpose='bottom-gradient'] {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
+  }
+  [purpose='bottom-cloud-city-banner'] {
+    background: linear-gradient(180deg, #E9F4F4 0%, #FFFFFF 100%);
+    img {
+      width: 100%;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    [purpose='page-container'] {
+      padding-left: 120px;
+      padding-right: 120px;
+    }
+  }
+
+  @media (max-width: 1200px) {
+    [purpose='logos'] {
+      height: 58px;
+      margin-left: auto;
+      margin-right: auto;
+      img {
+        margin-top: 23.5px;
+        margin-bottom: 23.5px;
+        padding-left: 25px;
+        padding-right: 25px;
+      }
+      [purpose='snowflake-logo'] {
+        height: 21px;
+      }
+      [purpose='wayfair-logo'] {
+        height: 23px;
+      }
+      [purpose='uber-logo'] {
+        height: 20px;
+      }
+      [purpose='atlassian-logo'] {
+        height: 16px;
+      }
+      [purpose='segment-logo'] {
+        height: 22px;
+      }
+    }
+  }
+
+  @media (max-width: 991px) {
+
+    [purpose='button-row'] {
+      margin-right: auto;
+      margin-left: auto;
+    }
+
+    [purpose='hero-background'] {
+      padding-top: 120px;
+      padding-bottom: 80px;
+      padding-left: 0px;
+      padding-right: 0px;
+    }
+
+    [purpose='logos'] {
+      height: 58px;
+      margin-left: 20px;
+      margin-right: 20px;
+      img {
+        margin-top: 17.5px;
+        margin-bottom: 17.5px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+
+    h1 {
+      font-size: 48px;
+      line-height: 54px;
+    }
+
+    [purpose='page-container'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+
+    [purpose='checklists'] {
+      margin-bottom: 40px;
+    }
+
+    [purpose='feature'] {
+      margin-top: 80px;
+    }
+
+    [purpose='feature-image'], [purpose='large-feature-image'] {
+      margin-bottom: 40px;
+      img {
+        max-height: 100%;
+        max-width: 100%;
+      }
+    }
+
+    [purpose='hero-background'] {
+      padding-top: 60px;
+      padding-bottom: 60px;
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    [purpose='hero-text'] {
+      text-align: center;
+      max-width: 480px;
+    }
+
+    [purpose='tweets-container'] {
+      padding-top: 80px;
+      padding-bottom: 80px;
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+
+    [purpose='logos'] {
+      height: auto;
+    }
+  }
+
+  @media (max-width: 575px) {
+
+    [purpose='button-row'] {
+      max-width: 100%;
+      [purpose='cta-button'] {
+        margin-right: 0px;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+    }
+
+    [purpose='feature'] {
+      margin-top: 60px;
+    }
+
+    [purpose='page-container'] {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    [purpose='tweets-container'] {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    [parasails-component='scrollable-tweets'] [purpose='tweets'] {
+      margin-top: 40px;
+    }
+
+  }
+
+}
