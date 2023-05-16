@@ -25,12 +25,12 @@ import (
 func main() {
 	// Input flags
 	flagVersion := flag.String("version", "0.0.1", "Version string")
+	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embedded on the binary")
 	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
 	flagOutputBinary := flag.String("output", "", "Path to the output binary")
 
 	flag.Usage = func() {
-		zlog.Fatal().Msgf("Usage: %s [flags]\n\nPossible flags:\n", os.Args[0])
-		flag.PrintDefaults()
+		zlog.Fatal().Msgf("Usage: %s -version <version> -input <dir_path> -output <output_binary>\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -66,7 +66,8 @@ func main() {
 	defer os.Remove(manifestPath)
 
 	// now we can create the VersionInfo struct
-	vi, err := createVersionInfo(vParts, manifestPath)
+	targetIconPath := *flagCmdDir + "/" + *flagIcon
+	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
 		os.Exit(1)
@@ -95,7 +96,7 @@ func main() {
 
 // createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource.syso'
 // metadata file (see writeResourceSyso).
-func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.VersionInfo, error) {
+func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
 	vIntParts := make([]int, 0, len(vParts))
 	for _, p := range vParts {
 		v, err := strconv.Atoi(p)
@@ -158,7 +159,7 @@ func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.Ver
 				CharsetID: goversioninfo.CharsetID(charsetID),
 			},
 		},
-		IconPath:     "",
+		IconPath:     iconPath,
 		ManifestPath: manifestPath,
 	}
 
