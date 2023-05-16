@@ -26,6 +26,7 @@ const (
 	MacosSetupAssistantTeamDeleted       MacosSetupAssistantTask = "team_deleted"
 	MacosSetupAssistantHostsTransferred  MacosSetupAssistantTask = "hosts_transferred"
 	MacosSetupAssistantUpdateAllProfiles MacosSetupAssistantTask = "update_all_profiles"
+	MacosSetupAssistantUpdateProfile     MacosSetupAssistantTask = "update_profile"
 )
 
 // MacosSetupAssistant is the job processor for the macos_setup_assistant job.
@@ -73,6 +74,8 @@ func (m *MacosSetupAssistant) Run(ctx context.Context, argsJSON json.RawMessage)
 		return m.runHostsTransferred(ctx, args)
 	case MacosSetupAssistantUpdateAllProfiles:
 		return m.runUpdateAllProfiles(ctx, args)
+	case MacosSetupAssistantUpdateProfile:
+		return m.runUpdateProfile(ctx, args)
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 	}
@@ -210,10 +213,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 }
 
 func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args macosSetupAssistantArgs) error {
-	// for all teams and no-team, clear the profile uuid of their custom setup
-	// assistant and the default setup assistant (if there was one in both
-	// cases). Enqueue a job for each team/no-team to assign the newly updated
-	// profile to the hosts.
+	// for all teams and no-team, run the UpdateProfile task
 	teams, err := m.Datastore.TeamsSummary(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get all teams")
@@ -225,26 +225,8 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 			teamID = &team.ID
 		}
 
-		// clear the profile uuid for the default setup assistant
-		if err := m.Datastore.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, teamID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear default setup assistant profile uuid")
-		}
-		// clear the profile uuid for the custom setup assistant
-		if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, teamID, ""); err != nil {
-			if fleet.IsNotFound(err) {
-				// no setup assistant for that team, enqueue a profile deleted task so
-				// the default profile is assigned to the hosts.
-				if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, teamID); err != nil {
-					return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile changed job")
-				}
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "clear custom setup assistant profile uuid")
-		}
-		// no error means that the setup assistant existed for that team, enqueue a profile
-		// changed task so the custom profile is assigned to the hosts.
-		if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileChanged, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile changed job")
+		if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 		}
 		return nil
 	}
@@ -258,7 +240,33 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 	if err := processTeam(nil); err != nil {
 		return err
 	}
+	return nil
+}
 
+func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSetupAssistantArgs) error {
+	// clear the profile uuid for the default setup assistant for that team/no-team
+	if err := m.Datastore.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear default setup assistant profile uuid")
+	}
+
+	// clear the profile uuid for the custom setup assistant
+	if err := m.Datastore.SetMDMAppleSetupAssistantProfileUUID(ctx, args.TeamID, ""); err != nil {
+		if fleet.IsNotFound(err) {
+			// no setup assistant for that team, enqueue a profile deleted task so
+			// the default profile is assigned to the hosts.
+			if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, args.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile deleted job")
+			}
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "clear custom setup assistant profile uuid")
+	}
+
+	// no error means that the setup assistant existed for that team, enqueue a profile
+	// changed task so the custom profile is assigned to the hosts.
+	if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileChanged, args.TeamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile changed job")
+	}
 	return nil
 }
 
