@@ -99,16 +99,9 @@ func TestLiveQuery(t *testing.T) {
 			fleet.DistributedQueryResult{
 				DistributedQueryCampaignID: 321,
 				Rows:                       []map[string]string{{"bing": "fds"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
-					ID: 99,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-					},
-					DetailUpdatedAt: time.Now().UTC(),
-					Hostname:        "somehostname",
-				}),
+				HostID:                     99,
+				Hostname:                   "somehostname",
+				HostDisplayName:            "somehostname",
 			},
 		))
 	}()

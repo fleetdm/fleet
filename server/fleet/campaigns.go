@@ -33,15 +33,26 @@ type DistributedQueryCampaignTarget struct {
 
 // DistributedQueryResult is the result returned from the execution of a
 // distributed query on a single host.
+//
+// IMPORTANT: This struct is stored in the result store (e.g. Redis)
+// and is streamed to a pubsub listener (browser or fleetctl user) via websockets,
+// thus it should be kept as small as possible.
 type DistributedQueryResult struct {
-	DistributedQueryCampaignID uint                `json:"distributed_query_execution_id"`
-	Host                       *HostResponse       `json:"host"`
-	Rows                       []map[string]string `json:"rows"`
+	// DistributedQueryCampaignID is the unique ID of the live query campaign.
+	DistributedQueryCampaignID uint `json:"distributed_query_execution_id"`
+	// HostID is the unique ID of the host.
+	HostID uint `json:"host_id"`
+	// Hostname is the host's hostname.
+	Hostname string `json:"hostname"`
+	// HostDisplayName holds the display name of the host.
+	HostDisplayName string `json:"host_display_name"`
+	// Rows contains the results of the distributed query received from the host.
+	Rows []map[string]string `json:"rows"`
 	// osquery currently doesn't return any helpful error information,
 	// but we use string here instead of bool for future-proofing. Note also
 	// that we can't use the error interface here because something
 	// implementing that interface may not (un)marshal properly
-	Error *string `json:"error"`
+	Error *string `json:"error,omitempty"`
 }
 
 type QueryResult struct {
