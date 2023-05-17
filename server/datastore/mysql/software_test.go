@@ -1146,10 +1146,27 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
+	mutationResults, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
 	require.NoError(t, err)
-	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
+
+	// Insert paths for software1
+	s1Paths := map[string]struct{}{}
+	for _, s := range software1 {
+		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		s1Paths[key] = struct{}{}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
+
+	mutationResults, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
 	require.NoError(t, err)
+
+	// Insert paths for software2
+	s2Paths := map[string]struct{}{}
+	for _, s := range software2 {
+		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		s2Paths[key] = struct{}{}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
@@ -1205,13 +1222,6 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, inserted)
 	}
-
-	s1Paths := map[string]struct{}{}
-	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, s.ToUniqueStr())
-		s1Paths[key] = struct{}{}
-	}
-	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, nil))
 
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 }
@@ -1312,6 +1322,9 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 			ID:          2,
 			Hostname:    "host2",
 			DisplayName: "host2",
+			SoftwareInstalledPaths: []string{
+				"/some/path/foo.chrome",
+			},
 		},
 	})
 
@@ -1360,9 +1373,10 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 			DisplayName:            "computer1",
 			SoftwareInstalledPaths: []string{"/some/path/foo.chrome"},
 		}, {
-			ID:          2,
-			Hostname:    "host2",
-			DisplayName: "host2",
+			ID:                     2,
+			Hostname:               "host2",
+			DisplayName:            "host2",
+			SoftwareInstalledPaths: []string{"/some/path/foo.chrome"},
 		},
 	})
 
@@ -1370,9 +1384,10 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, hosts, []fleet.HostVulnerabilitySummary{
 		{
-			ID:          2,
-			Hostname:    "host2",
-			DisplayName: "host2",
+			ID:                     2,
+			Hostname:               "host2",
+			DisplayName:            "host2",
+			SoftwareInstalledPaths: []string{"/some/path/bar.rpm"},
 		},
 	})
 
@@ -1383,7 +1398,7 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, hosts[0].Hostname, "host1")
 	require.Equal(t, hosts[1].Hostname, "host2")
 	require.ElementsMatch(t, hosts[0].SoftwareInstalledPaths, []string{"/some/path/foo.rpm", "/some/path/foo.chrome"})
-	require.Empty(t, hosts[1].SoftwareInstalledPaths)
+	require.ElementsMatch(t, hosts[1].SoftwareInstalledPaths, []string{"/some/path/bar.rpm", "/some/path/foo.chrome"})
 }
 
 // testUpdateHostSoftwareUpdatesSoftware tests that uninstalling applications

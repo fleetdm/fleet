@@ -149,6 +149,10 @@ type UpdateHostSoftwareDBResult struct {
 func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 	var r []Software
 
+	if uhsdbr == nil {
+		return r
+	}
+
 	deleteMap := map[uint]struct{}{}
 	for _, d := range uhsdbr.Deleted {
 		deleteMap[d.ID] = struct{}{}
