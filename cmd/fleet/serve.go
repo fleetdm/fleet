@@ -52,6 +52,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/micromdm/nanomdm/push"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	scep_depot "github.com/micromdm/scep/v2/depot"
@@ -166,7 +167,7 @@ the way that the Fleet server works.
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
-			if dev && os.Getenv("FLEET_ENABLE_DEV_SQL_INTERCEPTOR") != "" {
+			if dev && os.Getenv("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
 					logger: kitlog.With(logger, "component", "sql-interceptor"),
 				}))
@@ -455,7 +456,7 @@ the way that the Fleet server works.
 				appleAPNsKeyPEM             []byte
 				depStorage                  *mysql.NanoDEPStorage
 				mdmStorage                  *mysql.NanoMDMStorage
-				mdmPushService              *nanomdm_pushsvc.PushService
+				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
 				mdmPushCertTopic            string
 			)
@@ -534,7 +535,11 @@ the way that the Fleet server works.
 				}
 				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
+					mdmPushService = nopPusher{}
+				} else {
+					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				appCfg.MDM.EnabledAndConfigured = true
@@ -677,14 +682,14 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger)
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
 
 			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
@@ -1109,4 +1114,14 @@ func (m *debugMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m.fleetAuthenticatedHandler.ServeHTTP(w, r)
+}
+
+// nopPusher is a no-op push.Pusher.
+type nopPusher struct{}
+
+var _ push.Pusher = nopPusher{}
+
+// Push implements push.Pusher.
+func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, error) {
+	return nil, nil
 }

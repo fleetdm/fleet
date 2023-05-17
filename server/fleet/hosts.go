@@ -703,6 +703,38 @@ func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsEnrolledInThirdPartyMDM returns true if and only if the host's MDM
+// information indicates that the device is currently enrolled into a
+// third-party MDM (an MDM that's not Fleet)
+func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
+	if h == nil {
+		return false
+	}
+	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// IsDEPCapable returns true if and only if the host's MDM information
+// indicates that the device is capable of doing DEP/AEP enrollments.
+func (h *HostMDM) IsDEPCapable() bool {
+	if h == nil {
+		return false
+	}
+	// TODO: InstalledFromDep doesn't necessarily mean DEP capable, we need
+	// to improve our internal state. See the differences at
+	// https://fleetdm.com/tables/mdm
+	return !h.IsServer && h.InstalledFromDep
+}
+
+// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
+func (h *HostMDM) IsDEPFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`

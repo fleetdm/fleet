@@ -523,10 +523,19 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
              the [SANS Security Incident Forms templates](https://www.sans.org/score/incident-forms/),
              as appropriate.
 
-3. The Head of Security, Privacy Officer, or Fleet representative appointed
+3. The CTO, Privacy Officer, or Fleet representative appointed
    notifies any affected Customers and Partners. If no Customers and Partners
    are affected, notification is at the discretion of the Security and Privacy
    Officer.
+   
+   Fleet’s incident response policy is to report significant cyber incidents within 
+   24 hours.
+    - Reporting Timeline – 24 hours after determining a cyber incident has occurred.
+    - Definitions – Significant cyber incidents are defined as an incident or group 
+         of incidents that are likely to result in demonstrable harm to Fleet or Fleet’s 
+         customers.
+    - Reporting Mechanism – Reports to be provided to customers via email 
+         correspondence and Slack.
 
 4. In the case of a threat identified, the Head of Security is to form a team to
    investigate and involve necessary resources, both internal to Fleet and
@@ -627,14 +636,7 @@ been corrected.
        phase.
     6. Apprise Senior Management of progress.
     7. Continue to notify affected Customers and Partners with relevant updates
-       as needed. Fleet’s incident response policy is to report significant cyber 
-       incidents within 24 hours.
-       - Reporting Timeline – 24 hours after determining a cyber incident has occurred.
-       - Definitions – Significant cyber incidents are defined as an incident or group 
-         of incidents that are likely to result in demonstrable harm to Fleet or Fleet’s 
-         customers.
-       - Reporting Mechanism – Reports to be provided to customers via email 
-         correspondence and Slack.
+       as needed. 
     8. Move to Phase V, Follow-up.
 
 #### V - Post-Incident Analysis (Technical and Non-Technical)

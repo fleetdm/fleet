@@ -769,6 +769,40 @@ This activity contains the following fields:
 }
 ```
 
+### Type `enabled_macos_setup_end_user_auth`
+
+Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `disabled_macos_setup_end_user_auth`
+
+Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, null if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">

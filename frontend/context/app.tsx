@@ -23,6 +23,7 @@ enum ACTIONS {
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
   SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
   SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
+  SET_FILTERED_POLICIES_PATH = "SET_FILTERED_POLICIES_PATH",
 }
 
 interface ISetAvailableTeamsAction {
@@ -74,6 +75,10 @@ interface ISetFilteredQueriesPathAction {
   filteredQueriesPath: string;
 }
 
+interface ISetFilteredPoliciesPathAction {
+  type: ACTIONS.SET_FILTERED_POLICIES_PATH;
+  filteredPoliciesPath: string;
+}
 type IAction =
   | ISetAvailableTeamsAction
   | ISetConfigAction
@@ -84,7 +89,8 @@ type IAction =
   | ISetNoSandboxHostsAction
   | ISetFilteredHostsPathAction
   | ISetFilteredSoftwarePathAction
-  | ISetFilteredQueriesPathAction;
+  | ISetFilteredQueriesPathAction
+  | ISetFilteredPoliciesPathAction;
 
 type Props = {
   children: ReactNode;
@@ -121,6 +127,7 @@ type InitialStateType = {
   filteredHostsPath?: string;
   filteredSoftwarePath?: string;
   filteredQueriesPath?: string;
+  filteredPoliciesPath?: string;
   setAvailableTeams: (
     user: IUser | null,
     availableTeams: ITeamSummary[]
@@ -134,6 +141,7 @@ type InitialStateType = {
   setFilteredHostsPath: (filteredHostsPath: string) => void;
   setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
   setFilteredQueriesPath: (filteredQueriesPath: string) => void;
+  setFilteredPoliciesPath: (filteredPoliciesPath: string) => void;
 };
 
 export type IAppContext = InitialStateType;
@@ -167,6 +175,7 @@ export const initialState = {
   filteredHostsPath: undefined,
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
+  filteredPoliciesPath: undefined,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -177,6 +186,7 @@ export const initialState = {
   setFilteredHostsPath: () => null,
   setFilteredSoftwarePath: () => null,
   setFilteredQueriesPath: () => null,
+  setFilteredPoliciesPath: () => null,
 };
 
 const detectPreview = () => {
@@ -321,6 +331,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         filteredQueriesPath,
       };
     }
+    case ACTIONS.SET_FILTERED_POLICIES_PATH: {
+      const { filteredPoliciesPath } = action;
+      return {
+        ...state,
+        filteredPoliciesPath,
+      };
+    }
     default:
       return state;
   }
@@ -342,6 +359,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     filteredHostsPath: state.filteredHostsPath,
     filteredSoftwarePath: state.filteredSoftwarePath,
     filteredQueriesPath: state.filteredQueriesPath,
+    filteredPoliciesPath: state.filteredPoliciesPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
@@ -403,6 +421,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       dispatch({
         type: ACTIONS.SET_FILTERED_QUERIES_PATH,
         filteredQueriesPath,
+      });
+    },
+    setFilteredPoliciesPath: (filteredPoliciesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_POLICIES_PATH,
+        filteredPoliciesPath,
       });
     },
   };

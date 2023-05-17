@@ -412,10 +412,13 @@ const Integrations = (): JSX.Element => {
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
-          actionButtonText={"Add integration"}
-          hideActionButton={!tableData?.length}
-          actionButtonVariant={"brand"}
-          onActionButtonClick={toggleAddIntegrationModal}
+          actionButton={{
+            name: "add integration",
+            buttonText: "Add integration",
+            variant: "brand",
+            onActionButtonClick: toggleAddIntegrationModal,
+            hideButton: !tableData?.length,
+          }}
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({

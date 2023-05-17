@@ -204,6 +204,11 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
+    clickOpenChatWidget: function() {
+      if(window.HubSpotConversations && window.HubSpotConversations.widget){
+        window.HubSpotConversations.widget.open();
+      }
+    },
     clickCTA: function (slug) {
       window.location = slug;
     },

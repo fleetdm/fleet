@@ -5056,6 +5056,7 @@ func testHostsSaveHostUsers(t *testing.T, ds *Datastore) {
 }
 
 func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -5086,6 +5087,63 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Second) // 1s TTL
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	createHostWithDeviceToken := func(tag string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Platform:        tag,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(tag),
+			NodeKey:         ptr.String(tag),
+			UUID:            tag,
+			Hostname:        tag + ".local",
+		})
+		require.NoError(t, err)
+
+		err = ds.SetOrUpdateDeviceAuthToken(context.Background(), h.ID, tag)
+		require.NoError(t, err)
+
+		return h
+	}
+
+	// create a host enrolled in Simple MDM
+	hSimple := createHostWithDeviceToken("simple")
+	err = ds.SetOrUpdateMDMData(ctx, hSimple.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)
+	require.NoError(t, err)
+
+	loadSimple, err := ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second)
+	require.NoError(t, err)
+	require.Equal(t, hSimple.ID, loadSimple.ID)
+	require.NotNil(t, loadSimple.MDMInfo)
+	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
+	require.True(t, loadSimple.IsOsqueryEnrolled())
+	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
+
+	// create a host that will be pending enrollment in Fleet MDM
+	hFleet := createHostWithDeviceToken("fleet")
+	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	loadFleet, err := ds.LoadHostByDeviceAuthToken(ctx, "fleet", time.Second)
+	require.NoError(t, err)
+	require.Equal(t, hFleet.ID, loadFleet.ID)
+	require.NotNil(t, loadFleet.MDMInfo)
+	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
+	require.True(t, loadFleet.IsOsqueryEnrolled())
+	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
+	require.False(t, loadFleet.MDMInfo.IsServer)
+
+	// force its is_server mdm field to NULL, should be same as false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET is_server = NULL WHERE host_id = ?`, hFleet.ID)
+		return err
+	})
+	loadFleet, err = ds.LoadHostByDeviceAuthToken(ctx, "fleet", time.Second)
+	require.NoError(t, err)
+	require.Equal(t, hFleet.ID, loadFleet.ID)
+	require.False(t, loadFleet.MDMInfo.IsServer)
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
