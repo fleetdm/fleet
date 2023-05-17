@@ -20,6 +20,7 @@ export default {
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,

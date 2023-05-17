@@ -518,7 +518,7 @@ func (a *agent) runOrbitLoop() {
 				log.Println("orbitClient.Ping: ", err)
 			}
 		case <-fleetDesktopPolicyTicker:
-			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+			if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 				a.stats.IncrementDesktopErrors()
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 			}
