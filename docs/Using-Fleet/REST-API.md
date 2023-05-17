@@ -413,7 +413,7 @@ load balancer timeout.
 
 - [List team queries](#list-team-queries)
 - [Get team query](#get-team-query)
-- [Add query to team](#add-query-to-team)
+- [Create team query](#create-team-query)
 - [Edit team query](#edit-team-query)
 - [Remove query from team](#remove-query-from-team)
 
@@ -430,9 +430,9 @@ Returns a list of all queries in the specified team.
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------  | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required** The ID of the parent team.
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| id              | integer | path  | **Required** The ID of the team.
 
 #### Example
 
@@ -508,7 +508,59 @@ Returns a list of all queries in the specified team.
 ### Get team query
 The [get query](#get-query) endpoint supports both global queries and team queries.
 
-### Add query to team
+### Create team query
+Creates a new query in the specified team.
+
+`POST /api/v1/fleet/team/{id}/queries`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                                                                                                                            |
+| ---------------- | ------  | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name             | string  | body | **Required**. The name of the query.                                                                                                                   |
+| query            | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| team_id          | integer | body | **Required**. The id of the parent team.
+| description      | string  | body | The query's description.                                                                                                                               |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+
+#### Example
+
+`POST /api/v1/fleet/teams/123/queries`
+
+##### Request body
+
+```json
+{
+  "description": "This is a new query.",
+  "name": "new_query",
+  "query": "SELECT * FROM osquery_info",
+  "team_id": 123
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
+    "team_id": 123,
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "observer_can_run": true,
+    "packs": []
+  }
+}
+```
 
 ### Edit team query
 
