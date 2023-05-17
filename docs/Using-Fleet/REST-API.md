@@ -5498,7 +5498,7 @@ Scheduling queries in Fleet is the best practice for collecting data from hosts.
 These API routes let you control your scheduled queries.
 
 ### List team queries
-`GET /api/v1/
+`GET /api/v1/fleet/teams/{id}/queries`
 
 ### Get schedule
 
