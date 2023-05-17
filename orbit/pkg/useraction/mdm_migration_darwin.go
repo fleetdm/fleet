@@ -155,10 +155,12 @@ type swiftDialogMDMMigrator struct {
 	handler   MDMMigratorHandler
 
 	// ensures only one dialog is open at a time, protects access to
-	// lastRun
-	showMu     sync.Mutex
+	// lastShown
+	showMu    sync.Mutex
+	lastShown time.Time
+
+	// ensures only one dialog is open at a given interval
 	intervalMu sync.Mutex
-	lastShown  time.Time
 }
 
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
