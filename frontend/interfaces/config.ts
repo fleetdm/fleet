@@ -104,6 +104,12 @@ interface IEndUserAuthentication {
   metadata_url: string;
 }
 
+export interface IMacOsMigrationSettings {
+  enable: boolean;
+  mode: "voluntary" | "forced";
+  webhook_url: string;
+}
+
 export interface IMdmConfig {
   enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
@@ -117,6 +123,7 @@ export interface IMdmConfig {
     custom_settings: null;
     enable_disk_encryption: boolean;
   };
+  macos_migration: IMacOsMigrationSettings;
 }
 
 export interface IDeviceGlobalConfig {
