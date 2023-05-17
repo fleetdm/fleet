@@ -59,8 +59,9 @@ const Modal = ({
   const modalContainerClassName = classnames(
     `${baseClass}__modal_container`,
     className,
-    { [`${baseClass}__modal_container__l`]: width === "large" },
-    { [`${baseClass}__modal_container__xl`]: width === "xlarge" },
+    { [`${baseClass}__modal_container__medium`]: width === "medium" },
+    { [`${baseClass}__modal_container__large`]: width === "large" },
+    { [`${baseClass}__modal_container__xlarge`]: width === "xlarge" },
     { [`${baseClass}__modal_container__auto`]: width === "auto" }
   );
 
