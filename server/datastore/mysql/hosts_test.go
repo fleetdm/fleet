@@ -247,7 +247,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	_, err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
@@ -2482,8 +2482,10 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	}
 	host1 := hosts[0]
 	host2 := hosts[1]
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
+	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
@@ -2535,13 +2537,16 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 
 	// need to sleep because timestamps have a 1 second resolution, otherwise it'll be a flaky test
 	time.Sleep(1 * time.Second)
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
+	require.NoError(t, err)
 
 	// if we update the host again with the same software, host2 will still be the one with the latest updated at
 	// because nothing changed
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{OrderKey: "software_updated_at", OrderDirection: fleet.OrderDescending},
@@ -3090,7 +3095,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if err = ds.UpdateHostSoftware(context.Background(), host1.ID, host1Software); err != nil {
+			if _, err = ds.UpdateHostSoftware(context.Background(), host1.ID, host1Software); err != nil {
 				errCh <- err
 				return
 			}
@@ -3151,7 +3156,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if err = ds.UpdateHostSoftware(context.Background(), host2.ID, host2Software); err != nil {
+			if _, err = ds.UpdateHostSoftware(context.Background(), host2.ID, host2Software); err != nil {
 				errCh <- err
 				return
 			}
@@ -5466,7 +5471,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "1.0.0", Source: "deb_packages"},
 	}
-	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	_, err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
 	// Updates host_users.
 	users := []fleet.HostUser{
@@ -5593,6 +5598,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
 		host.ID, 1, "cve-1",
 	)
+	require.NoError(t, err)
+
+	_, err = ds.writer.Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

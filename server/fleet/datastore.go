@@ -616,7 +616,17 @@ type Datastore interface {
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
+	// Returns a struct with the current installed software on the host (pre-mutations) plus all
+	// mutations performed: what was inserted and what was removed.
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
+	// 'reported', either inserts or deletes the corresponding entries in the
+	// 'host_software_installed_paths' table. 'reported' is a set of
+	// 'software.ToUniqueStr()--installed_path' strings. 'mutationResults' contains the software inventory of
+	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
+	// it is used as DB optimization.
+	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
