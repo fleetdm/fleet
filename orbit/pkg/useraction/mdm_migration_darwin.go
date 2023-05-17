@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"sync"
 	"text/template"
 	"time"
@@ -178,11 +177,10 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 	return m.baseDialog.render(flags...)
 }
 
-func (m *swiftDialogMDMMigrator) renderLoadingSpinner(timeout time.Duration) (chan swiftDialogExitCode, chan error) {
+func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCode, chan error) {
 	return m.render("## Migrate to Fleet\n\nCommunicating with MDM server...",
 		"--button1text", "Start",
 		"--button1disabled",
-		"--timer", strconv.FormatFloat(timeout.Seconds(), 'E', 0, 32), "--hidetimerbar",
 		"--quitkey", "x",
 	)
 }
@@ -232,7 +230,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.Aggresive {
 			// show the loading spinner
-			spinnerExitCodeCh, spinnerErrCh := m.renderLoadingSpinner(15 * time.Second)
+			m.renderLoadingSpinner()
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -246,17 +244,16 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			select {
-			case err := <-spinnerErrCh:
-				return fmt.Errorf("showing spinner dialog: %w", err)
-			case exitCode := <-spinnerExitCodeCh:
-				if exitCode != timeoutExitCode {
-					return fmt.Errorf("unexpected status code showing spinner: %d", exitCode)
-				}
+			log.Info().Msg("webhook sent, closing spinner")
 
-			}
+			// close the spinner
+			// TODO: maybe it's better to use
+			// https://github.com/bartreardon/swiftDialog/wiki/Updating-Dialog-with-new-content
+			// instead? it uses a file as IPC
+			m.baseDialog.Exit()
 		}
 
+		log.Info().Msg("showing instructions")
 		m.handler.ShowInstructions()
 	}
 

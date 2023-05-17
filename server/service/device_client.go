@@ -140,6 +140,6 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 }
 
 func (dc *DeviceClient) MigrateMDM(token string) error {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/migrate_mdm"
-	return dc.request(verb, path, "", struct{}{})
+	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
+	return dc.request(verb, path, "", nil)
 }

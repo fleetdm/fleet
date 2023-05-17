@@ -368,10 +368,12 @@ type mdmMigrationHandler struct {
 }
 
 func (m *mdmMigrationHandler) NotifyRemote() error {
+	log.Debug().Msg("sending request to trigger mdm migration webhook")
 	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
+		log.Error().Err(err).Msg("triggering migration webhook")
 		return fmt.Errorf("on migration start: %w", err)
 	}
-
+	log.Debug().Msg("successfully sent request to trigger mdm migration webhook")
 	return nil
 }
 
