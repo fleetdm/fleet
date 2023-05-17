@@ -25,9 +25,10 @@ import (
 func main() {
 	// Input flags
 	flagVersion := flag.String("version", "0.0.1", "Version string")
+	flagCreateResource := flag.Bool("resource", false, "This is a bool flag to just create the resource.syso file and not build the binary")
 	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embedded on the binary")
+	flagOutputBinary := flag.String("output", "output.exe", "Path to the output binary")
 	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
-	flagOutputBinary := flag.String("output", "", "Path to the output binary")
 
 	flag.Usage = func() {
 		zlog.Fatal().Msgf("Usage: %s -version <version> -input <dir_path> -output <output_binary>\n", os.Args[0])
@@ -35,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	// checking input flags are not empty
-	if *flagCmdDir == "" || *flagOutputBinary == "" {
+	if *flagCmdDir == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -63,7 +64,9 @@ func main() {
 		zlog.Fatal().Err(err).Msg("creating manifest.xml")
 		os.Exit(1)
 	}
-	defer os.Remove(manifestPath)
+	if !*flagCreateResource {
+		defer os.Remove(manifestPath)
+	}
 
 	// now we can create the VersionInfo struct
 	targetIconPath := *flagCmdDir + "/" + *flagIcon
@@ -83,15 +86,21 @@ func main() {
 		zlog.Fatal().Err(err).Msg("creating syso file")
 		os.Exit(1)
 	}
-	defer os.Remove(outPath)
 
-	// now we can build the binary
-	if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary); err != nil {
-		zlog.Fatal().Err(err).Msg("error building binary")
-		os.Exit(1)
+	// checking if build should be performed or not
+	if *flagCreateResource {
+		zlog.Info().Msgf("Successfully created resource file %s", outPath)
+	} else {
+
+		defer os.Remove(outPath)
+		// now we can build the binary
+		if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary); err != nil {
+			zlog.Fatal().Err(err).Msg("error building binary")
+			os.Exit(1)
+		}
+
+		zlog.Info().Msgf("Successfully built %s", *flagOutputBinary)
 	}
-
-	zlog.Info().Msgf("Successfully built %s", *flagOutputBinary)
 }
 
 // createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource.syso'
