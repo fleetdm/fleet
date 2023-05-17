@@ -5346,7 +5346,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/{id}`
+`DELETE /api/v1/fleet/queries/{id}`
 
 #### Parameters
 
