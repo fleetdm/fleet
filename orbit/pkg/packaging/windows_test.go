@@ -80,7 +80,7 @@ func TestSanitizeVersion(t *testing.T) {
 	}
 
 	for _, tC := range testCases {
-		result, err := sanitizeVersion(tC.Version)
+		result, err := SanitizeVersion(tC.Version)
 
 		if tC.ErrorsOut {
 			require.Error(t, err)
