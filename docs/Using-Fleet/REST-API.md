@@ -424,6 +424,9 @@ These API routes let you control your scheduled queries.
 ### List team queries
 `GET /api/v1/fleet/teams/{id}/queries`
 
+### Get team query
+The [get query](#get-query) endpoint supports both global queries and team queries.
+
 ---
 
 ## Schedule
