@@ -247,7 +247,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 	}
 
 	var contents bytes.Buffer
-	if err := manifestXMLTemplate.Execute(&contents, tmplOpts); err != nil {
+	if err := ManifestXMLTemplate.Execute(&contents, tmplOpts); err != nil {
 		return "", fmt.Errorf("parsing manifest.xml template: %w", err)
 	}
 

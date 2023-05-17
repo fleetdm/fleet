@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/josephspurrier/goversioninfo"
 	zlog "github.com/rs/zerolog/log"
 )
@@ -26,7 +26,7 @@ func main() {
 	// Input flags
 	flagVersion := flag.String("version", "0.0.1", "Version string")
 	flagCreateResource := flag.Bool("resource", false, "This is a bool flag to just create the resource.syso file and not build the binary")
-	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embedded on the binary")
+	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embed on the binary")
 	flagOutputBinary := flag.String("output", "output.exe", "Path to the output binary")
 	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
 
@@ -34,12 +34,6 @@ func main() {
 		zlog.Fatal().Msgf("Usage: %s -version <version> -input <dir_path> -output <output_binary>\n", os.Args[0])
 	}
 	flag.Parse()
-
-	// checking input flags are not empty
-	if *flagCmdDir == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	// check if flagCmdDir is a valid directory
 	_, err := os.Stat(*flagCmdDir)
@@ -69,7 +63,7 @@ func main() {
 	}
 
 	// now we can create the VersionInfo struct
-	targetIconPath := *flagCmdDir + "/" + *flagIcon
+	targetIconPath := filepath.Join(*flagCmdDir, *flagIcon)
 	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
@@ -203,7 +197,8 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 	}
 
 	var contents bytes.Buffer
-	if err := manifestXMLTemplate.Execute(&contents, tmplOpts); err != nil {
+
+	if err := packaging.ManifestXMLTemplate.Execute(&contents, tmplOpts); err != nil {
 		return "", fmt.Errorf("parsing manifest.xml template: %w", err)
 	}
 
@@ -243,23 +238,3 @@ func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
 	}
 	return nil
 }
-
-// Adapted from https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
-var manifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
-	`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity
-    type="win32"
-    name="Fleet osquery"
-    version="{{.Version}}"
-    processorArchitecture="*"/>
- <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-   <security>
-     <requestedPrivileges>
-       <requestedExecutionLevel
-         level="asInvoker"
-         uiAccess="false"/>
-       </requestedPrivileges>
-   </security>
- </trustInfo>
-</assembly>`))

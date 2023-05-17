@@ -4,7 +4,7 @@ import "text/template"
 
 // Adapted from
 // https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
-var manifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
+var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
