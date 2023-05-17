@@ -30,6 +30,23 @@ const rebuildQueryStringWithTeamId = (
   newTeamId: number
 ) => {
   const parts = splitQueryStringParts(queryString);
+
+  // Reset page to 0
+  const pageIndex = parts.findIndex((p) => p.startsWith("page="));
+  const inheritedPageIndex = parts.findIndex((p) =>
+    p.startsWith("inherited_page=")
+  );
+
+  const newPagePart = "page=0";
+  const newInheritedPagePart = "inherited_page=0";
+
+  if (pageIndex) {
+    parts.splice(pageIndex, 1, newPagePart);
+  }
+  if (inheritedPageIndex) {
+    parts.splice(inheritedPageIndex, 1, newInheritedPagePart);
+  }
+
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
 
   // URLs for the app represent "All teams" by the absence of the team id param
@@ -54,6 +71,7 @@ const rebuildQueryStringWithTeamId = (
   } else {
     parts.splice(teamIndex, 1); // just remove the old team part
   }
+
   return joinQueryStringParts(parts);
 };
 
