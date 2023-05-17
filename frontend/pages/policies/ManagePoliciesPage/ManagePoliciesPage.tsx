@@ -146,22 +146,14 @@ const ManagePolicyPage = ({
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  // Never set as state as URL is source of truth
-  // State only used for handling team change
-  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [page, setPage] = useState(initialPage);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
-  const [sortHeader, setSortHeader] = useState(initialSortHeader);
-  const [showInheritedTable, setShowInheritedTable] = useState(
-    initialShowInheritedTable
-  );
-  const [inheritedSortDirection, setInheritedSortDirection] = useState(
-    initialSortDirection
-  );
-  const [inheritedSortHeader, setInheritedSortHeader] = useState(
-    initialSortHeader
-  );
-  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
+  const page = initialPage;
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
+  const showInheritedTable = initialShowInheritedTable;
+  const inheritedSortDirection = initialInheritedSortDirection;
+  const inheritedSortHeader = initialInheritedSortHeader;
+  const inheritedPage = initialInheritedPage;
+  const searchQuery = initialSearchQuery;
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -173,18 +165,6 @@ const ManagePolicyPage = ({
       setFilteredPoliciesPath(path);
     }
   }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
-
-  useEffect(() => {
-    setShowInheritedTable(initialShowInheritedTable);
-    setPage(initialPage);
-    setSearchQuery(initialSearchQuery);
-    setSortDirection(initialSortDirection);
-    setSortHeader(initialSortHeader);
-    setInheritedSortDirection(initialInheritedSortDirection);
-    setInheritedSortHeader(initialInheritedSortHeader);
-    setInheritedPage(initialInheritedPage);
-    // TODO: handle invalid values for params
-  }, [location]);
 
   const {
     data: globalPolicies,
@@ -269,8 +249,6 @@ const ManagePolicyPage = ({
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
-      setPage(0);
-      setSearchQuery("");
     },
     [handleTeamChange]
   );
@@ -341,7 +319,6 @@ const ManagePolicyPage = ({
         newQueryParams.team_id = teamIdForApi;
       }
 
-      console.log("onQueryChange newQueryParams", newQueryParams);
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_POLICIES,
         queryParams: newQueryParams,
@@ -360,12 +337,17 @@ const ManagePolicyPage = ({
           ...queryParams,
           page: pageIndex,
           query: searchQuery,
+          order_direction: sortDirection,
+          order_key: sortHeader,
+          inherited_order_direction: inheritedSortDirection,
+          inherited_order_key: inheritedSortHeader,
+          inherited_page: inheritedPage,
         },
       });
 
       router?.replace(locationPath);
     },
-    [searchQuery, queryParams] // Dependencies required for correct variable state
+    [searchQuery, queryParams, sortHeader, sortDirection] // Dependencies required for correct variable state
   );
 
   const onClientSideInheritedPaginationChange = useCallback(
@@ -377,11 +359,16 @@ const ManagePolicyPage = ({
           inherited_table: "true",
           inherited_page: pageIndex,
           query: searchQuery,
+          page,
+          order_direction: sortDirection,
+          order_key: sortHeader,
+          inherited_order_direction: inheritedSortDirection,
+          inherited_order_key: inheritedSortHeader,
         },
       });
       router?.replace(locationPath);
     },
-    [queryParams] // Dependencies required for correct variable state
+    [queryParams, inheritedSortHeader, inheritedSortDirection] // Dependencies required for correct variable state
   );
 
   const toggleManageAutomationsModal = () =>

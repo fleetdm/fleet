@@ -129,8 +129,6 @@ const PoliciesTable = ({
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
-  console.log("PoliciesTable.tsx, sortHeader", sortHeader);
-  console.log("PoilciesTable.tsx, sortDirection", sortDirection);
   return (
     <div
       className={`${baseClass} ${
