@@ -2,8 +2,8 @@ package packaging
 
 import (
 	"bytes"
-	"errors"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
