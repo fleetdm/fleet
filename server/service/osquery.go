@@ -833,6 +833,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	additionalUpdated := false
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
+	refetchCriticalSet := host.RefetchCriticalQueriesUntil != nil
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
@@ -936,8 +937,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 	if refetchRequested {
 		host.RefetchRequested = false
 	}
+	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
 
-	if refetchRequested || detailUpdated {
+	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			logging.WithErr(ctx, err)

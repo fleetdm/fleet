@@ -291,6 +291,11 @@ type Host struct {
 	// until the timestamp expires. The initial use-case is to check for a host
 	// to be enrolled from its old MDM solution, in the "migrate to Fleet MDM"
 	// workflow.
+	//
+	// In the future, if we want to use it for more than one use-case, we could
+	// add a "reason" field with well-known labels so we know what condition(s)
+	// are expected to clear the timestamp. For now there's a single use-case
+	// so we don't need this.
 	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
 }
 

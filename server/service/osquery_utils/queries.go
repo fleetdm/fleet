@@ -1214,11 +1214,12 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	// TODO(mna): if host is now unenrolled, clear the RefetchCriticalQueriesUntil
-	// timestamp (no need to save the host here, it will be saved as part of the
-	// distributed write request - it is always saved to update the last seen time).
-	// Hmm not quite, the host is only saved for queries ingested by updating the host
-	// struct, not the direct ingest ones, so we may need to save it here.
+	mdmSolutionName := deduceMDMNameMacOS(rows[0])
+	if !enrolled && installedFromDep && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet DEP MDM solution, and the
+		// refetch critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
 
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
@@ -1226,7 +1227,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		enrolled,
 		rows[0]["server_url"],
 		installedFromDep,
-		deduceMDMNameMacOS(rows[0]),
+		mdmSolutionName,
 	)
 }
 
