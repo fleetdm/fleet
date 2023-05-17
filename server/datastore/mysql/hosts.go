@@ -333,6 +333,7 @@ var hostRefs = []string{
 	"operating_system_vulnerabilities",
 	"host_updates",
 	"host_disk_encryption_keys",
+	"host_software_installed_paths",
 }
 
 // those host refs cannot be deleted using the host.id like the hostRefs above,

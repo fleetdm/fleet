@@ -84,7 +84,7 @@ func loadSoftware(
 			Arch:    fi.Arch,
 		})
 	}
-	err = ds.UpdateHostSoftware(ctx, h.ID, software)
+	_, err = ds.UpdateHostSoftware(ctx, h.ID, software)
 	require.NoError(t, err)
 
 	err = ds.LoadHostSoftware(ctx, h, false)

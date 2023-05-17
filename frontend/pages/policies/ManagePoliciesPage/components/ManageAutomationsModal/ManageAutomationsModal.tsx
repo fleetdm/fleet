@@ -338,8 +338,13 @@ const ManageAutomationsModal = ({
   return showPreviewPayloadModal ? (
     renderPreview()
   ) : (
-    <Modal onExit={onExit} title={"Manage automations"} className={baseClass}>
-      <div className={baseClass}>
+    <Modal
+      onExit={onExit}
+      title={"Manage automations"}
+      className={baseClass}
+      width="large"
+    >
+      <>
         <div className={`${baseClass}__software-select-items`}>
           <Slider
             value={isPolicyAutomationsEnabled}
@@ -438,7 +443,7 @@ const ManageAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

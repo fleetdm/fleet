@@ -446,7 +446,9 @@ type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
-type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
+type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
+
+type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1276,6 +1278,9 @@ type DataStore struct {
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
+
+	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
+	UpdateHostSoftwareInstalledPathsFuncInvoked bool
 
 	UpdateHostFunc        UpdateHostFunc
 	UpdateHostFuncInvoked bool
@@ -3055,11 +3060,18 @@ func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, 
 	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
-func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
+func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 	s.mu.Lock()
 	s.UpdateHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
+}
+
+func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
+	s.mu.Lock()
+	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostSoftwareInstalledPathsFunc(ctx, hostID, reported, mutationResults)
 }
 
 func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {

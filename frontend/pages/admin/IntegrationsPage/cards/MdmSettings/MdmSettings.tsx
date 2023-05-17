@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 
@@ -14,11 +15,16 @@ import DataError from "components/DataError";
 import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
+import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 
 const baseClass = "mdm-settings";
 
-const Mdm = (): JSX.Element => {
-  const { config } = useContext(AppContext);
+interface IMdmSettingsProps {
+  router: InjectedRouter;
+}
+
+const MdmSettings = ({ router }: IMdmSettingsProps) => {
+  const { isPremiumTier, config } = useContext(AppContext);
 
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
 
@@ -121,6 +127,11 @@ const Mdm = (): JSX.Element => {
         <h2>Apple Push Certificates Portal</h2>
         {isLoadingMdmApple ? <Spinner /> : renderMdmAppleSection()}
       </div>
+      {isPremiumTier && (
+        <div className={`${baseClass}__section`}>
+          <EndUserMigrationSection router={router} />
+        </div>
+      )}
       {showRequestCSRModal && (
         <RequestCSRModal onCancel={toggleRequestCSRModal} />
       )}
@@ -128,4 +139,4 @@ const Mdm = (): JSX.Element => {
   );
 };
 
-export default Mdm;
+export default MdmSettings;

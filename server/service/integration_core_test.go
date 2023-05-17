@@ -624,7 +624,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
@@ -1182,7 +1183,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	resp = listHostsResponse{}
@@ -4984,7 +4986,8 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
-		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
+		_, err := s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:])
+		require.NoError(t, err)
 		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, false))
 
 		if i == 0 {
@@ -5237,7 +5240,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), hosts[0].ID, software))
+	_, err := s.ds.UpdateHostSoftware(context.Background(), hosts[0].ID, software)
+	require.NoError(t, err)
 	searchResp = searchHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
@@ -5824,7 +5828,8 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		{Name: "bar", Version: "0.0.3", Source: "apps", LastOpenedAt: &today},
 		{Name: "baz", Version: "0.0.4", Source: "apps", LastOpenedAt: &yesterday},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -5891,7 +5896,8 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -6147,7 +6153,8 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)

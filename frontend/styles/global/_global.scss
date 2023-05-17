@@ -100,7 +100,7 @@ input {
 
 // syntax highlighting for pretty-printed JSON
 pre {
-  padding: 15px;
+  padding: $pad-large;
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;

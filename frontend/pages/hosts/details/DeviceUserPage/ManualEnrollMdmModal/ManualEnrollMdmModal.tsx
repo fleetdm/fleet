@@ -68,7 +68,12 @@ const ManualEnrollMdmModal = ({
   }
 
   return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
