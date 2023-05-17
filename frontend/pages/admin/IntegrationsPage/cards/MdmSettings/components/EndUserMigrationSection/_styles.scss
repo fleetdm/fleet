@@ -1,6 +1,10 @@
 .end-user-migration-section {
   font-size: $x-small;
 
+  &__abm-connect-message {
+    margin-top: 0;
+  }
+
   img {
     margin-bottom: $pad-xxlarge;
   }

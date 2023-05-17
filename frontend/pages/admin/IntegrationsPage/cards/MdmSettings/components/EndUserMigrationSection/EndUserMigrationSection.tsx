@@ -1,6 +1,8 @@
 import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 import classnames from "classnames";
 
+import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -11,6 +13,9 @@ import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import validateUrl from "components/forms/validators/valid_url";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import EmptyTable from "components/EmptyTable/EmptyTable";
+
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 const baseClass = "end-user-migration-section";
@@ -26,22 +31,21 @@ interface IEndUserMigrationFormData {
   webhookUrl: string;
 }
 
+interface IEndUserMigrationSectionProps {
+  router: InjectedRouter;
+}
+
 const validateWebhookUrl = (val: string) => {
   return validateUrl({ url: val });
 };
 
-const EndUserMigrationSection = () => {
-  const { config } = useContext(AppContext);
+const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
+  const { config, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-  // const [formData, setFormData] = useState<IEndUserMigrationFormData>({
-  //   isEnabled: config?.mdm.macos_migration.enable || false,
-  //   mode: config?.mdm.macos_migration.mode || "voluntary",
-  //   webhookUrl: config?.mdm.macos_migration.webhook_url || "",
-  // });
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
-    isEnabled: false,
-    mode: "voluntary",
-    webhookUrl: "",
+    isEnabled: config?.mdm.macos_migration.enable || false,
+    mode: config?.mdm.macos_migration.mode || "voluntary",
+    webhookUrl: config?.mdm.macos_migration.webhook_url || "",
   });
   const [showExamplePayload, setShowExamplePayload] = useState(false);
 
@@ -50,8 +54,16 @@ const EndUserMigrationSection = () => {
   // use a formErrors object.
   const [isValidWebhookUrl, setIsValidWebhookUrl] = useState(true);
 
+  const toggleExamplePayloadModal = () => {
+    setShowExamplePayload(!showExamplePayload);
+  };
+
   const toggleMigrationEnabled = () => {
     setFormData({ ...formData, isEnabled: !formData.isEnabled });
+  };
+
+  const onClickConnect = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
   };
 
   const onChangeMode = (mode: string) => {
@@ -60,10 +72,6 @@ const EndUserMigrationSection = () => {
     // by the `value` prop instead of a generic string.
     const newMode = mode as "voluntary" | "forced";
     setFormData({ ...formData, mode: newMode });
-  };
-
-  const toggleExamplePayloadModal = () => {
-    setShowExamplePayload(!showExamplePayload);
   };
 
   const onChangeWebhookUrl = (webhookUrl: string) => {
@@ -98,6 +106,29 @@ const EndUserMigrationSection = () => {
     disabled: !formData.isEnabled,
   });
 
+  if (!isPremiumTier) {
+    return (
+      <div className={baseClass}>
+        <h2>End user migration workflow</h2>
+        <PremiumFeatureMessage />
+      </div>
+    );
+  }
+
+  if (!config?.mdm.apple_bm_enabled_and_configured) {
+    return (
+      <div className={baseClass}>
+        <h2>End user migration workflow</h2>
+        <EmptyTable
+          className={`${baseClass}__abm-connect-message`}
+          header="Migration workflow for macOS hosts"
+          info="Connect to Apple Business Manager to get started."
+          primaryButton={<Button onClick={onClickConnect}>Connect</Button>}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={baseClass}>
       <h2>End user migration workflow</h2>
@@ -107,7 +138,6 @@ const EndUserMigrationSection = () => {
       </p>
 
       <img src="" alt="end user migration preview" />
-
       <form>
         <Slider
           value={formData.isEnabled}
