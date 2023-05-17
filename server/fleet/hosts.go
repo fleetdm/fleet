@@ -289,7 +289,7 @@ type Host struct {
 	// requirements may use this mechanism. The difference with RefetchRequested
 	// is that the latter is a one-time request, while this one is a persistent
 	// until the timestamp expires. The initial use-case is to check for a host
-	// to be enrolled from its old MDM solution, in the "migrate to Fleet MDM"
+	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
 	// workflow.
 	//
 	// In the future, if we want to use it for more than one use-case, we could
