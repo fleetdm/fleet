@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230516152807(t *testing.T) {
+func TestUp_20230517152807(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	someString := func() string {
