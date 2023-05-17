@@ -77,8 +77,8 @@ func (b *baseDialog) Exit() {
 // The first returned channel sends the exit code returned by swiftDialog, and
 // the second channel is used to send errors.
 func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan error) {
-	exitCodeChan := make(chan swiftDialogExitCode)
-	errChan := make(chan error)
+	exitCodeChan := make(chan swiftDialogExitCode, 1)
+	errChan := make(chan error, 1)
 	go func() {
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
 		done := make(chan error)
@@ -112,14 +112,13 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 					default:
 						errChan <- fmt.Errorf("unknown exit code showing dialog: %w", exitError)
 					}
+				} else {
+					errChan <- fmt.Errorf("running swiftDialog: %w", err)
 				}
-
-				errChan <- fmt.Errorf("running swiftDialog: %w", err)
+			} else {
+				exitCodeChan <- 0
 			}
-
-			exitCodeChan <- 0
 		}
-
 	}()
 	return exitCodeChan, errChan
 }
