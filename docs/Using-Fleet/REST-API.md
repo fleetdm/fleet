@@ -5151,10 +5151,10 @@ Returns a list of all queries in the Fleet instance (both global and team querie
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------  | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
