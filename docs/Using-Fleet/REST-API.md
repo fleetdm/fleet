@@ -427,6 +427,12 @@ These API routes let you control your scheduled queries.
 ### Get team query
 The [get query](#get-query) endpoint supports both global queries and team queries.
 
+### Add query to team
+
+### Edit team query
+
+### Remove query from team
+
 ---
 
 ## Schedule
