@@ -372,6 +372,7 @@ Consultants:
 - do NOT receive company-issued laptops
 - do NOT receive Yubikeys
 - do NOT get a "Hiring" issue created for them
+- do NOT get a company email address, nor everyone's calendars, nor the shared drive _(with occasional exceptions)_
 - do NOT go through training using the contributor onboarding issue.
 - do NOT fill any existing [open position](#creating-a-new-position)
 

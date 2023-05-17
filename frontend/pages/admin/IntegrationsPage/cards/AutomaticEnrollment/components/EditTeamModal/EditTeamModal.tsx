@@ -4,11 +4,10 @@ import { AppContext } from "context/app";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import Modal from "components/Modal";
+import Button from "components/buttons/Button";
 
 interface IEditTeamModal {
   onCancel: () => void;

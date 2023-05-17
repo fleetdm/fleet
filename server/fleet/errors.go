@@ -19,6 +19,13 @@ var (
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
 
+// ErrWithStatusCode is an interface for errors that should set a specific HTTP
+// status code.
+type ErrWithStatusCode interface {
+	error
+	StatusCode() int
+}
+
 // ErrWithInternal is an interface for errors that include extra "internal"
 // information that should be logged in server logs but not sent to clients.
 type ErrWithInternal interface {

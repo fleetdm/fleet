@@ -80,10 +80,10 @@ func main() {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
 	ds := new(mock.Store)
-	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-		hosts := make([]*fleet.HostShort, *hostsCount)
+	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
+		hosts := make([]fleet.HostVulnerabilitySummary, *hostsCount)
 		for i := 0; i < *hostsCount; i++ {
-			hosts[i] = &fleet.HostShort{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1), DisplayName: fmt.Sprintf("host-test-%d", i+1)}
+			hosts[i] = fleet.HostVulnerabilitySummary{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1), DisplayName: fmt.Sprintf("host-test-%d", i+1)}
 		}
 		return hosts, nil
 	}

@@ -25,6 +25,10 @@ parasails.registerPage('get-started', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickOpenChatWidget: function() {
+      if(window.HubSpotConversations && window.HubSpotConversations.widget){
+        window.HubSpotConversations.widget.open();
+      }
+    },
   }
 });

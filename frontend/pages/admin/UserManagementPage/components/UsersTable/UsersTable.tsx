@@ -538,8 +538,11 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
-          actionButtonText={"Create user"}
-          onActionButtonClick={toggleCreateUserModal}
+          actionButton={{
+            name: "create user",
+            buttonText: "Create user",
+            onActionButtonClick: toggleCreateUserModal,
+          }}
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
           emptyComponent={() => EmptyTable(emptyState)}

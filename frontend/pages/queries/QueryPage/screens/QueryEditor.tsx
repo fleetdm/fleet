@@ -139,10 +139,7 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredSoftwarePath
   const backToQueriesPath = () => {
-    if (filteredQueriesPath) {
-      return filteredQueriesPath;
-    }
-    return PATHS.MANAGE_QUERIES;
+    return filteredQueriesPath || PATHS.MANAGE_QUERIES;
   };
 
   return (

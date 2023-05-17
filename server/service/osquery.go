@@ -608,11 +608,24 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 
 const alwaysTrueQuery = "SELECT 1"
 
+// list of detail queries that are returned when only the critical queries
+// should be returned (due to RefetchCriticalQueriesUntil timestamp being set).
+var criticalDetailQueries = map[string]bool{
+	"mdm": true,
+}
+
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
+	var criticalQueriesOnly bool
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
-		return nil, nil, nil
+		// would not return anything, check if critical queries should be returned
+		if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
+			// return only those critical queries
+			criticalQueriesOnly = true
+		} else {
+			return nil, nil, nil
+		}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -630,6 +643,10 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
 	for name, query := range detailQueries {
+		if criticalQueriesOnly && !criticalDetailQueries[name] {
+			continue
+		}
+
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
@@ -641,7 +658,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	if features.AdditionalQueries == nil {
+	if features.AdditionalQueries == nil || criticalQueriesOnly {
 		// No additional queries set
 		return queries, discovery, nil
 	}
@@ -833,6 +850,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	additionalUpdated := false
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
+	refetchCriticalSet := host.RefetchCriticalQueriesUntil != nil
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
@@ -936,8 +954,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 	if refetchRequested {
 		host.RefetchRequested = false
 	}
+	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
 
-	if refetchRequested || detailUpdated {
+	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			logging.WithErr(ctx, err)

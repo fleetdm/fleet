@@ -23,7 +23,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -60,12 +62,15 @@ func init() {
 }
 
 type Stats struct {
-	errors            int
-	enrollments       int
-	orbitenrollments  int
-	distributedwrites int
-	orbitErrors       int
-	desktopErrors     int
+	errors              int
+	osqueryEnrollments  int
+	orbitEnrollments    int
+	mdmEnrollments      int
+	distributedWrites   int
+	mdmCommandsReceived int
+	orbitErrors         int
+	mdmErrors           int
+	desktopErrors       int
 
 	l sync.Mutex
 }
@@ -79,25 +84,43 @@ func (s *Stats) IncrementErrors(errors int) {
 func (s *Stats) IncrementEnrollments() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.enrollments++
+	s.osqueryEnrollments++
 }
 
 func (s *Stats) IncrementOrbitEnrollments() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.orbitenrollments++
+	s.orbitEnrollments++
+}
+
+func (s *Stats) IncrementMDMEnrollments() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmEnrollments++
 }
 
 func (s *Stats) IncrementDistributedWrites() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.distributedwrites++
+	s.distributedWrites++
+}
+
+func (s *Stats) IncrementMDMCommandsReceived() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmCommandsReceived++
 }
 
 func (s *Stats) IncrementOrbitErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.orbitErrors++
+}
+
+func (s *Stats) IncrementMDMErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmErrors++
 }
 
 func (s *Stats) IncrementDesktopErrors() {
@@ -111,14 +134,17 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f \t enrollments: %d \t orbit enrollments: %d \t writes: %d\n \t orbit errors: %d \t desktop errors: %d",
-		time.Now().String(),
-		float64(s.errors)/float64(s.enrollments),
-		s.enrollments,
-		s.orbitenrollments,
-		s.distributedwrites,
+		"%s :: error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/writes: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
+		time.Now().Format("2006-01-02T15:04:05Z"),
+		float64(s.errors)/float64(s.osqueryEnrollments),
+		s.osqueryEnrollments,
+		s.orbitEnrollments,
+		s.mdmEnrollments,
+		s.distributedWrites,
+		s.mdmCommandsReceived,
 		s.orbitErrors,
 		s.desktopErrors,
+		s.mdmErrors,
 	)
 }
 
@@ -208,13 +234,23 @@ type agent struct {
 
 	scheduledQueries []string
 
+	// mdmClient simulates a device running the MDM protocol (client side).
+	mdmClient *mdmtest.TestMDMClient
+	// isEnrolledToMDM is true when the mdmDevice has enrolled.
+	isEnrolledToMDM bool
+	// isEnrolledToMDMMu protects isEnrolledToMDM.
+	isEnrolledToMDMMu sync.Mutex
+
+	//
 	// The following are exported to be used by the templates.
+	//
 
 	EnrollSecret          string
 	UUID                  string
 	SerialNumber          string
 	ConfigInterval        time.Duration
 	QueryInterval         time.Duration
+	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 }
 
@@ -236,12 +272,17 @@ type softwareEntityCount struct {
 
 func newAgent(
 	agentIndex int,
-	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
+	serverAddress, enrollSecret string,
+	templates *template.Template,
+	configInterval, queryInterval, mdmCheckInInterval time.Duration,
+	softwareCount softwareEntityCount,
+	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
 	emptySerialProb float64,
+	mdmProb float64,
+	mdmSCEPChallenge string,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -251,9 +292,21 @@ func newAgent(
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	serial := randSerial()
+	serialNumber := mdmtest.RandSerialNumber()
 	if rand.Float64() <= emptySerialProb {
-		serial = ""
+		serialNumber = ""
+	}
+	uuid := strings.ToUpper(uuid.New().String())
+	var mdmClient *mdmtest.TestMDMClient
+	if rand.Float64() <= mdmProb {
+		mdmClient = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+			SCEPChallenge: mdmSCEPChallenge,
+			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
+			MDMURL:        serverAddress + apple_mdm.MDMPath,
+		})
+		// Have the osquery agent match the MDM device serial number and UUID.
+		serialNumber = mdmClient.SerialNumber
+		uuid = mdmClient.UUID
 	}
 	return &agent{
 		agentIndex:      agentIndex,
@@ -271,11 +324,14 @@ func newAgent(
 		deviceAuthToken: deviceAuthToken,
 		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
-		EnrollSecret:   enrollSecret,
-		ConfigInterval: configInterval,
-		QueryInterval:  queryInterval,
-		UUID:           strings.ToUpper(uuid.New().String()),
-		SerialNumber:   serial,
+		EnrollSecret:       enrollSecret,
+		ConfigInterval:     configInterval,
+		QueryInterval:      queryInterval,
+		MDMCheckInInterval: mdmCheckInInterval,
+		UUID:               uuid,
+		SerialNumber:       serialNumber,
+
+		mdmClient: mdmClient,
 	}
 }
 
@@ -314,6 +370,17 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	if a.isOrbit() {
 		go a.runOrbitLoop()
+	}
+
+	if a.mdmClient != nil {
+		if err := a.mdmClient.Enroll(); err != nil {
+			log.Printf("MDM enroll failed: %s\n", err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+		a.setMDMEnrolled()
+		a.stats.IncrementMDMEnrollments()
+		go a.runMDMLoop()
 	}
 
 	configTicker := time.Tick(a.ConfigInterval)
@@ -451,9 +518,32 @@ func (a *agent) runOrbitLoop() {
 				log.Println("orbitClient.Ping: ", err)
 			}
 		case <-fleetDesktopPolicyTicker:
-			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+			if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 				a.stats.IncrementDesktopErrors()
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+			}
+		}
+	}
+}
+
+func (a *agent) runMDMLoop() {
+	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+
+	for range mdmCheckInTicker {
+		mdmCommandPayload, err := a.mdmClient.Idle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s\n", err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
+	INNER_FOR_LOOP:
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMCommandsReceived()
+			mdmCommandPayload, err = a.mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			if err != nil {
+				log.Printf("MDM Acknowledge request failed: %s\n", err)
+				a.stats.IncrementMDMErrors()
+				break INNER_FOR_LOOP
 			}
 		}
 	}
@@ -722,11 +812,16 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	}
 
 	var r []map[string]string
-	for _, fi := range software {
+	for i, fi := range software {
+		installedPath := ""
+		if i%2 == 0 {
+			installedPath = fmt.Sprintf("/some/path/%s", fi.Name)
+		}
 		r = append(r, map[string]string{
-			"name":    fi.Name,
-			"version": fi.Version,
-			"source":  "osquery-perf",
+			"name":           fi.Name,
+			"version":        fi.Version,
+			"source":         "osquery-perf",
+			"installed_path": installedPath,
 		})
 	}
 	return r
@@ -754,6 +849,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -774,6 +870,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d", a.CachedString("hostname"), i),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
@@ -795,6 +892,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
@@ -888,19 +986,36 @@ var possibleMDMServerURLs = []string{
 	"https://example.com/2",
 }
 
+// mdmMac returns the results for the `mdm` table query.
+//
+// If the host is enrolled via MDM it will return installed_from_dep as false
+// (which means the host will be identified as manually enrolled).
+//
+// NOTE: To support proper DEP simulation in a loadtest environment
+// we may need to implement a mocked Apple DEP endpoint.
 func (a *agent) mdmMac() []map[string]string {
-	enrolled := "true"
-	if rand.Intn(2) == 1 {
-		enrolled = "false"
+	if !a.mdmEnrolled() {
+		return []map[string]string{
+			{"enrolled": "false", "server_url": "", "installed_from_dep": "false"},
+		}
 	}
-	installedFromDep := "true"
-	if rand.Intn(2) == 1 {
-		installedFromDep = "false"
-	}
-	ix := rand.Intn(len(possibleMDMServerURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": possibleMDMServerURLs[ix], "installed_from_dep": installedFromDep},
+		{"enrolled": "true", "server_url": a.mdmClient.EnrollInfo.MDMURL, "installed_from_dep": "false"},
 	}
+}
+
+func (a *agent) mdmEnrolled() bool {
+	a.isEnrolledToMDMMu.Lock()
+	defer a.isEnrolledToMDMMu.Unlock()
+
+	return a.isEnrolledToMDM
+}
+
+func (a *agent) setMDMEnrolled() {
+	a.isEnrolledToMDMMu.Lock()
+	defer a.isEnrolledToMDMMu.Unlock()
+
+	a.isEnrolledToMDM = true
 }
 
 func (a *agent) mdmWindows() []map[string]string {
@@ -1216,6 +1331,7 @@ func main() {
 		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -1237,7 +1353,10 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		emptySerialProb             = flag.Float64("empty_serial_prob", 0.0, "Probability of a host having no serial number [0, 1]")
+
+		mdmProb          = flag.Float64("mdm_prob", 0.1, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
+		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running MDM enroll")
 	)
 
 	flag.Parse()
@@ -1287,7 +1406,13 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
+		a := newAgent(i+1,
+			*serverURL,
+			*enrollSecret,
+			tmpl,
+			*configInterval,
+			*queryInterval,
+			*mdmCheckInInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
@@ -1309,6 +1434,8 @@ func main() {
 			*munkiIssueProb,
 			*munkiIssueCount,
 			*emptySerialProb,
+			*mdmProb,
+			*mdmSCEPChallenge,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
@@ -1318,16 +1445,4 @@ func main() {
 
 	fmt.Println("Agents running. Kill with C-c.")
 	<-make(chan struct{})
-}
-
-// numbers plus capital letters without I, L, O for readability
-const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
-
-func randSerial() string {
-	b := make([]byte, 12)
-	for i := range b {
-		//nolint:gosec // not used for crypto, only to generate random serial for testing
-		b[i] = serialLetters[rand.Intn(len(serialLetters))]
-	}
-	return string(b)
 }

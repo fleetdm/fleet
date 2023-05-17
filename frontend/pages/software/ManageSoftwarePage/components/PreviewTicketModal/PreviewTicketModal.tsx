@@ -44,9 +44,10 @@ const PreviewTicketModal = ({
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
+      width="large"
     >
       <>
-        <p>
+        <p className="automations-learn-more">
           Want to learn more about how automations in Fleet work?{" "}
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/automations"

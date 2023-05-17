@@ -61,9 +61,10 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			logger_tls_period,
 			config_tls_refresh,
 			refetch_requested,
-			hardware_serial
+			hardware_serial,
+			refetch_critical_queries_until
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -87,6 +88,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.ConfigTLSRefresh,
 			host.RefetchRequested,
 			host.HardwareSerial,
+			host.RefetchCriticalQueriesUntil,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host")
@@ -331,6 +333,7 @@ var hostRefs = []string{
 	"operating_system_vulnerabilities",
 	"host_updates",
 	"host_disk_encryption_keys",
+	"host_software_installed_paths",
 }
 
 // those host refs cannot be deleted using the host.id like the hostRefs above,
@@ -425,6 +428,7 @@ SELECT
   h.label_updated_at,
   h.last_enrolled_at,
   h.refetch_requested,
+  h.refetch_critical_queries_until,
   h.team_id,
   h.policy_updated_at,
   h.public_ip,
@@ -620,6 +624,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.label_updated_at,
     h.last_enrolled_at,
     h.refetch_requested,
+    h.refetch_critical_queries_until,
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
@@ -1401,6 +1406,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
         h.label_updated_at,
         h.last_enrolled_at,
         h.refetch_requested,
+        h.refetch_critical_queries_until,
         h.team_id,
         h.policy_updated_at,
         h.public_ip,
@@ -1482,6 +1488,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.label_updated_at,
       h.last_enrolled_at,
       h.refetch_requested,
+      h.refetch_critical_queries_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -1503,6 +1510,17 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "find host")
 	}
+}
+
+type hostWithMDMInfo struct {
+	fleet.Host
+	HostID           *uint   `db:"host_id"`
+	Enrolled         *bool   `db:"enrolled"`
+	ServerURL        *string `db:"server_url"`
+	InstalledFromDep *bool   `db:"installed_from_dep"`
+	IsServer         *bool   `db:"is_server"`
+	MDMID            *uint   `db:"mdm_id"`
+	Name             *string `db:"name"`
 }
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
@@ -1545,6 +1563,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.label_updated_at,
       h.last_enrolled_at,
       h.refetch_requested,
+      h.refetch_critical_queries_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -1574,16 +1593,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var hostWithMDM struct {
-		fleet.Host
-		HostID           *uint   `db:"host_id"`
-		Enrolled         *bool   `db:"enrolled"`
-		ServerURL        *string `db:"server_url"`
-		InstalledFromDep *bool   `db:"installed_from_dep"`
-		IsServer         *bool   `db:"is_server"`
-		MDMID            *uint   `db:"mdm_id"`
-		Name             *string `db:"name"`
-	}
+	var hostWithMDM hostWithMDMInfo
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
 		host := hostWithMDM.Host
@@ -1647,11 +1657,19 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       h.label_updated_at,
       h.last_enrolled_at,
       h.refetch_requested,
+      h.refetch_critical_queries_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      hm.mdm_id,
+      COALESCE(hm.is_server, false) AS is_server,
+      COALESCE(mdms.name, ?) AS name
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1660,11 +1678,28 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hda.host_id = h.id
     LEFT OUTER JOIN
       host_disks hd ON hd.host_id = hda.host_id
+    LEFT OUTER JOIN
+      host_mdm hm  ON hm.host_id = h.id
+    LEFT OUTER JOIN
+      mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
-	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
+	var hostWithMDM hostWithMDMInfo
+	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
 	case err == nil:
+		host := hostWithMDM.Host
+		// leave MDMInfo nil unless it has mdm information
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -1768,6 +1803,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.label_updated_at,
     h.last_enrolled_at,
     h.refetch_requested,
+    h.refetch_critical_queries_until,
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
@@ -1863,7 +1899,8 @@ SELECT
 	label_updated_at,
 	last_enrolled_at,
 	policy_updated_at,
-	refetch_requested
+	refetch_requested,
+	refetch_critical_queries_until
 FROM hosts
 WHERE uuid IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
@@ -1920,6 +1957,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.label_updated_at,
       h.last_enrolled_at,
       h.refetch_requested,
+      h.refetch_critical_queries_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -3323,6 +3361,7 @@ func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error)
 		"last_enrolled_at",
 		"policy_updated_at",
 		"refetch_requested",
+		"refetch_critical_queries_until",
 	).Where(goqu.I("id").Eq(id)).ToSQL()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
@@ -3405,7 +3444,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			primary_mac = ?,
 			public_ip = ?,
 			refetch_requested = ?,
-			orbit_node_key = ?
+			orbit_node_key = ?,
+			refetch_critical_queries_until = ?
 		WHERE id = ?
 	`
 	_, err := ds.writer.ExecContext(ctx, sqlStatement,
@@ -3442,6 +3482,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.PublicIP,
 		host.RefetchRequested,
 		host.OrbitNodeKey,
+		host.RefetchCriticalQueriesUntil,
 		host.ID,
 	)
 	if err != nil {
