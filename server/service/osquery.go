@@ -620,7 +620,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	var criticalQueriesOnly bool
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
 		// would not return anything, check if critical queries should be returned
-		if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(time.Now()) {
+		if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
 			// return only those critical queries
 			criticalQueriesOnly = true
 		} else {
