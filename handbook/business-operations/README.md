@@ -156,19 +156,19 @@ Welcome to Fleet!
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
 
 #### Role-specific licenses
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company.  The table below can be used to determine which paid licenses they will need, based on their role:
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may request them from Biz Ops. Biz Ops will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
 |:-----------------|:--|:---|:---|:---|:--|
 | 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
 | 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ❌
+| 🐋 SA            | ✅ | ✅ | ❌ | ✅ | ❌
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
 | 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
 | 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| Other department | ❌ | ❌ | ❌ | ❌ | ❌
+| Other department | ❌ | ❌ | ❌ | ✅ | ❌
 
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail.
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
