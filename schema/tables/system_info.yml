@@ -1,4 +1,35 @@
 name: system_info
+platforms:
+  - windows
+  - macos
+  - linux
+  - chromeos
+columns:
+  - name: annotated_location
+    type: text
+    required: false
+    description: ??? # TODO
+    platforms:
+      - chromeos
+  - name: asset_id
+    type: text
+    required: false
+    description: ??? # TODO
+    platforms:
+      - chromeos
+        # - name: hostname TODO determined that we should just pass-through
+  # - name: serial number TODO determined that we should just pass-through
+  # TODO should serial number be hardware_serial to match existing column?
+  - name: directory_device_id
+    type: text
+    required: false
+    description: ??? # TODO
+  - name: model # TODO This potentially could be pass-through.
+    # TODO Should this be updated to hardware_model to match existing columns?
+  - name: manufacturer # TODO This potentially could be pass-through
+    # TODO should this be updated to hardware_vendor to match existing columns?
+  - name: CPU # TODO What is this? There are multiple cpu attributes already existing
+  - name: memory #TODO Is this the same as physical_memory?
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.
