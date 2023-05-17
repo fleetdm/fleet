@@ -46,7 +46,7 @@ func main() {
 	// now we need to create the 'resource.syso' metadata file which contains versioninfo data
 
 	// lets start with sanitizing the version data
-	vParts, err := sanitizeVersion(*flagVersion)
+	vParts, err := packaging.SanitizeVersion(*flagVersion)
 	if err != nil {
 		zlog.Fatal().Err(err).Msgf("invalid version: %s", *flagVersion)
 		os.Exit(1)
@@ -167,22 +167,6 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 	}
 
 	return &result, nil
-}
-
-// sanitizeVersion returns the version parts (Major, Minor, Patch and Build), filling the Build part
-// with '0' if missing. Will error out if the version string is missing the Major, Minor or
-// Patch part(s).
-func sanitizeVersion(version string) ([]string, error) {
-	vParts := strings.Split(version, ".")
-	if len(vParts) < 3 {
-		return nil, errors.New("invalid version string")
-	}
-
-	if len(vParts) < 4 {
-		vParts = append(vParts, "0")
-	}
-
-	return vParts[:4], nil
 }
 
 // writeManifestXML creates the manifest.xml file used when generating the 'resource.syso' metadata

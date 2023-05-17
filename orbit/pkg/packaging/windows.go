@@ -330,10 +330,10 @@ func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.Ver
 	return &result, nil
 }
 
-// sanitizeVersion returns the version parts (Major, Minor, Patch and Build), filling the Build part
+// SanitizeVersion returns the version parts (Major, Minor, Patch and Build), filling the Build part
 // with '0' if missing. Will error out if the version string is missing the Major, Minor or
 // Patch part(s).
-func sanitizeVersion(version string) ([]string, error) {
+func SanitizeVersion(version string) ([]string, error) {
 	vParts := strings.Split(version, ".")
 	if len(vParts) < 3 {
 		return nil, errors.New("invalid version string")
@@ -353,7 +353,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	vParts, err := sanitizeVersion(opt.Version)
+	vParts, err := SanitizeVersion(opt.Version)
 	if err != nil {
 		return fmt.Errorf("invalid version %s: %w", opt.Version, err)
 	}
