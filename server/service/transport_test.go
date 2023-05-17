@@ -70,27 +70,27 @@ func TestListOptionsFromRequest(t *testing.T) {
 
 		// various 400 error cases
 		{
-			url:       "/foo?page=foo&per_page=10",
+			url:          "/foo?page=foo&per_page=10",
 			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=1&per_page=foo",
+			url:          "/foo?page=1&per_page=foo",
 			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=-1",
+			url:          "/foo?page=-1",
 			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=-1&per_page=-10",
+			url:          "/foo?page=-1&per_page=-10",
 			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=1&order_direction=desc",
+			url:          "/foo?page=1&order_direction=desc",
 			shouldErr400: true,
 		},
 		{
-			url:       "/foo?&order_direction=foo&order_key=",
+			url:          "/foo?&order_direction=foo&order_key=",
 			shouldErr400: true,
 		},
 	}
