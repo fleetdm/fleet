@@ -47,10 +47,14 @@ interface IManagePoliciesPageProps {
     pathname: string;
     query: {
       team_id?: string;
-      page?: string;
       query?: string;
-      inherited_page?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+      page?: string;
       inherited_table?: "true";
+      inherited_order_key?: string;
+      inherited_order_direction?: "asc" | "desc";
+      inherited_page?: string;
     };
     search: string;
   };
@@ -124,10 +128,19 @@ const ManagePolicyPage = ({
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
+  const initialSortHeader = (() =>
+    (queryParams?.order_key as "name" | "failing_host_count") ?? "name")();
+  const initialSortDirection = (() =>
+    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
   const initialShowInheritedTable = (() =>
     queryParams && queryParams.inherited_table === "true")();
+  const initialInheritedSortHeader = (() =>
+    (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
+    "name")();
+  const initialInheritedSortDirection = (() =>
+    (queryParams?.inherited_order_direction as "asc" | "desc") ?? "asc")();
   const initialInheritedPage = (() =>
     queryParams && queryParams.inherited_page
       ? parseInt(queryParams?.inherited_page, 10)
@@ -137,8 +150,16 @@ const ManagePolicyPage = ({
   // State only used for handling team change
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [page, setPage] = useState(initialPage);
+  const [sortDirection, setSortDirection] = useState(initialSortDirection);
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [showInheritedTable, setShowInheritedTable] = useState(
     initialShowInheritedTable
+  );
+  const [inheritedSortDirection, setInheritedSortDirection] = useState(
+    initialSortDirection
+  );
+  const [inheritedSortHeader, setInheritedSortHeader] = useState(
+    initialSortHeader
   );
   const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
 
@@ -155,9 +176,13 @@ const ManagePolicyPage = ({
 
   useEffect(() => {
     setShowInheritedTable(initialShowInheritedTable);
-    setInheritedPage(initialInheritedPage);
     setPage(initialPage);
     setSearchQuery(initialSearchQuery);
+    setSortDirection(initialSortDirection);
+    setSortHeader(initialSortHeader);
+    setInheritedSortDirection(initialInheritedSortDirection);
+    setInheritedSortHeader(initialInheritedSortHeader);
+    setInheritedPage(initialInheritedPage);
     // TODO: handle invalid values for params
   }, [location]);
 
@@ -251,11 +276,15 @@ const ManagePolicyPage = ({
   );
 
   // TODO: Look into useDebounceCallback with dependencies
+  // Inherited table uses the same onQueryChange function but routes to different URL params
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+        sortHeader: newSortHeader,
+        inheritedTable,
       } = newTableQuery;
 
       // Rebuild queryParams to dispatch new browser location to react-router
@@ -265,10 +294,23 @@ const ManagePolicyPage = ({
         newQueryParams.query = newSearchQuery;
       }
 
-      newQueryParams.page = newPageIndex;
-      // Reset page number to 0 for new filters
-      if (newSearchQuery !== searchQuery) {
-        newQueryParams.page = 0;
+      // Updates main policy table URL params
+      // No change to inherited policy table URL params
+      if (!inheritedTable) {
+        newQueryParams.order_key = newSortHeader;
+        newQueryParams.order_direction = newSortDirection;
+        newQueryParams.page = newPageIndex;
+        newQueryParams.inherited_order_key = inheritedSortHeader;
+        newQueryParams.inherited_order_direction = inheritedSortDirection;
+        newQueryParams.inherited_page = inheritedPage;
+        // Reset page number to 0 for new filters
+        if (
+          newSortDirection !== sortDirection ||
+          newSortHeader !== sortHeader ||
+          newSearchQuery !== searchQuery
+        ) {
+          newQueryParams.page = 0;
+        }
       }
 
       if (showInheritedTable) {
@@ -276,8 +318,22 @@ const ManagePolicyPage = ({
           showInheritedTable && showInheritedTable.toString();
       }
 
-      if (showInheritedTable && inheritedPage !== 0) {
-        newQueryParams.inherited_page = inheritedPage;
+      // Updates inherited policy table URL params
+      // No change to main policy table URL params
+      if (showInheritedTable && inheritedTable) {
+        newQueryParams.inherited_order_key = newSortHeader;
+        newQueryParams.inherited_order_direction = newSortDirection;
+        newQueryParams.inherited_page = newPageIndex;
+        newQueryParams.order_key = sortHeader;
+        newQueryParams.order_direction = sortDirection;
+        newQueryParams.page = page;
+        // Reset page number to 0 for new filters
+        if (
+          newSortDirection !== inheritedSortDirection ||
+          newSortHeader !== inheritedSortHeader
+        ) {
+          newQueryParams.page = 0;
+        }
       }
 
       if (teamIdForApi !== undefined) {
@@ -291,7 +347,18 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [teamIdForApi, searchQuery, showInheritedTable, inheritedPage, router, page]
+    [
+      sortHeader,
+      sortDirection,
+      page,
+      teamIdForApi,
+      searchQuery,
+      showInheritedTable,
+      inheritedSortHeader,
+      inheritedSortDirection,
+      inheritedPage,
+      router,
+    ]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -556,6 +623,8 @@ const ManagePolicyPage = ({
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
                 searchQuery={searchQuery}
+                sortHeader={sortHeader}
+                sortDirection={sortDirection}
                 page={page}
                 onQueryChange={onQueryChange}
               />
@@ -578,6 +647,8 @@ const ManagePolicyPage = ({
                 isSandboxMode={isSandboxMode}
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 searchQuery={searchQuery}
+                sortHeader={sortHeader}
+                sortDirection={sortDirection}
                 page={page}
                 onQueryChange={onQueryChange}
               />
@@ -620,7 +691,10 @@ const ManagePolicyPage = ({
                   onClientSidePaginationChange={
                     onClientSideInheritedPaginationChange
                   }
+                  sortHeader={inheritedSortHeader}
+                  sortDirection={inheritedSortDirection}
                   page={inheritedPage}
+                  onQueryChange={onQueryChange}
                 />
               ))}
           </div>
