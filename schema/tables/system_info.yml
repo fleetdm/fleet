@@ -5,31 +5,57 @@ platforms:
   - linux
   - chromeos
 columns:
-  - name: annotated_location
-    type: text
-    required: false
-    description: ??? # TODO
+  - name: cpu_subtype
     platforms:
-      - chromeos
-  - name: asset_id
-    type: text
-    required: false
-    description: ??? # TODO
+      - macos
+      - windows
+      - linux
+  - name: cpu_physical_cores
     platforms:
-      - chromeos
-        # - name: hostname TODO determined that we should just pass-through
-  # - name: serial number TODO determined that we should just pass-through
-  # TODO should serial number be hardware_serial to match existing column?
-  - name: directory_device_id
-    type: text
-    required: false
-    description: ??? # TODO
-  - name: model # TODO This potentially could be pass-through.
-    # TODO Should this be updated to hardware_model to match existing columns?
-  - name: manufacturer # TODO This potentially could be pass-through
-    # TODO should this be updated to hardware_vendor to match existing columns?
-  - name: CPU # TODO What is this? There are multiple cpu attributes already existing
-  - name: memory #TODO Is this the same as physical_memory?
+      - macos
+      - windows
+      - linux
+  - name: cpu_logical cores
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: cpu_microcode
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: hardware_version
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: board_vendor
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: board_model
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: board_version
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: board_serial
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: local_hostname
+    platforms:
+      - macos
+      - windows
+      - linux
+
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.
