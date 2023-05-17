@@ -33,7 +33,7 @@ To begin, click "Start." Your default browser will open your My Device page.
 
 {{ if .Aggressive }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.
 
-\\![Image showing the Fleet UI](http://localhost:64793/mdm-migration-screenshot-768x180@2x.jpg)
+\\![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180@2x.jpg)
 
 Unsure? Contact {{ .OrgInfo.OrgName }} IT [here]({{ .OrgInfo.ContactURL }}).
 `))
@@ -152,7 +152,7 @@ type swiftDialogMDMMigrator struct {
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
 	icon := m.props.OrgInfo.OrgLogoURL
 	if icon == "" {
-		icon = "http://localhost:64793/fleet-mark-color-40x40@4x.png"
+		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
 	flags = append([]string{
