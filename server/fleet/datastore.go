@@ -430,8 +430,13 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
-	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
+	// specified Software installed. Includes the path were the software was installed.
+	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
+	// *DEPRECATED use HostVulnSummariesBySoftwareIDs instead* HostsByCVE
+	// returns a list of all hosts that have at least one software suceptible to the provided CVE.
+	// Includes the path were the software was installed.
+	HostsByCVE(ctx context.Context, cve string) ([]HostVulnerabilitySummary, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 

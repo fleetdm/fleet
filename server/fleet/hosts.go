@@ -903,11 +903,23 @@ type AggregatedMacadminsData struct {
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
-// HostShort is a minimal host representation returned when querying hosts.
-type HostShort struct {
-	ID          uint   `json:"id" db:"id"`
-	Hostname    string `json:"hostname" db:"hostname"`
+// HostVulnerabilitySummary type used with webhooks and third-party vulnerability automations.
+// Contains all pertinent host info plus the installed paths of all affected software.
+type HostVulnerabilitySummary struct {
+	// ID Is the ID of the host
+	ID uint `json:"id" db:"id"`
+	// Hostname the host's hostname
+	Hostname string `json:"hostname" db:"hostname"`
+	// DisplayName either the 'computer_name' or the 'host_name' (whatever is not empty)
 	DisplayName string `json:"display_name" db:"display_name"`
+	// SoftwareInstalledPaths paths of vulnerable software installed on the host.
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
+}
+
+func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
+	if p != "" {
+		hvs.SoftwareInstalledPaths = append(hvs.SoftwareInstalledPaths, p)
+	}
 }
 
 type OSVersions struct {

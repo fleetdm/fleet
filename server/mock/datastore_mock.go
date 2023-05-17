@@ -332,9 +332,9 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
+type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
-type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
+type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
 
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
@@ -1105,8 +1105,8 @@ type DataStore struct {
 	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
 	SyncHostsSoftwareFuncInvoked bool
 
-	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
-	HostsBySoftwareIDsFuncInvoked bool
+	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
+	HostVulnSummariesBySoftwareIDsFuncInvoked bool
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
@@ -2661,14 +2661,14 @@ func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) 
 	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
-	s.HostsBySoftwareIDsFuncInvoked = true
+	s.HostVulnSummariesBySoftwareIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostsBySoftwareIDsFunc(ctx, softwareIDs)
+	return s.HostVulnSummariesBySoftwareIDsFunc(ctx, softwareIDs)
 }
 
-func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
 	s.HostsByCVEFuncInvoked = true
 	s.mu.Unlock()
