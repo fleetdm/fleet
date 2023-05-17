@@ -229,6 +229,22 @@ func (u *Updater) DirLocalPath(target string) (string, error) {
 	return localTarget.DirPath, nil
 }
 
+// LocalTargetPaths returns (path, execPath, dirPath) to be used by this
+// package for a given TargetInfo target.
+func LocalTargetPaths(rootDir string, targetName string, t TargetInfo) (path, execPath, dirPath string) {
+	path = filepath.Join(
+		rootDir, binDir, targetName, t.Platform, t.Channel, t.TargetFile,
+	)
+
+	execPath = path
+	if strings.HasSuffix(path, ".tar.gz") {
+		execPath = filepath.Join(append([]string{filepath.Dir(path)}, t.ExtractedExecSubPath...)...)
+		dirPath = filepath.Join(filepath.Dir(path), t.ExtractedExecSubPath[0])
+	}
+
+	return path, execPath, dirPath
+}
+
 // LocalTarget holds local paths of a target.
 //
 // E.g., for a osqueryd target:
@@ -263,16 +279,12 @@ func (u *Updater) localTarget(target string) (*LocalTarget, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown target: %s", target)
 	}
+	path, execPath, dirPath := LocalTargetPaths(u.opt.RootDirectory, target, t)
 	lt := &LocalTarget{
-		Info: t,
-		Path: filepath.Join(
-			u.opt.RootDirectory, binDir, target, t.Platform, t.Channel, t.TargetFile,
-		),
-	}
-	lt.ExecPath = lt.Path
-	if strings.HasSuffix(lt.Path, ".tar.gz") {
-		lt.ExecPath = filepath.Join(append([]string{filepath.Dir(lt.Path)}, t.ExtractedExecSubPath...)...)
-		lt.DirPath = filepath.Join(filepath.Dir(lt.Path), lt.Info.ExtractedExecSubPath[0])
+		Info:     t,
+		Path:     path,
+		ExecPath: execPath,
+		DirPath:  dirPath,
 	}
 	return lt, nil
 }

@@ -63,3 +63,79 @@ func TestMakeRepoPath(t *testing.T) {
 		})
 	}
 }
+
+//DesktopWindowsTarget = TargetInfo{
+//	Platform:   "windows",
+//	Channel:    "stable",
+//	TargetFile: constant.DesktopAppExecName + ".exe",
+//}
+
+//DesktopLinuxTarget = TargetInfo{
+//	Platform:             "linux",
+//	Channel:              "stable",
+//	TargetFile:           "desktop.tar.gz",
+//	ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
+//	CustomCheckExec: func(execPath string) error {
+//		cmd := exec.Command(execPath, "--help")
+//		cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(execPath), os.ExpandEnv("$LD_LIBRARY_PATH")))
+//		if out, err := cmd.CombinedOutput(); err != nil {
+//			return fmt.Errorf("exec new version: %s: %w", string(out), err)
+//		}
+//		return nil
+//	},
+//}
+
+//NudgeMacOSTarget = TargetInfo{
+//	Platform:             "macos",
+//	Channel:              "stable",
+//	TargetFile:           "nudge.app.tar.gz",
+//	ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
+//}
+
+//SwiftDialogMacOSTarget = TargetInfo{
+//	Platform:             "macos",
+//	Channel:              "stable",
+//	TargetFile:           "swiftDialog.app.tar.gz",
+//	ExtractedExecSubPath: []string{"bin", "dialog"},
+//}
+
+func TestLocalTargetPaths(t *testing.T) {
+	testCases := []struct {
+		info         TargetInfo
+		wantPath     string
+		wantExecPath string
+		wantDirPath  string
+	}{
+		{
+			DesktopWindowsTarget,
+			"root/bin/target/windows/stable/fleet-desktop.exe",
+			"root/bin/target/windows/stable/fleet-desktop.exe",
+			"",
+		},
+		{
+			NudgeMacOSTarget,
+			"root/bin/target/macos/stable/nudge.app.tar.gz",
+			"root/bin/target/macos/stable/Nudge.app/Contents/MacOS/Nudge",
+			"root/bin/target/macos/stable/Nudge.app",
+		},
+		{
+			DesktopLinuxTarget,
+			"root/bin/target/linux/stable/desktop.tar.gz",
+			"root/bin/target/linux/stable/fleet-desktop/fleet-desktop",
+			"root/bin/target/linux/stable/fleet-desktop",
+		},
+		{
+			SwiftDialogMacOSTarget,
+			"root/bin/target/macos/stable/swiftDialog.app.tar.gz",
+			"root/bin/target/macos/stable/bin/dialog",
+			"root/bin/target/macos/stable/bin",
+		},
+	}
+
+	for _, tt := range testCases {
+		path, execPath, dirPath := LocalTargetPaths("root", "target", tt.info)
+		require.Equal(t, tt.wantPath, path)
+		require.Equal(t, tt.wantExecPath, execPath)
+		require.Equal(t, tt.wantDirPath, dirPath)
+	}
+}
