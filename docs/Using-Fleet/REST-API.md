@@ -9,7 +9,7 @@
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
-- [Delete query](#delete-query)
+- [Delete query by name](#delete-query-by-name)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
@@ -44,6 +44,7 @@ Returns the query specified by ID. Use this to get either global or team queries
     "name": "centos_hosts",
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
+    "team_id": 123,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -66,16 +67,18 @@ Returns the query specified by ID. Use this to get either global or team queries
 
 ### List queries
 
-Returns a list of all queries in the Fleet instance.
+Returns a list of all queries in the Fleet instance (both global and team queries).
+
+> `team_id` will be blank for global queries.
 
 `GET /api/v1/fleet/queries`
 
 #### Parameters
 
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the queries table.                                                             |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------  | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
@@ -95,6 +98,7 @@ Returns a list of all queries in the Fleet instance.
     "name": "query1",
     "description": "query",
     "query": "SELECT * FROM osquery_info",
+    "team_id": 123,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -126,6 +130,7 @@ Returns a list of all queries in the Fleet instance.
     "name": "osquery_schedule",
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+    "team_id": 123,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -147,6 +152,7 @@ Returns a list of all queries in the Fleet instance.
 ```
 
 ### Create query
+Creates a global query.
 
 `POST /api/v1/fleet/queries`
 
@@ -185,6 +191,7 @@ Returns a list of all queries in the Fleet instance.
     "id": 288,
     "name": "new_query",
     "description": "This is a new query.",
+    "team_id": "",
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
@@ -198,7 +205,7 @@ Returns a list of all queries in the Fleet instance.
 
 ### Modify query
 
-Returns the query specified by ID.
+Modifies the query specified by ID with the data submitted in the request body.
 
 `PATCH /api/v1/fleet/queries/{id}`
 
@@ -246,7 +253,7 @@ Returns the query specified by ID.
 }
 ```
 
-### Delete query
+### Delete query by name
 
 Deletes the query specified by name.
 
@@ -271,7 +278,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/{id}`
+`DELETE /api/v1/fleet/queries/{id}`
 
 #### Parameters
 
