@@ -10,7 +10,8 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 
 type NoopMDMMigrator struct{}
 
-func (m *NoopMDMMigrator) CanRun() bool { return false }
-func (m *NoopMDMMigrator) Start()       { return nil }
-func (m *NoopMDMMigrator) Complete()    { return nil }
-func (m *NoopMDMMigrator) Exit()        {}
+func (m *NoopMDMMigrator) CanRun() bool              { return false }
+func (m *NoopMDMMigrator) SetProps(MDMMigratorProps) {}
+func (m *NoopMDMMigrator) Show() error               { return nil }
+func (m *NoopMDMMigrator) ShowInterval() error       { return nil }
+func (m *NoopMDMMigrator) Exit()                     {}
