@@ -7338,7 +7338,7 @@ The selected user is logged out of Fleet and required to reset their password du
 | Name  | Type    | In   | Description                                                                                    |
 | ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
 | id    | integer | path | **Required**. The user's id.                                                                   |
-| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+| require | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
 
 #### Example
 
