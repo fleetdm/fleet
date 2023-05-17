@@ -40,7 +40,7 @@ const validateWebhookUrl = (val: string) => {
 };
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
@@ -97,6 +97,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         },
       });
       renderFlash("success", "Successfully updated end user migration!");
+      const updatedConfig = await configAPI.loadAll();
+      setConfig(updatedConfig);
     } catch (err) {
       renderFlash("error", "Could not update. Please try again.");
     }
