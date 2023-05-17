@@ -2140,6 +2140,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 
 #### Get device's host
 
@@ -2538,6 +2539,29 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 ```
 
 ---
+
+#### Migrate device to Fleet from another MDM solution
+
+Signals the Fleet server to send a webbook request with the device UUID and serial number to the webhook URL configured for MDM migration. **Requires Fleet Premium license**
+
+`POST /api/v1/fleet/device/{token}/migrate_mdm`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/migrate_mdm`
+
+##### Default response
+
+`Status: 204`
+
+---
+
 
 ## Downloadable installers
 

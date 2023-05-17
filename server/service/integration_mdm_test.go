@@ -2705,7 +2705,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMMacOSMigration() {
 
 	// invalid url scheme for webhook_url
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "http://example.com" } }
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "ftp://example.com" } }
 	}`), http.StatusUnprocessableEntity, &acResp)
 	checkDefaultAppConfig()
 
@@ -3165,6 +3165,88 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
+	t := s.T()
+
+	h := createHostAndDeviceToken(t, s.ds, "good-token")
+
+	webhookSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/test_mdm_migration":
+			var payload fleet.MigrateMDMDeviceWebhookPayload
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(b, &payload)
+			require.NoError(t, err)
+
+			require.Equal(t, h.ID, payload.Host.ID)
+			require.Equal(t, h.UUID, payload.Host.UUID)
+			require.Equal(t, h.HardwareSerial, payload.Host.HardwareSerial)
+
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer webhookSrv.Close()
+
+	// patch app config with webhook url
+	acResp := fleet.AppConfig{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": true,
+				"mode": "voluntary",
+				"webhook_url": "%s/test_mdm_migration"
+		      }
+		}
+	}`, webhookSrv.URL)), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSMigration.Enable)
+
+	// expect errors when host is not eligible for migration
+	isServer, enrolled, installedFromDEP := true, true, true
+	mdmName := "ExampleMDM"
+	mdmURL := "https://mdm.example.com"
+
+	// host is a server so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+
+	// host is not DEP so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+
+	// host is not enrolled to MDM so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, !enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+
+	// host is already enrolled to Fleet MDM so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, fleet.WellKnownMDMFleet))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+
+	// host is enrolled to a third-party MDM so migration is allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+
+	// bad token
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)
+
+	// disable macos migration
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": false,
+				"mode": "voluntary",
+				"webhook_url": ""
+		      }
+		}
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.MacOSMigration.Enable)
+
+	// expect error if macos migration is not configured
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 }
 
 func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
