@@ -280,40 +280,16 @@ entries will appear in the Fleet UI. The older entries can be automatically clea
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
 ## Add Chromebooks with the Fleetd Chrome extension
-### Package the extension
 
-Generate a .pem file to be the key for the chrome extension.
+Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
-Run the following command to generate an extension.
-
-``` sh
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=path/to/chrome.pem
-```
-
-### Upload and configure in Google Admin
-
-In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
-
-Select the appropriate organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
 
 In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
 
-Extension ID: `fleeedmmihkfkeemmipgmhhjemlljidg`
-From a custom URL: `https://chrome.fleetdm.com/updates.xml`
-TODO ^^^ WHAT DO THESE DO? DO I UPLOAD THE PACKAGE I GENERATED?
+Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
 
-Then add the "Policy for extensions" to configure it:
-
-```
-{
-  "fleet_url": {
-    "Value": "https://fleet.example.com"
-  },
-  "enroll_secret":{
-    "Value": "<secretgoeshere>"
-  }
-}
-```
+Enter the Extension ID, custom URL and Policy for extensions using the data provided in the modal.
 
 Select "Force install". Select "Update URL" > "Installation URL (see above)"
 TODO WHAT DOES THIS DO? ^^^
