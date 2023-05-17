@@ -111,9 +111,10 @@ Every month Tee will do the prep work for the monthly "✌️ All hands 🖐👋
 
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
-### Post all hands
+### After the all hands
 
-The EA / CEO will post the link to the All hands meeting in #general slack channel
+The CEO's EA (Tee) will post the link to the All hands meeting in #general slack channel
+
 Template to use:
 Thanks to everyone who contributed to today's "All hands" call.
 
@@ -121,7 +122,10 @@ Thanks to everyone who contributed to today's "All hands" call.
 
 You can also grab a copy of the [original slides](https://fleetdm.com/handbook/business-operations#all-hands)
  
- Include instructions for decorating that template with the link to the Gong recording, including a generic screenshot demonstrating how to generate it
+Open Gong recording and click "Share call"
+Click "Share with customers"
+Then copy the link and light up "Watch the recording" text with that link.
+
  Include example screenshot of how the Slack post is supposed to look
  include instructions about attaching a PDF of slides
 ### Calendar audit
