@@ -11,6 +11,7 @@ import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import validateUrl from "components/forms/validators/valid_url";
+import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 const baseClass = "end-user-migration-section";
 
@@ -19,15 +20,15 @@ const VOLUNTARY_MODE_DESCRIPTION =
 const FORCED_MODE_DESCRIPTION =
   "The end user sees the above window every 15 minutes.";
 
-const validateWebhookUrl = (val: string) => {
-  return validateUrl({ url: val });
-};
-
 interface IEndUserMigrationFormData {
   isEnabled: boolean;
   mode: "voluntary" | "forced";
   webhookUrl: string;
 }
+
+const validateWebhookUrl = (val: string) => {
+  return validateUrl({ url: val });
+};
 
 const EndUserMigrationSection = () => {
   const { config } = useContext(AppContext);
@@ -42,6 +43,7 @@ const EndUserMigrationSection = () => {
     mode: "voluntary",
     webhookUrl: "",
   });
+  const [showExamplePayload, setShowExamplePayload] = useState(false);
 
   // we only validate this one input so just going to use simple boolean to
   // track validation. If we need to validate more inputs in the future we can
@@ -60,6 +62,10 @@ const EndUserMigrationSection = () => {
     setFormData({ ...formData, mode: newMode });
   };
 
+  const toggleExamplePayloadModal = () => {
+    setShowExamplePayload(!showExamplePayload);
+  };
+
   const onChangeWebhookUrl = (webhookUrl: string) => {
     setFormData({ ...formData, webhookUrl });
   };
@@ -67,7 +73,7 @@ const EndUserMigrationSection = () => {
   const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
     e.preventDefault();
 
-    if (!validateWebhookUrl(formData.webhookUrl)) {
+    if (formData.isEnabled && !validateWebhookUrl(formData.webhookUrl)) {
       setIsValidWebhookUrl(false);
       return;
     }
@@ -160,8 +166,14 @@ const EndUserMigrationSection = () => {
             }
           />
         </div>
+        <Button variant="text-link" onClick={onSubmit}>
+          Preview Payload
+        </Button>
         <Button onClick={onSubmit}>Save</Button>
       </form>
+      {showExamplePayload && (
+        <ExampleWebhookUrlPayloadModal onCancel={toggleExamplePayloadModal} />
+      )}
     </div>
   );
 };
