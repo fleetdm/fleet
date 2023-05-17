@@ -317,7 +317,9 @@ const DeviceUserPage = ({
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     const isMdmUnenrolled =
-      host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
+      host?.mdm.enrollment_status === "Pending" ||
+      host?.mdm.enrollment_status === "Off" ||
+      !host?.mdm.enrollment_status;
 
     const diskEncryptionBannersEnabled =
       globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";

@@ -520,12 +520,14 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	matchID, _, err := matchHostDuringEnrollment(ctx, tx, true, "", mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		fmt.Println("inserting new device")
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg)
 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
+		fmt.Println("updating existing device")
 		return updateMDMAppleHostDB(ctx, tx, matchID, mdmHost, appCfg)
 	}
 }
@@ -770,10 +772,10 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, server
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
-
+	fmt.Println("upsertMDMSolutions", serverURL, fleet.WellKnownMDMFleet)
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
+		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url), name = VALUES(name)`,
 		fleet.WellKnownMDMFleet, serverURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
@@ -802,7 +804,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, server
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -862,11 +864,16 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
-		_, err = tx.ExecContext(ctx, `
-			DELETE FROM host_mdm
+		res, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm 
+			SET enrolled = 0
 			WHERE host_id = ?`, hostID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing host_mdm rows for host")
+			return ctxerr.Wrap(ctx, err, "negate host_mdm.enrolled for host")
+		}
+		if rowsAffected, _ := res.RowsAffected(); rowsAffected == 0 {
+			// this should not happen so we log it
+			level.Debug(ds.logger).Log("msg", "expected to update host_mdm on unenroll but no rows affected", "host_id", hostID)
 		}
 
 		// Since the host is unenrolled, delete all profiles assigned to the

@@ -735,66 +735,127 @@ func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 
 func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	testSerial := "test-serial"
-	testUUID := "test-uuid"
-	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
-	})
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedMDMServerURL, err := apple_mdm.ResolveAppleMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 
-	profiles := []*fleet.MDMAppleConfigProfile{
-		configProfileForTest(t, "N1", "I1", "z"),
+	checkHostMDM := func(hID uint, status string, enrolled bool, installedFromDep bool, serverURL string) {
+		h, err := ds.Host(ctx, hID)
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		require.Equal(t, fleet.WellKnownMDMFleet, h.MDM.Name)
+		require.NotNil(t, h.MDM.EnrollmentStatus)
+		require.Equal(t, status, *h.MDM.EnrollmentStatus)
+
+		dest := fleet.HostMDM{}
+		err = sqlx.GetContext(context.Background(), ds.reader, &dest, `SELECT host_id, enrolled, installed_from_dep, is_server, server_url FROM host_mdm WHERE host_id = ?`, hID)
+		require.NoError(t, err)
+		require.Equal(t, enrolled, dest.Enrolled)
+		require.Equal(t, installedFromDep, dest.InstalledFromDep)
+		require.False(t, dest.IsServer)
+		require.Equal(t, serverURL, dest.ServerURL)
 	}
 
-	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{
-			ProfileID:         profiles[0].ProfileID,
-			ProfileIdentifier: profiles[0].Identifier,
-			ProfileName:       profiles[0].Name,
-			HostUUID:          testUUID,
-			Status:            &fleet.MDMAppleDeliveryVerifying,
-			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			CommandUUID:       "command-uuid",
-			Checksum:          []byte("csum"),
-		},
-	},
-	)
-	require.NoError(t, err)
+	testProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "z"),
+	}
+	checkHostProfs := func(hostUUID string, len int) {
+		hostProfs, err := ds.GetHostMDMProfiles(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, hostProfs, len)
+	}
+	setHostProfs := func(hostUUID string) {
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileID:         testProfiles[0].ProfileID,
+				ProfileIdentifier: testProfiles[0].Identifier,
+				ProfileName:       testProfiles[0].Name,
+				HostUUID:          hostUUID,
+				Status:            &fleet.MDMAppleDeliveryVerifying,
+				OperationType:     fleet.MDMAppleOperationTypeInstall,
+				CommandUUID:       uuid.NewString(),
+				Checksum:          []byte("csum"),
+			},
+		}))
+		checkHostProfs(hostUUID, len(testProfiles))
+	}
 
-	hostProfs, err := ds.GetHostMDMProfiles(ctx, testUUID)
-	require.NoError(t, err)
-	require.Len(t, hostProfs, len(profiles))
+	testDEK := "disk-encryption-key"
+	checkDEK := func(hostID uint, expectedDEK *string) {
+		key, err := ds.GetHostDiskEncryptionKey(ctx, hostID)
+		if expectedDEK != nil {
+			require.NoError(t, err)
+			require.NotNil(t, key)
+		} else {
+			require.ErrorIs(t, err, sql.ErrNoRows)
+			require.Nil(t, key)
+		}
+	}
+	setDEK := func(hostID uint, dek string) {
+		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, dek))
+		checkDEK(hostID, &dek)
+	}
 
-	var hostID uint
-	err = sqlx.GetContext(context.Background(), ds.reader, &hostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID)
-	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, "asdf")
-	require.NoError(t, err)
+	t.Run("ManualEnrollment", func(t *testing.T) {
+		testSerial := "test-serial"
+		testUUID := "test-uuid"
+		err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+			UDID:         testUUID,
+			SerialNumber: testSerial,
+		})
+		require.NoError(t, err)
 
-	key, err := ds.GetHostDiskEncryptionKey(ctx, hostID)
-	require.NoError(t, err)
-	require.NotNil(t, key)
+		var testHostID uint
+		require.NoError(t, sqlx.GetContext(context.Background(), ds.reader, &testHostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID))
 
-	// check that an entry in host_mdm exists
-	var count int
-	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, testUUID)
-	require.NoError(t, err)
-	require.Equal(t, 1, count)
+		// non-DEP host starts as "On (manual)"
+		checkHostMDM(testHostID, "On (manual)", true, false, expectedMDMServerURL)
 
-	err = ds.UpdateHostTablesOnMDMUnenroll(ctx, testUUID)
-	require.NoError(t, err)
+		// set some profiles and DEK
+		setHostProfs(testUUID)
+		setDEK(testHostID, testDEK)
 
-	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
-	require.NoError(t, err)
-	require.Equal(t, 0, count)
+		// unenroll from MDM
+		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, testUUID))
 
-	hostProfs, err = ds.GetHostMDMProfiles(ctx, testUUID)
-	require.NoError(t, err)
-	require.Empty(t, hostProfs)
-	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-	require.Nil(t, key)
+		checkHostMDM(testHostID, "Off", false, false, expectedMDMServerURL) // manual enrollment is off
+		checkHostProfs(testUUID, 0)                                         // profiles are removed
+		checkDEK(testHostID, nil)                                           // DEK is removed
+	})
+
+	t.Run("DEPEnrollment", func(t *testing.T) {
+		testSerial := "dep-serial"
+		testUUID := "dep-uuid"
+		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: testSerial}})
+		require.NoError(t, err)
+		require.Equal(t, int64(1), n)
+
+		// similate initial osquery enrollement via Orbit
+		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: testSerial, Platform: "darwin", HardwareUUID: testUUID, Hostname: "dep-host"}, "dep-host-node-key", nil)
+		require.NoError(t, err)
+
+		// DEP host starts as "Pending"
+		checkHostMDM(testHost.ID, "Pending", false, true, expectedMDMServerURL)
+
+		// simulate osquery report of MDM detail query
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		require.NoError(t, err)
+
+		// DEP host is "On (automatic)" after osquery reports MDM detail query
+		checkHostMDM(testHost.ID, "On (automatic)", true, true, expectedMDMServerURL)
+
+		// set some profiles and DEK
+		setHostProfs(testUUID)
+		setDEK(testHost.ID, testDEK)
+
+		// simulate MDM unenroll
+		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, "dep-uuid"))
+
+		checkHostMDM(testHost.ID, "Pending", false, true, expectedMDMServerURL) // DEP host reverts to "Pending" on unenroll
+		checkHostProfs(testUUID, 0)                                             // profiles are removed
+		checkDEK(testHost.ID, nil)                                              // DEK is removed
+	})
 }
 
 func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
