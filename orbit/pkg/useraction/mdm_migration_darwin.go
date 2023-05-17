@@ -227,7 +227,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		//"--blurscreen", "--ontop", "--height", "600",
+		"--blurscreen", "--ontop", "--height", "600",
 	)
 
 	select {
