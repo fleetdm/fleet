@@ -58,6 +58,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
+		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 	}
 
 	for _, c := range cases {
@@ -3567,4 +3568,47 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3", "serial-4"}, serials)
+}
+
+func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// get non-existing
+	_, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// set for no team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team")
+	require.NoError(t, err)
+
+	// get for no team returns the same data
+	uuid, ts, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, "no-team", uuid)
+	require.NotZero(t, ts)
+
+	// set for non-existing team fails
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "foreign key constraint fails")
+
+	// get for non-existing team fails
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, ptr.Uint(123))
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tm"})
+	require.NoError(t, err)
+
+	// set for existing team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm")
+	require.NoError(t, err)
+
+	// get for existing team
+	uuid, ts, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, "tm", uuid)
+	require.NotZero(t, ts)
 }

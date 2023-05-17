@@ -3966,7 +3966,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
 		}
 	}`), http.StatusOK, &acResp)
 	wantSettings := fleet.SSOProviderSettings{
@@ -4009,14 +4012,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
 		}
 	}`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
 
 	s.runWorker()
 
-	// patch with explicitly empty mdm sso settings fields, removes them
+	// patch with explicitly empty mdm sso settings fields, fails because end user auth is still enabled
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -4025,7 +4031,23 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
-		      }
+			}
+		}
+	}`), http.StatusUnprocessableEntity, &acResp)
+
+	// patch with explicitly empty mdm sso settings fields and disabled end user auth, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
 		}
 	}`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
@@ -4036,14 +4058,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// set-up valid settings
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-                "server_settings": {"server_url": "https://localhost:8080"},
+		"server_settings": {"server_url": "https://localhost:8080"},
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
 		}
 	}`), http.StatusOK, &acResp)
 

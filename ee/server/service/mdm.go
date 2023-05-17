@@ -203,15 +203,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	// // TODO: Call Apple Business Manager API to define new enrollment profile (depends on
-	// // https://github.com/fleetdm/fleet/issues/10995)
-	// //
-	// // modify the method signature of the syncer to include a team config pointer
-	// // and check enable_end_user_authenthication in the team config if not nil
-	// // otherwise check enable_end_user_authenthication the app config.
-	// if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
-	// 	return err
-	// }
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
+	}
+
 	var act fleet.ActivityDetails
 	if enable {
 		act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
