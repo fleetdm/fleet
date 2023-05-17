@@ -4,7 +4,6 @@ package useraction
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,7 +31,7 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 
 To begin, click "Start." Your default browser will open your My Device page.
 
-{{ if .Aggresive }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.
+{{ if .Aggressive }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.
 
 \\![Image showing the Fleet UI](http://localhost:64793/mdm-migration-screenshot-768x180@2x.jpg)
 
@@ -58,9 +57,6 @@ func newBaseDialog(path string) *baseDialog {
 
 func (b *baseDialog) CanRun() bool {
 	if _, err := os.Stat(b.path); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false
-		}
 		return false
 	}
 
@@ -84,7 +80,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	exitCodeChan := make(chan swiftDialogExitCode)
 	errChan := make(chan error)
 	go func() {
-		cmd := exec.Command(b.path, flags...)
+		cmd := exec.Command(b.path, flags...) //nolint:gosec
 		done := make(chan error)
 
 		if err := cmd.Start(); err != nil {
@@ -228,7 +224,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if !m.props.Aggresive {
+		if !m.props.Aggressive {
 			// show the loading spinner
 			m.renderLoadingSpinner()
 

@@ -302,23 +302,22 @@ func main() {
 
 					// if the device is unmanaged or we're
 					// in force mode and the device needs
-					// migration, enable aggresive mode.
-					aggresive := sum.Notifications.RenewEnrollmentProfile ||
-						sum.Notifications.NeedsMDMMigration &&
-							sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced
+					// migration, enable aggressive mode.
+					aggressive := sum.Notifications.RenewEnrollmentProfile ||
+						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced)
 
 					// update org info in case it changed
 					mdmMigrator.SetProps(useraction.MDMMigratorProps{
-						OrgInfo:   sum.Config.OrgInfo,
-						Aggresive: aggresive,
+						OrgInfo:    sum.Config.OrgInfo,
+						Aggressive: aggressive,
 					})
 
 					// enable tray items
 					migrateMDMItem.Enable()
 					migrateMDMItem.Show()
 
-					if aggresive {
-						log.Info().Msg("MDM migration is in aggresive mode, automatically showing dialog")
+					if aggressive {
+						log.Info().Msg("MDM migration is in aggressive mode, automatically showing dialog")
 						if err := mdmMigrator.ShowInterval(); err != nil {
 							log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 						}
