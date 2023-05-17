@@ -7,7 +7,7 @@ resource "aws_elasticache_replication_group" "default" {
   replication_group_id       = "${local.prefix}-redis"
   num_cache_clusters         = 3
   node_type                  = var.redis_instance_type
-  engine_version             = "5.0.6"
+  engine_version             = "6.2"
   port                       = "6379"
   snapshot_retention_limit   = 0
   automatic_failover_enabled = true
@@ -20,7 +20,7 @@ resource "aws_elasticache_replication_group" "default" {
 
 resource "aws_elasticache_parameter_group" "default" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
   name   = "${local.prefix}-redis"
-  family = "redis5.0"
+  family = "redis6.x"
 
   parameter {
     name  = "client-output-buffer-limit-pubsub-hard-limit"

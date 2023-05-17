@@ -57,7 +57,7 @@ func NewService(
 		mdmAppleCommander: mdmAppleCommander,
 		mdmPushCertTopic:  mdmPushCertTopic,
 		ssoSessionStore:   sso,
-		depService:        apple_mdm.NewDEPService(ds, depStorage, logger, false),
+		depService:        apple_mdm.NewDEPService(ds, depStorage, logger),
 	}
 
 	// Override methods that can't be easily overriden via

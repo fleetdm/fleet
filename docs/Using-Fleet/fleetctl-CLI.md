@@ -220,6 +220,8 @@ On Fleet Premium, use the `--team` flag setting `team_id:role` to create an API-
 fleetctl user create --name "API Team Maintainer User" --email apimaintainer@example.com --password temp#pass --team 4:maintainer
 ```
 
+Assigning the [GitOps role](https://fleetdm.com/docs/using-fleet/permissions#gitops) to a user is also completed using this method because GitOps is an API-only role.  
+
 ### Changing permissions of an API-only user
 
 To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
