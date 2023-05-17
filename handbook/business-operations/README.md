@@ -829,6 +829,23 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
+### Quarterly investor reporting
+- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+- Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+  - Headcount at end of the previous quarter.
+  - Starting ARR for the previous quarter.
+  - Total new ARR for the previous quarter.
+  - Upsell ARR (ARR from expansions only), downgrade ARR and churn ARR (if any) for the previous quarter.
+  - Ending ARR for the previous quarter.
+  - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
+  - Total amount of Fleet customers at the end of the previous quarter.
+  - Gross margin % 
+    - How to calculate: total revenue for the quarter - cost of goods sold for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+  - Net dollar retention rate
+    - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
+  - Cash burn
+    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+
 
 ## Taxes and compliance
 
@@ -873,6 +890,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | BizOps on-call |
+| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 
 
 
@@ -904,6 +922,7 @@ Note: These are out of date, but retained for future reference:
 | Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
 | Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+
 -->
 
 
