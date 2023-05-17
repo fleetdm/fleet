@@ -46,6 +46,8 @@ var errorTemplate = template.Must(template.New("").Parse(`
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
 
+// baseDialog implements the basic building blocks to render dialogs using
+// swiftDialog.
 type baseDialog struct {
 	path        string
 	interruptCh chan struct{}
@@ -66,11 +68,19 @@ func (b *baseDialog) CanRun() bool {
 	return true
 }
 
+// Exit sends the interrupt signal to try and stop the current swiftDialog
+// instance.
 func (b *baseDialog) Exit() {
 	b.interruptCh <- struct{}{}
 	log.Info().Msg("dialog exit message sent")
 }
 
+// render is a general-purpose render method that receives the flags used to
+// display swiftDialog, and starts an asyncronous routine to display the dialog
+// without blocking.
+//
+// The first returned channel sends the exit code returned by swiftDialog, and
+// the second channel is used to send errors.
 func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan error) {
 	exitCodeChan := make(chan swiftDialogExitCode)
 	errChan := make(chan error)
@@ -136,6 +146,8 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 	}
 }
 
+// swiftDialogMDMMigrator implements MDMMigrator for macOS using swiftDialog as
+// the underlying mechanism for user action.
 type swiftDialogMDMMigrator struct {
 	*baseDialog
 	props     MDMMigratorProps
