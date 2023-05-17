@@ -18,6 +18,12 @@ func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uin
 	return svc.ds.SetDiskEncryptionResetStatus(ctx, hostID, true)
 }
 
+const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+// TriggerMigrateMDMDevice triggers the webhook associated with the MDM
+// migration to Fleet configuration. It is located in the ee package instead of
+// the server/webhooks one because it is a Fleet Premium only feature and for
+// licensing reasons this needs to live under this package.
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -35,9 +41,12 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
 	case !host.IsOsqueryEnrolled(), !host.MDMInfo.IsDEPCapable(), !host.MDMInfo.IsEnrolledInThirdPartyMDM():
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
+	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
+		// the webhook has already been triggered successfully recently (within the
+		// refetch critical queries delay), so do as if it did send it successfully
+		// but do not re-send.
+		return nil
 	}
-	// TODO: add case to check if webhok has already been sent (if host refetchUntil is not zero?)
-
 	if bre.InternalErr != nil {
 		return &bre
 	}
@@ -50,6 +59,15 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 
 	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p); err != nil {
 		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
+	}
+
+	// if the webhook was successfully triggered, we update the host to
+	// constantly run the query to check if it has been unenrolled from its
+	// existing third-party MDM.
+	refetchUntil := svc.clock.Now().Add(refetchMDMUnenrollCriticalQueryDuration)
+	host.RefetchCriticalQueriesUntil = &refetchUntil
+	if err := svc.ds.UpdateHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
 	}
 
 	return nil

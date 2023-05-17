@@ -1250,13 +1250,20 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	mdmSolutionName := deduceMDMNameMacOS(rows[0])
+	if !enrolled && installedFromDep && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet DEP MDM solution, and the
+		// refetch critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
 		enrolled,
 		rows[0]["server_url"],
 		installedFromDep,
-		deduceMDMNameMacOS(rows[0]),
+		mdmSolutionName,
 	)
 }
 
