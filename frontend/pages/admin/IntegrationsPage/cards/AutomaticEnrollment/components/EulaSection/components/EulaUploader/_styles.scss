@@ -1,0 +1,15 @@
+.eula-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+
+  > p {
+    font-size: $x-small;
+    margin: 0;
+  }
+
+  .upload-list__list-item {
+    border-top: 1px solid $ui-fleet-black-10;
+  }
+}

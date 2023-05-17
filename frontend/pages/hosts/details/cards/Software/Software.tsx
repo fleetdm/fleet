@@ -72,45 +72,14 @@ const SoftwareTable = ({
 }: ISoftwareTableProps): JSX.Element => {
   const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
 
-  const initialSearchQuery = (() => {
-    let query = "";
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-    return query;
-  })();
-
-  const initialSortHeader = (() => {
-    let sortHeader = "name";
-    if (queryParams && queryParams.order_key) {
-      sortHeader = queryParams.order_key;
-    }
-    return sortHeader;
-  })();
-
-  const initialSortDirection = ((): "asc" | "desc" | undefined => {
-    let sortDirection = "asc";
-    if (queryParams && queryParams.order_direction) {
-      sortDirection = queryParams.order_direction;
-    }
-    return sortDirection as "asc" | "desc" | undefined;
-  })();
-
-  const initialVulnFilter = (() => {
-    let isFilteredByVulnerabilities = false;
-    if (queryParams && queryParams.vulnerable === "true") {
-      isFilteredByVulnerabilities = true;
-    }
-    return isFilteredByVulnerabilities;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams?.page, 10) || 0;
-    }
-    return page;
-  })();
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams?.query ?? "")();
+  const initialSortHeader = (() => queryParams?.order_key ?? "name")();
+  const initialSortDirection = (() =>
+    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+  const initialVulnFilter = (() => queryParams?.vulnerable === "true")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Never set as state as URL is source of truth
   const searchQuery = initialSearchQuery;

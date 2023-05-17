@@ -56,7 +56,12 @@ const ResetKeyModal = ({
     );
   };
   return (
-    <Modal title="Reset key" onExit={onClose} className={baseClass}>
+    <Modal
+      title="Reset key"
+      onExit={onClose}
+      className={baseClass}
+      width="auto"
+    >
       {renderModalBody()}
     </Modal>
   );
