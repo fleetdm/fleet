@@ -1,7 +1,10 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { noop } from "lodash";
+import PATHS from "router/paths";
+import { noop, isEmpty } from "lodash";
+
+import { getNextLocationPath } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -22,6 +25,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
@@ -41,7 +45,13 @@ interface IManagePoliciesPageProps {
     hash: string;
     key: string;
     pathname: string;
-    query: { team_id?: string };
+    query: {
+      team_id?: string;
+      page?: string;
+      query?: string;
+      inherited_page?: string;
+      inherited_table?: "true";
+    };
     search: string;
   };
 }
@@ -52,6 +62,7 @@ const ManagePolicyPage = ({
   router,
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
+  const queryParams = location.query;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -60,6 +71,8 @@ const ManagePolicyPage = ({
     isPremiumTier,
     isSandboxMode,
     setConfig,
+    setFilteredPoliciesPath,
+    filteredPoliciesPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -105,14 +118,48 @@ const ManagePolicyPage = ({
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
-  const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
   const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
   const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
 
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams.query ?? "")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const initialShowInheritedTable = (() =>
+    queryParams && queryParams.inherited_table === "true")();
+  const initialInheritedPage = (() =>
+    queryParams && queryParams.inherited_page
+      ? parseInt(queryParams?.inherited_page, 10)
+      : 0)();
+
+  // Never set as state as URL is source of truth
+  // State only used for handling team change
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [page, setPage] = useState(initialPage);
+  const [showInheritedTable, setShowInheritedTable] = useState(
+    initialShowInheritedTable
+  );
+  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
+
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
+
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (location.search && filteredPoliciesPath !== path) {
+      setFilteredPoliciesPath(path);
+    }
+  }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
+
+  useEffect(() => {
+    setShowInheritedTable(initialShowInheritedTable);
+    setInheritedPage(initialInheritedPage);
+    setPage(initialPage);
+    setSearchQuery(initialSearchQuery);
+    // TODO: handle invalid values for params
+  }, [location]);
 
   const {
     data: globalPolicies,
@@ -195,11 +242,88 @@ const ManagePolicyPage = ({
 
   const onTeamChange = useCallback(
     (teamId: number) => {
-      setShowInheritedPolicies(false);
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      setPage(0);
+      setSearchQuery("");
     },
     [handleTeamChange]
+  );
+
+  // TODO: Look into useDebounceCallback with dependencies
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      const {
+        pageIndex: newPageIndex,
+        searchQuery: newSearchQuery,
+      } = newTableQuery;
+
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+
+      newQueryParams.page = newPageIndex;
+      // Reset page number to 0 for new filters
+      if (newSearchQuery !== searchQuery) {
+        newQueryParams.page = 0;
+      }
+
+      if (showInheritedTable) {
+        newQueryParams.inherited_table =
+          showInheritedTable && showInheritedTable.toString();
+      }
+
+      if (showInheritedTable && inheritedPage !== 0) {
+        newQueryParams.inherited_page = inheritedPage;
+      }
+
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: newQueryParams,
+      });
+
+      router?.replace(locationPath);
+    },
+    [teamIdForApi, searchQuery, showInheritedTable, inheritedPage, router, page]
+  );
+
+  const onClientSidePaginationChange = useCallback(
+    (pageIndex: number) => {
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: {
+          ...queryParams,
+          page: pageIndex,
+          query: searchQuery,
+        },
+      });
+
+      router?.replace(locationPath);
+    },
+    [searchQuery] // Dependencies required for correct variable state
+  );
+
+  const onClientSideInheritedPaginationChange = useCallback(
+    (pageIndex: number) => {
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: {
+          ...queryParams,
+          inherited_table: "true",
+          inherited_page: pageIndex,
+          query: searchQuery,
+        },
+      });
+      router?.replace(locationPath);
+    },
+    [] // Dependencies required for correct variable state
   );
 
   const toggleManageAutomationsModal = () =>
@@ -214,8 +338,18 @@ const ManagePolicyPage = ({
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
-  const toggleShowInheritedPolicies = () =>
-    setShowInheritedPolicies(!showInheritedPolicies);
+  const toggleShowInheritedPolicies = () => {
+    // URL source of truth
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.MANAGE_POLICIES,
+      queryParams: {
+        ...queryParams,
+        inherited_table: showInheritedTable ? undefined : "true",
+        inherited_page: showInheritedTable ? undefined : "0",
+      },
+    });
+    router?.replace(locationPath);
+  };
 
   const handleUpdateAutomations = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
@@ -331,6 +465,7 @@ const ManagePolicyPage = ({
       currentAutomatedPolicies = webhook?.policy_ids || [];
     }
   }
+
   return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
@@ -420,6 +555,9 @@ const ManagePolicyPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
+                searchQuery={searchQuery}
+                page={page}
+                onQueryChange={onQueryChange}
               />
             ))}
           {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -438,19 +576,23 @@ const ManagePolicyPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 isPremiumTier={isPremiumTier}
                 isSandboxMode={isSandboxMode}
+                onClientSidePaginationChange={onClientSidePaginationChange}
+                searchQuery={searchQuery}
+                page={page}
+                onQueryChange={onQueryChange}
               />
             ))}
         </div>
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
-            isShowing={showInheritedPolicies}
+            isShowing={showInheritedTable}
             className={baseClass}
             hideText={inheritedPoliciesButtonText(
-              showInheritedPolicies,
+              showInheritedTable,
               globalPolicies.length
             )}
             showText={inheritedPoliciesButtonText(
-              showInheritedPolicies,
+              showInheritedTable,
               globalPolicies.length
             )}
             caretPosition={"before"}
@@ -460,7 +602,7 @@ const ManagePolicyPage = ({
             onClick={toggleShowInheritedPolicies}
           />
         )}
-        {showInheritedPoliciesButton && showInheritedPolicies && (
+        {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
             {!globalPoliciesError &&
@@ -474,6 +616,11 @@ const ManagePolicyPage = ({
                   canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
                   currentTeam={currentTeamSummary}
+                  searchQuery=""
+                  onClientSidePaginationChange={
+                    onClientSideInheritedPaginationChange
+                  }
+                  page={inheritedPage}
                 />
               ))}
           </div>

@@ -41,9 +41,14 @@ const PreviewTicketModal = ({
     );
 
   return (
-    <Modal title={"Example ticket"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Example ticket"}
+      onExit={onCancel}
+      className={baseClass}
+      width="large"
+    >
       <div className={`${baseClass}`}>
-        <p>
+        <p className="automations-learn-more">
           Want to learn more about how automations in Fleet work?{" "}
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/automations"

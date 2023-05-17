@@ -188,3 +188,55 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
 	}
 }
+
+func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected bool
+	}{
+		{
+			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
+			expected: true,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
+			expected: false,
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
+	}
+}
+
+func TestIsDEPCapable(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected bool
+	}{
+		{
+			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
+			expected: true,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
+			expected: false,
+		},
+		{
+			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
+			expected: false,
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
+	}
+}

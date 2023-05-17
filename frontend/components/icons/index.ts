@@ -18,6 +18,7 @@ import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
+import Query from "./Query";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -55,6 +56,7 @@ import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
 import FilePkg from "./FilePkg";
+import FilePdf from "./FilePdf";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -80,6 +82,7 @@ export const ICON_MAP = {
   lightbulb: Lightbulb,
   issue: Issue,
   plus: Plus,
+  query: Query,
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
@@ -110,6 +113,7 @@ export const ICON_MAP = {
   "file-bash": FileBash,
   "file-pkg": FilePkg,
   "file-generic": FileGeneric,
+  "file-pdf": FilePdf,
   refresh: Refresh,
 };
 

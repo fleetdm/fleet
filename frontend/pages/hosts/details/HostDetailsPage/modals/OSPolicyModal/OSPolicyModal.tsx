@@ -24,7 +24,7 @@ interface IRenderOSPolicyModal {
 
 const baseClass = "os-policy-modal";
 
-const RenderOSPolicyModal = ({
+const OSPolicyModal = ({
   onCancel,
   onCreateNewPolicy,
   osVersion,
@@ -106,4 +106,4 @@ const RenderOSPolicyModal = ({
   );
 };
 
-export default RenderOSPolicyModal;
+export default OSPolicyModal;

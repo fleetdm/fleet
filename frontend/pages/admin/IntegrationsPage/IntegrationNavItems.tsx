@@ -3,6 +3,7 @@ import PATHS from "router/paths";
 import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
 import Mdm from "./cards/MdmSettings/MdmSettings";
+import AutomaticEnrollment from "./cards/AutomaticEnrollment/AutomaticEnrollment";
 
 const getFilteredIntegrationSettingsNavItems = (
   isSandboxMode = false
@@ -21,6 +22,12 @@ const getFilteredIntegrationSettingsNavItems = (
       path: PATHS.ADMIN_INTEGRATIONS_MDM,
       Card: Mdm,
       exclude: isSandboxMode,
+    },
+    {
+      title: "Automatic enrollment",
+      urlSection: "automatic-enrollment",
+      path: PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT,
+      Card: AutomaticEnrollment,
     },
   ].filter((navItem) => !navItem.exclude);
 };

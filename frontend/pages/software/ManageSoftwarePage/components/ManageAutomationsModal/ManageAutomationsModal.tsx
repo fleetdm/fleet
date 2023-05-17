@@ -436,8 +436,9 @@ const ManageAutomationsModal = ({
       onExit={onReturnToApp}
       title={"Manage automations"}
       className={baseClass}
+      width="large"
     >
-      <div className={baseClass}>
+      <>
         <div className={`${baseClass}__software-select-items`}>
           <Slider
             value={softwareAutomationsEnabled}
@@ -525,7 +526,7 @@ const ManageAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

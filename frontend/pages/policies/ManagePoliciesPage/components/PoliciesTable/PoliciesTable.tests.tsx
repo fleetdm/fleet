@@ -17,6 +17,8 @@ describe("Policies table", () => {
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         isSandboxMode
+        searchQuery=""
+        page={0}
       />
     );
 
@@ -40,6 +42,8 @@ describe("Policies table", () => {
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         isSandboxMode={false}
+        searchQuery=""
+        page={0}
       />
     );
 

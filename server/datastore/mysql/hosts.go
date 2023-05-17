@@ -1506,6 +1506,17 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
+type hostWithMDMInfo struct {
+	fleet.Host
+	HostID           *uint   `db:"host_id"`
+	Enrolled         *bool   `db:"enrolled"`
+	ServerURL        *string `db:"server_url"`
+	InstalledFromDep *bool   `db:"installed_from_dep"`
+	IsServer         *bool   `db:"is_server"`
+	MDMID            *uint   `db:"mdm_id"`
+	Name             *string `db:"name"`
+}
+
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -1575,16 +1586,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var hostWithMDM struct {
-		fleet.Host
-		HostID           *uint   `db:"host_id"`
-		Enrolled         *bool   `db:"enrolled"`
-		ServerURL        *string `db:"server_url"`
-		InstalledFromDep *bool   `db:"installed_from_dep"`
-		IsServer         *bool   `db:"is_server"`
-		MDMID            *uint   `db:"mdm_id"`
-		Name             *string `db:"name"`
-	}
+	var hostWithMDM hostWithMDMInfo
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
 		host := hostWithMDM.Host
@@ -1652,7 +1654,14 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       h.policy_updated_at,
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      hm.mdm_id,
+      COALESCE(hm.is_server, false) AS is_server,
+      COALESCE(mdms.name, ?) AS name
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1661,11 +1670,28 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hda.host_id = h.id
     LEFT OUTER JOIN
       host_disks hd ON hd.host_id = hda.host_id
+    LEFT OUTER JOIN
+      host_mdm hm  ON hm.host_id = h.id
+    LEFT OUTER JOIN
+      mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
-	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
+	var hostWithMDM hostWithMDMInfo
+	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
 	case err == nil:
+		host := hostWithMDM.Host
+		// leave MDMInfo nil unless it has mdm information
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -2804,7 +2830,9 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 	var hmdm fleet.HostMDMCheckinInfo
-	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer, &hmdm, `
 		SELECT
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
@@ -2821,9 +2849,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithMessage(hostUUID))
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with UUID: %s", hostUUID)))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_uuid %s", hostUUID)
+		return nil, ctxerr.Wrapf(ctx, err, "host mdm checkin info for host UUID %s", hostUUID)
 	}
 	return &hmdm, nil
 }

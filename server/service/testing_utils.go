@@ -123,6 +123,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
+	mdmPushCertTopic := ""
+	if len(opts) > 0 && opts[0].APNSTopic != "" {
+		mdmPushCertTopic = opts[0].APNSTopic
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -143,7 +148,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		"",
+		mdmPushCertTopic,
 		cronSchedulesService,
 	)
 	if err != nil {
@@ -262,6 +267,7 @@ type TestServerOpts struct {
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
 	UseMailService      bool
+	APNSTopic           string
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -555,37 +561,46 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 	return res, nil
 }
 
-func mdmAppleConfigurationRequiredEndpoints() [][2]string {
-	return [][2]string{
-		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
-		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1"},
-		{"GET", "/api/latest/fleet/mdm/apple/installers"},
-		{"GET", "/api/latest/fleet/mdm/apple/devices"},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/1"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary"},
-		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll"},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key"},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
-		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
-		{"GET", "/api/latest/fleet/mdm/apple"},
-		{"GET", apple_mdm.EnrollPath + "?token=test"},
-		{"GET", apple_mdm.InstallerPath + "?token=test"},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token"},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata"},
+func mdmAppleConfigurationRequiredEndpoints() []struct {
+	method, path        string
+	deviceAuthenticated bool
+	premiumOnly         bool
+} {
+	return []struct {
+		method, path        string
+		deviceAuthenticated bool
+		premiumOnly         bool
+	}{
+		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
+		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
+		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple", false, false},
+		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
+		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
 		// TODO: this endpoint accepts multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
 		// {"POST", "/api/latest/fleet/mdm/apple/setup/eula"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
-		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 	}
 }

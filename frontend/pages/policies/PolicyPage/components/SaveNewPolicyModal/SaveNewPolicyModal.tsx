@@ -15,17 +15,15 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
-import { platform } from "process";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
-export interface INewPolicyModalProps {
+export interface ISaveNewPolicyModalProps {
   baseClass: string;
   queryValue: string;
   onCreatePolicy: (formData: IPolicyFormData) => void;
-  setIsNewPolicyModalOpen: (isOpen: boolean) => void;
+  setIsSaveNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
-  lastEditedQueryPlatform: IPlatformString | null;
   isUpdatingPolicy: boolean;
 }
 
@@ -40,23 +38,21 @@ const validatePolicyName = (name: string) => {
   return { valid, errors };
 };
 
-const NewPolicyModal = ({
+const SaveNewPolicyModal = ({
   baseClass,
   queryValue,
   onCreatePolicy,
-  setIsNewPolicyModalOpen,
+  setIsSaveNewPolicyModalOpen,
   backendValidators,
   platformSelector,
-  lastEditedQueryPlatform,
   isUpdatingPolicy,
-}: INewPolicyModalProps): JSX.Element => {
+}: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier, isSandboxMode } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
-    defaultPolicy,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -107,7 +103,10 @@ const NewPolicyModal = ({
   };
 
   return (
-    <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
+    <Modal
+      title={"Save policy"}
+      onExit={() => setIsSaveNewPolicyModalOpen(false)}
+    >
       <>
         <form
           onSubmit={handleSavePolicy}
@@ -195,7 +194,7 @@ const NewPolicyModal = ({
             </span>
             <Button
               className={`${baseClass}__button--modal-cancel`}
-              onClick={() => setIsNewPolicyModalOpen(false)}
+              onClick={() => setIsSaveNewPolicyModalOpen(false)}
               variant="inverse"
             >
               Cancel
@@ -207,4 +206,4 @@ const NewPolicyModal = ({
   );
 };
 
-export default NewPolicyModal;
+export default SaveNewPolicyModal;

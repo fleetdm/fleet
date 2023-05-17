@@ -1,0 +1,15 @@
+name: cis_audit
+platforms:
+  - windows
+description: Enables querying CIS items values.
+columns:
+  - name: item
+    type: text
+    required: false
+    description: Contains the input CIS item to query. If empty, no CIS item is queried.
+  - name: value
+    type: text
+    required: false
+    description: Contains the value for the queried CIS item.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false
