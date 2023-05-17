@@ -3232,15 +3232,42 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
+	// up to this point, the refetch critical queries timestamp has not been set
+	// on the host.
+	h, err := s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Nil(t, h.RefetchCriticalQueriesUntil)
+
 	// host is enrolled to a third-party MDM so migration is allowed
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
 	require.True(t, webhookCalled)
 	webhookCalled = false
 
+	// the refetch critical queries timestamp has been set in the future
+	h, err = s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h.RefetchCriticalQueriesUntil)
+	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
+
 	// calling again works but does not trigger the webhook, as it was called recently
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
 	require.False(t, webhookCalled)
+
+	// setting the refetch critical queries timestamp in the past triggers the webhook again
+	h.RefetchCriticalQueriesUntil = ptr.Time(time.Now().Add(-1 * time.Minute))
+	err = s.ds.UpdateHost(context.Background(), h)
+	require.NoError(t, err)
+
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	require.True(t, webhookCalled)
+	webhookCalled = false
+
+	// the refetch critical queries timestamp has been updated to the future
+	h, err = s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h.RefetchCriticalQueriesUntil)
+	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
 
 	// bad token
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)

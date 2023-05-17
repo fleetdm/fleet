@@ -20,6 +20,10 @@ func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uin
 
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
+// TriggerMigrateMDMDevice triggers the webhook associated with the MDM
+// migration to Fleet configuration. It is located in the ee package instead of
+// the server/webhooks one because it is a Fleet Premium only feature and for
+// licensing reasons this needs to live under this package.
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
