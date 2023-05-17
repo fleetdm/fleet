@@ -1,0 +1,6 @@
+name: geolocation
+platforms:
+  - chromeos
+description: ??? # TODO
+columns: # TODO column names are not listed.
+  - name: ??? # TODO
