@@ -84,54 +84,45 @@ func (b *baseDialog) Exit() {
 func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan error) {
 	exitCodeChan := make(chan swiftDialogExitCode)
 	errChan := make(chan error)
-	cmdRunningChan := make(chan struct{})
 	go func() {
 		cmd := exec.Command(b.path, flags...)
 		done := make(chan error)
 
-		go func() {
-			if err := cmd.Start(); err != nil {
-				done <- err
-				return
-			}
-			cmdRunningChan <- struct{}{}
-			done <- cmd.Wait()
-		}()
+		if err := cmd.Start(); err != nil {
+			errChan <- err
+			return
+		}
 
-		<-cmdRunningChan
+		go func() { done <- cmd.Wait() }()
 
-		for {
-			select {
-			case <-b.interruptCh:
-				if err := cmd.Process.Signal(os.Interrupt); err != nil {
-					log.Error().Err(err).Msg("sending interrupt signal to swiftDialog process")
-					if err := cmd.Process.Kill(); err != nil {
-						log.Error().Err(err).Msg("killing swiftDialog process")
-					}
-
-				}
-				return
-			case err := <-done:
-				if err != nil {
-					// non-zero exit codes
-					if exitError, ok := err.(*exec.ExitError); ok {
-						ec := exitError.ExitCode()
-						switch ec {
-						case errorExitCode:
-							exitCodeChan <- errorExitCode
-						case secondaryBtnExitCode, infoBtnExitCode, timeoutExitCode:
-							exitCodeChan <- swiftDialogExitCode(ec)
-						default:
-							errChan <- fmt.Errorf("unknown exit code showing dialog: %w", exitError)
-						}
-					}
-
-					errChan <- fmt.Errorf("running swiftDialog: %w", err)
+		select {
+		case <-b.interruptCh:
+			if err := cmd.Process.Signal(os.Interrupt); err != nil {
+				log.Error().Err(err).Msg("sending interrupt signal to swiftDialog process")
+				if err := cmd.Process.Kill(); err != nil {
+					log.Error().Err(err).Msg("killing swiftDialog process")
 				}
 
-				exitCodeChan <- 0
-				return
 			}
+		case err := <-done:
+			if err != nil {
+				// non-zero exit codes
+				if exitError, ok := err.(*exec.ExitError); ok {
+					ec := exitError.ExitCode()
+					switch ec {
+					case errorExitCode:
+						exitCodeChan <- errorExitCode
+					case secondaryBtnExitCode, infoBtnExitCode, timeoutExitCode:
+						exitCodeChan <- swiftDialogExitCode(ec)
+					default:
+						errChan <- fmt.Errorf("unknown exit code showing dialog: %w", exitError)
+					}
+				}
+
+				errChan <- fmt.Errorf("running swiftDialog: %w", err)
+			}
+
+			exitCodeChan <- 0
 		}
 
 	}()
