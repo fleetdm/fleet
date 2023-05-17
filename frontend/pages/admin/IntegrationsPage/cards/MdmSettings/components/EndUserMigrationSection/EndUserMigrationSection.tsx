@@ -59,7 +59,10 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   };
 
   const toggleMigrationEnabled = () => {
-    setFormData({ ...formData, isEnabled: !formData.isEnabled });
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      isEnabled: !prevFormData.isEnabled,
+    }));
   };
 
   const onClickConnect = () => {
@@ -71,11 +74,11 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     // TODO: typing the radio component onChange value argument to be specific string defined
     // by the `value` prop instead of a generic string.
     const newMode = mode as "voluntary" | "forced";
-    setFormData({ ...formData, mode: newMode });
+    setFormData((prevFormData) => ({ ...prevFormData, mode: newMode }));
   };
 
   const onChangeWebhookUrl = (webhookUrl: string) => {
-    setFormData({ ...formData, webhookUrl });
+    setFormData((prevFormData) => ({ ...prevFormData, webhookUrl }));
   };
 
   const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
@@ -87,7 +90,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     }
 
     try {
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         mdm: {
           macos_migration: {
             enable: formData.isEnabled,
@@ -97,7 +100,6 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         },
       });
       renderFlash("success", "Successfully updated end user migration!");
-      const updatedConfig = await configAPI.loadAll();
       setConfig(updatedConfig);
     } catch (err) {
       renderFlash("error", "Could not update. Please try again.");
