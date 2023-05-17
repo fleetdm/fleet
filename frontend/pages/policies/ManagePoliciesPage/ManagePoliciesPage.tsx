@@ -147,17 +147,30 @@ const ManagePolicyPage = ({
       : 0)();
 
   const page = initialPage;
-  const sortDirection = initialSortDirection;
-  const sortHeader = initialSortHeader;
   const showInheritedTable = initialShowInheritedTable;
-  const inheritedSortDirection = initialInheritedSortDirection;
-  const inheritedSortHeader = initialInheritedSortHeader;
   const inheritedPage = initialInheritedPage;
   const searchQuery = initialSearchQuery;
+
+  // Needs update on location change or table state might not match URL
+  const [sortHeader, setSortHeader] = useState(initialSortHeader);
+  const [sortDirection, setSortDirection] = useState(initialSortDirection);
+  const [inheritedSortDirection, setInheritedSortDirection] = useState(
+    initialInheritedSortDirection
+  );
+  const [inheritedSortHeader, setInheritedSortHeader] = useState(
+    initialInheritedSortHeader
+  );
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
+
+  useEffect(() => {
+    setSortHeader(initialSortHeader);
+    setSortDirection(initialSortDirection);
+    setInheritedSortHeader(initialInheritedSortHeader);
+    setInheritedSortDirection(initialInheritedSortDirection);
+  }, [location]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -264,7 +277,6 @@ const ManagePolicyPage = ({
         sortHeader: newSortHeader,
         inheritedTable,
       } = newTableQuery;
-
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
@@ -277,17 +289,19 @@ const ManagePolicyPage = ({
       if (!inheritedTable) {
         newQueryParams.order_key = newSortHeader;
         newQueryParams.order_direction = newSortDirection;
-        newQueryParams.page = newPageIndex;
-        newQueryParams.inherited_order_key = inheritedSortHeader;
-        newQueryParams.inherited_order_direction = inheritedSortDirection;
-        newQueryParams.inherited_page = inheritedPage;
+        newQueryParams.page = newPageIndex.toString();
+        if (showInheritedTable) {
+          newQueryParams.inherited_order_key = inheritedSortHeader;
+          newQueryParams.inherited_order_direction = inheritedSortDirection;
+          newQueryParams.inherited_page = inheritedPage.toString();
+        }
         // Reset page number to 0 for new filters
         if (
           newSortDirection !== sortDirection ||
           newSortHeader !== sortHeader ||
           newSearchQuery !== searchQuery
         ) {
-          newQueryParams.page = 0;
+          newQueryParams.page = "0";
         }
       }
 
@@ -301,17 +315,17 @@ const ManagePolicyPage = ({
       if (showInheritedTable && inheritedTable) {
         newQueryParams.inherited_order_key = newSortHeader;
         newQueryParams.inherited_order_direction = newSortDirection;
-        newQueryParams.inherited_page = newPageIndex;
+        newQueryParams.inherited_page = newPageIndex.toString();
         newQueryParams.order_key = sortHeader;
         newQueryParams.order_direction = sortDirection;
-        newQueryParams.page = page;
+        newQueryParams.page = page.toString();
         newQueryParams.query = searchQuery;
         // Reset page number to 0 for new filters
         if (
           newSortDirection !== inheritedSortDirection ||
           newSortHeader !== inheritedSortHeader
         ) {
-          newQueryParams.inherited_page = 0;
+          newQueryParams.inherited_page = "0";
         }
       }
 
@@ -321,12 +335,18 @@ const ManagePolicyPage = ({
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_POLICIES,
-        queryParams: newQueryParams,
+        queryParams: { ...queryParams, ...newQueryParams },
       });
 
       router?.replace(locationPath);
     },
-    [teamIdForApi, searchQuery, showInheritedTable] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [
+      teamIdForApi,
+      searchQuery,
+      showInheritedTable,
+      inheritedSortDirection,
+      sortDirection,
+    ] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const onClientSidePaginationChange = useCallback(
