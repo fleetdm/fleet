@@ -327,12 +327,13 @@ const ManagePolicyPage = ({
         newQueryParams.order_key = sortHeader;
         newQueryParams.order_direction = sortDirection;
         newQueryParams.page = page;
+        newQueryParams.query = searchQuery;
         // Reset page number to 0 for new filters
         if (
           newSortDirection !== inheritedSortDirection ||
           newSortHeader !== inheritedSortHeader
         ) {
-          newQueryParams.page = 0;
+          newQueryParams.inherited_page = 0;
         }
       }
 
@@ -340,6 +341,7 @@ const ManagePolicyPage = ({
         newQueryParams.team_id = teamIdForApi;
       }
 
+      console.log("onQueryChange newQueryParams", newQueryParams);
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_POLICIES,
         queryParams: newQueryParams,
@@ -347,18 +349,7 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [
-      sortHeader,
-      sortDirection,
-      page,
-      teamIdForApi,
-      searchQuery,
-      showInheritedTable,
-      inheritedSortHeader,
-      inheritedSortDirection,
-      inheritedPage,
-      router,
-    ]
+    [teamIdForApi, searchQuery, showInheritedTable] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -374,7 +365,7 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [searchQuery] // Dependencies required for correct variable state
+    [searchQuery, queryParams] // Dependencies required for correct variable state
   );
 
   const onClientSideInheritedPaginationChange = useCallback(
@@ -390,7 +381,7 @@ const ManagePolicyPage = ({
       });
       router?.replace(locationPath);
     },
-    [] // Dependencies required for correct variable state
+    [queryParams] // Dependencies required for correct variable state
   );
 
   const toggleManageAutomationsModal = () =>
