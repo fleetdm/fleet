@@ -30,7 +30,6 @@ const rebuildQueryStringWithTeamId = (
   newTeamId: number
 ) => {
   const parts = splitQueryStringParts(queryString);
-  console.log("\n\nSTART parts", parts);
 
   // Reset page to 0
   const pageIndex = parts.findIndex((p) => p.startsWith("page="));
@@ -47,8 +46,6 @@ const rebuildQueryStringWithTeamId = (
   if (inheritedPageIndex) {
     parts.splice(inheritedPageIndex, 1, newInheritedPagePart);
   }
-
-  console.log("END parts", parts);
 
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
 
