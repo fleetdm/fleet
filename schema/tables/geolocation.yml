@@ -1,6 +1,13 @@
 name: geolocation
 platforms:
   - chromeos
-description: ??? # TODO
-columns: # TODO column names are not listed.
-  - name: ??? # TODO
+description: Last reported geolocation
+columns:
+  - name: ip
+    type: text
+  - name: city
+    type: text
+  - name: country
+    type: text
+  - name: region
+    type: text
