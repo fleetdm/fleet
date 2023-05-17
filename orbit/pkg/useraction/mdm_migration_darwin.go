@@ -77,50 +77,55 @@ func (b *baseDialog) Exit() {
 // The first returned channel sends the exit code returned by swiftDialog, and
 // the second channel is used to send errors.
 func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan error) {
-	exitCodeChan := make(chan swiftDialogExitCode, 1)
-	errChan := make(chan error, 1)
+	exitCodeCh := make(chan swiftDialogExitCode, 1)
+	errCh := make(chan error, 1)
 	go func() {
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
 		done := make(chan error)
+		stopInterruptCh := make(chan struct{})
+		defer func() { stopInterruptCh <- struct{}{} }()
 
 		if err := cmd.Start(); err != nil {
-			errChan <- err
+			errCh <- err
 			return
 		}
 
 		go func() { done <- cmd.Wait() }()
-
-		select {
-		case <-b.interruptCh:
-			if err := cmd.Process.Signal(os.Interrupt); err != nil {
-				log.Error().Err(err).Msg("sending interrupt signal to swiftDialog process")
-				if err := cmd.Process.Kill(); err != nil {
-					log.Error().Err(err).Msg("killing swiftDialog process")
-				}
-
-			}
-		case err := <-done:
-			if err != nil {
-				// non-zero exit codes
-				if exitError, ok := err.(*exec.ExitError); ok {
-					ec := exitError.ExitCode()
-					switch ec {
-					case errorExitCode:
-						exitCodeChan <- errorExitCode
-					case secondaryBtnExitCode, infoBtnExitCode, timeoutExitCode:
-						exitCodeChan <- swiftDialogExitCode(ec)
-					default:
-						errChan <- fmt.Errorf("unknown exit code showing dialog: %w", exitError)
+		go func() {
+			select {
+			case <-b.interruptCh:
+				if err := cmd.Process.Signal(os.Interrupt); err != nil {
+					log.Error().Err(err).Msg("sending interrupt signal to swiftDialog process")
+					if err := cmd.Process.Kill(); err != nil {
+						log.Error().Err(err).Msg("killing swiftDialog process")
+						errCh <- fmt.Errorf("failed to stop/kill swiftDialog process")
 					}
-				} else {
-					errChan <- fmt.Errorf("running swiftDialog: %w", err)
+				}
+			case <-stopInterruptCh:
+				return
+			}
+		}()
+
+		if err := <-done; err != nil {
+			// non-zero exit codes
+			if exitError, ok := err.(*exec.ExitError); ok {
+				ec := exitError.ExitCode()
+				switch ec {
+				case errorExitCode:
+					exitCodeCh <- errorExitCode
+				case secondaryBtnExitCode, infoBtnExitCode, timeoutExitCode:
+					exitCodeCh <- swiftDialogExitCode(ec)
+				default:
+					errCh <- fmt.Errorf("unknown exit code showing dialog: %w", exitError)
 				}
 			} else {
-				exitCodeChan <- 0
+				errCh <- fmt.Errorf("running swiftDialog: %w", err)
 			}
+		} else {
+			exitCodeCh <- 0
 		}
 	}()
-	return exitCodeChan, errChan
+	return exitCodeCh, errCh
 }
 
 func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
@@ -180,12 +185,14 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCod
 	)
 }
 
-func (m *swiftDialogMDMMigrator) renderError() (codeChan chan swiftDialogExitCode, errChan chan error) {
+func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan error) {
 	var errorMessage bytes.Buffer
 	if err := errorTemplate.Execute(
 		&errorMessage,
 		m.props.OrgInfo,
 	); err != nil {
+		codeChan := make(chan swiftDialogExitCode, 1)
+		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("execute error template: %w", err)
 		return codeChan, errChan
 	}
