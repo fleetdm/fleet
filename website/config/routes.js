@@ -381,6 +381,12 @@ module.exports.routes = {
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
 
+  // Fleet UI
+  // =============================================================================================================
+  // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the
+  // original sources to help avoid broken links.
+  'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
+
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this

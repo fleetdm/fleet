@@ -449,3 +449,40 @@ func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc f
 func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
 	return fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Signal start of mdm migration on a device
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceMigrateMDMRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceMigrateMDMRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceMigrateMDMResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deviceMigrateMDMResponse) error() error { return r.Err }
+
+func (r deviceMigrateMDMResponse) Status() int { return http.StatusNoContent }
+
+func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return deviceMigrateMDMResponse{Err: err}, nil
+	}
+
+	if err := svc.TriggerMigrateMDMDevice(ctx, host); err != nil {
+		return deviceMigrateMDMResponse{Err: err}, nil
+	}
+	return deviceMigrateMDMResponse{}, nil
+}
+
+func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
+	return fleet.ErrMissingLicense
+}

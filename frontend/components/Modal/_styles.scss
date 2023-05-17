@@ -66,11 +66,23 @@
 
   &__modal_container {
     @include position(absolute, 22px null null null);
+    box-sizing: border-box;
     background-color: $core-white;
-    min-width: 650px;
-    max-width: 800px;
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
+
+    &__medium {
+      width: 650px;
+    }
+    &__large {
+      width: 800px;
+    }
+    &__xlarge {
+      width: 850px;
+    }
+    &__auto {
+      width: auto;
+    }
   }
 }
