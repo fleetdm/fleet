@@ -166,8 +166,12 @@ const EndUserMigrationSection = () => {
             }
           />
         </div>
-        <Button variant="text-link" onClick={onSubmit}>
-          Preview Payload
+        <Button
+          className={`${baseClass}__preview-button`}
+          variant="text-link"
+          onClick={toggleExamplePayloadModal}
+        >
+          Preview payload
         </Button>
         <Button onClick={onSubmit}>Save</Button>
       </form>

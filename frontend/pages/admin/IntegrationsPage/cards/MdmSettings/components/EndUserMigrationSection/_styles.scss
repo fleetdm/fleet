@@ -29,4 +29,9 @@
   &__end-user-migration-form.disabled {
     opacity: 0.4;
   }
+
+  &__preview-button {
+    display: block;
+    margin-bottom: $pad-large;
+  }
 }
