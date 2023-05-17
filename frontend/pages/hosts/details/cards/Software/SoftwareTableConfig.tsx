@@ -352,7 +352,7 @@ export const generateSoftwareTableHeaders = ({
           </TooltipWrapper>
         );
       },
-      accessor: "installed_path",
+      accessor: "installed_paths",
       Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
         const numInstalledPaths = cellProps.cell.value?.length || 0;
         const installedPaths = condenseInstalledPaths(
@@ -367,7 +367,7 @@ export const generateSoftwareTableHeaders = ({
                   installedPaths.length > 1 ? "text-muted tooltip" : ""
                 }`}
                 data-tip
-                data-for={`installed_path__${cellProps.row.original.id}`}
+                data-for={`installed_paths__${cellProps.row.original.id}`}
                 data-tip-disable={installedPaths.length <= 1}
               >
                 {numInstalledPaths === 1
@@ -377,7 +377,7 @@ export const generateSoftwareTableHeaders = ({
               <ReactTooltip
                 effect="solid"
                 backgroundColor={COLORS["tooltip-bg"]}
-                id={`installed_path__${cellProps.row.original.id}`}
+                id={`installed_paths__${cellProps.row.original.id}`}
                 data-html
                 clickable
                 delayHide={300}

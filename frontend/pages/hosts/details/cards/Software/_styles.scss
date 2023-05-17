@@ -184,7 +184,7 @@
 
   // Only show this column to macos users
   .macos .data-table-block .data-table__table {
-    .installed_path__header {
+    .installed_paths__header {
       border-right: none;
     }
 
@@ -198,7 +198,7 @@
         .last_opened_at__header {
           display: table-cell;
         }
-        .installed_path__header {
+        .installed_paths__header {
           width: $col-md;
         }
       }
@@ -207,7 +207,7 @@
           display: table-cell;
         }
 
-        .installed_path__cell {
+        .installed_paths__cell {
           .tooltip {
             display: inline; // center tooltip with hovered text
           }
