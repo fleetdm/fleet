@@ -1,7 +1,7 @@
 # Fleetd Chrome Extension
 
+## Adding Chrome to Fleet
+To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension.
+
 ## Debugging
-
-### Service worker
-
-View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+To learn how to debug the Fleetd Chrome extension, visit: https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension.
