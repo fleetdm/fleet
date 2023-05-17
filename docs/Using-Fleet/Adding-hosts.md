@@ -278,8 +278,43 @@ entries will appear in the Fleet UI. The older entries can be automatically clea
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
 ## Add Chromebooks with the Fleetd Chrome extension
+### Package the extension
 
-> Documentation for adding hosts on ChromeOS is coming soon. In the mean time, basic instructions are available in the [fleetd-chrome README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
+Generate a .pem file to be the key for the chrome extension.
+
+Run the following command to generate an extension.
+
+``` sh
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=path/to/chrome.pem
+```
+
+### Upload and configure in Google Admin
+
+In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
+
+Select the appropriate organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+
+In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
+
+Extension ID: `fleeedmmihkfkeemmipgmhhjemlljidg`
+From a custom URL: `https://chrome.fleetdm.com/updates.xml`
+TODO ^^^ WHAT DO THESE DO? DO I UPLOAD THE PACKAGE I GENERATED?
+
+Then add the "Policy for extensions" to configure it:
+
+```
+{
+  "fleet_url": {
+    "Value": "https://fleet.example.com"
+  },
+  "enroll_secret":{
+    "Value": "<secretgoeshere>"
+  }
+}
+```
+
+Select "Force install". Select "Update URL" > "Installation URL (see above)"
+TODO WHAT DOES THIS DO? ^^^
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
