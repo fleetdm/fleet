@@ -19,6 +19,13 @@ var (
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
 
+// ErrWithStatusCode is an interface for errors that should set a specific HTTP
+// status code.
+type ErrWithStatusCode interface {
+	error
+	StatusCode() int
+}
+
 // ErrWithInternal is an interface for errors that include extra "internal"
 // information that should be logged in server logs but not sent to clients.
 type ErrWithInternal interface {
@@ -293,11 +300,6 @@ func (e passwordResetRequiredError) StatusCode() int {
 // MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having MDM correctly configured.
 type MDMNotConfiguredError struct{}
-
-// NewMDMNotConfiguredError returns a MDMNotConfiguredError.
-func NewMDMNotConfiguredError() *MDMNotConfiguredError {
-	return &MDMNotConfiguredError{}
-}
 
 // Status implements the kithttp.StatusCoder interface so we can customize the
 // HTTP status code of the response returning this error.
