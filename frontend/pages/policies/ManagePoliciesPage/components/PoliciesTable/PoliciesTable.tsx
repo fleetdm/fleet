@@ -67,7 +67,7 @@ const PoliciesTable = ({
   const onTableQueryChange = (newTableQuery: ITableQueryData) => {
     onQueryChange({
       ...newTableQuery,
-      inheritedTable: tableType === "inheritedPolicies",
+      editingInheritedTable: tableType === "inheritedPolicies",
     });
   };
 
