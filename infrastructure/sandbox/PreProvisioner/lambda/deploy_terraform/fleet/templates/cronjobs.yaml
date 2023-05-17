@@ -10,7 +10,9 @@ metadata:
   name: {{ .Values.fleetName }}
   namespace: {{ .Release.Namespace }}
 spec:
+  concurrencyPolicy: Forbid
   schedule: "{{ .Values.crons.vulnerabilities }}"
+  successfulJobsHistoryLimit: 0
   jobTemplate:
     spec:
       template:

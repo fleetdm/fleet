@@ -88,4 +88,11 @@ var (
 		TargetFile:           "nudge.app.tar.gz",
 		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
 	}
+
+	SwiftDialogTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "swiftDialog.app.tar.gz",
+		ExtractedExecSubPath: []string{"bin", "dialog"},
+	}
 )

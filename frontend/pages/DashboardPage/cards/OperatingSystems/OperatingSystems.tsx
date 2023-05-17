@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 
 import {
@@ -20,6 +20,7 @@ import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import { AxiosError } from "axios";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -64,7 +65,7 @@ const OperatingSystems = ({
 }: IOperatingSystemsCardProps): JSX.Element => {
   const { data: osInfo, error, isFetching } = useQuery<
     IOSVersionsResponse,
-    Error,
+    AxiosError,
     IOSVersionsResponse,
     IGetOSVersionsQueryKey[]
   >(
@@ -85,6 +86,7 @@ const OperatingSystems = ({
       enabled: OS_VERSIONS_API_SUPPORTED_PLATFORMS.includes(selectedPlatform),
       staleTime: 10000,
       keepPreviousData: true,
+      retry: 0,
     }
   );
 
@@ -128,7 +130,11 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders(includeNameColumn);
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(includeNameColumn, currentTeamId),
+    [includeNameColumn, currentTeamId]
+  );
+
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading
@@ -142,7 +148,7 @@ const OperatingSystems = ({
         </div>
       )}
       <div style={opacity}>
-        {error ? (
+        {error?.status && error?.status >= 500 ? (
           <TableDataError card />
         ) : (
           <TableContainer
@@ -151,13 +157,11 @@ const OperatingSystems = ({
             isLoading={isFetching}
             defaultSortHeader={DEFAULT_SORT_HEADER}
             defaultSortDirection={DEFAULT_SORT_DIRECTION}
-            hideActionButton
             resultsTitle={"Operating systems"}
             emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
-            disableActionButton
             isClientSidePagination={showPaginationControls}
             disablePagination={!showPaginationControls}
             pageSize={PAGE_SIZE}

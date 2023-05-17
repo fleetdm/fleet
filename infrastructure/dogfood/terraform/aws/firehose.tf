@@ -42,18 +42,23 @@ resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-cust
   bucket = var.osquery_status_s3_bucket
   acl    = "private"
 
-  lifecycle_rule {
-    enabled = true
-    expiration {
-      days = 1
-    }
-  }
-
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
         sse_algorithm = "aws:kms"
       }
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "osquery-status" {
+  bucket = aws_s3_bucket.osquery-status.id
+
+  rule {
+    id     = "rule-1"
+    status = "Enabled"
+    expiration {
+      days = 1
     }
   }
 }

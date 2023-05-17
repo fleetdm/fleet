@@ -11,11 +11,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -104,7 +106,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
-	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated bool
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -115,21 +122,32 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSettings != nil {
-			if !svc.config.MDM.AppleEnable && payload.MDM.MacOSSettings.EnableDiskEncryption {
+			if !appCfg.MDM.EnabledAndConfigured && payload.MDM.MacOSSettings.EnableDiskEncryption {
 				return nil, fleet.NewInvalidArgumentError("macos_settings.enable_disk_encryption",
 					`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 			}
 			macOSDiskEncryptionUpdated = team.Config.MDM.MacOSSettings.EnableDiskEncryption != payload.MDM.MacOSSettings.EnableDiskEncryption
 			team.Config.MDM.MacOSSettings.EnableDiskEncryption = payload.MDM.MacOSSettings.EnableDiskEncryption
 		}
+
+		if payload.MDM.MacOSSetup != nil {
+			if !appCfg.MDM.EnabledAndConfigured && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+					`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			}
+			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+				// TODO: update this error message to include steps to resolve the issue once docs for IdP
+				// config are available
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+					`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+			}
+			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
+		}
 	}
 
 	if payload.Integrations != nil {
 		// the team integrations must reference an existing global config integration.
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
 			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
@@ -191,6 +209,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
+	}
+	if macOSEnableEndUserAuthUpdated {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
 		}
 	}
 	return team, err
@@ -382,8 +405,46 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 	name := team.Name
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list hosts for reconcile profiles on team change")
+	}
+	hostIDs := make([]uint, 0, len(hosts))
+	mdmHostSerials := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() || host.MDMInfo.IsDEPFleetEnrolled() {
+			mdmHostSerials = append(mdmHostSerials, host.HardwareSerial)
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
+	}
+	// team id 0 is provided since the team's hosts are now part of no team
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+
+	if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
+	}
+
+	if len(mdmHostSerials) > 0 {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantTeamDeleted,
+			nil,
+			mdmHostSerials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant team deleted job")
+		}
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
@@ -476,23 +537,30 @@ func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) 
 
 var jsonNull = json.RawMessage(`null`)
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return err
+// setAuthCheckedOnPreAuthErr can be used to set the authentication as checked
+// in case of errors that happened before an auth check can be performed.
+// Otherwise the endpoints return a "authentication skipped" error instead of
+// the actual returned error.
+func setAuthCheckedOnPreAuthErr(ctx context.Context) {
+	if az, ok := authz_ctx.FromContext(ctx); ok {
+		az.SetChecked()
 	}
+}
 
-	// check auth for all teams specified first
+func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec) error {
 	for _, spec := range specs {
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
 			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				// can the user create a new team?
+				// Can the user create a new team?
 				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 					return err
 				}
 				continue
 			}
 
+			// Set authorization as checked to return a proper error.
+			setAuthCheckedOnPreAuthErr(ctx)
 			return err
 		}
 
@@ -501,11 +569,25 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return err
 		}
 	}
+	return nil
+}
 
-	appConfig, err := svc.AppConfig(ctx)
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+	if len(specs) == 0 {
+		setAuthCheckedOnPreAuthErr(ctx)
+		// Nothing to do.
+		return nil
+	}
+
+	if err := svc.checkAuthorizationForTeams(ctx, specs); err != nil {
+		return err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
+	appConfig.Obfuscate()
 
 	var details []fleet.TeamActivityDetail
 
@@ -561,7 +643,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			continue
 		}
 
-		if err := svc.editTeamFromSpec(ctx, team, spec, secrets, applyOpts.DryRun); err != nil {
+		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts.DryRun); err != nil {
 			return ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
@@ -616,6 +698,13 @@ func (svc *Service) createTeamFromSpec(
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings); err != nil {
 		return nil, err
 	}
+	macOSSetup := spec.MDM.MacOSSetup
+	if macOSSetup.MacOSSetupAssistant.Set || macOSSetup.BootstrapPackage.Set {
+		if !defaults.MDM.EnabledAndConfigured {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
 
 	if dryRun {
 		return &fleet.Team{Name: spec.Name}, nil
@@ -629,6 +718,7 @@ func (svc *Service) createTeamFromSpec(
 			MDM: fleet.TeamMDM{
 				MacOSUpdates:  spec.MDM.MacOSUpdates,
 				MacOSSettings: macOSSettings,
+				MacOSSetup:    macOSSetup,
 			},
 		},
 		Secrets: secrets,
@@ -657,6 +747,7 @@ func (svc *Service) editTeamFromSpec(
 	ctx context.Context,
 	team *fleet.Team,
 	spec *fleet.TeamSpec,
+	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
 	dryRun bool,
 ) error {
@@ -686,6 +777,36 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	newMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption
+
+	oldMacOSSetup := team.Config.MDM.MacOSSetup
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set || spec.MDM.MacOSSetup.BootstrapPackage.Set {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+		if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+			team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
+		}
+		if spec.MDM.MacOSSetup.BootstrapPackage.Set {
+			team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
+		}
+	}
+
+	var didUpdateMacOSEndUserAuth bool
+	if spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+				`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+		if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
+		}
+		didUpdateMacOSEndUserAuth = true
+	}
+	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
@@ -722,6 +843,31 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
+
+	// if the macos setup assistant was cleared, remove it for that team
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
+		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
+		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
+		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "clear macos setup assistant for team %d", team.ID)
+		}
+	}
+
+	// if the bootstrap package was cleared, remove it for that team
+	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
+		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
+		oldMacOSSetup.BootstrapPackage.Value != "" {
+		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
+		}
+	}
+
+	if didUpdateMacOSEndUserAuth {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -731,15 +877,18 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		return fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "apply team macos settings")
+	}
+
 	if (setFields["custom_settings"] && len(applyUpon.CustomSettings) > 0) ||
 		(setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption) {
 		field := "custom_settings"
 		if !setFields["custom_settings"] {
 			field = "enable_disk_encryption"
 		}
-		if !svc.config.MDM.AppleEnable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
+		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
@@ -794,6 +943,29 @@ func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Te
 			}
 			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+			}
+		}
+	}
+	return nil
+}
+
+func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
+	var didUpdate, didUpdateMacOSEndUserAuth bool
+	if payload.EnableEndUserAuthentication != nil {
+		if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
+			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
+			didUpdate = true
+			didUpdateMacOSEndUserAuth = true
+		}
+	}
+
+	if didUpdate {
+		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+			return err
+		}
+		if didUpdateMacOSEndUserAuth {
+			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &tm.ID, &tm.Name); err != nil {
+				return err
 			}
 		}
 	}

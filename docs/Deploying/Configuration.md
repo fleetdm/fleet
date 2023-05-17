@@ -711,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2040,6 +2057,107 @@ kafkarest:
   status_topic: osquery_status
 ```
 
+#### Email backend
+
+By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
+SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
+configure Fleet to use AWS SES natively rather than through SMTP.
+
+##### backend
+
+Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
+
+````yaml
+email:
+  backend: ses
+````
+
+#### SES
+
+The following configurations only have an effect if SES email backend is enabled `FLEET_EMAIL_BACKEND=ses`.
+
+##### ses_region
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS region to use for SES connection.
+
+- Default value: none
+- Environment variable: `FLEET_SES_REGION`
+- Config file format:
+  ```yaml
+  ses:
+  	region: us-east-2
+  ```
+
+##### ses_access_key_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS access key ID to use for Lambda authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  ses:
+  	access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### ses_secret_access_key
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+If `ses_access_key_id` and `ses_secret_access_key` are omitted, Fleet
+will try to use
+[AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+credentials.
+
+AWS secret access key to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  ses:
+  	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### ses_sts_assume_role_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS role ARN to use for SES authentication.
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
+##### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+The ARN of the identity that is associated with the sending authorization policy that permits you to send
+for the email address specified in the Source parameter of SendRawEmail.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+  	sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+  ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -2345,17 +2463,44 @@ vulnerabilities:
 
 ##### database_path
 
-The path to a valid Maxmind GeoIP database(mmdb). Support exists for the country & city versions of the database. If city database is supplied
+The path to a valid Maxmind GeoIP database (mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
 to determine location is extracted via HTTP headers in the following order: `True-Client-IP`, `X-Real-IP`, and finally `X-FORWARDED-FOR` [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
 on the Fleet web server.
+
+You can get a copy of the
+[Geolite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data?lang=en) database for free by
+[creating an account](https://www.maxmind.com/en/geolite2/signup?lang=en) on the MaxMind website,
+navigating to the [download page](https://www.maxmind.com/en/accounts/current/geoip/downloads),
+and downloading the GZIP archive. Decompress it and place the mmdb file somewhere fleet can access.
+
+It is also possible to automatically keep the database up to date, see the
+[documentation](https://dev.maxmind.com/geoip/updating-databases?lang=en) from MaxMind.
+
+GeoIP databases can find what general area a device is from, but not the exact location.
+They work by collecting which IP addresses ISPs use for different cities and countries and
+packaging them up into a list mapping IP address to city.
+
+You've likely seen services use GeoIP databases if they redirect you to a site specific
+to your country. e.g. Google will redirect you to [google.ca](https://google.ca) if you visit from Canada
+or Mouser will change to your local currency if you view an electronic component.
+
+This can be useful for your fleet install if you want to tell if a device is somewhere it shouldn't
+be. If a desktop machine located at a site in New York suddenly appears in London, then you can tell
+that something is wrong. It can also help you differentiate machines if they have similar names,
+e.g. if you have two computers "John's MacBook Pro".
+
+While it can be a useful tool, an unexpected result could be an error in the database, a user
+connecting via a mobile network which uses the same IP address for a wide area, or a user visiting
+family. Checking on the location of devices too often could be invasive to employees who are keeping
+work devices on them for e.g. oncall responsibilities.
 
 - Default value: none
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
   geoip:
-    database_path: /some/path
+    database_path: /some/path/to/geolite2.mmdb
   ```
 
 #### Sentry
@@ -2601,25 +2746,11 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
-
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
 This section is a reference for the configuration required to turn on MDM features in production.
 
 If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
-
-##### mdm.apple_enable
-
-This is the second feature flag required to turn on MDM features. This environment variable flag must be set to `1` (or `true` in the `yaml`) at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_ENABLE`
-- Config file format:
-  ```
-  mdm:
-    apple_enable: true
-  ```
 
 ##### mdm.apple_apns_cert_bytes
 
@@ -2762,54 +2893,6 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm.okta_server_url
-
-This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_SERVER_URL`
-- Config file format:
-  ```
-  mdm:
-    okta_server_url: https://example.okta.com
-```
-
-##### mdm.okta_client_id
-
-This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_ID`
-- Config file format:
-  ```
-  mdm:
-    okta_client_id: 9oa4eoxample2rpdi1087
-```
-
-##### mdm.okta_client_secret
-
-This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_CLIENT_SECRET`
-- Config file format:
-  ```
-  mdm:
-    okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
-```
-
-##### mdm.eula_url
-
-An URL containing a PDF file that will be used as an EULA during DEP onboarding.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_OKTA_EULA_URL`
-- Config file format:
-  ```
-  mdm:
-    eula_url: https://example.com/eula.pdf
-```
-
 ##### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
@@ -2821,25 +2904,6 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   mdm:
     apple_dep_sync_periodicity: 10m
   ```
-
-##### Example YAML
-
-```yaml
-mdm:
-  apple_enable: true
-  apple_apns_cert: /path/to/apns_cert
-  apple_apns_key: /path/to/apns_key
-  apple_scep_cert: /path/to/scep_cert
-  apple_scep_key: /path/to/scep_key
-  apple_scep_challenge: scepchallenge
-  apple_bm_server_token: /path/to/server_token.p7m
-  apple_bm_cert: /path/to/bm_cert
-  apple_bm_key: /path/to/private_key
-  okta_server_url: https://example.okta.com
-  okta_client_id: 9oa4eoxample2rpdi1087
-  okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
-  eula_url: https://example.com/eula.pdf
-```
 
 ## Managing osquery configurations
 
@@ -2977,7 +3041,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
@@ -3008,7 +3076,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
 
-Currently supported values for the above attributes are: `admin`, `maintainer` and `observer`.
+Currently supported values for the above attributes are: `admin`, `maintainer`, `observer` and `observer_plus`.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.

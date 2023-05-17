@@ -6,7 +6,7 @@
     .controls {
       // vulnerable software dropdown filter
       .Select {
-        width: 219px;
+        width: 225px;
 
         .Select-menu-outer {
           width: 364px;
@@ -119,13 +119,18 @@
       }
 
       tr {
+        .name__cell .children-wrapper {
+          overflow: visible;
+        }
+
         .software-link {
-          visibility: hidden;
+          opacity: 0;
+          transition: 250ms;
         }
 
         &:hover {
           .software-link {
-            visibility: visible;
+            opacity: 1;
           }
         }
       }

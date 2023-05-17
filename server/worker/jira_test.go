@@ -172,6 +172,14 @@ func TestJiraRun(t *testing.T) {
 			"Probability of exploit",
 			"",
 		},
+		{
+			"vuln with published date",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678","cve_published":"2012-04-23T18:25:43.511Z","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Published (reported by [NVD|https://nvd.nist.gov/]): 2012-04-23",
+			"",
+		},
 	}
 
 	for _, c := range cases {

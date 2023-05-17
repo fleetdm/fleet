@@ -12,7 +12,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
-import { IActionButtonProps } from "./DataTable/ActionButton";
+import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -20,6 +20,7 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
+  showInheritedTable?: boolean; // Only used for policies tables
 }
 interface IRowProps extends Row {
   original: {
@@ -35,10 +36,9 @@ interface ITableContainerProps {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
-  actionButtonText?: string;
-  actionButtonIcon?: string;
-  actionButtonVariant?: ButtonVariant;
-  hideActionButton?: boolean;
+  defaultPageIndex?: number;
+  /** Button visible above the table container next to search bar */
+  actionButton?: IActionButtonProps;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -58,25 +58,26 @@ interface ITableContainerProps {
   // The old page controls for server-side pagination render a no results screen
   // with a back button. This fix instead disables the next button in that case.
   disableCount?: boolean;
-  primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
-  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
+  /** Main button after selecting a row */
+  primarySelectAction?: IActionButtonProps;
+  /** Secondary button/s after selecting a row */
+  secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
   filteredCount?: number;
   searchToolTipText?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  /** Used to set URL to correct path and include page query param */
+  onClientSidePaginationChange?: (pageIndex: number) => void;
   isClientSideFilter?: boolean;
-  isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
-  // in lieu of displaying the empty component when client-side filtering yields zero results
+  /** isMultiColumnFilter is used to preserve the table headers
+  in lieu of displaying the empty component when client-side filtering yields zero results */
+  isMultiColumnFilter?: boolean;
   disableHighlightOnHover?: boolean;
   pageSize?: number;
-  onActionButtonClick?: () => void;
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
@@ -100,6 +101,7 @@ const TableContainer = ({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  defaultPageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   inputPlaceHolder = "Search",
@@ -110,10 +112,7 @@ const TableContainer = ({
   className,
   disableActionButton,
   disableMultiRowSelect = false,
-  actionButtonText,
-  actionButtonIcon,
-  actionButtonVariant = "brand",
-  hideActionButton,
+  actionButton,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -122,22 +121,19 @@ const TableContainer = ({
   disablePagination,
   disableNextPage,
   disableCount,
-  primarySelectActionButtonVariant = "brand",
-  primarySelectActionButtonIcon,
-  primarySelectActionButtonText,
+  primarySelectAction,
   secondarySelectActions,
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
   disableHighlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
-  onActionButtonClick,
   onQueryChange,
-  onPrimarySelectActionClick,
   customControl,
   stackControls,
   onSelectSingleRow,
@@ -152,8 +148,15 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
+  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
+
+  // Client side pagination is being overridden to previous page without this
+  useEffect(() => {
+    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
+      setPageIndex(defaultPageIndex);
+    }
+  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -182,18 +185,20 @@ const TableContainer = ({
   const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
-      setPageIndex(newPage);
-      hasPageIndexChangedRef.current = true;
+      if (!isClientSidePagination) {
+        setPageIndex(newPage);
+        hasPageIndexChangedRef.current = true;
+      }
     },
-    [hasPageIndexChangedRef]
+    [hasPageIndexChangedRef, isClientSidePagination]
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex) {
+    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
       onPaginationChange(0);
     }
-  }, [resetPageIndex, pageIndex]);
+  }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
@@ -320,19 +325,19 @@ const TableContainer = ({
               )}
             </span>
             <span className={"controls"}>
-              {!hideActionButton && actionButtonText && (
+              {actionButton && !actionButton.hideButton && (
                 <Button
                   disabled={disableActionButton}
-                  onClick={onActionButtonClick}
-                  variant={actionButtonVariant}
+                  onClick={actionButton.onActionButtonClick}
+                  variant={actionButton.variant}
                   className={`${baseClass}__table-action-button`}
                 >
                   <>
-                    {actionButtonText}
-                    {actionButtonIcon && (
+                    {actionButton.buttonText}
+                    {actionButton.icon && (
                       <img
-                        src={actionButtonIcon}
-                        alt={`${actionButtonText} icon`}
+                        src={actionButton.icon}
+                        alt={`${actionButton.buttonText} icon`}
                       />
                     )}
                   </>
@@ -422,16 +427,13 @@ const TableContainer = ({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
-                primarySelectActionButtonVariant={
-                  primarySelectActionButtonVariant
-                }
-                primarySelectActionButtonIcon={primarySelectActionButtonIcon}
-                primarySelectActionButtonText={primarySelectActionButtonText}
-                onPrimarySelectActionClick={onPrimarySelectActionClick}
+                defaultPageIndex={defaultPageIndex}
+                primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
+                onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}
                 disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}

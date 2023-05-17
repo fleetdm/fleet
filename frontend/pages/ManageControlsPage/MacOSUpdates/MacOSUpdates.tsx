@@ -1,32 +1,29 @@
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
+
 import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
 import useInfoCard from "pages/DashboardPage/components/InfoCard";
-import React, { useContext } from "react";
-import { isPremiumTier } from "utilities/permissions/permissions";
-import { AppContext } from "context/app";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 
 const baseClass = "mac-os-updates";
 
-interface IMacOSUpdatesProps {
-  location: {
-    query: { team_id?: string };
-  };
+interface IMacOSUpdates {
+  teamIdForApi: number;
 }
 
-const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
-  const { team_id } = location.query;
-  const { config } = useContext(AppContext);
-  const isPremium = config ? isPremiumTier(config) : false;
-  // Avoids possible case where Number(undefined) returns NaN
-  const teamId = team_id === undefined ? team_id : Number(team_id);
+const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
+  const { isPremiumTier } = useContext(AppContext);
 
   const OperatingSystemCard = useInfoCard({
     title: "macOS versions",
     children: (
       <OperatingSystems
-        currentTeamId={teamId}
+        currentTeamId={teamIdForApi}
         selectedPlatform="darwin"
         showTitle
         showDescription={false}
@@ -38,7 +35,7 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
     ),
   });
 
-  return isPremium ? (
+  return isPremiumTier ? (
     <div className={baseClass}>
       <>
         <p className={`${baseClass}__description`}>
@@ -51,7 +48,10 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
               {OperatingSystemCard}
             </div>
             <div className={`${baseClass}__os-version-form`}>
-              <OsMinVersionForm currentTeamId={teamId} key={teamId} />
+              <OsMinVersionForm
+                currentTeamId={teamIdForApi}
+                key={teamIdForApi}
+              />
             </div>
           </div>
           <div className={`${baseClass}__nudge-preview`}>
@@ -61,7 +61,9 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
       </>
     </div>
   ) : (
-    <PremiumFeatureMessage />
+    <PremiumFeatureMessage
+      className={`${baseClass}__premium-feature-message`}
+    />
   );
 };
 

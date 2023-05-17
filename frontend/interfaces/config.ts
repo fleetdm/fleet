@@ -42,10 +42,10 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
-  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
     enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
+    apple_bm_enabled_and_configured: PropTypes.bool,
     macos_updates: PropTypes.shape({
       minimum_version: PropTypes.string,
       deadline: PropTypes.string,
@@ -79,6 +79,13 @@ export default PropTypes.shape({
       }),
     }),
   }),
+  email: PropTypes.shape({
+    backend: PropTypes.string,
+    config: PropTypes.shape({
+      region: PropTypes.string,
+      source_arn: PropTypes.string,
+    }),
+  }),
 });
 
 export interface ILicense {
@@ -89,17 +96,34 @@ export interface ILicense {
   organization: string;
 }
 
+interface IEndUserAuthentication {
+  entity_id: string;
+  idp_name: string;
+  issuer_uri: string;
+  metadata: string;
+  metadata_url: string;
+}
+
+export interface IMacOsMigrationSettings {
+  enable: boolean;
+  mode: "voluntary" | "forced";
+  webhook_url: string;
+}
+
 export interface IMdmConfig {
   enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
+  apple_bm_enabled_and_configured: boolean;
+  end_user_authentication: IEndUserAuthentication;
   macos_updates: {
     minimum_version: string;
     deadline: string;
   };
   macos_settings: {
-    custom_settings: null; // TODO: type?
+    custom_settings: null;
     enable_disk_encryption: boolean;
   };
+  macos_migration: IMacOsMigrationSettings;
 }
 
 export interface IDeviceGlobalConfig {
@@ -235,8 +259,14 @@ export interface IConfig {
       };
     };
   };
+  email?: {
+    backend: string;
+    config: {
+      region: string;
+      source_arn: string;
+    };
+  };
   mdm: IMdmConfig;
-  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {

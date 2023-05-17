@@ -1,11 +1,11 @@
 import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { IMacSettings } from "interfaces/mdm";
+import { IHostMacMdmProfile } from "interfaces/mdm";
 import MacSettingsTable from "./MacSettingsTable";
 
 interface IMacSettingsModalProps {
-  hostMacSettings?: IMacSettings;
+  hostMacSettings?: IHostMacMdmProfile[];
   onClose: () => void;
 }
 
@@ -16,7 +16,12 @@ const MacSettingsModal = ({
   onClose,
 }: IMacSettingsModalProps) => {
   return (
-    <Modal title="macOS settings" onExit={onClose} className={baseClass}>
+    <Modal
+      title="macOS settings"
+      onExit={onClose}
+      className={baseClass}
+      width="large"
+    >
       <>
         <MacSettingsTable hostMacSettings={hostMacSettings} />
         <div className="modal-cta-wrap">

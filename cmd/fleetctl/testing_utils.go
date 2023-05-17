@@ -48,6 +48,9 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 
 	cachedDS := cached_mysql.New(ds)
 	_, server := service.RunServerForTestsWithDS(t, cachedDS, opts...)

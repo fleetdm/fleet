@@ -1,6 +1,8 @@
 {
   "generators": {
-    "modules": {}
+    "modules": {
+      "landing-page": "./generators/landing-page"
+    }
   },
   "_generatedWith": {
     "sails": "1.2.5",

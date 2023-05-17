@@ -1,7 +1,7 @@
 # API for contributors
 
 - [Packs](#packs)
-- [Mobile device management (MDM) - IN PROGRESS](#mobile-device-management-mdm-in-progress)
+- [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
@@ -518,98 +518,17 @@ Delete pack by name.
 
 ---
 
-## Mobile device management (MDM) - IN PROGRESS
-
-> This feature is currently in development and is not ready for use.
+## Mobile device management (MDM)
 
 > Only Fleet MDM specific endpoints are located within the root /mdm/ path.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Get Apple MDM](#get-apple-mdm)
-- [Get Apple BM](#get-apple-bm)
-- [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [New configuration profile](#new-mdm-apple-configuration-profile)
-- [List configuration profiles](#list-mdm-apple-configuration-profiles)
-- [Download configuration profile](#download-mdm-apple-configuration-profile)
-- [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
-- [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
-- [Update Apple MDM settings](#update-apple-mdm-settings)
-- [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
-
-### Get Apple MDM
-
-`GET /api/v1/fleet/mdm/apple`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
-  "serial_number": "1234567890987654321",
-  "issuer": "Apple Application Integration 2 Certification Authority",
-  "renew_date": "2023-09-30T00:00:00Z"
-}
-```
-
-### Get Apple BM
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/mdm/apple_bm`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple_bm`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
-```
-
-### Unenroll host from Fleet MDM
-
-`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
-
-#### Parameters
-
-| Name | Type    | In   | Description                           |
-| ---- | ------- | ---- | ------------------------------------- |
-| id   | integer | path | **Required.** The host's ID in Fleet. |
-
-#### Example
-
-`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
-
-##### Default response
-
-`Status: 200`
+- [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
+- [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 
 ### Generate Apple DEP Key Pair
 
@@ -660,223 +579,6 @@ Note that the `public_key` and `private_key` are base64 encoded and should be de
 Note that the response fields are base64 encoded and should be decoded before writing them to files.
 Once base64-decoded, they are PEM-encoded certificate and keys.
 
-### New MDM Apple configuration profile
-
-Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM.
-
-`POST /api/v1/fleet/mdm/apple/profiles`
-
-#### Parameters
-
-| Name                      | Type     | In   | Description                                                               |
-| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
-| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
-| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-
-#### Example
-
-Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
-assigned to a team. Note that in this example the form data specifies`team_id` in addition to
-`profile`.
-
-`POST /api/v1/fleet/mdm/apple/profiles`
-
-##### Request headers
-
-```
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
-Content-Type: application/octet-stream
-
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array/>
-	<key>PayloadDisplayName</key>
-	<string>Example profile</string>
-	<key>PayloadIdentifier</key>
-	<string>com.example.profile</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>
---------------------------f02md47480und42y--
-
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "profile_id": 42
-}
-```
-
-###### Additional notes
-If the response is `Status: 409 Conflict`, the body may include additional error details in the case
-of duplicate payload display name or duplicate payload identifier.
-
-
-### List MDM Apple configuration profiles
-
-Get a list of the configuration profiles stored in Fleet MDM. For Fleet Premium uses, the list can
-optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
-results (i.e., only profiles that are not associated with a team are listed).
-
-`GET /api/v1/fleet/mdm/apple/profiles`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
-
-#### Example
-
-List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
-
-`GET /api/v1/fleet/mdm/apple/profiles`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "profiles": [
-    {
-        "profile_id": 1337,
-        "team_id": 0,
-        "name": "Example profile",
-        "identifier": "com.example.profile",
-        "created_at": "2023-03-31T00:00:00Z",
-        "updated_at": "2023-03-31T00:00:00Z"
-    }
-  ]
-}
-```
-
-### Download MDM Apple configuration profile
-
-`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
-
-#### Parameters
-
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple/profiles/42`
-
-##### Default response
-
-`Status: 200`
-
-**Note** To confirm success, it is important for clients to match content length with the response
-header (this is done automatically by most clients, including the browser) rather than relying
-solely on the response status code returned by this endpoint.
-
-##### Example response headers
-
-```
-	Content-Length: 542
-	Content-Type: application/octet-stream
-	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
-```
-
-###### Example response body
-```
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array/>
-	<key>PayloadDisplayName</key>
-	<string>Example profile</string>
-	<key>PayloadIdentifier</key>
-	<string>com.example.profile</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>
-```
-
-### Delete MDM Apple configuration profile
-
-`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
-
-#### Parameters
-
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
-
-#### Example
-
-`DELETE /api/v1/fleet/mdm/apple/profiles/42`
-
-##### Default response
-
-`Status: 200`
-
-### Get MDM Apple profiles summary
-
-Get aggregate status counts of MDM profiles applying to hosts. For Fleet Premium uses, the summary can
-optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
-results (i.e., only profiles that are not associated with a team are listed).
-
-`GET /api/v1/fleet/mdm/apple/profiles/summary`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
-
-#### Example
-
-Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
-
-`GET /api/v1/fleet/mdm/apple/profiles/summary`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "latest": 123,
-  "failing": 123,
-  "pending": 123
-}
-```
-
 
 ### Batch-apply Apple MDM custom settings
 
@@ -901,82 +603,60 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Update Apple MDM settings
+### Initiate SSO during DEP enrollment
 
-_Available in Fleet Premium_
+This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
-`PATCH /api/v1/fleet/mdm/apple/settings`
-
-#### Parameters
-
-| Name                   | Type    | In    | Description                                                                                 |
-| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
-| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
-
-#### Example
-
-`PATCH /api/v1/fleet/mdm/apple/settings`
-
-##### Default response
-
-`204`
-
-
-### Download an enrollment profile using IdP authentication
-
-_Available in Fleet Premium_
-
-This endpoint returns an enrollment profile after validating the provided username/password combination with a configured identity provider.
-
-Currently, the only IdP supported is Okta.
-
-`POST /api/v1/fleet/mdm/apple/dep_login`
+`POST /api/v1/fleet/mdm/sso`
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                                  |
-| -------- | ------ | ---- | ------------------------------------------------------------ |
-| username | string | body | **Required** The username used to authenticate this request. |
-| password | string | body | **Required** The password used to authenticate this request. |
+None.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/dep_login`
+`POST /api/v1/fleet/mdm/sso`
 
 ##### Default response
 
-`Status: 200`
-
-##### Example response headers
-
 ```
-	Content-Length: 542
-	Content-Type: application/octet-stream
-	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+{
+  "url": "https://idp-provider.com/saml?SAMLRequest=...",
+}
 ```
 
-###### Example response body
+### Complete SSO during DEP enrollment
+
+This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
+
+`POST /api/v1/fleet/mdm/sso/callback`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                                 |
+| ------------ | ------ | ---- | ----------------------------------------------------------- |
+| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/sso/callback`
+
+##### Request body
+
+```json
+{
+  "SAMLResponse": "<SAML response from IdP>"
+}
 ```
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array/>
-	<key>PayloadDisplayName</key>
-	<string>Example profile</string>
-	<key>PayloadIdentifier</key>
-	<string>com.example.profile</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>
-```
+
+##### Default response
+
+`Status: 302`
+
+If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
+
+- `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
+- `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
 
 ## Get or apply configuration files
 
@@ -2460,6 +2140,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 
 #### Get device's host
 
@@ -2623,11 +2304,16 @@ Returns the host information about the device that makes the request.
         "disk_encryption": null,
         "action_required": null
       },
+      "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
       "profiles": [
         {
           "profile_id": 999,
           "name": "profile1",
-          "status": "applied",
+          "status": "verifying",
           "operation_type": "install",
           "detail": ""
         }
@@ -2687,7 +2373,7 @@ Same as [Get host's mobile device management and Munki information](https://flee
 #### Get Fleet Desktop information
 _Available in Fleet Premium_
 
-Gets all information required by Fleet Desktop to notify the user if there are any failing policies.
+Gets all information required by Fleet Desktop, this includes things like the number of failed policies or notifications to show/hide menu items.
 
 `GET /api/v1/fleet/device/{token}/desktop`
 
@@ -2707,9 +2393,16 @@ Gets all information required by Fleet Desktop to notify the user if there are a
 
 ```json
 {
-  "failing_policies_count": 3
+  "failing_policies_count": 3,
+  "notifications": {
+    "needs_mdm_migration": true
+  }
 }
 ```
+
+In regards to the `notifications` key:
+
+- `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 
 
 
@@ -2846,6 +2539,29 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 ```
 
 ---
+
+#### Migrate device to Fleet from another MDM solution
+
+Signals the Fleet server to send a webbook request with the device UUID and serial number to the webhook URL configured for MDM migration. **Requires Fleet Premium license**
+
+`POST /api/v1/fleet/device/{token}/migrate_mdm`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/migrate_mdm`
+
+##### Default response
+
+`Status: 204`
+
+---
+
 
 ## Downloadable installers
 

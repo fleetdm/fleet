@@ -17,18 +17,13 @@
     line-height: 32px;
   }
   h4 {
-    color: @core-fleet-black-75;
-    font-weight: 500;
+    font-family: 'Roboto Mono';
+    font-style: normal;
+    font-weight: 400;
     font-size: 18px;
     line-height: 24px;
-    /* Text gradient */
-      background: linear-gradient(90deg, #FF5C83 0%, #6A67FE 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-fill-color: transparent;
-      display: inline-block;
-    /* End text gradient */
+    color: @core-fleet-black-75;
+    margin-bottom: 4px;
   }
   p {
     font-size: 16px;
@@ -77,6 +72,7 @@
       align-items: center;
       color: #FFF;
       position: relative;
+      text-decoration: none;
     }
     [purpose='cta-button']::before {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
@@ -159,6 +155,11 @@
       max-height: 300px;
     }
   }
+  [purpose='large-feature-image'] {
+    img {
+      max-height: 250px;
+    }
+  }
 
   [purpose='checklists'] {
     margin-top: 40px;
@@ -185,34 +186,15 @@
   [purpose='tweets-container'] {
     padding-top: 120px;
     padding-bottom: 120px;
-    background-color: @ui-off-white;
   }
 
-  [purpose='logos'] {
-    height: 80px;
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
+  [purpose='bottom-gradient'] {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
+  }
+  [purpose='bottom-cloud-city-banner'] {
+    background: linear-gradient(180deg, #E9F4F4 0%, #FFFFFF 100%);
     img {
-      margin-top: 23.5px;
-      margin-bottom: 23.5px;
-      padding-left: 35px;
-      padding-right: 35px;
-    }
-    [purpose='snowflake-logo'] {
-      height: 30px;
-    }
-    [purpose='wayfair-logo'] {
-      height: 33px;
-    }
-    [purpose='uber-logo'] {
-      height: 29px;
-    }
-    [purpose='atlassian-logo'] {
-      height: 22px;
-    }
-    [purpose='segment-logo'] {
-      height: 32px;
+      width: 100%;
     }
   }
 
@@ -299,7 +281,7 @@
       margin-top: 80px;
     }
 
-    [purpose='feature-image'] {
+    [purpose='feature-image'], [purpose='large-feature-image'] {
       margin-bottom: 40px;
       img {
         max-height: 100%;

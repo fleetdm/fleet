@@ -11,9 +11,6 @@ import (
 	"strings"
 	"time"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/service"
-
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -21,8 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
@@ -36,6 +35,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/nanodep/godep"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -368,7 +368,7 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -541,15 +541,22 @@ func triggerFailingPoliciesAutomation(
 	return nil
 }
 
-func newIntegrationsSchedule(
+func newWorkerIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	depStorage *mysql.NanoDEPStorage,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronIntegrations)
-		defaultInterval = 10 * time.Minute
+		name = string(fleet.CronWorkerIntegrations)
+
+		// the schedule interval is shorter than the max run time of the scheduled
+		// job, but that's ok - the job will acquire and extend the lock as long as
+		// it runs, the shorter interval is to make sure we don't wait more than
+		// that interval to start a new job when none is running.
+		scheduleInterval = 1 * time.Minute  // schedule a worker to run every minute if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
 	)
 
 	logger = kitlog.With(logger, "cron", name)
@@ -568,10 +575,26 @@ func newIntegrationsSchedule(
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
+	var depSvc *apple_mdm.DEPService
+	var depCli *godep.Client
+	// depStorage could be nil if mdm is not configured for fleet, in which case
+	// we leave depSvc and deCli nil and macos setup assistants jobs will be
+	// no-ops.
+	if depStorage != nil {
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
+	}
+	macosSetupAsst := &worker.MacosSetupAssistant{
+		Datastore:  ds,
+		Log:        logger,
+		DEPService: depSvc,
+		DEPClient:  depCli,
+	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	w.Register(jira)
 	w.Register(zendesk)
+	w.Register(macosSetupAsst)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -590,7 +613,7 @@ func newIntegrationsSchedule(
 	}
 
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
+		ctx, name, instanceID, scheduleInterval, ds, ds,
 		schedule.WithAltLockID("worker"),
 		schedule.WithLogger(logger),
 		schedule.WithJob("integrations_worker", func(ctx context.Context) error {
@@ -603,13 +626,12 @@ func newIntegrationsSchedule(
 			jira.FleetURL = appConfig.ServerSettings.ServerURL
 			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
 
-			workCtx, cancel := context.WithTimeout(ctx, defaultInterval)
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
 			if err := w.ProcessJobs(workCtx); err != nil {
-				cancel() // don't use defer inside loop
 				return fmt.Errorf("processing integrations jobs: %w", err)
 			}
-
-			cancel() // don't use defer inside loop
 			return nil
 		}),
 	)
@@ -890,16 +912,15 @@ func newAppleMDMDEPProfileAssigner(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, loggingDebug)
+	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			return fleetSyncer.Run(ctx)
+			return fleetSyncer.RunAssigner(ctx)
 		}),
 	)
 
@@ -910,7 +931,7 @@ func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	commander *service.MDMAppleCommander,
+	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {

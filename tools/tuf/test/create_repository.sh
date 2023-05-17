@@ -23,8 +23,10 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-NUDGE_MACOS_APP_BUNDLE_VERSION=1.1.10.81462
 SYSTEMS=${SYSTEMS:-macos linux windows}
+NUDGE_VERSION=stable
+SWIFT_DIALOG_MACOS_APP_VERSION=2.1.0
+SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4148
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
     OSQUERY_VERSION=5.8.1
@@ -101,8 +103,7 @@ for system in $SYSTEMS; do
 
     # Add Nudge application on macos (if enabled).
     if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        # For now we always make nudge (until it's uploaded to our TUF repo)
-        make nudge-app-tar-gz version=$NUDGE_MACOS_APP_BUNDLE_VERSION out-path=.
+        curl https://tuf.fleetctl.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target nudge.app.tar.gz \
@@ -110,6 +111,20 @@ for system in $SYSTEMS; do
             --name nudge \
             --version 42.0.0 -t 42.0 -t 42 -t stable
         rm nudge.app.tar.gz
+    fi
+
+    # Add swiftDialog on macos (if enabled).
+    if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
+	# For now we always make swiftDialog (until it's uploaded to our TUF repo)
+        make swift-dialog-app-tar-gz version=$SWIFT_DIALOG_MACOS_APP_VERSION build=$SWIFT_DIALOG_MACOS_APP_BUILD_VERSION out-path=.
+
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target swiftDialog.app.tar.gz \
+            --platform macos \
+            --name swiftDialog \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm swiftDialog.app.tar.gz
     fi
 
     # Add Fleet Desktop application on windows (if enabled).

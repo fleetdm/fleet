@@ -9,6 +9,8 @@ export default {
   CONTROLS_MAC_SETTINGS: `${URL_PREFIX}/controls/mac-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
+  CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
+  CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
   CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
@@ -18,8 +20,9 @@ export default {
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
   ADMIN_SETTINGS_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
   ADMIN_SETTINGS_SSO: `${URL_PREFIX}/settings/organization/sso`,
@@ -52,6 +55,7 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
+  MANAGE_HOSTS_ADD_HOSTS: `${URL_PREFIX}/hosts/manage/?add_hosts=true`,
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
@@ -74,18 +78,24 @@ export default {
   SOFTWARE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/${id}`;
   },
-  TEAM_DETAILS_MEMBERS: (teamId: number): string => {
-    return `${URL_PREFIX}/settings/teams/${teamId}/members`;
+  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
   },
-  TEAM_DETAILS_OPTIONS: (teamId: number): string => {
-    return `${URL_PREFIX}/settings/teams/${teamId}/options`;
+  TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
   },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_TEAM_SCHEDULE: (teamId: number): string => {
-    return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
+    return `${URL_PREFIX}/schedule/manage?team_id=${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,

@@ -113,3 +113,15 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 		}
 	})
 }
+
+func TestSSOSettingsIsEmpty(t *testing.T) {
+	require.True(t, (SSOProviderSettings{}).IsEmpty())
+	require.False(t, (SSOProviderSettings{EntityID: "fleet"}).IsEmpty())
+}
+
+func TestMacOSMigrationModeIsValid(t *testing.T) {
+	require.True(t, (MacOSMigrationMode("forced")).IsValid())
+	require.True(t, (MacOSMigrationMode("voluntary")).IsValid())
+	require.False(t, (MacOSMigrationMode("")).IsValid())
+	require.False(t, (MacOSMigrationMode("foo")).IsValid())
+}

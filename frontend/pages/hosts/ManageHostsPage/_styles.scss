@@ -109,6 +109,12 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           margin-left: $pad-small;
+          .manage-hosts__status-dropdown-sandbox {
+            width: auto;
+            .Select-control {
+              width: 182px;
+            }
+          }
         }
       }
     }
@@ -135,7 +141,7 @@
         }
       }
 
-      .table-container__header-left {
+      &__header-left {
         order: 2;
         display: flex;
         flex-direction: column;
@@ -154,11 +160,18 @@
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
+              max-width: 366px;
               flex: 1;
             }
 
             .manage-hosts__status_dropdown {
               width: auto;
+            }
+
+            .manage-hosts__status-dropdown-sandbox {
+              .Select-control {
+                width: 100%;
+              }
             }
           }
         }
@@ -174,9 +187,17 @@
           &__table {
             thead {
               tr {
-                th:last-child {
-                  .component__tooltip-wrapper__tip-text {
-                    left: -8px;
+                th {
+                  .last-col-header-with-tip {
+                    min-width: 90px;
+                    .component__tooltip-wrapper__tip-text {
+                      left: -126px;
+                    }
+                  }
+                  .status-header {
+                    .component__tooltip-wrapper__tip-text {
+                      left: -220px;
+                    }
                   }
                 }
               }
@@ -246,34 +267,6 @@
 
   &__label-filter-dropdown {
     margin-left: $pad-small;
-  }
-
-  &__macsettings-dropdown {
-    width: 137px;
-
-    .Select-value {
-      display: flex;
-      align-items: center;
-
-      &::before {
-        position: relative;
-        content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
-        transform: scale(0.5);
-        left: -8px;
-        top: 4px;
-      }
-    }
-  }
-
-  &__labels-active-filter-wrap {
-    display: flex;
-    align-items: center;
-    margin-bottom: $pad-medium;
-    gap: $pad-small; // between multiple filter pills
-  }
-
-  &__policies-filter-pill {
-    margin-left: $pad-medium;
   }
 
   &__enroll-hosts {

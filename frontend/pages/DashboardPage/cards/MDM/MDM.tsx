@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
@@ -25,6 +25,7 @@ interface IMdmCardProps {
   mdmStatusData: IMdmStatusCardData[];
   mdmSolutions: IMdmSolution[] | null;
   selectedPlatformLabelId?: number;
+  selectedTeamId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -64,6 +65,7 @@ const Mdm = ({
   mdmStatusData,
   mdmSolutions,
   selectedPlatformLabelId,
+  selectedTeamId,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -71,8 +73,14 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
-  const solutionsTableHeaders = generateSolutionsTableHeaders();
-  const statusTableHeaders = generateStatusTableHeaders();
+  const solutionsTableHeaders = useMemo(
+    () => generateSolutionsTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
+  const statusTableHeaders = useMemo(
+    () => generateStatusTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
   const solutionsDataSet = generateSolutionsDataSet(
     mdmSolutions,
     selectedPlatformLabelId
@@ -109,14 +117,12 @@ const Mdm = ({
                   isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"MDM"}
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   pageSize={PAGE_SIZE}
                 />
               )}
@@ -131,13 +137,11 @@ const Mdm = ({
                   isLoading={isFetching}
                   defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"MDM"}
                   emptyComponent={EmptyMdmStatus}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

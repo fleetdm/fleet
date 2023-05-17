@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import simpleSearch from "utilities/simple_search";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 
-import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import {
@@ -89,14 +90,20 @@ const PackQueriesTable = ({
             })
           }
           showMarkAllPages={false}
-          actionButtonText={"Add query"}
-          actionButtonIcon={AddQueryIcon}
-          actionButtonVariant={"text-icon"}
-          onActionButtonClick={onAddPackQuery}
-          onPrimarySelectActionClick={onRemovePackQueries}
-          primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="close"
-          primarySelectActionButtonText={"Remove"}
+          actionButton={{
+            name: "add query",
+            buttonText: "Add query",
+            icon: AddQueryIcon,
+            variant: "text-icon",
+            onActionButtonClick: onAddPackQuery,
+          }}
+          primarySelectAction={{
+            name: "remove query",
+            buttonText: "Remove",
+            icon: "close",
+            variant: "text-icon",
+            onActionButtonClick: onRemovePackQueries,
+          }}
           searchable
           disablePagination
           isAllPagesSelected={false}

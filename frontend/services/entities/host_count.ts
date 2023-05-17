@@ -1,6 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
@@ -8,11 +9,20 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
+
 import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
   key: string;
   direction: string;
+}
+
+export interface IHostsCountResponse {
+  count: number;
+}
+
+export interface IHostsCountQueryKey extends IHostCountLoadOptions {
+  scope: "hosts_count";
 }
 
 export interface IHostCountLoadOptions {
@@ -33,10 +43,14 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  diskEncryptionStatus?: FileVaultProfileStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export default {
-  load: (options: IHostCountLoadOptions | undefined) => {
+  load: (
+    options: IHostCountLoadOptions | undefined
+  ): Promise<IHostsCountResponse> => {
     const selectedLabels = options?.selectedLabels || [];
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse;
@@ -53,6 +67,8 @@ export default {
     const osId = options?.osId;
     const osName = options?.osName;
     const osVersion = options?.osVersion;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
     const queryParams = {
       query: globalFilter,
@@ -69,6 +85,8 @@ export default {
         osName,
         osId,
         osVersion,
+        diskEncryptionStatus,
+        bootstrapPackageStatus,
       }),
       label_id: label,
       status,

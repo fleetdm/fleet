@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import {
@@ -14,13 +14,14 @@ import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
-import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
+import generateMunkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
 interface IMunkiCardProps {
   errorMacAdmins: Error | null;
   isMacAdminsFetching: boolean;
   munkiIssuesData: IMunkiIssuesAggregate[];
   munkiVersionsData: IMunkiVersionsAggregate[];
+  selectedTeamId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -33,8 +34,14 @@ const Munki = ({
   isMacAdminsFetching,
   munkiIssuesData,
   munkiVersionsData,
+  selectedTeamId,
 }: IMunkiCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
+
+  const tableHeaders = useMemo(
+    () => generateMunkiIssuesTableHeaders(selectedTeamId),
+    [selectedTeamId]
+  );
 
   const onTabChange = (index: number) => {
     setNavTabIndex(index);
@@ -62,12 +69,11 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={munkiIssuesTableHeaders}
+                  columns={tableHeaders}
                   data={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
                   emptyComponent={() => (
                     <EmptyTable
@@ -80,7 +86,6 @@ const Munki = ({
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />
@@ -96,7 +101,6 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
                   emptyComponent={() => (
                     <EmptyTable
@@ -118,7 +122,6 @@ const Munki = ({
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

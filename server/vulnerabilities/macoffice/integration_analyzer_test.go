@@ -103,7 +103,8 @@ func TestIntegrationAnalyzer(t *testing.T) {
 			},
 		}
 
-		require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+		_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+		require.NoError(t, err)
 		vulns, err := macoffice.Analyze(ctx, ds, vulnPath, true)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
@@ -121,7 +122,8 @@ func TestIntegrationAnalyzer(t *testing.T) {
 			},
 		}
 
-		require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+		_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+		require.NoError(t, err)
 		vulns, err := macoffice.Analyze(ctx, ds, vulnPath, true)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
@@ -145,7 +147,8 @@ func TestIntegrationAnalyzer(t *testing.T) {
 			},
 		}
 
-		require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+		_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+		require.NoError(t, err)
 
 		vulns, err := macoffice.Analyze(ctx, ds, vulnPath, true)
 		require.NoError(t, err)
@@ -170,7 +173,8 @@ func TestIntegrationAnalyzer(t *testing.T) {
 			},
 		}
 
-		require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+		_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
 		var powerpoint fleet.Software
@@ -186,10 +190,16 @@ func TestIntegrationAnalyzer(t *testing.T) {
 		}
 
 		// These 'old' vulnerabilities should be cleared out...
-		_, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
-			{SoftwareID: word.ID, CVE: "3000-3000"},
-			{SoftwareID: powerpoint.ID, CVE: "4000-3000"},
+		ok, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: word.ID, CVE: "3000-3000",
 		}, fleet.MacOfficeReleaseNotesSource)
+		require.True(t, ok)
+		require.NoError(t, err)
+
+		ok, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: powerpoint.ID, CVE: "4000-3000",
+		}, fleet.MacOfficeReleaseNotesSource)
+		require.True(t, ok)
 		require.NoError(t, err)
 
 		vulns, err := macoffice.Analyze(ctx, ds, vulnPath, true)

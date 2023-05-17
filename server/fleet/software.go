@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"strings"
 	"time"
 )
 
@@ -8,6 +9,7 @@ import (
 const (
 	SoftwareVendorMaxLength    = 114
 	SoftwareVendorMaxLengthFmt = "%.111s..."
+	SoftwareFieldSeparator     = "\u0000"
 )
 
 type Vulnerabilities []CVE
@@ -59,6 +61,17 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
+// ToUniqueStr creates a unique string representation of the software
+func (s Software) ToUniqueStr() string {
+	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
+	// Release, Vendor and Arch fields were added on a migration,
+	// thus we only include them in the string if at least one of them is defined.
+	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
+		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
@@ -99,4 +112,49 @@ type SoftwareListOptions struct {
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
 	WithHostCounts bool
+}
+
+type SoftwareIterQueryOptions struct {
+	ExcludedSources []string // what sources to exclude
+	IncludedSources []string // what sources to include
+}
+
+// IsValid checks that either ExcludedSources or IncludedSources is specified but not both
+func (siqo SoftwareIterQueryOptions) IsValid() bool {
+	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
+}
+
+// UpdateHostSoftwareDBResult stores the 'result' of calling 'ds.UpdateHostSoftware' for a host,
+// contains the software installed on the host pre-mutations all the mutations performed: what was
+// inserted and what was deleted.
+type UpdateHostSoftwareDBResult struct {
+	// What software was installed on the host before performing any mutations
+	WasCurrInstalled []Software
+	// What software was deleted
+	Deleted []Software
+	// What software was inserted
+	Inserted []Software
+}
+
+// CurrInstalled returns all software that should be currently installed on the host by looking at
+// was currently installed, removing anything that was deleted and adding anything that was inserted
+func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
+	var r []Software
+
+	deleteMap := map[uint]struct{}{}
+	for _, d := range uhsdbr.Deleted {
+		deleteMap[d.ID] = struct{}{}
+	}
+
+	for _, c := range uhsdbr.WasCurrInstalled {
+		if _, ok := deleteMap[c.ID]; !ok {
+			r = append(r, c)
+		}
+	}
+
+	for _, i := range uhsdbr.Inserted {
+		r = append(r, i)
+	}
+
+	return r
 }

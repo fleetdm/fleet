@@ -1,13 +1,16 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { noop } from "lodash";
+import PATHS from "router/paths";
+import { noop, isEmpty } from "lodash";
+
+import { getNextLocationPath } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
 import { IIntegrations } from "interfaces/integration";
 import {
@@ -17,12 +20,12 @@ import {
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
-import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
@@ -42,7 +45,13 @@ interface IManagePoliciesPageProps {
     hash: string;
     key: string;
     pathname: string;
-    query: { team_id?: string };
+    query: {
+      team_id?: string;
+      page?: string;
+      query?: string;
+      inherited_page?: string;
+      inherited_table?: "true";
+    };
     search: string;
   };
 }
@@ -53,22 +62,19 @@ const ManagePolicyPage = ({
   router,
   location,
 }: IManagePoliciesPageProps): JSX.Element => {
+  const queryParams = location.query;
   const {
-    availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
-    isTeamAdmin,
-    isTeamMaintainer,
-    currentTeam,
-    setCurrentTeam,
+    isSandboxMode,
     setConfig,
+    setFilteredPoliciesPath,
+    filteredPoliciesPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-
-  const teamId = currentTeam?.id || 0;
 
   const {
     setLastEditedQueryName,
@@ -77,6 +83,30 @@ const ManagePolicyPage = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
+
+  const {
+    currentTeamId,
+    currentTeamName,
+    currentTeamSummary,
+    isAnyTeamSelected,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isRouteOk,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: true,
+      observer_plus: true,
+    },
+  });
 
   const { setResetSelectedRows } = useContext(TableContext);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
@@ -88,28 +118,61 @@ const ManagePolicyPage = ({
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
-  const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
   const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
   const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
+
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams.query ?? "")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const initialShowInheritedTable = (() =>
+    queryParams && queryParams.inherited_table === "true")();
+  const initialInheritedPage = (() =>
+    queryParams && queryParams.inherited_page
+      ? parseInt(queryParams?.inherited_page, 10)
+      : 0)();
+
+  // Never set as state as URL is source of truth
+  // State only used for handling team change
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [page, setPage] = useState(initialPage);
+  const [showInheritedTable, setShowInheritedTable] = useState(
+    initialShowInheritedTable
+  );
+  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
 
+  useEffect(() => {
+    const path = location.pathname + location.search;
+    if (location.search && filteredPoliciesPath !== path) {
+      setFilteredPoliciesPath(path);
+    }
+  }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
+
+  useEffect(() => {
+    setShowInheritedTable(initialShowInheritedTable);
+    setInheritedPage(initialInheritedPage);
+    setPage(initialPage);
+    setSearchQuery(initialSearchQuery);
+    // TODO: handle invalid values for params
+  }, [location]);
+
   const {
     data: globalPolicies,
     error: globalPoliciesError,
     isFetching: isFetchingGlobalPolicies,
-    isStale: isStaleGlobalPolicies,
     refetch: refetchGlobalPolicies,
   } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
-    ["globalPolicies"],
+    ["globalPolicies", teamIdForApi],
     () => {
       return globalPoliciesAPI.loadAll();
     },
     {
-      enabled: !!availableTeams,
+      enabled: isRouteOk,
       select: (data) => data.policies,
       staleTime: 5000,
     }
@@ -120,10 +183,10 @@ const ManagePolicyPage = ({
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<ILoadTeamPoliciesResponse, Error, ILoadTeamPoliciesResponse>(
-    ["teamPolicies", teamId],
-    () => teamPoliciesAPI.loadAll(teamId),
+    ["teamPolicies", teamIdForApi],
+    () => teamPoliciesAPI.loadAll(teamIdForApi),
     {
-      enabled: !!availableTeams && isPremiumTier && !!teamId,
+      enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
       onSuccess: (data) => {
         setTeamPolicies(data.policies);
         setInheritedPolicies(data.inherited_policies);
@@ -158,39 +221,110 @@ const ManagePolicyPage = ({
     isFetching: isFetchingTeamConfig,
     refetch: refetchTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
-    ["teams", teamId],
-    () => teamsAPI.load(teamId),
+    ["teams", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
     {
-      enabled: !!teamId && canAddOrDeletePolicy,
+      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicy,
       select: (data) => data.team,
     }
   );
 
-  const refetchPolicies = (id?: number) => {
+  const refetchPolicies = (teamId?: number) => {
     refetchGlobalPolicies();
-    if (id) {
+    if (teamId) {
       refetchTeamPolicies();
     }
   };
 
-  const findAvailableTeam = (id: number) => {
-    return availableTeams?.find((t) => t.id === id);
-  };
+  // const findAvailableTeam = (id: number) => {
+  //   return availableTeams?.find((t) => t.id === id);
+  // };
 
-  const handleTeamSelect = (id: number) => {
-    const { MANAGE_POLICIES } = PATHS;
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      setSelectedPolicyIds([]);
+      handleTeamChange(teamId);
+      setPage(0);
+      setSearchQuery("");
+    },
+    [handleTeamChange]
+  );
 
-    const selectedTeam = findAvailableTeam(id);
-    const path = selectedTeam?.id
-      ? `${MANAGE_POLICIES}?team_id=${selectedTeam.id}`
-      : MANAGE_POLICIES;
+  // TODO: Look into useDebounceCallback with dependencies
+  const onQueryChange = useCallback(
+    async (newTableQuery: ITableQueryData) => {
+      const {
+        pageIndex: newPageIndex,
+        searchQuery: newSearchQuery,
+      } = newTableQuery;
 
-    router.replace(path);
-    setShowInheritedPolicies(false);
-    setSelectedPolicyIds([]);
-    setCurrentTeam(selectedTeam);
-    isStaleGlobalPolicies && refetchGlobalPolicies();
-  };
+      // Rebuild queryParams to dispatch new browser location to react-router
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+
+      if (!isEmpty(newSearchQuery)) {
+        newQueryParams.query = newSearchQuery;
+      }
+
+      newQueryParams.page = newPageIndex;
+      // Reset page number to 0 for new filters
+      if (newSearchQuery !== searchQuery) {
+        newQueryParams.page = 0;
+      }
+
+      if (showInheritedTable) {
+        newQueryParams.inherited_table =
+          showInheritedTable && showInheritedTable.toString();
+      }
+
+      if (showInheritedTable && inheritedPage !== 0) {
+        newQueryParams.inherited_page = inheritedPage;
+      }
+
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: newQueryParams,
+      });
+
+      router?.replace(locationPath);
+    },
+    [teamIdForApi, searchQuery, showInheritedTable, inheritedPage, router, page]
+  );
+
+  const onClientSidePaginationChange = useCallback(
+    (pageIndex: number) => {
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: {
+          ...queryParams,
+          page: pageIndex,
+          query: searchQuery,
+        },
+      });
+
+      router?.replace(locationPath);
+    },
+    [searchQuery] // Dependencies required for correct variable state
+  );
+
+  const onClientSideInheritedPaginationChange = useCallback(
+    (pageIndex: number) => {
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_POLICIES,
+        queryParams: {
+          ...queryParams,
+          inherited_table: "true",
+          inherited_page: pageIndex,
+          query: searchQuery,
+        },
+      });
+      router?.replace(locationPath);
+    },
+    [] // Dependencies required for correct variable state
+  );
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -204,8 +338,18 @@ const ManagePolicyPage = ({
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
-  const toggleShowInheritedPolicies = () =>
-    setShowInheritedPolicies(!showInheritedPolicies);
+  const toggleShowInheritedPolicies = () => {
+    // URL source of truth
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.MANAGE_POLICIES,
+      queryParams: {
+        ...queryParams,
+        inherited_table: showInheritedTable ? undefined : "true",
+        inherited_page: showInheritedTable ? undefined : "0",
+      },
+    });
+    router?.replace(locationPath);
+  };
 
   const handleUpdateAutomations = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
@@ -213,8 +357,8 @@ const ManagePolicyPage = ({
   }) => {
     setIsUpdatingAutomations(true);
     try {
-      await (teamId
-        ? teamsAPI.update(requestBody, teamId)
+      await (isAnyTeamSelected
+        ? teamsAPI.update(requestBody, teamIdForApi)
         : configAPI.update(requestBody));
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
@@ -226,7 +370,7 @@ const ManagePolicyPage = ({
       toggleManageAutomationsModal();
       setIsUpdatingAutomations(false);
       refetchConfig();
-      teamId && refetchTeamConfig();
+      isAnyTeamSelected && refetchTeamConfig();
     }
   };
 
@@ -244,11 +388,10 @@ const ManagePolicyPage = ({
   };
 
   const onDeletePolicySubmit = async () => {
-    const id = currentTeam?.id;
     setIsUpdatingPolicies(true);
     try {
-      const request = id
-        ? teamPoliciesAPI.destroy(id, selectedPolicyIds)
+      const request = isAnyTeamSelected
+        ? teamPoliciesAPI.destroy(teamIdForApi, selectedPolicyIds)
         : globalPoliciesAPI.destroy(selectedPolicyIds);
 
       await request.then(() => {
@@ -259,7 +402,7 @@ const ManagePolicyPage = ({
           }.`
         );
         setResetSelectedRows(true);
-        refetchPolicies(id);
+        refetchPolicies(teamIdForApi);
       });
     } catch {
       renderFlash(
@@ -283,10 +426,10 @@ const ManagePolicyPage = ({
     }`;
   };
 
-  const showTeamDescription = isPremiumTier && !!teamId;
+  const showTeamDescription = isPremiumTier && isAnyTeamSelected;
 
   const showInheritedPoliciesButton =
-    !!teamId &&
+    isAnyTeamSelected &&
     !isFetchingTeamPolicies &&
     !teamPoliciesError &&
     !isFetchingGlobalPolicies &&
@@ -294,39 +437,13 @@ const ManagePolicyPage = ({
     !!globalPolicies?.length;
 
   const availablePoliciesForAutomation =
-    (teamId ? teamPolicies : globalPolicies) || [];
-
-  // If team_id from URL query params is not valid, we instead use a default team
-  // either the current team (if any) or all teams (for global users) or
-  // the first available team (for non-global users)
-  const getValidatedTeamId = () => {
-    if (findAvailableTeam(teamId)) {
-      return teamId;
-    }
-    if (!teamId && currentTeam) {
-      return currentTeam.id;
-    }
-    if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-      return availableTeams[0]?.id;
-    }
-    return 0;
-  };
-
-  // If team_id or currentTeam doesn't match validated id, switch to validated id
-  useEffect(() => {
-    if (availableTeams) {
-      const validatedId = getValidatedTeamId();
-
-      if (validatedId !== currentTeam?.id || validatedId !== teamId) {
-        handleTeamSelect(validatedId);
-      }
-    }
-  }, [availableTeams]);
+    (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
 
   const showCtaButtons =
-    (!!teamId && teamPolicies) || (!teamId && globalPolicies);
+    (isAnyTeamSelected && teamPolicies) ||
+    (!isAnyTeamSelected && globalPolicies);
 
-  const automationsConfig = teamId ? teamConfig : config;
+  const automationsConfig = isAnyTeamSelected ? teamConfig : config;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -349,7 +466,7 @@ const ManagePolicyPage = ({
     }
   }
 
-  return !availableTeams ? (
+  return !isRouteOk || (isPremiumTier && !userTeams) ? (
     <Spinner />
   ) : (
     <MainContent className={baseClass}>
@@ -360,20 +477,18 @@ const ManagePolicyPage = ({
               <div className={`${baseClass}__title`}>
                 {isFreeTier && <h1>Policies</h1>}
                 {isPremiumTier &&
-                  (availableTeams.length > 1 || isOnGlobalTeam) && (
+                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
                     <TeamsDropdown
-                      currentUserTeams={availableTeams || []}
-                      selectedTeamId={teamId}
-                      onChange={(newSelectedValue: number) =>
-                        handleTeamSelect(newSelectedValue)
-                      }
+                      currentUserTeams={userTeams || []}
+                      selectedTeamId={currentTeamId}
+                      onChange={onTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&
                   !isOnGlobalTeam &&
-                  availableTeams.length === 1 && (
-                    <h1>{availableTeams[0].name}</h1>
-                  )}
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
               </div>
             </div>
           </div>
@@ -391,7 +506,7 @@ const ManagePolicyPage = ({
                   </Button>
                 )}
               {canAddOrDeletePolicy &&
-                ((!!teamId && !isFetchingTeamPolicies) ||
+                ((isAnyTeamSelected && !isFetchingTeamPolicies) ||
                   !isFetchingGlobalPolicies) && (
                   <div className={`${baseClass}__action-button-container`}>
                     <Button
@@ -420,8 +535,8 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div>
-          {!!teamId && teamPoliciesError && <TableDataError />}
-          {!!teamId &&
+          {isAnyTeamSelected && teamPoliciesError && <TableDataError />}
+          {isAnyTeamSelected &&
             !teamPoliciesError &&
             (isFetchingTeamPolicies ? (
               <Spinner />
@@ -436,12 +551,17 @@ const ManagePolicyPage = ({
                 onAddPolicyClick={onAddPolicyClick}
                 onDeletePolicyClick={onDeletePolicyClick}
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
-                currentTeam={currentTeam}
+                currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
+                searchQuery={searchQuery}
+                page={page}
+                onQueryChange={onQueryChange}
               />
             ))}
-          {!teamId && globalPoliciesError && <TableDataError />}
-          {!teamId &&
+          {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
+          {!isAnyTeamSelected &&
             !globalPoliciesError &&
             (isFetchingGlobalPolicies ? (
               <Spinner />
@@ -452,21 +572,27 @@ const ManagePolicyPage = ({
                 onAddPolicyClick={onAddPolicyClick}
                 onDeletePolicyClick={onDeletePolicyClick}
                 canAddOrDeletePolicy={canAddOrDeletePolicy}
-                currentTeam={currentTeam}
+                currentTeam={currentTeamSummary}
                 currentAutomatedPolicies={currentAutomatedPolicies}
+                isPremiumTier={isPremiumTier}
+                isSandboxMode={isSandboxMode}
+                onClientSidePaginationChange={onClientSidePaginationChange}
+                searchQuery={searchQuery}
+                page={page}
+                onQueryChange={onQueryChange}
               />
             ))}
         </div>
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
-            isShowing={showInheritedPolicies}
+            isShowing={showInheritedTable}
             className={baseClass}
             hideText={inheritedPoliciesButtonText(
-              showInheritedPolicies,
+              showInheritedTable,
               globalPolicies.length
             )}
             showText={inheritedPoliciesButtonText(
-              showInheritedPolicies,
+              showInheritedTable,
               globalPolicies.length
             )}
             caretPosition={"before"}
@@ -476,7 +602,7 @@ const ManagePolicyPage = ({
             onClick={toggleShowInheritedPolicies}
           />
         )}
-        {showInheritedPoliciesButton && showInheritedPolicies && (
+        {showInheritedPoliciesButton && showInheritedTable && (
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
             {!globalPoliciesError &&
@@ -489,7 +615,12 @@ const ManagePolicyPage = ({
                   onDeletePolicyClick={noop}
                   canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
-                  currentTeam={currentTeam}
+                  currentTeam={currentTeamSummary}
+                  searchQuery=""
+                  onClientSidePaginationChange={
+                    onClientSideInheritedPaginationChange
+                  }
+                  page={inheritedPage}
                 />
               ))}
           </div>
@@ -510,8 +641,8 @@ const ManagePolicyPage = ({
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
             router={router}
-            teamId={teamId}
-            teamName={currentTeam?.name}
+            teamId={teamIdForApi || 0}
+            teamName={currentTeamName}
           />
         )}
         {showDeletePolicyModal && (

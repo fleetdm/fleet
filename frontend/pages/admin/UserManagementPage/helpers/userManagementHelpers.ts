@@ -1,15 +1,8 @@
-import {
-  isEmpty,
-  isEqual,
-  isPlainObject,
-  isString,
-  reduce,
-  trim,
-  union,
-} from "lodash";
+import { isEqual } from "lodash";
 
 import { IInvite } from "interfaces/invite";
-import { IUser, IUserUpdateBody } from "interfaces/user";
+import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
+import { IRole } from "interfaces/role";
 import { IFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
@@ -17,10 +10,9 @@ type ICurrentUserData = Pick<
   "global_role" | "teams" | "name" | "email" | "sso_enabled"
 >;
 
-interface ILocationParams {
-  pathPrefix?: string;
-  routeTemplate?: string;
-  routeParams?: { [key: string]: number };
+interface IRoleOptionsParams {
+  isPremiumTier?: boolean;
+  isApiOnly?: boolean;
 }
 
 /**
@@ -33,7 +25,7 @@ interface ILocationParams {
 const generateUpdateData = (
   currentUserData: IUser | IInvite,
   formData: IFormData
-): IUserUpdateBody => {
+): IUpdateUserFormData => {
   const updatableFields = [
     "global_role",
     "teams",
@@ -41,7 +33,7 @@ const generateUpdateData = (
     "email",
     "sso_enabled",
   ];
-  return Object.keys(formData).reduce<IUserUpdateBody>(
+  return Object.keys(formData).reduce<IUserUpdateBody | any>(
     (updatedAttributes, attr) => {
       // attribute can be updated and is different from the current value.
       if (
@@ -63,36 +55,48 @@ const generateUpdateData = (
   );
 };
 
-export const getNextLocationPath = ({
-  pathPrefix = "",
-  routeTemplate = "",
-  routeParams = {},
-}: ILocationParams): string => {
-  const pathPrefixFinal = isString(pathPrefix) ? pathPrefix : "";
-  const routeTemplateFinal = (isString(routeTemplate) && routeTemplate) || "";
-  const routeParamsFinal = isPlainObject(routeParams) ? routeParams : {};
+export const roleOptions = ({
+  isPremiumTier,
+  isApiOnly,
+}: IRoleOptionsParams): IRole[] => {
+  const roles: IRole[] = [
+    {
+      disabled: false,
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      disabled: false,
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      disabled: false,
+      label: "Admin",
+      value: "admin",
+    },
+  ];
 
-  let routeString = "";
+  if (isPremiumTier) {
+    roles.unshift({
+      disabled: false,
+      label: "Observer+",
+      value: "observer_plus",
+    });
 
-  if (!isEmpty(routeParamsFinal)) {
-    routeString = reduce(
-      routeParamsFinal,
-      (string, value, key) => {
-        return string.replace(`:${key}`, encodeURIComponent(value));
-      },
-      routeTemplateFinal
-    );
+    if (isApiOnly) {
+      roles.splice(3, 0, {
+        disabled: false,
+        label: "GitOps",
+        value: "gitops",
+      });
+    }
   }
 
-  const nextLocation = union(
-    trim(pathPrefixFinal, "/").split("/"),
-    routeString.split("/")
-  ).join("/");
-
-  return `/${nextLocation}`;
+  return roles;
 };
 
 export default {
   generateUpdateData,
-  getNextLocationPath,
+  roleOptions,
 };

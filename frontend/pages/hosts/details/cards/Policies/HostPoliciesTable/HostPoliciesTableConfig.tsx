@@ -42,7 +42,7 @@ const getPolicyStatus = (policy: IHostPolicy): string => {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
-  togglePolicyDetails: (policy: IHostPolicy) => void
+  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void
 ): IDataColumn[] => {
   return [
     {

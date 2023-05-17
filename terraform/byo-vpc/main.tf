@@ -4,6 +4,7 @@ module "byo-db" {
   fleet_config = merge(var.fleet_config, {
     database = {
       address             = module.rds.cluster_endpoint
+      rr_address          = module.rds.cluster_reader_endpoint
       database            = "fleet"
       user                = "fleet"
       password_secret_arn = module.secrets-manager-1.secret_arns["${var.rds_config.name}-database-password"]
@@ -89,6 +90,7 @@ module "redis" {
   at_rest_encryption_enabled = var.redis_config.at_rest_encryption_enabled
   transit_encryption_enabled = var.redis_config.transit_encryption_enabled
   parameter                  = var.redis_config.parameter
+  log_delivery_configuration = var.redis_config.log_delivery_configuration
   additional_security_group_rules = [{
     type        = "ingress"
     from_port   = 0

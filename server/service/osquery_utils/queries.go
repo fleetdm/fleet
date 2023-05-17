@@ -163,12 +163,11 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
-		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
 		Query: `
 	SELECT
 		os.name,
-		os.codename as display_version
-	
+		os.version as display_version
+
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -415,6 +414,8 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return nil
 }
 
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
 // (via DirectIngestFunc).
@@ -487,7 +488,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -521,7 +522,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
-		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Query:            usesMacOSDiskEncryptionQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
@@ -570,7 +571,7 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            `SELECT to_base64(group_concat(line, x'0a')) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -607,11 +608,12 @@ var softwareMacOS = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
-  bundle_short_version AS version,
+  COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
-  last_opened_time AS last_opened_at
+  last_opened_time AS last_opened_at,
+  path AS installed_path
 FROM apps
 UNION
 SELECT
@@ -620,7 +622,8 @@ SELECT
   'Package (Python)' AS type,
   '' AS bundle_identifier,
   'python_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -629,7 +632,8 @@ SELECT
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   'chrome_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -638,7 +642,8 @@ SELECT
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   'firefox_addons' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -647,7 +652,8 @@ SELECT
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   'safari_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -656,7 +662,8 @@ SELECT
   'Package (Atom)' AS type,
   '' AS bundle_identifier,
   'atom_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -665,7 +672,8 @@ SELECT
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
@@ -689,7 +697,8 @@ SELECT
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM deb_packages
 WHERE status = 'install ok installed'
 UNION
@@ -700,7 +709,8 @@ SELECT
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM portage_packages
 UNION
 SELECT
@@ -710,7 +720,8 @@ SELECT
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
-  arch AS arch
+  arch AS arch,
+  '' AS installed_path
 FROM rpm_packages
 UNION
 SELECT
@@ -720,7 +731,8 @@ SELECT
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM npm_packages
 UNION
 SELECT
@@ -730,7 +742,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -740,7 +753,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -750,7 +764,8 @@ SELECT
   'atom_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -760,7 +775,8 @@ SELECT
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM python_packages;
 `),
 	Platforms:        fleet.HostLinuxOSs,
@@ -774,7 +790,8 @@ SELECT
   version AS version,
   'Program (Windows)' AS type,
   'programs' AS source,
-  publisher AS vendor
+  publisher AS vendor,
+  install_location AS installed_path
 FROM programs
 UNION
 SELECT
@@ -782,7 +799,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -790,7 +808,8 @@ SELECT
   version AS version,
   'Browser plugin (IE)' AS type,
   'ie_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM ie_extensions
 UNION
 SELECT
@@ -798,7 +817,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -806,7 +826,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -814,7 +835,8 @@ SELECT
   version AS version,
   'Package (Chocolatey)' AS type,
   'chocolatey_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chocolatey_packages
 UNION
 SELECT
@@ -822,7 +844,8 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
@@ -835,7 +858,8 @@ var softwareChrome = DetailQuery{
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
@@ -1084,6 +1108,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
+	sPaths := map[string]struct{}{}
+
 	for _, row := range rows {
 		name := row["name"]
 		version := row["version"]
@@ -1144,10 +1170,21 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			s.LastOpenedAt = &lastOpenedAt
 		}
 		software = append(software, s)
+
+		installedPath := strings.TrimSpace(row["installed_path"])
+		if installedPath != "" {
+			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			sPaths[key] = struct{}{}
+		}
 	}
 
-	if err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
+	}
+
+	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 
 	return nil
@@ -1314,6 +1351,16 @@ func directIngestDiskEncryptionKeyDarwin(
 			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
 			"host", host.Hostname,
 		)
+	}
+
+	if rows[0]["encrypted"] == "0" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host does not use disk encryption",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	// it's okay if the key comes empty, this can happen and if the disk is

@@ -40,11 +40,13 @@ interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
+  disableGlobalFilter?: boolean;
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
-const statusTableHeaders = [
+export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
   {
     title: "Status",
     Header: "Status",
@@ -79,6 +81,7 @@ const statusTableHeaders = [
           queryParams={{
             mdm_enrollment_status:
               MDM_ENROLLMENT_STATUS[cellProps.row.original.status],
+            team_id: teamId,
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
@@ -88,10 +91,6 @@ const statusTableHeaders = [
     disableHidden: true,
   },
 ];
-
-export const generateStatusTableHeaders = (): IDataColumn[] => {
-  return statusTableHeaders;
-};
 
 const enhanceStatusData = (
   statusData: IMdmStatusCardData[],

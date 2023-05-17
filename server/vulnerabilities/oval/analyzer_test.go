@@ -84,16 +84,18 @@ func loadSoftware(
 			Arch:    fi.Arch,
 		})
 	}
-	err = ds.UpdateHostSoftware(ctx, h.ID, software)
+	_, err = ds.UpdateHostSoftware(ctx, h.ID, software)
 	require.NoError(t, err)
 
 	err = ds.LoadHostSoftware(ctx, h, false)
 	require.NoError(t, err)
 
+	var cpes []fleet.SoftwareCPE
 	for _, s := range h.Software {
-		err = ds.AddCPEForSoftware(ctx, s, fmt.Sprintf("%s-%s", s.Name, s.Version))
-		require.NoError(t, err)
+		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: s.ID, CPE: fmt.Sprintf("%s-%s", s.Name, s.Version)})
 	}
+	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
 
 	return h
 }

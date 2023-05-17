@@ -27,7 +27,8 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-import ActionButton, { IActionButtonProps } from "./ActionButton";
+import ActionButton from "./ActionButton";
+import { IActionButtonProps } from "./ActionButton/ActionButton";
 
 const baseClass = "data-table-block";
 
@@ -46,12 +47,11 @@ interface IDataTableProps {
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle: string;
   defaultPageSize: number;
-  primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
-  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick: any; // figure out type
+  defaultPageIndex?: number;
+  primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
   isClientSideFilter?: boolean;
   disableHighlightOnHover?: boolean;
   searchQuery?: string;
@@ -87,12 +87,11 @@ const DataTable = ({
   toggleAllPagesSelected,
   resultsTitle,
   defaultPageSize,
-  primarySelectActionButtonIcon,
-  primarySelectActionButtonVariant,
-  onPrimarySelectActionClick,
-  primarySelectActionButtonText,
+  defaultPageIndex,
+  primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
+  onClientSidePaginationChange,
   isClientSideFilter,
   disableHighlightOnHover,
   searchQuery,
@@ -132,7 +131,7 @@ const DataTable = ({
     canNextPage,
     // pageOptions,
     // pageCount,
-    // gotoPage,
+    gotoPage,
     nextPage,
     previousPage,
     setPageSize,
@@ -147,6 +146,7 @@ const DataTable = ({
         sortBy: useMemo(() => {
           return [{ id: sortHeader, desc: sortDirection === "desc" }];
         }, [sortHeader, sortDirection]),
+        pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,
       disableSortRemove: true,
@@ -215,7 +215,7 @@ const DataTable = ({
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds } = tableState;
+  const { sortBy, selectedRowIds, pageIndex } = tableState;
 
   useEffect(() => {
     if (tableFilters) {
@@ -278,6 +278,9 @@ const DataTable = ({
       }
     } else {
       onSort(undefined);
+    }
+    if (isClientSidePagination) {
+      gotoPage(0); // Return to page 0 after changing sort clientside
     }
   }, [sortBy, sortHeader, onSort, sortDirection]);
 
@@ -371,6 +374,7 @@ const DataTable = ({
       hideButton,
       icon,
       iconPosition,
+      indicatePremiumFeature,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -382,6 +386,7 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
+          indicatePremiumFeature={indicatePremiumFeature}
           icon={icon}
           iconPosition={iconPosition}
         />
@@ -392,18 +397,18 @@ const DataTable = ({
   const renderPrimarySelectAction = (): JSX.Element | null => {
     const targetIds = selectedFlatRows.map((row: any) => row.original.id);
     const buttonText =
-      typeof primarySelectActionButtonText === "function"
-        ? primarySelectActionButtonText(targetIds)
-        : primarySelectActionButtonText;
+      typeof primarySelectAction?.buttonText === "function"
+        ? primarySelectAction?.buttonText(targetIds)
+        : primarySelectAction?.buttonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
 
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: onPrimarySelectActionClick,
+      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
-      variant: primarySelectActionButtonVariant,
-      icon: primarySelectActionButtonIcon,
+      variant: primarySelectAction?.variant,
+      icon: primarySelectAction?.icon,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
@@ -471,8 +476,7 @@ const DataTable = ({
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
-                      {primarySelectActionButtonText &&
-                        renderPrimarySelectAction()}
+                      {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
@@ -569,14 +573,22 @@ const DataTable = ({
           <div className={`${baseClass}__pagination`}>
             <Button
               variant="unstyled"
-              onClick={() => previousPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
               disabled={!canPreviousPage}
             >
               {previousButton}
             </Button>
             <Button
               variant="unstyled"
-              onClick={() => nextPage()}
+              onClick={() => {
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
               disabled={!canNextPage}
             >
               {nextButton}

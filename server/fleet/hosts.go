@@ -47,6 +47,7 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
 
 // MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
@@ -54,14 +55,42 @@ const (
 type MacOSSettingsStatus string
 
 const (
-	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
-	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
-	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
+	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
+	MacOSSettingsPending   MacOSSettingsStatus = "pending"
+	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
 )
 
 func (s MacOSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying:
+		return true
+	default:
+		return false
+	}
+}
+
+// MDMBootstrapPackageStatus defines the possible statuses of the host's MDM bootstrap package,
+// which is derived from the status of the MDM command to install the bootstrap package.
+//
+// See https://developer.apple.com/documentation/devicemanagement/installenterpriseapplicationresponse
+type MDMBootstrapPackageStatus string
+
+const (
+	// MDMBootstrapPackageInstalled means the bootstrap package has been installed on the host. It
+	// corresponds to InstallEnterpriseApplicationResponse.Status "Acknowledged".
+	MDMBootstrapPackageInstalled = MDMBootstrapPackageStatus("installed")
+	// MDMBootstrapPackageFailed means the bootstrap package failed to install on the host. It
+	// corresponds to InstallEnterpriseApplicationResponse.Status "Error".
+	MDMBootstrapPackageFailed = MDMBootstrapPackageStatus("failed")
+	// MDMBootstrapPackagePending means the bootstrap package is pending installation on the host.
+	// It applies if no InstallEnterpriseApplicationResponse has been received or if the response is
+	// anything other than InstallEnterpriseApplicationResponse.Status "Acknowledged" or "Error".
+	MDMBootstrapPackagePending = MDMBootstrapPackageStatus("pending")
+)
+
+func (s MDMBootstrapPackageStatus) IsValid() bool {
+	switch s {
+	case MDMBootstrapPackageInstalled, MDMBootstrapPackagePending, MDMBootstrapPackageFailed:
 		return true
 	default:
 		return false
@@ -105,11 +134,21 @@ type HostListOptions struct {
 	DisableFailingPolicies bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
-	// appled to the hosts.
+	// applied to the hosts.
 	MacOSSettingsFilter MacOSSettingsStatus
+
+	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// MDM profile.
+	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
+
+	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
+	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
+	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
+	// fleet.WellKnownMDM... constants).
+	MDMNameFilter *string
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
@@ -122,6 +161,7 @@ type HostListOptions struct {
 	LowDiskSpaceFilter *int
 }
 
+// TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() &&
 		h.DeviceMapping == false &&
@@ -135,7 +175,11 @@ func (h HostListOptions) Empty() bool {
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
+		h.MacOSSettingsFilter == "" &&
+		h.MacOSSettingsDiskEncryptionFilter == "" &&
+		h.MDMBootstrapPackageFilter == nil &&
 		h.MDMIDFilter == nil &&
+		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil
@@ -277,20 +321,40 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+
+	// MacOSSetup indicates macOS-specific MDM setup for the host, such
+	// as the status of the bootstrap package.
+	//
+	// It is not filled in by all host-returning datastore methods.
+	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
 }
 
-type DiskEncryptionState string
+type DiskEncryptionStatus string
 
 const (
-	DiskEncryptionApplied             DiskEncryptionState = "applied"
-	DiskEncryptionActionRequired      DiskEncryptionState = "action_required"
-	DiskEncryptionEnforcing           DiskEncryptionState = "enforcing"
-	DiskEncryptionFailed              DiskEncryptionState = "failed"
-	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
+	DiskEncryptionVerifying           DiskEncryptionStatus = "verifying"
+	DiskEncryptionActionRequired      DiskEncryptionStatus = "action_required"
+	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
+	DiskEncryptionFailed              DiskEncryptionStatus = "failed"
+	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
-func (s DiskEncryptionState) addrOf() *DiskEncryptionState {
+func (s DiskEncryptionStatus) addrOf() *DiskEncryptionStatus {
 	return &s
+}
+
+func (s DiskEncryptionStatus) IsValid() bool {
+	switch s {
+	case
+		DiskEncryptionVerifying,
+		DiskEncryptionActionRequired,
+		DiskEncryptionEnforcing,
+		DiskEncryptionFailed,
+		DiskEncryptionRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
 }
 
 type ActionRequiredState string
@@ -305,8 +369,15 @@ func (s ActionRequiredState) addrOf() *ActionRequiredState {
 }
 
 type MDMHostMacOSSettings struct {
-	DiskEncryption *DiskEncryptionState `json:"disk_encryption" csv:"-"`
-	ActionRequired *ActionRequiredState `json:"action_required" csv:"-"`
+	DiskEncryption *DiskEncryptionStatus `json:"disk_encryption" csv:"-"`
+	ActionRequired *ActionRequiredState  `json:"action_required" csv:"-"`
+}
+
+type HostMDMMacOSSetup struct {
+	BootstrapPackageStatus MDMBootstrapPackageStatus `db:"bootstrap_package_status" json:"bootstrap_package_status" csv:"-"`
+	Result                 []byte                    `db:"result" json:"-" csv:"-"`
+	Detail                 string                    `db:"-" json:"detail" csv:"-"`
+	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
 // DetermineDiskEncryptionStatus determines the disk encryption status for the
@@ -328,11 +399,11 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 		switch fvprof.OperationType {
 		case MDMAppleOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					settings.DiskEncryption = DiskEncryptionApplied.addrOf()
+					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 				} else if d.rawDecryptable != nil {
 					// if a FileVault profile has been successfully installed on the host
 					// but either we didn't get an encryption key or we're not able to
@@ -362,7 +433,7 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 
 		case MDMAppleOperationTypeRemove:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
 				// successfully removed, same as if	no filevault profile was found
 
 			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
@@ -387,8 +458,8 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleD
 		return &MDMAppleDeliveryPending
 	case DiskEncryptionFailed:
 		return &MDMAppleDeliveryFailed
-	case DiskEncryptionApplied:
-		return &MDMAppleDeliveryApplied
+	case DiskEncryptionVerifying:
+		return &MDMAppleDeliveryVerifying
 	default:
 		return currStatus
 	}
@@ -632,6 +703,38 @@ func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsEnrolledInThirdPartyMDM returns true if and only if the host's MDM
+// information indicates that the device is currently enrolled into a
+// third-party MDM (an MDM that's not Fleet)
+func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
+	if h == nil {
+		return false
+	}
+	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// IsDEPCapable returns true if and only if the host's MDM information
+// indicates that the device is capable of doing DEP/AEP enrollments.
+func (h *HostMDM) IsDEPCapable() bool {
+	if h == nil {
+		return false
+	}
+	// TODO: InstalledFromDep doesn't necessarily mean DEP capable, we need
+	// to improve our internal state. See the differences at
+	// https://fleetdm.com/tables/mdm
+	return !h.IsServer && h.InstalledFromDep
+}
+
+// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
+func (h *HostMDM) IsDEPFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
@@ -829,6 +932,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName      string `json:"display_name" db:"display_name"`
+	TeamID           uint   `json:"team_id" db:"team_id"`
 }
 
 type HostDiskEncryptionKey struct {
@@ -837,4 +941,16 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+}
+
+// HostSoftwareInstalledPath represents where in the file system a software on a host was installed
+type HostSoftwareInstalledPath struct {
+	// ID row id
+	ID uint `db:"id"`
+	// HostID is the id of the host where the software in question is installed
+	HostID uint `db:"host_id"`
+	// SoftwareID is the id of the software
+	SoftwareID uint `db:"software_id"`
+	// InstalledPath is the file system path where the software is installed
+	InstalledPath string `db:"installed_path"`
 }

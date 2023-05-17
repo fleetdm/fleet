@@ -1,10 +1,18 @@
+import React from "react";
+import classnames from "classnames";
+
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
-import React from "react";
 
-const PremiumFeatureMessage = () => {
+interface IPremiumFeatureMessage {
+  className?: string;
+}
+
+const PremiumFeatureMessage = ({ className }: IPremiumFeatureMessage) => {
+  const classes = classnames("premium-feature-message-container", className);
+
   return (
-    <div className="premium-feature-message-container">
+    <div className={classes}>
       <div className="premium-feature-message">
         <Icon name="premium-feature" />
         <p>This feature is included in Fleet Premium.</p>

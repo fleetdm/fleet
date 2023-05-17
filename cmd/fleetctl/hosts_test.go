@@ -42,6 +42,14 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
 }
 
@@ -74,6 +82,14 @@ func TestHostsTransferByLabel(t *testing.T) {
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
 		return nil
+	}
+
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
 	}
 
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
@@ -109,6 +125,14 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
 }
@@ -142,6 +166,14 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
 		return nil
+	}
+
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
 	}
 
 	assert.Equal(t, "", runAppForTest(t,

@@ -10,8 +10,8 @@ export interface INavItem {
     regex: RegExp;
     pathname: string;
   };
-  withContext?: boolean;
   exclude?: boolean;
+  withParams?: { type: "query"; names: string[] };
 }
 
 export default (
@@ -21,7 +21,7 @@ export default (
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
   isNoAccess = false,
-  isMdmFeatureFlagEnabled = false
+  isSandboxMode = false
 ): INavItem[] => {
   if (!user) {
     return [];
@@ -45,14 +45,14 @@ export default (
     },
   ];
 
-  const navItems = [
+  const navItems: INavItem[] = [
     {
       name: "Hosts",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Controls",
@@ -60,8 +60,8 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: !isMaintainerOrAdmin || !isMdmFeatureFlagEnabled,
-      withContext: true,
+      exclude: isSandboxMode || !isMaintainerOrAdmin,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Software",
@@ -69,7 +69,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
       },
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Queries",
@@ -85,7 +85,7 @@ export default (
         pathname: PATHS.MANAGE_SCHEDULE,
       },
       exclude: !isMaintainerOrAdmin,
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Policies",
@@ -93,7 +93,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withContext: true,
+      withParams: { type: "query", names: ["team_id"] },
     },
   ];
 
