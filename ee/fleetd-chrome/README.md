@@ -3,6 +3,7 @@
 ## Packaging the extension
 Generate a .pem file to be the key for the chrome extension.
 
+(In parent dir)
 Run the following command to generate an extension.
 
 ``` sh
