@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -186,14 +189,19 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			level.Info(svc.logger).Log("msg", "live_query: read readChan", "campaign", campaignID, "res", fmt.Sprintf("%T", res))
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
-				level.Info(svc.logger).Log("msg", "live_query: got result", "host", res.HostID, "campaign", res.DistributedQueryCampaignID)
-				mapHostnameRows(&res)
-				err = conn.WriteJSONMessage("result", res)
-				level.Info(svc.logger).Log("msg", "live_query: wrote result", "host", res.HostID, "err", err, "campaign", res.DistributedQueryCampaignID)
-				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
-					// return and stop sending the query if the session was closed
-					// by the client
-					return
+				for i := 0; i < 40000; i++ {
+					res.HostID = uint(rand.Uint64())
+					res.Hostname = base64.RawStdEncoding.EncodeToString([]byte(strconv.Itoa(rand.Int())))
+					res.HostDisplayName = base64.RawStdEncoding.EncodeToString([]byte(strconv.Itoa(rand.Int())))
+					mapHostnameRows(&res)
+					level.Info(svc.logger).Log("msg", "live_query: got result", "host", res.HostID, "campaign", res.DistributedQueryCampaignID)
+					err = conn.WriteJSONMessage("result", res)
+					level.Info(svc.logger).Log("msg", "live_query: wrote result", "host", res.HostID, "err", err, "campaign", res.DistributedQueryCampaignID)
+					if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
+						// return and stop sending the query if the session was closed
+						// by the client
+						return
+					}
 				}
 				if err != nil {
 					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
