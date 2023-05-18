@@ -4081,6 +4081,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
 			require.NoError(t, err)
+		case "/profile/devices":
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.ProfileResponse{
+				ProfileUUID: "abc",
+				Devices:     map[string]string{},
+			})
+			require.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			// This endpoint  is used to get an initial list of
 			// devices, return a single device
