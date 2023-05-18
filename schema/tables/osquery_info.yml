@@ -1,4 +1,9 @@
 name: osquery_info
+platforms:
+  - macos
+  - windows
+  - linux
+  - chromeos
 columns:
   - name: pid
     platforms:
