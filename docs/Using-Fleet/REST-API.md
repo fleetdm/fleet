@@ -6516,7 +6516,7 @@ _Available in Fleet Premium_
 
 #### Example (add users to a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/v1/fleet/teams/1/users`
 
 ##### Request body
 
