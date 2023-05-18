@@ -1,4 +1,45 @@
 name: osquery_info
+columns:
+  - name: pid
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: uuid
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: instance_id
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: config_hash
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: config_valid
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: start_time
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: watcher
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: platform_mask
+    platforms:
+      - macos
+      - windows
+      - linux
 examples: >-
   See the version of the currently running osquery.
   
