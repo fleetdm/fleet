@@ -188,13 +188,15 @@
         </div>
       </div>
     </div>
-
+    <%// Slides after "game" %>
     <div class="pt-5" v-if="demoStage === 5">
       <div purpose="demo-title">
         <h3>You did it!</h3>
       </div>
       <div id="slideshowControls" class="carousel slide" data-ride="carousel">
         <div class="carousel-inner mx-auto" purpose="slideshow-container">
+
+          <%// First slide %>
           <div class="carousel-item mx-auto active h-100">
             <div class="d-flex flex-column justify-content-center h-100">
             <h3>We are in a remote world now</h3>
@@ -205,6 +207,7 @@
               </div>
             </div>
           </div>
+          <%// Second slide%>
           <div class="carousel-item mx-auto h-100">
             <div class="d-flex flex-column justify-content-center h-100">
             <h3>The path forward requires a new type of Device Management</h3>
@@ -215,6 +218,7 @@
               </div>
             </div>
           </div>
+          <%// Third slide%>
           <div class="carousel-item mx-auto h-100">
             <div class="d-flex flex-column justify-content-center h-100">
             <h3>Fleet is the new edge of Device Management</h3>
@@ -226,6 +230,7 @@
               </div>
             </div>
           </div>
+          <%// Fourth slide with form (that does nothing)%>
           <div class="carousel-item mx-auto h-100">
             <div class="d-flex flex-row h-100 justify-content-center align-items-center">
               <div class="mr-4">
