@@ -2,6 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
+import { upperFirst, lowerCase } from "lodash";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
@@ -17,7 +18,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
           variant="label"
           className="list__button"
         >
-          {label.name}
+          {upperFirst(lowerCase(label.name))}
         </Button>
       </li>
     );
