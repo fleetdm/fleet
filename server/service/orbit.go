@@ -193,7 +193,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 	}
-	notifs.RenewEnrollmentProfile = true
 
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
