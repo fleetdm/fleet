@@ -624,6 +624,7 @@ func main() {
 			})
 
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
+			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -858,6 +859,7 @@ func main() {
 				rawClientCrt,
 				rawClientKey,
 				c.String("fleet-desktop-alternative-browser-host"),
+				opt.RootDirectory,
 			)
 			g.Add(desktopRunner.actor())
 		}
@@ -895,6 +897,7 @@ func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt
 type desktopRunner struct {
 	// desktopPath is the path to the desktop executable.
 	desktopPath string
+	updateRoot  string
 	// fleetURL is the URL of the Fleet server.
 	fleetURL string
 	// trw is the Fleet Desktop token reader and writer (implements token rotation).
@@ -924,9 +927,11 @@ func newDesktopRunner(
 	trw *token.ReadWriter,
 	fleetClientCrt []byte, fleetClientKey []byte,
 	fleetAlternativeBrowserHost string,
+	updateRoot string,
 ) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:                 desktopPath,
+		updateRoot:                  updateRoot,
 		fleetURL:                    fleetURL,
 		trw:                         trw,
 		fleetRootCA:                 fleetRootCA,
@@ -985,6 +990,7 @@ func (d *desktopRunner) execute() error {
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
 
 		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
+		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))

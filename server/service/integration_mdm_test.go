@@ -4392,6 +4392,12 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	token := "token_test_migration"
 	host := createHostAndDeviceToken(t, s.ds, token)
 
+	// enable migration
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
+	}`), http.StatusOK, &acResp)
+
 	getDesktopResp := fleetDesktopResponse{}
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
@@ -4399,6 +4405,11 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Zero(t, *getDesktopResp.FailingPolicies)
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
 	// simulate that the device is enrolled in a third-party MDM and DEP capable
 	err := s.ds.SetOrUpdateMDMData(
@@ -4419,6 +4430,36 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Zero(t, *getDesktopResp.FailingPolicies)
 	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+	// simulate that the device needs to be enrolled in fleet, DEP capable
+	err = s.ds.SetOrUpdateMDMData(
+		ctx,
+		host.ID,
+		false,
+		false,
+		s.server.URL,
+		true,
+		fleet.WellKnownMDMFleet,
+	)
+	require.NoError(t, err)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Zero(t, *getDesktopResp.FailingPolicies)
+	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+	require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 }
 
 func (s *integrationMDMTestSuite) runWorker() {
