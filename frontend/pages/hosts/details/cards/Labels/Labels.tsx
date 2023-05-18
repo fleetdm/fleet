@@ -2,7 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
-import { enforceFleetSentenceCasing } from "utilities/helpers";
+import { enforceFleetSentenceCasing } from "utilities/strings/stringUtils";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
