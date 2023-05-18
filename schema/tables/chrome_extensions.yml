@@ -1,6 +1,6 @@
 name: chrome_extensions
 platforms:
-  - macos
+  - darwin
   - windows
   - linux
   - chromeos
@@ -18,96 +18,96 @@ columns:
   - name: uid
     requires_user_context: true
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: profile
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: profile_path
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: referenced_identifier
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: default_locale
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: current_locale
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: author
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: persistent
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: path
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: optional_permissions
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: optional_permissions_json
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: manifest_hash
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: referenced
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: from_webstore
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: state
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: install_time
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: install_timestamp
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: manifest_json
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux
   - name: key
     platforms: 
-      - macos
+      - darwin
       - windows
       - linux

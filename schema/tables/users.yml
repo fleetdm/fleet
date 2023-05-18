@@ -1,6 +1,6 @@
 name: users
 platforms:
-  - macos
+  - darwin
   - windows
   - linux
   - chromeos
@@ -15,37 +15,37 @@ examples: >-
 columns:
   - name: gid
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: uid_signed
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: gid_signed
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: description
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: directory
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: shell
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: uuid
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: email

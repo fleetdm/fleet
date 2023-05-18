@@ -1,6 +1,6 @@
 name: os_version
 platforms:
-  - macos
+  - darwin
   - linux
   - windows
   - chromeos

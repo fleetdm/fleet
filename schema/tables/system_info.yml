@@ -1,61 +1,60 @@
 name: system_info
 platforms:
   - windows
-  - macos
+  - darwin
   - linux
   - chromeos
 columns:
   - name: cpu_subtype
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: cpu_physical_cores
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: cpu_logical cores
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: cpu_microcode
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: hardware_version
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: board_vendor
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: board_model
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: board_version
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: board_serial
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: local_hostname
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
-
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.

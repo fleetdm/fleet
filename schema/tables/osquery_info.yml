@@ -1,48 +1,48 @@
 name: osquery_info
 platforms:
-  - macos
+  - darwin
   - windows
   - linux
   - chromeos
 columns:
   - name: pid
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: uuid
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: instance_id
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: config_hash
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: config_valid
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: start_time
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: watcher
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
   - name: platform_mask
     platforms:
-      - macos
+      - darwin
       - windows
       - linux
 examples: >-
