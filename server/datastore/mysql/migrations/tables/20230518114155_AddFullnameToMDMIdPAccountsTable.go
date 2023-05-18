@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230507114329, Down_20230507114329)
+	MigrationClient.AddMigration(Up_20230518114155, Down_20230518114155)
 }
 
-func Up_20230507114329(tx *sql.Tx) error {
+func Up_20230518114155(tx *sql.Tx) error {
 	stmt := `
           ALTER TABLE mdm_idp_accounts
 	  DROP COLUMN salt,
@@ -23,6 +23,6 @@ func Up_20230507114329(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230507114329(tx *sql.Tx) error {
+func Down_20230518114155(tx *sql.Tx) error {
 	return nil
 }

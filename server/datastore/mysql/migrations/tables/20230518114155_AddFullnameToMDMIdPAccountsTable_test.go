@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230507114329(t *testing.T) {
+func TestUp_20230518114155(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertStmt := `
@@ -46,5 +46,4 @@ func TestUp_20230507114329(t *testing.T) {
 	require.Equal(t, uuidVal, mdmIdPAccount.UUID)
 	require.Equal(t, "test+1@example.com", mdmIdPAccount.Username)
 	require.Equal(t, "Foo Bar", mdmIdPAccount.Fullname)
-
 }
