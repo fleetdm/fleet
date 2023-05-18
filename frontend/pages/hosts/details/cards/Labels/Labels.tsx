@@ -19,7 +19,6 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
           className="list__button"
         >
           {enforceFleetSentenceCasing(label.name)}
-          {/* {upperFirst(lowerCase(label.name))} */}
         </Button>
       </li>
     );
