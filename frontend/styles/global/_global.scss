@@ -18,6 +18,8 @@ body {
 html,
 body {
   height: 100%;
+  // desired default line-height for text is 1.5x the font size.
+  line-height: 1.5;
 
   .__react_component_tooltip {
     text-align: center;
@@ -62,8 +64,6 @@ a {
   padding: $pad-xlarge;
   border-radius: 3px;
   background-color: $core-white;
-  // desired default line-height for text is 1.5x the font size.
-  line-height: 1.5;
 }
 
 .has-sidebar {
