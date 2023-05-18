@@ -280,10 +280,12 @@ func handler(ctx context.Context, name NullEvent) error {
 	if unclaimedCount >= options.QueuedInstances {
 		return nil
 	}
-	numToReady := min(options.MaxInstances-totalCount, options.QueuedInstances-unclaimedCount)
+	has_init := false
 	// deploy terraform to initialize everything
-	for i := int64(0); i < numToReady; i++ {
-		if i == 0 {
+	// If there's an error during spinup, the program exits, so it either makes progress or fails completely, never running forever
+	for min(options.MaxInstances-totalCount, options.QueuedInstances-unclaimedCount) > 0 {
+		if !has_init {
+			has_init = true
 			if err := initTerraform(); err != nil {
 				return err
 			}
@@ -297,11 +299,25 @@ func handler(ctx context.Context, name NullEvent) error {
 			return err
 		}
 		instanceID := fmt.Sprintf("t%s", uuid.New().String()[:8])
+		// This should fail if the instance id we pick already exists since it will collide with the primary key in dynamodb
+		// This also actually puts the claim in place
 		if err := runTerraform(instanceID, redisDatabase, enrollSecret); err != nil {
 			return err
 		}
 		if err = buildPackages(instanceID, enrollSecret); err != nil {
 			return err
+		}
+
+		// Refresh the count variables
+		totalCount, unclaimedCount, err = getInstancesCount()
+		if err != nil {
+			return err
+		}
+		if totalCount >= options.MaxInstances {
+			return nil
+		}
+		if unclaimedCount >= options.QueuedInstances {
+			return nil
 		}
 	}
 	return nil
