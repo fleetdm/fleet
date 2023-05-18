@@ -5491,6 +5491,7 @@ load balancer timeout.
 - [Add query to schedule](#add-query-to-schedule)
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
+- [Team schedule](#team-schedule)
 
 Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
