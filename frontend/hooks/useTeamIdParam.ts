@@ -48,7 +48,6 @@ const rebuildQueryStringWithTeamId = (
   }
 
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
-
   // URLs for the app represent "All teams" by the absence of the team id param
   const newTeamPart =
     newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
