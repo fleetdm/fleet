@@ -93,6 +93,6 @@ var (
 		Platform:             "macos",
 		Channel:              "stable",
 		TargetFile:           "swiftDialog.app.tar.gz",
-		ExtractedExecSubPath: []string{"bin", "dialog"},
+		ExtractedExecSubPath: []string{"Dialog.app", "Contents", "MacOS", "Dialog"},
 	}
 )
