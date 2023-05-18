@@ -409,6 +409,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if !ok {
 		return fleet.ErrNoContext
 	}
+
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	hosts, err := svc.ds.ListHosts(ctx, filter, fleet.HostListOptions{TeamFilter: &teamID})
 	if err != nil {
@@ -426,24 +427,26 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
-	// team id 0 is provided since the team's hosts are now part of no team
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
 
-	if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
-		return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
-	}
+	if len(hostIDs) > 0 {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 
-	if len(mdmHostSerials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
-			ctx,
-			svc.ds,
-			svc.logger,
-			worker.MacosSetupAssistantTeamDeleted,
-			nil,
-			mdmHostSerials...); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue macos setup assistant team deleted job")
+		if err := svc.ds.CleanupDiskEncryptionKeysOnTeamChange(ctx, hostIDs, ptr.Uint(0)); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile profiles on team change cleanup disk encryption keys")
+		}
+
+		if len(mdmHostSerials) > 0 {
+			if err := worker.QueueMacosSetupAssistantJob(
+				ctx,
+				svc.ds,
+				svc.logger,
+				worker.MacosSetupAssistantTeamDeleted,
+				nil,
+				mdmHostSerials...); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue macos setup assistant team deleted job")
+			}
 		}
 	}
 

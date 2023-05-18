@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 )
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -709,9 +711,64 @@ func TestAppConfigReplaceQuery(t *testing.T) {
 
 func TestDirectIngestSoftware(t *testing.T) {
 	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := fleet.Host{ID: uint(1)}
+
+	t.Run("ingesting installed software path", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Software 1",
+				"version":           "12.5.0",
+				"source":            "apps",
+				"bundle_identifier": "com.bundle.com",
+				"vendor":            "EvilCorp",
+				"installed_path":    "",
+			},
+			{
+				"name":              "Software 2",
+				"version":           "0.0.1",
+				"source":            "apps",
+				"bundle_identifier": "coms.widgets.com",
+				"vendor":            "widgets",
+				"installed_path":    "/tmp/some_path",
+			},
+		}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+
+		t.Run("errors are reported back", func(t *testing.T) {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+				return errors.New("some error")
+			}
+			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
+			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+		})
+
+		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
+			var calledWith map[string]struct{}
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+				calledWith = make(map[string]struct{})
+				for k, v := range sPaths {
+					calledWith[k] = v
+				}
+				return nil
+			}
+
+			require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+
+			require.Len(t, calledWith, 1)
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, data[1]["name"]))
+
+			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+		})
+	})
 
 	t.Run("vendor gets truncated", func(t *testing.T) {
-		for i, tc := range []struct {
+		for _, tc := range []struct {
 			data     []map[string]string
 			expected string
 		}{
@@ -740,21 +797,18 @@ func TestDirectIngestSoftware(t *testing.T) {
 				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
 			},
 		} {
-			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 				require.Len(t, software, 1)
 				require.Equal(t, tc.expected, software[0].Vendor)
+				return nil, nil
+			}
+
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+				// NOP - This functionality is tested elsewhere
 				return nil
 			}
 
-			err := directIngestSoftware(
-				context.Background(),
-				log.NewNopLogger(),
-				&fleet.Host{ID: uint(i)},
-				ds,
-				tc.data,
-			)
-
-			require.NoError(t, err)
+			require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, tc.data))
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 			ds.UpdateHostSoftwareFuncInvoked = false
 		}

@@ -2,6 +2,27 @@ package packaging
 
 import "text/template"
 
+// Adapted from
+// https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
+var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
+	`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+    type="win32"
+    name="Fleet osquery"
+    version="{{.Version}}"
+    processorArchitecture="*"/>
+ <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+   <security>
+     <requestedPrivileges>
+       <requestedExecutionLevel
+         level="asInvoker"
+         uiAccess="false"/>
+       </requestedPrivileges>
+   </security>
+ </trustInfo>
+</assembly>`))
+
 // Partially adapted from Launcher's wix XML in
 // https://github.com/kolide/launcher/blob/master/pkg/packagekit/internal/assets/main.wxs.
 var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error").Parse(

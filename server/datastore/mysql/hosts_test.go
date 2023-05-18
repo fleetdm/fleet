@@ -87,6 +87,7 @@ func TestHosts(t *testing.T) {
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
 		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
 		{"Search", testHostsSearch},
+		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"MarkSeen", testHostsMarkSeen},
@@ -182,6 +183,10 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
+	host.RefetchCriticalQueriesUntil = ptr.Time(time.Now().UTC().Add(time.Hour))
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
@@ -189,6 +194,8 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
 	assert.Equal(t, policyUpdatedAt.UTC(), host.PolicyUpdatedAt)
+	assert.NotNil(t, host.RefetchCriticalQueriesUntil)
+	assert.True(t, time.Now().Before(*host.RefetchCriticalQueriesUntil))
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	err = ds.SaveHostAdditional(context.Background(), host.ID, &additionalJSON)
@@ -203,9 +210,14 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
+	host.RefetchCriticalQueriesUntil = nil
+	err = updateHostFunc(context.Background(), host)
+	require.NoError(t, err)
+
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, host)
+	require.Nil(t, host.RefetchCriticalQueriesUntil)
 
 	p, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    t.Name(),
@@ -247,7 +259,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	_, err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
@@ -1615,6 +1627,144 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
 }
 
+func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
+	/*
+		+------------------+
+		|hostname          |
+		+------------------+
+		|Molly‘s MacbookPro|
+		|Molly's MacbookPro|
+		|Molly‘s MacbookPro|
+		|Molly❛s MacbookPro|
+		|Molly❜s MacbookPro|
+		|Alex's MacbookPro |
+		+------------------+
+
+	*/
+	hostnames := []string{
+		"Molly‘s MacbookPro",
+		"Molly's MacbookPro",
+		"Molly‘s MacbookPro",
+		"Molly❛s MacbookPro",
+		"Molly❜s MacbookPro",
+		"Alex's MacbookPro",
+	}
+	hostIDs := make([]uint, len(hostnames))
+	for i, name := range hostnames {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(strconv.Itoa(i)),
+			UUID:            strconv.Itoa(i),
+			Hostname:        name,
+		})
+		require.NoError(t, err)
+		hostIDs[i] = h.ID
+	}
+	// hosts are returned in ORDER BY host.id DESC
+	sort.Slice(hostIDs, func(i, j int) bool {
+		return hostIDs[i] > hostIDs[j]
+	})
+
+	userAdmin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: userAdmin}
+
+	type args struct {
+		ctx        context.Context
+		filter     fleet.TeamFilter
+		matchQuery string
+		omit       []uint
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []uint
+		wantErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "empty match criteria should match everything",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "",
+				filter:     filter,
+				omit:       nil,
+			},
+			want:    hostIDs,
+			wantErr: require.NoError,
+		},
+		{
+			name: "searching for host with regular apostrophe should return just that result",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "Molly's",
+				filter:     filter,
+				omit:       nil,
+			},
+			want:    []uint{2}, // hosts.id autoincrement starts at 1
+			wantErr: require.NoError,
+		},
+		{
+			name: "excluding the host you are searching for should return an empty set",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "Molly's",
+				filter:     filter,
+				omit:       []uint{2},
+			},
+			want:    []uint{},
+			wantErr: require.NoError,
+		},
+		{
+			name: "searching for non-ascii characters should use wildcard searching",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "Molly‘s",
+				filter:     filter,
+				omit:       []uint{},
+			},
+			want:    []uint{5, 4, 3, 2, 1}, // all Molly_s endpoints should return
+			wantErr: require.NoError,
+		},
+		{
+			name: "searching for criteria that doesn't match anything should yield empty results",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "Foobar",
+				filter:     filter,
+				omit:       []uint{},
+			},
+			want:    []uint{},
+			wantErr: require.NoError,
+		},
+		{
+			name: "searching for criteria that doesn't match anything should yield empty results, omitting id that isn't in the potential result set shouldn't effect result",
+			args: args{
+				ctx:        context.Background(),
+				matchQuery: "Foobar",
+				filter:     filter,
+				omit:       []uint{1},
+			},
+			want:    []uint{},
+			wantErr: require.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit...)
+			tt.wantErr(t, err)
+			resultHostIDs := make([]uint, len(got))
+			for i, h := range got {
+				resultHostIDs[i] = h.ID
+			}
+			assert.Equalf(t, tt.want, resultHostIDs, "SearchHosts(_, _, %v, %v)", tt.args.matchQuery, tt.args.omit)
+		})
+	}
+}
+
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -2482,8 +2632,10 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	}
 	host1 := hosts[0]
 	host2 := hosts[1]
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
+	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
@@ -2535,13 +2687,16 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 
 	// need to sleep because timestamps have a 1 second resolution, otherwise it'll be a flaky test
 	time.Sleep(1 * time.Second)
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
+	require.NoError(t, err)
 
 	// if we update the host again with the same software, host2 will still be the one with the latest updated at
 	// because nothing changed
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
+	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{OrderKey: "software_updated_at", OrderDirection: fleet.OrderDescending},
@@ -3090,7 +3245,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if err = ds.UpdateHostSoftware(context.Background(), host1.ID, host1Software); err != nil {
+			if _, err = ds.UpdateHostSoftware(context.Background(), host1.ID, host1Software); err != nil {
 				errCh <- err
 				return
 			}
@@ -3151,7 +3306,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if err = ds.UpdateHostSoftware(context.Background(), host2.ID, host2Software); err != nil {
+			if _, err = ds.UpdateHostSoftware(context.Background(), host2.ID, host2Software); err != nil {
 				errCh <- err
 				return
 			}
@@ -5466,7 +5621,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "1.0.0", Source: "deb_packages"},
 	}
-	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	_, err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
 	// Updates host_users.
 	users := []fleet.HostUser{
@@ -5593,6 +5748,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
 		host.ID, 1, "cve-1",
 	)
+	require.NoError(t, err)
+
+	_, err = ds.writer.Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

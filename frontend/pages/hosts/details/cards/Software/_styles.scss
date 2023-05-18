@@ -106,7 +106,7 @@
         @media (min-width: $break-1400) {
           .source__cell {
             display: table-cell;
-            width: $col-md;
+            width: $col-sm;
           }
           .hosts_count__cell {
             .hosts-cell__wrapper {
@@ -184,6 +184,10 @@
 
   // Only show this column to macos users
   .macos .data-table-block .data-table__table {
+    .installed_paths__header {
+      border-right: none;
+    }
+
     @media (min-width: $break-990) {
       thead .version__header {
         width: $col-sm;
@@ -191,16 +195,26 @@
     }
     @media (min-width: $break-1400) {
       thead {
-        .vulnerabilities__header {
-          width: $col-md;
-        }
         .last_opened_at__header {
           display: table-cell;
+        }
+        .installed_paths__header {
+          width: $col-md;
         }
       }
       tbody {
         .last_opened_at__cell {
           display: table-cell;
+        }
+
+        .installed_paths__cell {
+          .tooltip {
+            display: inline; // center tooltip with hovered text
+          }
+        }
+
+        .linkToFilteredHosts__cell {
+          width: 120px;
         }
       }
     }
