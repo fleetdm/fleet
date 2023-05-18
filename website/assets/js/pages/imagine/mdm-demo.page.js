@@ -3,7 +3,7 @@ parasails.registerPage('mdm-demo', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    demoStage: 3,
+    demoStage: 1,
     counter: {
       hostOne: 0,
       hostTwo: 0,
@@ -100,7 +100,7 @@ parasails.registerPage('mdm-demo', {
     },
 
     startDemoTimer() {
-      this.timeLeft = 10;
+      this.timeLeft = 25;
       let timer = setInterval(() => {
         if (this.timeLeft > 0) {
           this.timeLeft--;
