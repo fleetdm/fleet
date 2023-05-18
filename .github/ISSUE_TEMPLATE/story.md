@@ -46,47 +46,38 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 -->
 
 
-## Test plan
+## QA
+
+### Risk assessment
 
 - [ ] Requires load testing TODO <!-- User story has performance implications that require load testing. Otherwise, remove this checkbox. -->
 
-## Risk assessment
+Risk level: Low / High TODO <!-- Choose one. -->
 
-Risk level: Low / Medium / High TODO <!-- Choose one. -->
-
-Risk description: TODO <!-- If risk level is medium or high, explain why. If low, remove. -->
+Risk description: TODO <!-- If risk level is high, explain why. If low, remove. -->
 
 #### Automated:
 
-- Fleet: Covered / Will not cover / Scoped <!-- Choose one. -->
-- QAWolf: Covered / Will not cover / Scoped <!-- Choose one. -->
+- Fleet: Cover / Will not cover <!-- Choose one. -->
+- QAWolf: Cover / Will not cover <!-- Choose one. -->
 
-## Manual testing steps
-<!-- Add detailed manual testing steps for all affected user roles. -->
+### Manual testing steps
+<!-- 
+Add detailed manual testing steps for all affected user roles. 
+-->
 
-Admin: TODO
 1. Step 1
 2. Step 2
 3. Step 3
 
-Maintainer: TODO
-1. Step 1
-2. Step 2
-3. Step 3
+<!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all team-level access roles?  If not, write the steps used to test each variation.
+-->
 
-Observer: TODO
-1. Step 1
-2. Step 2
-3. Step 3
+### Testing notes
+<!-- Any additional testing notes relevant to this story or tools required for testing. -->
 
-## Testing notes
-<!-- Any additional testing notes relevant to this story. -->
-
-## Tools required
-<!-- Any additional tools required (local TUF service, API testing, specific software or VM) -->
-
-## Confirmation
+### Confirmation
 <!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
 
-1. [ ] Engineer (@____): Added comment to user story confirming succesful completion of testing plan.
-2. [ ] QA (@____): Added comment to user story confirming succesful completion of testing plan.
+1. [ ] Engineer (@____): Added comment to user story confirming succesful completion of QA.
+2. [ ] QA (@____): Added comment to user story confirming succesful completion of QA.
