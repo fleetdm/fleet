@@ -353,6 +353,8 @@ const allHostTableHeaders: IDataColumn[] = [
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}
               data-html
+              clickable
+              delayHide={300}
             >
               <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
             </ReactTooltip>

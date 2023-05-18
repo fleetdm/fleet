@@ -218,7 +218,7 @@ func TestHostSearchLike(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -986,4 +986,56 @@ func TestANSIQuotesEnabled(t *testing.T) {
 	err := ds.writer.GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
+}
+
+func Test_buildWildcardMatchPhrase(t *testing.T) {
+	type args struct {
+		matchQuery string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "",
+			args: args{matchQuery: "test"},
+			want: "%test%",
+		},
+		{
+			name: "underscores are escaped",
+			args: args{matchQuery: "Host_1"},
+			want: "%Host\\_1%",
+		},
+		{
+			name: "percent are escaped",
+			args: args{matchQuery: "Host%1"},
+			want: "%Host\\%1%",
+		},
+		{
+			name: "percent & underscore are escaped",
+			args: args{matchQuery: "Host_%1"},
+			want: "%Host\\_\\%1%",
+		},
+		{
+			name: "underscores added for wildcard search are not escaped",
+			args: args{matchQuery: "Alice‘s MacbookPro"},
+			want: "%Alice_s MacbookPro%",
+		},
+		{
+			name: "underscores added for wildcard search are not escaped, but underscores in matchQuery are",
+			args: args{matchQuery: "Alice‘s Macbook_Pro"},
+			want: "%Alice_s Macbook\\_Pro%",
+		},
+		{
+			name: "multiple occurances of wildcard are not escaped",
+			args: args{matchQuery: "Alice‘‘s Macbook_Pro"},
+			want: "%Alice__s Macbook\\_Pro%",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, buildWildcardMatchPhrase(tt.args.matchQuery), "buildWildcardMatchPhrase(%v)", tt.args.matchQuery)
+		})
+	}
 }

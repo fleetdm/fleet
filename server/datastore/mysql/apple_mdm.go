@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -2214,4 +2215,47 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
 	}
 	return serials, nil
+}
+
+func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+	const stmt = `
+		INSERT INTO
+			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid)
+		VALUES
+			(?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			profile_uuid = VALUES(profile_uuid)
+`
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	_, err := ds.writer.ExecContext(ctx, stmt, teamID, globalOrTmID, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm apple default setup assistant")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+	const stmt = `
+	SELECT
+		profile_uuid,
+		updated_at as uploaded_at
+	FROM
+		mdm_apple_default_setup_assistants
+	WHERE global_or_team_id = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	var asst fleet.MDMAppleSetupAssistant
+	if err := sqlx.GetContext(ctx, ds.writer /* needs to read recent writes */, &asst, stmt, globalOrTmID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleDefaultSetupAssistant").WithID(globalOrTmID))
+		}
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple default setup assistant")
+	}
+	return asst.ProfileUUID, asst.UploadedAt, nil
 }

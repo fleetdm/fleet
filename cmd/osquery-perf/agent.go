@@ -518,7 +518,7 @@ func (a *agent) runOrbitLoop() {
 				log.Println("orbitClient.Ping: ", err)
 			}
 		case <-fleetDesktopPolicyTicker:
-			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+			if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 				a.stats.IncrementDesktopErrors()
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 			}
@@ -812,11 +812,16 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	}
 
 	var r []map[string]string
-	for _, fi := range software {
+	for i, fi := range software {
+		installedPath := ""
+		if i%2 == 0 {
+			installedPath = fmt.Sprintf("/some/path/%s", fi.Name)
+		}
 		r = append(r, map[string]string{
-			"name":    fi.Name,
-			"version": fi.Version,
-			"source":  "osquery-perf",
+			"name":           fi.Name,
+			"version":        fi.Version,
+			"source":         "osquery-perf",
+			"installed_path": installedPath,
 		})
 	}
 	return r
@@ -844,6 +849,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -864,6 +870,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d", a.CachedString("hostname"), i),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
@@ -885,6 +892,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
+			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
 		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)

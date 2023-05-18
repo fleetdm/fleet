@@ -2711,7 +2711,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMMacOSMigration() {
 
 	// invalid url scheme for webhook_url
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "http://example.com" } }
+		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "ftp://example.com" } }
 	}`), http.StatusUnprocessableEntity, &acResp)
 	checkDefaultAppConfig()
 
@@ -3171,6 +3171,129 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
+	t := s.T()
+
+	h := createHostAndDeviceToken(t, s.ds, "good-token")
+
+	var webhookCalled bool
+	webhookSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		webhookCalled = true
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/test_mdm_migration":
+			var payload fleet.MigrateMDMDeviceWebhookPayload
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(b, &payload)
+			require.NoError(t, err)
+
+			require.Equal(t, h.ID, payload.Host.ID)
+			require.Equal(t, h.UUID, payload.Host.UUID)
+			require.Equal(t, h.HardwareSerial, payload.Host.HardwareSerial)
+
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer webhookSrv.Close()
+
+	// patch app config with webhook url
+	acResp := fleet.AppConfig{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": true,
+				"mode": "voluntary",
+				"webhook_url": "%s/test_mdm_migration"
+			}
+		}
+	}`, webhookSrv.URL)), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSMigration.Enable)
+
+	// expect errors when host is not eligible for migration
+	isServer, enrolled, installedFromDEP := true, true, true
+	mdmName := "ExampleMDM"
+	mdmURL := "https://mdm.example.com"
+
+	// host is a server so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
+
+	// host is not DEP so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
+
+	// host is not enrolled to MDM so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, !enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
+
+	// host is already enrolled to Fleet MDM so migration is not allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, fleet.WellKnownMDMFleet))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
+
+	// up to this point, the refetch critical queries timestamp has not been set
+	// on the host.
+	h, err := s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Nil(t, h.RefetchCriticalQueriesUntil)
+
+	// host is enrolled to a third-party MDM so migration is allowed
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	require.True(t, webhookCalled)
+	webhookCalled = false
+
+	// the refetch critical queries timestamp has been set in the future
+	h, err = s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h.RefetchCriticalQueriesUntil)
+	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
+
+	// calling again works but does not trigger the webhook, as it was called recently
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	require.False(t, webhookCalled)
+
+	// setting the refetch critical queries timestamp in the past triggers the webhook again
+	h.RefetchCriticalQueriesUntil = ptr.Time(time.Now().Add(-1 * time.Minute))
+	err = s.ds.UpdateHost(context.Background(), h)
+	require.NoError(t, err)
+
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
+	require.True(t, webhookCalled)
+	webhookCalled = false
+
+	// the refetch critical queries timestamp has been updated to the future
+	h, err = s.ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.NotNil(t, h.RefetchCriticalQueriesUntil)
+	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
+
+	// bad token
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)
+	require.False(t, webhookCalled)
+
+	// disable macos migration
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_migration": {
+				"enable": false,
+				"mode": "voluntary",
+				"webhook_url": ""
+		      }
+		}
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.MacOSMigration.Enable)
+
+	// expect error if macos migration is not configured
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
 }
 
 func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
@@ -3997,7 +4120,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
 		}
 	}`), http.StatusOK, &acResp)
 	wantSettings := fleet.SSOProviderSettings{
@@ -4040,14 +4166,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
 		}
 	}`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.Equal(t, wantSettings, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
 
 	s.runWorker()
 
-	// patch with explicitly empty mdm sso settings fields, removes them
+	// patch with explicitly empty mdm sso settings fields, fails because end user auth is still enabled
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -4056,7 +4185,23 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
-		      }
+			}
+		}
+	}`), http.StatusUnprocessableEntity, &acResp)
+
+	// patch with explicitly empty mdm sso settings fields and disabled end user auth, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
 		}
 	}`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
@@ -4067,14 +4212,17 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// set-up valid settings
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-                "server_settings": {"server_url": "https://localhost:8080"},
+		"server_settings": {"server_url": "https://localhost:8080"},
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
-		      }
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
 		}
 	}`), http.StatusOK, &acResp)
 
@@ -4229,6 +4377,41 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 		}
 	}
 	return &profile
+}
+
+func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
+	t := s.T()
+	ctx := context.Background()
+	token := "token_test_migration"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Zero(t, *getDesktopResp.FailingPolicies)
+	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+
+	// simulate that the device is enrolled in a third-party MDM and DEP capable
+	err := s.ds.SetOrUpdateMDMData(
+		ctx,
+		host.ID,
+		false,
+		true,
+		"https://simplemdm.com",
+		true,
+		fleet.WellKnownMDMSimpleMDM,
+	)
+	require.NoError(t, err)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, getDesktopResp.Err)
+	require.Zero(t, *getDesktopResp.FailingPolicies)
+	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 }
 
 func (s *integrationMDMTestSuite) runWorker() {

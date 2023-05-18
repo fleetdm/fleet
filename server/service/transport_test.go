@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListOptionsFromRequest(t *testing.T) {
@@ -15,8 +16,8 @@ func TestListOptionsFromRequest(t *testing.T) {
 		url string
 		// expected list options
 		listOptions fleet.ListOptions
-		// should cause an error
-		shouldErr bool
+		// should cause a BadRequest error
+		shouldErr400 bool
 	}{
 		// both params provided
 		{
@@ -67,30 +68,30 @@ func TestListOptionsFromRequest(t *testing.T) {
 			},
 		},
 
-		// various error cases
+		// various 400 error cases
 		{
-			url:       "/foo?page=foo&per_page=10",
-			shouldErr: true,
+			url:          "/foo?page=foo&per_page=10",
+			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=1&per_page=foo",
-			shouldErr: true,
+			url:          "/foo?page=1&per_page=foo",
+			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=-1",
-			shouldErr: true,
+			url:          "/foo?page=-1",
+			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=-1&per_page=-10",
-			shouldErr: true,
+			url:          "/foo?page=-1&per_page=-10",
+			shouldErr400: true,
 		},
 		{
-			url:       "/foo?page=1&order_direction=desc",
-			shouldErr: true,
+			url:          "/foo?page=1&order_direction=desc",
+			shouldErr400: true,
 		},
 		{
-			url:       "/foo?&order_direction=foo&order_key=",
-			shouldErr: true,
+			url:          "/foo?&order_direction=foo&order_key=",
+			shouldErr400: true,
 		},
 	}
 
@@ -100,8 +101,10 @@ func TestListOptionsFromRequest(t *testing.T) {
 			req := &http.Request{URL: url}
 			opt, err := listOptionsFromRequest(req)
 
-			if tt.shouldErr {
+			if tt.shouldErr400 {
 				assert.NotNil(t, err)
+				var be *fleet.BadRequestError
+				require.ErrorAs(t, err, &be)
 				return
 			}
 
