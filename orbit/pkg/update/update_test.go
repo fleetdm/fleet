@@ -92,8 +92,8 @@ func TestLocalTargetPaths(t *testing.T) {
 		{
 			SwiftDialogMacOSTarget,
 			"root/bin/target/macos/stable/swiftDialog.app.tar.gz",
-			"root/bin/target/macos/stable/bin/dialog",
-			"root/bin/target/macos/stable/bin",
+			"root/bin/target/macos/stable/Dialog.app/Contents/MacOS/Dialog",
+			"root/bin/target/macos/stable/Dialog.app",
 		},
 	}
 
