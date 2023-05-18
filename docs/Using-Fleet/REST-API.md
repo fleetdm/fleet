@@ -5499,7 +5499,9 @@ load balancer timeout.
 - [Get team query](#get-team-query)
 - [Create team query](#create-team-query)
 - [Modify team query](#modify-team-query)
-- [Remove query from team](#remove-query-from-team)
+- [Delete team query by name](#delete-team-query-by-name)
+- [Delete team query by ID](#delete-team-query-by-id)
+- [Delete team queries](#delete-team-queries)
 
 ### List team queries
 Returns a list of all queries in the specified team.
@@ -5759,7 +5761,7 @@ Deletes the team query specified by name and team_id.
 
 `Status: 200`
 
-### Delete query by ID
+### Delete team query by ID
 
 Deletes the team query specified by ID and team_id.
 
@@ -5781,7 +5783,7 @@ Deletes the team query specified by ID and team_id.
 `Status: 200`
 
 
-### Delete queries
+### Delete team queries
 
 Deletes the queries specified by ID and team_id. Returns the count of queries successfully deleted.
 
