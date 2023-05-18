@@ -164,7 +164,6 @@ Creates a global query.
 | query            | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description      | string  | body | The query's description.                                                                                                                               |
 | observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id          | integer | body | The ID of the team to which this query should belong. Leave blank for global.
 
 #### Example
 
@@ -177,7 +176,6 @@ Creates a global query.
   "description": "This is a new query.",
   "name": "new_query",
   "query": "SELECT * FROM osquery_info"
-  "team_id": 123,
 }
 ```
 
@@ -193,7 +191,7 @@ Creates a global query.
     "id": 288,
     "name": "new_query",
     "description": "This is a new query.",
-    "team_id": 123,
+    "team_id": "",
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
@@ -513,7 +511,7 @@ Returns a list of all queries in the specified team.
 ### Get team query
 Returns the query specified by ID from the among the team queries specified by team_id.
 
-`GET /api/v1/fleet/teams/{team_id}/queries/{id}`
+`GET /api/v1/fleet/team/{team_id}/queries/{id}`
 
 #### Parameters
 
@@ -524,7 +522,7 @@ Returns the query specified by ID from the among the team queries specified by t
 
 #### Example
 
-`GET /api/v1/fleet/teams/123/queries/31`
+`GET /api/v1/fleet/team/123/queries/31`
 
 ##### Default response
 
@@ -561,7 +559,57 @@ Returns the query specified by ID from the among the team queries specified by t
 ```
 
 ### Create team query
-Use the [create query](#create-query) endpoint, and submit a `team_id` attribute in the body.
+Creates a query in the specified team.
+
+`POST /api/v1/fleet/team/{team_id}/queries`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                                                                                                                            |
+| ---------------- | ------  | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| team_id          | integer | path | **Required**. The id of the parent team                                                                                                                |
+| name             | string  | body | **Required**. The name of the query.                                                                                                                   |
+| query            | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| description      | string  | body | The query's description.                                                                                                                               |
+| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+
+#### Example
+
+`POST /api/v1/fleet/team/123/queries`
+
+##### Request body
+
+```json
+{
+  "description": "This is a new query.",
+  "name": "new_query",
+  "query": "SELECT * FROM osquery_info"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 288,
+    "name": "new_query",
+    "description": "This is a new query.",
+    "team_id": 123,
+    "query": "SELECT * FROM osquery_info",
+    "saved": true,
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "observer_can_run": true,
+    "packs": []
+  }
+}
+```
 
 ### Modify team query
 Use the [modify query](#modify-query) endpoint, which supports both global queries and team queries.
