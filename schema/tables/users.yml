@@ -1,4 +1,9 @@
 name: users
+platforms:
+  - macos
+  - windows
+  - linux
+  - chromeos
 examples: >-
   List users that have interactive access via a shell that isn't false.
   
@@ -7,7 +12,46 @@ examples: >-
   SELECT * FROM users WHERE shell!='/usr/bin/false';
   
   ```
+  "email"
 columns:
+  - name: gid
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: uid_signed
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: gid_signed
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: description
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: directory
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: shell
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: uuid
+    platforms:
+      - macos
+      - windows
+      - linux
+  - name: email
+    platforms:
+      - chromeos
   - name: type
     platforms:
       - windows
