@@ -662,9 +662,85 @@ Modifies the team query specified by ID and team_id with the data submitted in t
   }
 }
 ```
+### Delete team query by name
 
-### Delete team query
-Use the [delete query](#delete-query) endpoint, which supports both global queries and team queries.
+Deletes the team query specified by name and team_id.
+
+`DELETE /api/v1/fleet/team/{team_id}/queries/{name}`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                              |
+| ------- | ------- | ---- | ---------------------------------------- |
+| name    | string  | path | **Required.** The name of the query.     |
+| team_id | integer | path | **Required.** The id of the parent team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/team/123/queries/my_query`
+
+##### Default response
+
+`Status: 200`
+
+### Delete query by ID
+
+Deletes the team query specified by ID and team_id.
+
+`DELETE /api/v1/fleet/team/{team_id}/queries/id/{id}`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                              |
+| ------- | ------- | ---- | ---------------------------------------- |
+| id      | integer | path | **Required.** The ID of the query.       |
+| team_id | integer | path | **Required.** The id of the parent team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/team/123/queries/id/28`
+
+##### Default response
+
+`Status: 200`
+
+
+### Delete queries
+
+Deletes the queries specified by ID and team_id. Returns the count of queries successfully deleted.
+
+`POST /api/v1/fleet/team/{team_id}/queries/delete`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                              |
+| ------- | ------- | ---- | ---------------------------------------- |
+| ids     | list    | body | **Required.** The IDs of the queries.    |
+| team_id | integer | path | **Required.** The id of the parent team. |
+
+#### Example
+
+`POST /api/v1/fleet/team/123/queries/delete`
+
+##### Request body
+
+```json
+{
+  "ids": [
+    2, 24, 25
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "deleted": 3
+}
+```
 
 ---
 
