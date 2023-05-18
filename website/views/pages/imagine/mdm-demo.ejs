@@ -2,39 +2,57 @@
 
   <div class="container-fluid">
     <div class="mx-auto">
-      <div class="pt-5" v-if="demoStage === 0">
-        <div class="container">
-          <h1>MDM demo</h1>
-          <div class="mx-auto d-flex flex-column justify-content-center align-items-center" purpose="mdm-demo-container">
-            <h4 class="pb-4">See how many configuration changes you can deploy in 25 seconds.</h4>
-            <div purpose="button-row">
-              <a purpose="cta-button" @click="clickStartGame()">Click here to start</a>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="pt-5" v-if="demoStage === 1">
-        <h1>How MDM traditionally works...</h1>
-        <div id="dragContainer" class="mx-auto"  purpose="mdm-demo-container">
-          <div class="d-flex flex-row justify-content-around">
-            <div class="d-flex flex-column justify-content-between h-100">
-              <div><img id="fileOne" draggable="true" src="/images/mdm-demo-file-1.png"></div>
-              <div><img id="fileTwo" draggable="true" src="/images/mdm-demo-file-2.png"></div>
-              <div><img id="fileThree" draggable="true" src="/images/mdm-demo-file-3.png"></div>
-            </div>
-            <div purpose="timer">
-              <div class="flex-column align-items-center" v-if="timeLeft > 9"><h4>00:{{timeLeft}}</h4></div>
-              <div class="flex-column align-items-center" v-else-if="timeLeft > 0"><h4>00:0{{timeLeft}}</h4></div>
-              <div class="flex-column align-items-center" v-if="timeLeft === 0"><h4>Times up!</h4></div>
-            </div>
-            <div class="d-flex flex-column justify-content-between h-100">
-              <div id="hostOne" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-2.png"> <div purpose="counter">{{counter.hostOne}}</div></div>
-              <div id="hostTwo" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-1.png">
-                <div purpose="counter">{{counter.hostTwo}}</div>
+        <div class="container">
+          <div purpose="demo-title">
+            <h1>MDM demo</h1>
+          </div>
+          <div class="mx-auto d-flex flex-column justify-content-center align-items-center" purpose="mdm-demo-container">
+            <div purpose="demo-intro" @click="moveToNextDemoStage()">
+              <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                <div class="pb-4">
+                  <img style="width: 400px; height: auto" alt="an arrow" src="/images/mdm-demo-intro-arrow.png">
+                </div>
+                <h3 class="pb-4 text-center">Drag as many files as you<br> can to their matching system.</h3>
+                <p class="tex-center text-muted">Click anywhere to begin</p>
               </div>
-              <div id="hostThree" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-3.png">
-                <div purpose="counter">{{counter.hostThree}}</div>
+            </div>
+            <div purpose="muted-demo" class="d-flex flex-row justify-content-around">
+              <div class="d-flex flex-column justify-content-between h-100">
+                <div>
+                  <img alt="a file"  purpose="file-one" draggable="true" src="/images/mdm-demo-file-1.png">
+                </div>
+                <div>
+                  <img alt="a file"  purpose="file-two" draggable="true" src="/images/mdm-demo-file-2.png">
+                </div>
+                <div>
+                  <img alt="a file"  purpose="file-three" draggable="true" src="/images/mdm-demo-file-3.png">
+                </div>
+              </div>
+              <div purpose="timer">
+                <div class="flex-column align-items-center" v-if="timeLeft > 9"><h4>00:{{timeLeft}}</h4></div>
+                <div class="flex-column align-items-center" v-else-if="timeLeft > 0"><h4>00:0{{timeLeft}}</h4></div>
+                <div class="flex-column align-items-center" v-if="timeLeft === 0"><h4>Times up!</h4></div>
+              </div>
+              <div class="d-flex flex-column justify-content-between h-100">
+                <div  purpose="host-one" class="d-flex flex-row align-items-center">
+                  <img alt="a computer" class="mr-2" src="/images/mdm-demo-host-2.png">
+                  <div purpose="counter">
+                  {{counter.hostOne}}
+                  </div>
+                </div>
+                <div purpose="host-two" class="d-flex flex-row align-items-center">
+                  <img alt="a computer" class="mr-2" src="/images/mdm-demo-host-1.png">
+                  <div purpose="counter">
+                    {{counter.hostTwo}}
+                  </div>
+                </div>
+                <div purpose="host-three" class="d-flex flex-row align-items-center">
+                  <img alt="a computer" class="mr-2" src="/images/mdm-demo-host-3.png">
+                  <div purpose="counter">
+                    {{counter.hostThree}}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -42,59 +60,139 @@
       </div>
 
       <div class="pt-5" v-if="demoStage === 2">
-        <h1>How MDM traditionally works...</h1>
-        <div class="mx-auto" purpose="mdm-demo-container">
-          <div class="d-flex flex-column align-items-center h-100 justify-content-center">
-            <h1>Results:</h1>
-            <p>
-              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
-              {{counter.hostOne}} profiles configured
-            </p>
-            <p>
-              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
-              {{counter.hostTwo}} profiles configured
-            </p>
-            <p>
-              <img class="d-inline mr-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
-              {{counter.hostThree}} profiles configured
-            </p>
-            <div purpose="button-row">
-              <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="clickStartStageTwo()">See how GitOps can improve your workflow</a>
+        <div purpose="demo-title">
+          <h1>How MDM traditionally works...</h1>
+        </div>
+        <div class="mx-auto" nohighlight purpose="mdm-demo-container">
+          <div class="d-flex flex-row justify-content-around">
+            <div class="d-flex flex-column justify-content-between h-100">
+              <div>
+                <img alt="a file"  id="fileOne" purpose="file-one"  draggable="true" src="/images/mdm-demo-file-1.png">
+              </div>
+              <div>
+                <img alt="a file"  id="fileTwo" purpose="file-two" draggable="true" src="/images/mdm-demo-file-2.png">
+              </div>
+              <div>
+                <img alt="a file"  id="fileThree" purpose="file-three" draggable="true" src="/images/mdm-demo-file-3.png">
+              </div>
+            </div>
+            <div purpose="timer">
+              <div class="flex-column align-items-center" v-if="timeLeft > 9">
+                <h4>00:{{timeLeft}}</h4>
+              </div>
+              <div class="flex-column align-items-center" v-else-if="timeLeft > 0">
+                <h4>00:0{{timeLeft}}</h4>
+              </div>
+              <div class="flex-column align-items-center" v-if="timeLeft === 0">
+                <h4>Times up!</h4>
+              </div>
+            </div>
+            <div class="d-flex flex-column justify-content-between h-100">
+              <div  purpose="host-one" class="d-flex flex-row align-items-center">
+                <img alt="a computer"  class="mr-2" src="/images/mdm-demo-host-2.png">
+                <div purpose="counter">
+                  {{counter.hostOne}}
+                </div>
+              </div>
+              <div purpose="host-two" class="d-flex flex-row align-items-center">
+                <img alt="a computer"  class="mr-2" src="/images/mdm-demo-host-1.png">
+                <div purpose="counter">
+                  {{counter.hostTwo}}
+                </div>
+              </div>
+              <div purpose="host-three" class="d-flex flex-row align-items-center">
+                <img alt="a computer" class="mr-2" src="/images/mdm-demo-host-3.png">
+                <div purpose="counter">
+                  {{counter.hostThree}}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-    <div class="pt-5" v-if="demoStage === 3">
-      <h1>How the future of MDM works...</h1>
-      <div id="dragContainer" class="mx-auto"  purpose="mdm-demo-container">
+      <div class="pt-5" v-if="demoStage === 3">
+        <div purpose="demo-title">
+          <h1>How MDM traditionally works...</h1>
+        </div>
+        <div class="mx-auto" purpose="mdm-demo-container">
+          <div class="d-flex flex-column align-items-center h-100 justify-content-center">
+            <h1>Results:</h1>
+            <p>
+              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
+              {{counter.hostOne}} changes deployed.
+            </p>
+            <p>
+              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
+              {{counter.hostTwo}} changes deployed.
+            </p>
+            <p>
+              <img class="d-inline mr-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
+              {{counter.hostThree}} changes deployed.
+            </p>
+            <div purpose="button-row">
+              <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="moveToNextDemoStage()">See how GitOps can improve your workflow</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <div class="pt-5" v-if="demoStage === 4">
+      <div purpose="demo-title">
+        <h1>How the future of MDM works...</h1>
+      </div>
+      <div class="mx-auto"  purpose="mdm-demo-container">
         <div class="d-flex h-100 flex-row justify-content-end">
           <div class="d-flex flex-column justify-content-between h-100">
-            <div><img id="fileOne" draggable="true" src="/images/mdm-demo-file-1.png"></div>
-            <div><img id="fileTwo" draggable="true" src="/images/mdm-demo-file-2.png"></div>
-            <div><img id="fileThree" draggable="true" src="/images/mdm-demo-file-3.png"></div>
+            <div>
+              <img alt="a file" id="windowsFile" purpose="file-one" draggable="true" src="/images/mdm-demo-file-1.png">
+            </div>
+            <div>
+              <img alt="a file" id="macFile" purpose="file-two" draggable="true" src="/images/mdm-demo-file-2.png">
+            </div>
+            <div>
+              <img alt="a file" id="linuxFile" purpose="file-three" draggable="true" src="/images/mdm-demo-file-3.png">
+            </div>
           </div>
           <div class="d-flex flex-column justify-content-between h-100">
             <div purpose="timer">
-              <div class="flex-column align-items-center" v-if="timeLeft > 9"><h4>00:{{timeLeft}}</h4></div>
-              <div class="flex-column align-items-center" v-else-if="timeLeft > 0"><h4>00:0{{timeLeft}}</h4></div>
-              <div class="flex-column align-items-center" v-if="timeLeft === 0"><h4>Times up!</h4></div>
-            </div>
-            <div id="gitops">
-              <img src="/images/fleet-ball.png">
-              <div purpose="deploying-message" class="d-flex flex-row justify-content-center align-items-center" v-if="showDeployingMsg"> <p class="mb-0">Deploying changes....</p></div>
+              <div class="flex-column align-items-center" v-if="timeLeft > 9">
+                <h4>00:{{timeLeft}}</h4>
               </div>
-            <div id="arrowOne"><img src="/images/mdm-demo-arrow-1.png"></div>
-            <div id="arrowTwo"><img src="/images/mdm-demo-arrow-2.png"></div>
-            <div id="arrowThree"><img src="/images/mdm-demo-arrow-3.png"></div>
+              <div class="flex-column align-items-center" v-else-if="timeLeft > 0">
+                <h4>00:0{{timeLeft}}</h4>
+              </div>
+              <div class="flex-column align-items-center" v-if="timeLeft === 0">
+                <h4>Times up!</h4>
+              </div>
+            </div>
+            <div purpose="gitops">
+              <img alt="a white orb with the Fleet logo" src="/images/mdm-demo-fleet-orb.png">
+              <div purpose="deploying-message" class="d-flex flex-row justify-content-center align-items-center" v-if="showDeployingMsg">
+                <p class="mb-0">Deploying changes....</p>
+              </div>
+            </div>
+            <div>
+              <img alt="an arrow" purpose="arrow-one" src="/images/mdm-demo-arrow-1.png">
+            </div>
+            <div>
+              <img alt="an arrow" purpose="arrow-two" style="height: auto; width: 85px;" src="/images/mdm-demo-arrow-2.png">
+            </div>
+            <div>
+              <img alt="an arrow" purpose="arrow-three" src="/images/mdm-demo-arrow-3.png">
+            </div>
           </div>
           <div class="justify-self-end h-100">
-            <div id="stageTwoHosts" class=""><img style="height: 500px;" src="/images/mdm-demo-hosts.png"></div>
+            <div id="stageTwoHosts"><img alt="a group of computers"  style="height: 700px;" src="/images/mdm-demo-hosts.png"></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="pt-5" v-if="demoStage === 4">
+
+    <div class="pt-5" v-if="demoStage === 5">
+      <div purpose="demo-title">
+        <h3>You did it!</h3>
+      </div>
       <div id="slideshowControls" class="carousel slide" data-ride="carousel">
         <div class="carousel-inner mx-auto" purpose="slideshow-container">
           <div class="carousel-item mx-auto active h-100">
@@ -136,7 +234,7 @@
             <div class="d-flex flex-column justify-content-center h-100">
               <h3>See MDM in action</h3>
               <p>Please complete this form to book time with our team. We look forward to chatting with you.</p>
-              <ajax-form :handle-submitting="aaaa" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
+              <ajax-form :handle-submitting="doNothing" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
                 <div class="form-group mb-3">
                   <div class="d-flex flex-row">
                     <div class="d-flex flex-column mr-2">
@@ -165,11 +263,11 @@
           </div>
         </div>
         <a class="carousel-control-prev" href="#slideshowControls" role="button" data-slide="prev">
-          <span style="color: #6A67FE;" class="carousel-control-prev-icon text-danger" aria-hidden="true"></span>
+          <span class="carousel-control-prev-icon text-danger" aria-hidden="true"></span>
           <span class="sr-only">Previous</span>
         </a>
         <a class="carousel-control-next" href="#slideshowControls" role="button" data-slide="next">
-          <span style="" class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
           <span class="sr-only">Next</span>
         </a>
       </div>
@@ -178,15 +276,6 @@
   </div>
   <div purpose="bottom-gradient" class="pt-5 mt-5">
     <div purpose="page-container" class="pb-0 container">
-
-<!--       <div purpose="bottom-cta" class="text-center">
-        <h4>Open-source device management</h4>
-        <h1>Think for yourself</h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
-        </div>
-      </div> -->
     </div>
   </div>
   <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
