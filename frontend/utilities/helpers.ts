@@ -911,6 +911,19 @@ export const STYLIZATIONS_AND_ACRONYMS = [
 ];
 
 // fleetdm.com/handbook/marketing/content-style-guide#sentence-case
+// * doesn't recognize proper nouns!
 export const enforceFleetSentenceCasing = (s: string) => {
-  // TODO
+  const resArr = s.split(" ").map((word, i) => {
+    if (!STYLIZATIONS_AND_ACRONYMS.includes(word)) {
+      const lowered = word.toLowerCase();
+      if (i === 0) {
+        // title case the first word
+        return lowered[0].toUpperCase() + lowered.slice(1);
+      }
+      return lowered;
+    }
+    return word;
+  });
+
+  return resArr.join(" ");
 };
