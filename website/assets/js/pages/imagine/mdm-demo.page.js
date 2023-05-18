@@ -3,7 +3,7 @@ parasails.registerPage('mdm-demo', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    demoStage: 2,
+    demoStage: 0,
     startingPositons: {
       fileOne: { top: 50, left: 50},
       fileTwo: { top: 200, left: 50},
@@ -13,6 +13,7 @@ parasails.registerPage('mdm-demo', {
       hostOne: 0,
       hostTwo: 0,
       hostThree: 0,
+      gitOps: 0,
     },
     dragElements:{
       fileOne: undefined,
@@ -34,6 +35,11 @@ parasails.registerPage('mdm-demo', {
     gameEndsAt: undefined,
     timeLeft: 25,
     showDeployingMsg: false,
+    formData: {},
+    formErrors: {},
+    formRules: {},
+    syncing: false,
+    cloudError: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -44,6 +50,9 @@ parasails.registerPage('mdm-demo', {
   },
   mounted: async function() {
     this.dragContainer = document.getElementById("dragContainer");
+    $('.carousel').carousel({
+      interval: 40000
+    })
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -150,7 +159,7 @@ parasails.registerPage('mdm-demo', {
       var data = event.dataTransfer.getData("text/plain");
       let fileToDisappear = document.getElementById(data);
       // fileToDisappear.style.animation = "blinkFade 3s linear";
-      if(data === 'fileOne'){
+      if(data === 'fileThree'){
         fileToDisappear.classList.add('deploying')
         this.counter.hostOne++;
       }
@@ -162,7 +171,7 @@ parasails.registerPage('mdm-demo', {
       var data = event.dataTransfer.getData("text/plain");
       let fileToDisappear = document.getElementById(data);
       // fileToDisappear.style.animation = "blinkFade 3s linear";
-      if(data === 'fileTwo'){
+      if(data === 'fileOne'){
         fileToDisappear.classList.add('deploying')
         this.counter.hostTwo++;
       }
@@ -174,7 +183,7 @@ parasails.registerPage('mdm-demo', {
       var data = event.dataTransfer.getData("text/plain");
       let fileToDisappear = document.getElementById(data);
       // fileToDisappear.style.animation = "blinkFade 3s linear";
-      if(data === 'fileThree'){
+      if(data === 'fileTwo'){
         fileToDisappear.classList.add('deploying')
         this.counter.hostThree++;
       }
@@ -191,18 +200,34 @@ parasails.registerPage('mdm-demo', {
       if(data === 'fileOne'){
         arrow = document.getElementById('arrowTwo');
         arrow.style.animation = "blinkFade 1s linear";
+        this.counter.gitOps++
       } else if(data === 'fileTwo') {
         arrow = document.getElementById('arrowThree');
         arrow.style.animation = "blinkFade 1s linear";
+        this.counter.gitOps++
       } else if(data === 'fileThree') {
         arrow = document.getElementById('arrowOne');
         arrow.style.animation = "blinkFade 1s linear";
+        this.counter.gitOps++;
       }
       // After the animation ends, remove the element from the DOM
       fileToDisappear.addEventListener('animationend', () => {
         fileToDisappear.parentNode.removeChild(fileToDisappear);
         this.showDeployingMsg = false;
       });
+      await this.isGameFinished();
     },
+    isGameFinished: async function() {
+      if(this.counter.gitOps > 2){
+        await setTimeout(()=>{
+          this.demoStage = 4;
+        }, 1000)
+      }
+    },
+    aaaa: function(argins) {
+      console.log('hi');
+      return;
+    }
+
   }
 });

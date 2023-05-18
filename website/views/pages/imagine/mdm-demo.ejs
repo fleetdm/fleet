@@ -1,12 +1,12 @@
 <div id="mdm-demo" v-cloak>
 
   <div class="container-fluid">
-    <div class="mx-auto" style="max-width: 800px;">
+    <div class="mx-auto">
       <div class="pt-5" v-if="demoStage === 0">
         <div class="container">
           <h1>MDM demo</h1>
-          <div class="mx-auto d-flex flex-row justify-content-center align-items-center" purpose="mdm-demo-container">
-
+          <div class="mx-auto d-flex flex-column justify-content-center align-items-center" purpose="mdm-demo-container">
+            <h4 class="pb-4">See how many configuration changes you can deploy in 25 seconds.</h4>
             <div purpose="button-row">
               <a purpose="cta-button" @click="clickStartGame()">Click here to start</a>
             </div>
@@ -29,11 +29,11 @@
               <div class="flex-column align-items-center" v-if="timeLeft === 0"><h4>Times up!</h4></div>
             </div>
             <div class="d-flex flex-column justify-content-between h-100">
-              <div id="hostOne" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/demo-host.png"> <div purpose="counter">{{counter.hostOne}}</div></div>
-              <div id="hostTwo" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/demo-host.png">
+              <div id="hostOne" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-2.png"> <div purpose="counter">{{counter.hostOne}}</div></div>
+              <div id="hostTwo" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-1.png">
                 <div purpose="counter">{{counter.hostTwo}}</div>
               </div>
-              <div id="hostThree" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/demo-host.png">
+              <div id="hostThree" class="d-flex flex-row align-items-center"><img class="mr-2" src="/images/mdm-demo-host-3.png">
                 <div purpose="counter">{{counter.hostThree}}</div>
               </div>
             </div>
@@ -92,6 +92,86 @@
             <div id="stageTwoHosts" class=""><img style="height: 500px;" src="/images/mdm-demo-hosts.png"></div>
           </div>
         </div>
+      </div>
+    </div>
+    <div class="pt-5" v-if="demoStage === 4">
+      <div id="slideshowControls" class="carousel slide" data-ride="carousel">
+        <div class="carousel-inner mx-auto" purpose="slideshow-container">
+          <div class="carousel-item mx-auto active h-100">
+            <div class="d-flex flex-column justify-content-center h-100">
+            <h3>We are in a remote world now</h3>
+              <div purpose="checklist" class="flex-column d-flex">
+                <p>95% of companies say they face challenges managing remote devices.</p>
+                <p>70% of companies say they have gone to a hybrid employee.</p>
+                <p>97% agree the hybrid workforce is here to stay.</p>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-item mx-auto h-100">
+            <div class="d-flex flex-column justify-content-center h-100">
+            <h3>The path forward requires a new type of Device Management</h3>
+              <div purpose="checklist" class="flex-column d-flex">
+                <p>46% of companies say they are looking into IT and HelpDesk Automation.</p>
+                <p>IT teams are more productive.</p>
+                <p>Can reduce costs by saving time and reducing the number of tools needed.</p>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-item mx-auto h-100">
+            <div class="d-flex flex-column justify-content-center h-100">
+            <h3>Fleet is the new edge of Device Management</h3>
+              <div purpose="checklist" class="flex-column d-flex">
+                <p>Configuration as code: use tools like chef, json and github in your IT team</p>
+                <p>Bring your own software: Munki, etc.</p>
+                <p>GitOps: gives your team time back by simplifying fleet management.</p>
+                <p>Cross-platform and Open-source</p>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-item mx-auto h-100">
+            <div class="d-flex flex-row h-100 justify-content-center align-items-center">
+              <div class="mr-4">
+                <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
+              </div>
+            <div class="d-flex flex-column justify-content-center h-100">
+              <h3>See MDM in action</h3>
+              <p>Please complete this form to book time with our team. We look forward to chatting with you.</p>
+              <ajax-form :handle-submitting="aaaa" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
+                <div class="form-group mb-3">
+                  <div class="d-flex flex-row">
+                    <div class="d-flex flex-column mr-2">
+                      <input id="firstName" type="text" class="form-control d-flex" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" placeholder="First name">
+                      <div class="invalid-feedback mt-2" v-if="formErrors.firstName === 'required'">Please enter your first name.</div>
+                    </div>
+                    <div class="d-flex flex-column">
+                      <input id="lastName" type="text" class="form-control d-flex" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" placeholder="Last name">
+                      <div class="invalid-feedback mt-2" v-if="formErrors.lastName === 'required'">Please enter your last name.</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group mb-3">
+                  <input id="organization" type="text" class="form-control d-flex w-100" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" placeholder="Company">
+                  <div class="invalid-feedback mt-2" v-if="formErrors.organization === 'required'">Please enter the name of your organization.</div>
+                </div>
+                <div class="form-group mb-3">
+                  <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Email address">
+                  <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
+                </div>
+                <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Book a demo</ajax-button>
+                <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+              </ajax-form>
+            </div>
+            </div>
+          </div>
+        </div>
+        <a class="carousel-control-prev" href="#slideshowControls" role="button" data-slide="prev">
+          <span style="color: #6A67FE;" class="carousel-control-prev-icon text-danger" aria-hidden="true"></span>
+          <span class="sr-only">Previous</span>
+        </a>
+        <a class="carousel-control-next" href="#slideshowControls" role="button" data-slide="next">
+          <span style="" class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="sr-only">Next</span>
+        </a>
       </div>
     </div>
   </div>

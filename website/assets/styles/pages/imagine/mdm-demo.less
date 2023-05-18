@@ -75,8 +75,8 @@
     right: 33%;
     img {
       height: 100px;
+      // filter: hue-rotate(160deg);
     }
-    filter: hue-rotate(160deg);
   }
 
   #arrowTwo {
@@ -89,17 +89,17 @@
     img {
       height: auto;
       width: 85px;
+      // filter: hue-rotate(90deg);
     }
-    filter: hue-rotate(90deg);
   }
 
   #arrowThree {
     opacity: 0;
-    filter: hue-rotate(-90deg);
     position: absolute;
     right: 33%;
     bottom: 115px;
     img {
+      // filter: hue-rotate(-90deg);
       height: 100px;
     }
   }
@@ -124,6 +124,17 @@
     top: 350px;
     left: 50px;
     cursor: pointer;
+  }
+  input {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  input:focus-visible {
+    border: 1px solid @core-vibrant-blue;
+    outline: none;
+  }
+  input::placeholder {
+    color: #8B8FA2;
   }
   [purpose='timer'] {
     h4 {
@@ -162,7 +173,7 @@
     position: absolute;
     top: 50px;
     right: 50px;
-    filter: hue-rotate(160deg);
+    // filter: hue-rotate(160deg);
   }
   #hostTwo {
     width: 200px;
@@ -170,7 +181,7 @@
     position: absolute;
     top: 200px;
     right: 75px;
-    filter: hue-rotate(90deg);
+    // filter: hue-rotate(90deg);
   }
   #hostThree {
     width: 200px;
@@ -178,7 +189,7 @@
     position: absolute;
     top: 350px;
     right: 50px;
-    filter: hue-rotate(-90deg);
+    // filter: hue-rotate(-90deg);
   }
   #gitops {
     width: 100px;
@@ -188,12 +199,32 @@
     right: 350px;
     z-index: 3;
   }
+  .carousel-item {
+    max-width: 760px;
+  }
+  .carousel-item-next, .carousel-item-prev {
+    display: none;
+  }
   [purpose='mdm-demo-container'] {
     position: relative;
     border: 1px solid #515774;
-    width: 800px;
-    background-color: @bg-lt-gray;
-    height: 500px;
+    width: 1000px;
+    // background-color: @bg-lt-gray;
+    height: 700px;
+    border-radius: 8px;
+    img {
+      height: 100px;
+      width: auto;
+    }
+  }
+  [purpose='slideshow-container'] {
+    position: relative;
+    border: 1px solid #515774;
+    width: 1000px;
+    // padding-left: 120px;
+    // padding-right: 120px;
+    // background-color: @bg-lt-gray;
+    height: 700px;
     border-radius: 8px;
     img {
       height: 100px;
