@@ -899,3 +899,18 @@ export default {
   normalizeEmptyValues,
   wrapFleetHelper,
 };
+
+export const STYLIZATIONS_AND_ACRONYMS = [
+  "macOS",
+  "osquery",
+  "MySQL",
+  "MDM",
+  "REST",
+  "API",
+  "JSON",
+];
+
+// fleetdm.com/handbook/marketing/content-style-guide#sentence-case
+export const enforceFleetSentenceCasing = (s: string) => {
+  // TODO
+};
