@@ -35,7 +35,7 @@ func (s *SwiftDialogDownloader) GetConfig() (*fleet.OrbitConfig, error) {
 		return nil, nil
 	}
 
-	if !cfg.Notifications.NeedsMDMMigration {
+	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
 		return cfg, nil
 	}
 

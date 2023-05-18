@@ -4,6 +4,7 @@ package useraction
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -83,7 +84,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
 		done := make(chan error)
 		stopInterruptCh := make(chan struct{})
-		defer func() { stopInterruptCh <- struct{}{} }()
+		defer close(stopInterruptCh)
 
 		if err := cmd.Start(); err != nil {
 			errCh <- err
@@ -98,7 +99,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 					log.Error().Err(err).Msg("sending interrupt signal to swiftDialog process")
 					if err := cmd.Process.Kill(); err != nil {
 						log.Error().Err(err).Msg("killing swiftDialog process")
-						errCh <- fmt.Errorf("failed to stop/kill swiftDialog process")
+						errCh <- errors.New("failed to stop/kill swiftDialog process")
 					}
 				}
 			case <-stopInterruptCh:
