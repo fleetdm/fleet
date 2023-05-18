@@ -12,7 +12,6 @@ examples: >-
   SELECT * FROM users WHERE shell!='/usr/bin/false';
   
   ```
-  "email"
 columns:
   - name: gid
     platforms:
