@@ -1,13 +1,16 @@
 name: network_interfaces
 platforms:
   - chromeos
-description: ??? #TODO
-columns: 
+description: Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.
+columns:
   - name: mac
     type: text
   - name: address
     type: text
+    description: the ip4 address
   - name: ipv4
     type: text
   - name: ipv6
     type: text
+notes: >-
+  - Requires that the fleetd extension is force-installed by enterprise policy
