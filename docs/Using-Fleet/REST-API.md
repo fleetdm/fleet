@@ -43,8 +43,8 @@ Returns the query specified by ID.
     "id": 31,
     "name": "centos_hosts",
     "description": "",
+    "team_id": "",
     "query": "select 1 from os_version where platform = \"centos\";",
-    "team_id": 123,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -98,7 +98,7 @@ Returns a list of all queries in the Fleet instance (both global and team querie
     "name": "query1",
     "description": "query",
     "query": "SELECT * FROM osquery_info",
-    "team_id": 123,
+    "team_id": "",
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -152,7 +152,7 @@ Returns a list of all queries in the Fleet instance (both global and team querie
 ```
 
 ### Create query
-Creates a global or team query.
+Creates a global query.
 
 `POST /api/v1/fleet/queries`
 
@@ -511,7 +511,54 @@ Returns a list of all queries in the specified team.
 ```
 
 ### Get team query
-Use the [get query](#get-query) endpoint, which supports both global queries and team queries.
+Returns the query specified by ID from the among the team queries specified by team_id.
+
+`GET /api/v1/fleet/teams/{team_id}/queries/{id}`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                      |
+| ----      | ------- | ---- | ------------------------------------------------ |
+| id        | integer | path | **Required**. The id of the desired team query.  |
+| team_id   | integer | path | **Required**. The id of the query's parent team. |
+
+#### Example
+
+`GET /api/v1/fleet/teams/123/queries/31`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 31,
+    "name": "centos_hosts",
+    "description": "",
+    "query": "select 1 from os_version where platform = \"centos\";",
+    "team_id": 123,
+    "saved": true,
+    "observer_can_run": true,
+    "author_id": 1,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
 
 ### Create team query
 Use the [create query](#create-query) endpoint, and submit a `team_id` attribute in the body.
