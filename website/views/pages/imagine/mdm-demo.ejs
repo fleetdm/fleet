@@ -141,8 +141,16 @@
       <div purpose="demo-title">
         <h1>How the future of MDM works...</h1>
       </div>
-      <div class="mx-auto"  purpose="mdm-demo-container">
-        <div class="d-flex h-100 flex-row justify-content-end">
+      <div class="mx-auto" purpose="mdm-demo-container">
+        <div purpose="demo-complete-overlay" v-if="showSuccessMessage">
+          <div class="d-flex flex-column h-100 align-items-center justify-content-center">
+            You did it!
+            <div purpose="button-row">
+              <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="moveToNextDemoStage()">Read about the future of MDM</a>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex h-100 flex-row justify-content-end" v-else>
           <div class="d-flex flex-column justify-content-between h-100">
             <div>
               <img alt="a file" id="windowsFile" purpose="file-one" draggable="true" src="/images/mdm-demo-file-1.png">

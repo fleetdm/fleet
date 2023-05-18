@@ -20,6 +20,7 @@ parasails.registerPage('mdm-demo', {
       hostTwo: undefined,
       hostThree: undefined,
     },
+    gameDurationInSeconds: 25,
     timeLeft: 25,
     showDeployingMsg: false,
     formData: {},
@@ -27,6 +28,7 @@ parasails.registerPage('mdm-demo', {
     formRules: {},
     syncing: false,
     cloudError: false,
+    showSuccessMessage: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -100,7 +102,7 @@ parasails.registerPage('mdm-demo', {
     },
 
     startDemoTimer() {
-      this.timeLeft = 25;
+      this.timeLeft = this.gameDurationInSeconds;
       let timer = setInterval(() => {
         if (this.timeLeft > 0) {
           this.timeLeft--;
@@ -199,7 +201,7 @@ parasails.registerPage('mdm-demo', {
     isGameFinished: async function() {
       if(this.counter.gitOps === 3){
         await setTimeout(()=>{
-          this.moveToNextDemoStage();
+          this.showSuccessMessage = true;
         }, 2000);
       }
     },
