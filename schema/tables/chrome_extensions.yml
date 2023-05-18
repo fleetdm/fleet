@@ -14,8 +14,100 @@ examples: >-
   SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
 
   ```
-columns: # TODO Are all these the same for the Chrome table?
-  - name: browser_type
-    description: "The type of browser. (Valid values: `chrome`, `chromium`, `opera`, `yandex`, `brave`, `edge`, `edge_beta`)"
+columns:
   - name: uid
     requires_user_context: true
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: profile
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: profile_path
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: referenced_identifier
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: default_locale
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: current_locale
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: author
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: persistent
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: path
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: optional_permissions
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: optional_permissions_json
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: manifest_hash
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: referenced
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: from_webstore
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: state
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: install_time
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: install_timestamp
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: manifest_json
+    platforms: 
+      - macos
+      - windows
+      - linux
+  - name: key
+    platforms: 
+      - macos
+      - windows
+      - linux
