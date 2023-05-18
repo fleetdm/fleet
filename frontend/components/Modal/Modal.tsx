@@ -38,7 +38,7 @@ const Modal = ({
     return () => {
       document.removeEventListener("keydown", closeWithEscapeKey);
     };
-  }, [hideFlash, onExit]);
+  }, []);
 
   useEffect(() => {
     if (onEnter) {
