@@ -114,7 +114,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_chrome": {
-		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Query:      `SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1`,
 		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
