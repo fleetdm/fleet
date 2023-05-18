@@ -319,18 +319,17 @@ If you ever make a mistake and need to delete something, you can delete the vide
 Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. 
 Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
 
-Troubleshooting Gong:
+#### Troubleshooting Gong
   - In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  
-    - You cannot use Gong to record calls hosted by external parties.
+  - You cannot use Gong to record calls hosted by external parties.
   - Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong.
-    - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
-  - For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record:
-    - A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
-      - 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong.   
-    - If you need words added to the list of exlusionary words, please reach out to Nathan Holliday.
-  - We have excluded anyone with an email domain from @cooley.com or @pilot.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal. 
+  - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
 
 >If you need help using Gong, please check out Gong Academy at [https://academy.gong.io/](https://academy.gong.io/).
+
+#### Excluding calls from being recorded
+For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
+
 
 ### Zapier and DocuSign
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
