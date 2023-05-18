@@ -2,7 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
-import { upperFirst, lowerCase } from "lodash";
+import { enforceFleetSentenceCasing } from "utilities/helpers";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
@@ -18,7 +18,8 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
           variant="label"
           className="list__button"
         >
-          {upperFirst(lowerCase(label.name))}
+          {enforceFleetSentenceCasing(label.name)}
+          {/* {upperFirst(lowerCase(label.name))} */}
         </Button>
       </li>
     );
