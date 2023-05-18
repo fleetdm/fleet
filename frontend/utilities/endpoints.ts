@@ -50,8 +50,6 @@ export default {
   MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
   MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: `/${API_VERSION}/fleet/mdm/apple/filevault/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_EULA_FILE: (token: string) =>
-    `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
     if (ref) {
