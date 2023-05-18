@@ -1591,17 +1591,28 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, salt, entropy, iterations)
+        (uuid, username, fullname)
       VALUES
-        (?, ?, ?, ?, ?)
+        (?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        salt       = VALUES(salt),
-        entropy    = VALUES(entropy),
-        iterations = VALUES(iterations)`
+        fullname   = VALUES(fullname)`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Salt, account.Entropy, account.Iterations)
+	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
+}
+
+func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader, &acct, stmt, uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", uuid)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
+	}
+	return &acct, nil
 }
 
 func subqueryDiskEncryptionVerifying() (string, []interface{}) {

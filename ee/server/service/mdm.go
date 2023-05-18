@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -635,6 +636,26 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
+	// Store information for automatic account population/creation
+	//
+	// For now, we just grab whatever comes before the `@` in UserID, which
+	// must be an email.
+	//
+	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username, _, found := strings.Cut(auth.UserID(), "@")
+	if !found {
+		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		username = auth.UserID()
+	}
+	idpAcc := fleet.MDMIdPAccount{
+		UUID:     uuid.New().String(),
+		Username: username,
+		Fullname: auth.UserDisplayName(),
+	}
+	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+	}
+
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
@@ -650,7 +671,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	q := url.Values{"profile_token": {depProf.Token}}
+	q := url.Values{
+		"profile_token": {depProf.Token},
+		// using the idp token as a reference just because that's the
+		// only thing we're referencing later on during enrollment.
+		"enrollment_reference": {idpAcc.UUID},
+	}
 	if eula != nil {
 		q.Add("eula_token", eula.Token)
 	}
