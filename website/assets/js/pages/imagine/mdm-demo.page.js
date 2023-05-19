@@ -267,17 +267,14 @@ parasails.registerPage('mdm-demo', {
         }
       }, 1100);
       await setTimeout( ()=>{
-        this.finalFinishingTime = this.gameDurationInSeconds - this.timeLeft;
         this.isGameFinished();
-      }, 3000);
+      }, 4000);
     },
 
     isGameFinished: async function() {
       if(this.counter.gitOps === 3){
-
-        await setTimeout(()=>{
-          this.showSuccessMessage = true;
-        }, 2000);
+        this.finalFinishingTime = this.timeLeft;
+        this.showSuccessMessage = true;
       }
     },
 

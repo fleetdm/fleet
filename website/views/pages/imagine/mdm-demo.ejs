@@ -30,9 +30,7 @@
                 </div>
               </div>
               <div purpose="timer">
-                <div class="flex-column align-items-center" v-if="timeLeft > 9"><h4>00:{{timeLeft}}</h4></div>
-                <div class="flex-column align-items-center" v-else-if="timeLeft > 0"><h4>00:0{{timeLeft}}</h4></div>
-                <div class="flex-column align-items-center" v-if="timeLeft === 0"><h4>Times up!</h4></div>
+                <div class="flex-column align-items-center"><h4>00:25</h4></div>
               </div>
               <div class="d-flex flex-column justify-content-between h-100">
                 <div  purpose="host-one" class="d-flex flex-row align-items-center">
@@ -119,16 +117,19 @@
           <div class="d-flex flex-column align-items-center h-100 justify-content-center">
             <h1 class="pb-4">Results:</h1>
             <p>
-              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
-              {{counter.hostOne}} changes deployed.
+              {{counter.hostOne}}
+              <img class="d-inline mx-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
+              changes deployed.
             </p>
             <p>
-              <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
-              {{counter.hostTwo}} changes deployed.
+              {{counter.hostTwo}}
+              <img class="d-inline mx-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
+              changes deployed.
             </p>
             <p>
-              <img class="d-inline mr-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
-              {{counter.hostThree}} changes deployed.
+              {{counter.hostThree}}
+              <img class="d-inline mx-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
+              changes deployed.
             </p>
             <div purpose="button-row">
               <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="moveToNextDemoStage()">See how GitOps can improve your workflow</a>
@@ -157,17 +158,17 @@
               <h4 class="pb-3">Final Time: {{finalFinishingTime}} seconds remaining</h4>
               <p>
                 5
-                <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
+                <img class="d-inline mx-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
                 config changes deployed.
               </p>
               <p>
                 6
-                <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
+                <img class="d-inline mx-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
                  changes deployed.
               </p>
               <p>
                 6
-                <img class="d-inline mr-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
+                <img class="d-inline mx-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
                 changes deployed.
               </p>
               <div purpose="button-row">
