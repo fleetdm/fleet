@@ -5,7 +5,9 @@
     margin-top: 0;
   }
 
-  img {
+  &__migration-preview {
+    width: 100%;
+    margin-top: $pad-large;
     margin-bottom: $pad-xxlarge;
   }
 
