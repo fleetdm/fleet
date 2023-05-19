@@ -14,7 +14,9 @@ Organizations like Fastly and Gusto use Fleet for vulnerability reporting, detec
 To see what kind of data you can use Fleet to gather, check out the [table reference documentation](https://fleetdm.com/tables).
 
 #### Out-of-the-box policies
-Fleet includes out-of-the box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [other queries](https://fleetdm.com/queries).
+Fleet includes out-of-the box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [simpler queries](https://fleetdm.com/queries).
+
+Take as much or as little as you need for your organization.
 
 #### Supported platforms
 Here are the platforms Fleet currently supports:
@@ -56,7 +58,7 @@ In keeping with Fleet's value of openness, [Fleet Device Management's company ha
 
 
 ## Is it any good?
-Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations have 400,000+ hosts enrolled.
+Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
 
 
 
