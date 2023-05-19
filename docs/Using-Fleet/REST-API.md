@@ -5173,6 +5173,11 @@ Returns a list of global queries or team queries.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
+    "interval": 3600,
+    "snapshot": true,
+    "removed": true,
+    "platform": null,
+    "version": null,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5205,6 +5210,11 @@ Returns a list of global queries or team queries.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "team_id": null,
+    "interval": 3600,
+    "snapshot": true,
+    "removed": true,
+    "platform": null,
+    "version": null,
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5239,6 +5249,11 @@ Creates a global query or team query.
 | description      | string  | body | The query's description.                                                                                                                               |
 | observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | team_id          | integer | body | The parent team to which the new query should be added. If not submitted or blank, the query will be global.                                           |
+| interval         | integer | body | The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot         | boolean | body | Whether the queries logs show everything in its current state.                                                     |
+| removed          | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform         | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| version          | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
 
 #### Example
 
@@ -5267,6 +5282,11 @@ Creates a global query or team query.
     "name": "new_query",
     "description": "This is a new query.",
     "team_id": null,
+    "interval": 3600,
+    "snapshot": true,
+    "removed": true,
+    "platform": null,
+    "version": null,
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
@@ -5293,6 +5313,11 @@ Modifies the query specified by ID.
 | query            | string  | body | The query in SQL syntax.                                                                                                                               |
 | description      | string  | body | The query's description.                                                                                                                               |
 | observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| interval         | integer | body | The amount of time, in seconds, the query waits before running.                                                    |
+| snapshot         | boolean | body | Whether the queries logs show everything in its current state.                                                     |
+| removed          | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
+| platform         | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
+| version          | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
 
 #### Example
 
@@ -5319,6 +5344,11 @@ Modifies the query specified by ID.
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
     "team_id": null,
+    "interval": 3600,
+    "snapshot": true,
+    "removed": true,
+    "platform": null,
+    "version": null,
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
