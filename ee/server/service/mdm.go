@@ -460,9 +460,8 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	deniedFields := map[string]string{
-		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
-		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
 	}
 	for k, msg := range deniedFields {
 		if _, ok := m[k]; ok {
