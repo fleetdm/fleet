@@ -7,7 +7,7 @@
 - [Hosts](#hosts)
 - [Labels](#labels)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
-- [Poicies](#policies)
+- [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
 - [Sessions](#sessions)
