@@ -169,6 +169,10 @@ module.exports.custom = {
 
   },
 
+  fleetMdmGitopsGithubRepoDRIByPath: {
+    '/': ['lukeheath']
+  },
+
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
