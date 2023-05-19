@@ -355,6 +355,7 @@ export const generateSoftwareTableHeaders = ({
           </TooltipWrapper>
         );
       },
+      disableSortBy: true,
       accessor: "installed_paths",
       Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
         const numInstalledPaths = cellProps.cell.value?.length || 0;
