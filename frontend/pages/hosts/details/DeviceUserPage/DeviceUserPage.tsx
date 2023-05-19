@@ -298,7 +298,12 @@ const DeviceUserPage = ({
   );
 
   const renderEnrollMdmModal = () => {
-    return host?.mdm.enrollment_status === "Pending" ? (
+    const condition =
+      host?.mdm.enrollment_status === "Pending" ||
+      (host?.mdm?.enrollment_status?.startsWith("On") &&
+        host?.dep_assigned_to_fleet);
+
+    return condition ? (
       <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal

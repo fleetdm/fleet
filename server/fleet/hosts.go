@@ -282,6 +282,9 @@ type Host struct {
 	// methods.
 	MDMInfo *HostMDM `json:"-" csv:"-"`
 
+	// DEPAssignedToFleet
+	DEPAssignedToFleet *bool
+
 	// RefetchCriticalQueriesUntil can be set to a timestamp up to which the
 	// "critical" queries will be constantly reported to the host that checks in
 	// to be re-executed until a condition is met (or the timestamp expires). The

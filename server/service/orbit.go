@@ -255,7 +255,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if config.MDM.EnabledAndConfigured &&
 		config.MDM.MacOSMigration.Enable &&
 		host.IsOsqueryEnrolled() &&
-		host.MDMInfo.IsDEPCapable() &&
+		host.DEPAssignedToFleet != nil && *host.DEPAssignedToFleet &&
 		host.MDMInfo.IsEnrolledInThirdPartyMDM() {
 		notifs.NeedsMDMMigration = true
 	}

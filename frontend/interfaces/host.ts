@@ -195,6 +195,7 @@ export interface IHostEncrpytionKeyResponse {
 
 export interface IHost {
   created_at: string;
+  dep_assigned_to_fleet: boolean;
   updated_at: string;
   id: number;
   detail_updated_at: string;

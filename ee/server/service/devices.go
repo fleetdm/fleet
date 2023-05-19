@@ -103,7 +103,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 		}
 
 		if host.IsOsqueryEnrolled() &&
-			host.MDMInfo.IsDEPCapable() &&
+			host.DEPAssignedToFleet != nil && *host.DEPAssignedToFleet &&
 			host.MDMInfo.IsEnrolledInThirdPartyMDM() {
 			sum.Notifications.NeedsMDMMigration = true
 		}
