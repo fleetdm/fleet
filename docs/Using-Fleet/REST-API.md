@@ -5522,7 +5522,7 @@ load balancer timeout.
 
 ---
 
-## Schedule (deprecated)
+## Schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5536,7 +5536,7 @@ Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
 These API routes let you control your scheduled queries.
 
-### Get schedule (deprecated)
+### Get schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5610,7 +5610,7 @@ None.
 }
 ```
 
-### Add query to schedule (deprecated)
+### Add query to schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5671,7 +5671,7 @@ None.
 
 > Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses [osquery query packs](https://osquery.readthedocs.io/en/stable/deployment/configuration/#query-packs) under the hood.
 
-### Edit query in schedule (deprecated)
+### Edit query in schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5727,7 +5727,7 @@ None.
 }
 ```
 
-### Remove query from schedule (deprecated)
+### Remove query from schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5749,7 +5749,7 @@ None.
 
 ---
 
-### Team schedule (deprecated)
+### Team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5761,7 +5761,7 @@ None.
 
 This allows you to easily configure scheduled queries that will impact a whole team of devices.
 
-#### Get team schedule (deprecated)
+#### Get team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5841,7 +5841,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 }
 ```
 
-#### Add query to team schedule (deprecated)
+#### Add query to team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5899,7 +5899,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 }
 ```
 
-#### Edit query in team schedule (deprecated)
+#### Edit query in team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
@@ -5956,7 +5956,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 }
 ```
 
-#### Remove query from team schedule (deprecated)
+#### Remove query from team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
 > Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
