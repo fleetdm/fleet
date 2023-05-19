@@ -28,16 +28,16 @@ go.mod @fleetdm/go
 /CHANGELOG.md @noahtalerman
 
 # Fleet documentation (who is auto-requested as reviewer for changes to docs?)
-/docs/ @ksatter
+/docs/ @ksatter @rachaelshaw
 
 # REST API reference documentation
-/docs/Using-Fleet/REST-API.md @ksatter @lukeheath
-/docs/Contributing/API-for-contributors.md @ksatter @lukeheath
+/docs/Using-Fleet/REST-API.md @ksatter @lukeheath @rachaelshaw
+/docs/Contributing/API-for-contributors.md @ksatter @lukeheath @rachaelshaw
 
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
-# Exapnded table documentation
+# Expanded table documentation
 /schema @eashaw
 
 # Articles
