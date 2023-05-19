@@ -195,6 +195,7 @@ const SelectQueryModal = ({
       title="Select a query"
       onExit={onCancel}
       className={`${baseClass}__modal`}
+      width="xlarge"
     >
       {results()}
     </Modal>

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -14,6 +16,61 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 
 func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
 	return svc.ds.SetDiskEncryptionResetStatus(ctx, hostID, true)
+}
+
+const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+// TriggerMigrateMDMDevice triggers the webhook associated with the MDM
+// migration to Fleet configuration. It is located in the ee package instead of
+// the server/webhooks one because it is a Fleet Premium only feature and for
+// licensing reasons this needs to live under this package.
+func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.MDM.EnabledAndConfigured {
+		return fleet.ErrMDMNotConfigured
+	}
+
+	var bre fleet.BadRequestError
+	switch {
+	case !ac.MDM.MacOSMigration.Enable:
+		bre.InternalErr = ctxerr.New(ctx, "macOS migration not enabled")
+	case ac.MDM.MacOSMigration.WebhookURL == "":
+		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
+	case !host.IsOsqueryEnrolled(), !host.MDMInfo.IsDEPCapable(), !host.MDMInfo.IsEnrolledInThirdPartyMDM():
+		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
+	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
+		// the webhook has already been triggered successfully recently (within the
+		// refetch critical queries delay), so do as if it did send it successfully
+		// but do not re-send.
+		return nil
+	}
+	if bre.InternalErr != nil {
+		return &bre
+	}
+
+	p := fleet.MigrateMDMDeviceWebhookPayload{}
+	p.Timestamp = time.Now().UTC()
+	p.Host.ID = host.ID
+	p.Host.UUID = host.UUID
+	p.Host.HardwareSerial = host.HardwareSerial
+
+	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p); err != nil {
+		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
+	}
+
+	// if the webhook was successfully triggered, we update the host to
+	// constantly run the query to check if it has been unenrolled from its
+	// existing third-party MDM.
+	refetchUntil := svc.clock.Now().Add(refetchMDMUnenrollCriticalQueryDuration)
+	host.RefetchCriticalQueriesUntil = &refetchUntil
+	if err := svc.ds.UpdateHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
+	}
+
+	return nil
 }
 
 func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSummary, error) {
@@ -35,18 +92,30 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 	sum.FailingPolicies = &r
 
-	appCfg, err := svc.ds.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	if appCfg.MDM.EnabledAndConfigured &&
-		appCfg.MDM.MacOSMigration.Enable &&
-		host.IsOsqueryEnrolled() &&
-		host.MDMInfo.IsDEPCapable() &&
-		host.MDMInfo.IsEnrolledInThirdPartyMDM() {
-		sum.Notifications.NeedsMDMMigration = true
+	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+			sum.Notifications.RenewEnrollmentProfile = true
+		}
+
+		if host.IsOsqueryEnrolled() &&
+			host.MDMInfo.IsDEPCapable() &&
+			host.MDMInfo.IsEnrolledInThirdPartyMDM() {
+			sum.Notifications.NeedsMDMMigration = true
+		}
 	}
+
+	// organization information
+	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
+	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
+	sum.Config.OrgInfo.ContactURL = appCfg.OrgInfo.ContactURL
+
+	// mdm information
+	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
 }

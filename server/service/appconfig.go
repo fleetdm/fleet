@@ -616,8 +616,8 @@ func (svc *Service) validateMDM(
 			// TODO: improve url validation generally
 			if u, err := url.ParseRequestURI(mdm.MacOSMigration.WebhookURL); err != nil {
 				invalid.Append("macos_migration.webhook_url", err.Error())
-			} else if u.Scheme != "https" {
-				invalid.Append("macos_migration.webhook_url", "webhook_url must be https")
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("macos_migration.webhook_url", "webhook_url must be https or http")
 			}
 		}
 	}
