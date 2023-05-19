@@ -66,5 +66,5 @@ You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkh
 
 <meta name="maintainedBy" value="mikermcneil">
 <!-- Leave this title. Extra credit for candidates that find this bug. -->
-<meta name="title" value="🚀 Product Designer">
+<meta name="title" value="🚀 Product Quality Specialist">
 
