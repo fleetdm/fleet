@@ -2,7 +2,7 @@
 
 #### [News](https://fleetdm.com/announcements) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Handbook](https://fleetdm.com/handbook/company) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
 
-Open-source posture management for clouds and computers, designed for GitOps, webhooks, APIs, YAML, and humans.  Built on osquery, nanoMDM, and Nudge.
+Open-source posture management for computes and computers, designed for APIs, GitOps, webhooks, YAML, and humans.  Built on osquery, nanoMDM, and Nudge.
 
 <a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
 
@@ -40,6 +40,10 @@ Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyo
 #### Good neighbors
 Fleet has no ambition to replace all of your other tools.  (Though it might replace some, if you want it to.)  Ready-to-use, enterprise-friendly integrations exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
 
+Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
+
+While most folks prefer to use one or the other, Fleet can also coexist peacefully with Rapid7 and other agent-based vulnerability scanners.  This can be useful during migrations.
+
 #### Free as in free
 The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
@@ -59,14 +63,14 @@ Fleet is used in production by IT and security teams with thousands of laptops a
 ## Chat
 Please join us in [MacAdmins Slack](https://www.macadmins.org/) or in [osquery Slack](https://fleetdm.com/slack).
 
-The Fleet community is full of kind and helpful people.  Whether or not you are a paying customer, if you need help, just ask.
+The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy).  Whether or not you are a paying customer, if you need help, just ask.
 
 
 ## Contributing &nbsp; [![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
 
 The landscape of cybersecurity and IT is too complex.  Let's open it up.
 
-Contributions are welcome, whether you answer questions on [Slack](#chat)/[GitHub](https://github.com/fleetdm/fleet/issues)/[StackOverflow](https://stackoverflow.com/search?q=osquery)/[LinkedIn](https://linkedin.com/company/fleetdm)/[Twitter](https://twitter.com/fleetctl), improve the documentation or website, write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
+Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
 ## What's next?
 To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and try it out for yourself, grab time with one of the maintainers to discuss, or visit the docs and roll it out to your organization.
