@@ -1237,9 +1237,6 @@ func TestApplyMacosSetup(t *testing.T) {
 	invalidWebURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"configuration_web_url": "https://example.com",
 	})
-	invalidAwaitDeviceMacosSetup := writeTmpJSON(t, map[string]any{
-		"await_device_configured": true,
-	})
 	invalidURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"url": "https://example.com",
 	})
@@ -1553,12 +1550,6 @@ spec:
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
-		// apply appconfig with invalid key #2
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidAwaitDeviceMacosSetup))
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include await_device_configured.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
 		// apply appconfig with invalid key #3
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
@@ -1570,12 +1561,6 @@ spec:
 		ds.SaveTeamFuncInvoked = false
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
-		// apply teams with invalid key #2
-		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidAwaitDeviceMacosSetup, "", invalidAwaitDeviceMacosSetup))
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include await_device_configured.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
 		// apply teams with invalid key #3

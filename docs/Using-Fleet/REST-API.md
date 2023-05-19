@@ -2109,7 +2109,8 @@ Returns the information of the specified host.
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-1"]
       },
       {
         "id": 1146,
@@ -2127,7 +2128,8 @@ Returns the information of the specified host.
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
     "id": 1,
@@ -2338,7 +2340,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
           "version": "0.8.0",
           "source": "python_packages",
           "generated_cpe": "",
-          "vulnerabilities": null
+          "vulnerabilities": null,
+          "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
     "id": 33,
@@ -5488,6 +5491,7 @@ load balancer timeout.
 - [Add query to schedule](#add-query-to-schedule)
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
+- [Team schedule](#team-schedule)
 
 Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
@@ -6513,7 +6517,7 @@ _Available in Fleet Premium_
 
 #### Example (add users to a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/v1/fleet/teams/1/users`
 
 ##### Request body
 
@@ -7338,7 +7342,7 @@ The selected user is logged out of Fleet and required to reset their password du
 | Name  | Type    | In   | Description                                                                                    |
 | ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
 | id    | integer | path | **Required**. The user's id.                                                                   |
-| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+| require | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
 
 #### Example
 

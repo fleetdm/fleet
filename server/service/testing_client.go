@@ -96,7 +96,8 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	for _, host := range hosts {
-		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		_, err := ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil)
+		require.NoError(t, err)
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 

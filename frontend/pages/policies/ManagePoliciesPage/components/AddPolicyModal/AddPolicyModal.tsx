@@ -83,7 +83,12 @@ const AddPolicyModal = ({
   });
 
   return (
-    <Modal title="Add a policy" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Add a policy"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <>
         <div className={`${baseClass}__create-policy`}>
           Choose a policy template to get started or{" "}

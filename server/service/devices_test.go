@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +22,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		require.Empty(t, sum)
 	})
 
-	t.Run("different app config values", func(t *testing.T) {
+	t.Run("different app config values for managed host", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -42,7 +42,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					},
 				},
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: true,
+					NeedsMDMMigration:      true,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -53,7 +54,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					},
 				},
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -64,7 +66,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					},
 				},
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -75,7 +78,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					},
 				},
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 		}
@@ -87,13 +91,98 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				return &appCfg, nil
 			}
 
-			ctx = host.NewContext(ctx, &fleet.Host{
+			ctx := test.HostContext(ctx, &fleet.Host{
 				OsqueryHostID: ptr.String("test"),
 				MDMInfo: &fleet.HostMDM{
 					IsServer:         false,
 					InstalledFromDep: true,
 					Enrolled:         true,
 					Name:             fleet.WellKnownMDMIntune,
+				}})
+			sum, err := svc.GetFleetDesktopSummary(ctx)
+			require.NoError(t, err)
+			require.Equal(t, c.out, sum.Notifications, fmt.Sprintf("enabled_and_configured: %t | macos_migration.enable: %t", c.mdm.EnabledAndConfigured, c.mdm.MacOSMigration.Enable))
+			require.EqualValues(t, 1, *sum.FailingPolicies)
+		}
+
+	})
+
+	t.Run("different app config values for unmanaged host", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
+			return uint(1), nil
+		}
+
+		cases := []struct {
+			mdm fleet.MDM
+			out fleet.DesktopNotifications
+		}{
+			{
+				mdm: fleet.MDM{
+					EnabledAndConfigured: true,
+					MacOSMigration: fleet.MacOSMigration{
+						Enable: true,
+					},
+				},
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: true,
+				},
+			},
+			{
+				mdm: fleet.MDM{
+					EnabledAndConfigured: false,
+					MacOSMigration: fleet.MacOSMigration{
+						Enable: true,
+					},
+				},
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				mdm: fleet.MDM{
+					EnabledAndConfigured: true,
+					MacOSMigration: fleet.MacOSMigration{
+						Enable: false,
+					},
+				},
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				mdm: fleet.MDM{
+					EnabledAndConfigured: false,
+					MacOSMigration: fleet.MacOSMigration{
+						Enable: false,
+					},
+				},
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+		}
+
+		for _, c := range cases {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				appCfg := fleet.AppConfig{}
+				appCfg.MDM = c.mdm
+				return &appCfg, nil
+			}
+
+			ctx = test.HostContext(ctx, &fleet.Host{
+				OsqueryHostID: ptr.String("test"),
+				MDMInfo: &fleet.HostMDM{
+					IsServer:         false,
+					InstalledFromDep: true,
+					Enrolled:         false,
+					Name:             fleet.WellKnownMDMFleet,
 				}})
 			sum, err := svc.GetFleetDesktopSummary(ctx)
 			require.NoError(t, err)
@@ -136,7 +225,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				host: &fleet.Host{OsqueryHostID: nil},
 				err:  nil,
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -151,7 +241,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -162,11 +253,12 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						IsServer:         false,
 						InstalledFromDep: true,
 						Enrolled:         false,
-						Name:             fleet.WellKnownMDMIntune,
+						Name:             fleet.WellKnownMDMFleet,
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: true,
 				},
 			},
 			{
@@ -181,7 +273,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: false,
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
 				},
 			},
 			{
@@ -196,14 +289,15 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
-					NeedsMDMMigration: true,
+					NeedsMDMMigration:      true,
+					RenewEnrollmentProfile: false,
 				},
 			},
 		}
 
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				ctx = host.NewContext(ctx, c.host)
+				ctx = test.HostContext(ctx, c.host)
 				sum, err := svc.GetFleetDesktopSummary(ctx)
 
 				if c.err != nil {

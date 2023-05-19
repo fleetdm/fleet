@@ -80,8 +80,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotNil(t, defProf)
 		require.NotEmpty(t, defProf.Token)
 
-		// a profile UUID was assigned
-		profUUID, modTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+		// a profile UUID was assigned for no-team
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
@@ -160,8 +160,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotNil(t, defProf)
 		require.NotEmpty(t, defProf.Token)
 
-		// a profile UUID was assigned
-		profUUID, modTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+		// a profile UUID was assigned to no-team
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
@@ -266,13 +266,13 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.NotNil(t, defProf)
 		require.NotEmpty(t, defProf.Token)
 
-		// a profile UUID was assigned
-		profUUID, modTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+		// a profile UUID was assigned to the team
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID)
 		require.NoError(t, err)
 		require.Equal(t, "profile123", profUUID)
 		require.False(t, modTime.Before(start))
 
-		// the team-specific profile was registered
+		// the team-specific custom profile was registered
 		tmAsst, err = ds.GetMDMAppleSetupAssistant(ctx, tmAsst.TeamID)
 		require.NoError(t, err)
 		require.Equal(t, "profile456", tmAsst.ProfileUUID)

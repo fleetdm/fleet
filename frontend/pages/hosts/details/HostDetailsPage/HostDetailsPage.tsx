@@ -144,7 +144,7 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showQueryHostModal, setShowQueryHostModal] = useState(false);
+  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
@@ -549,7 +549,7 @@ const HostDetailsPage = ({
         setShowTransferHostModal(true);
         break;
       case "query":
-        setShowQueryHostModal(true);
+        setShowSelectQueryModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -783,9 +783,9 @@ const HostDetailsPage = ({
             isUpdating={isUpdatingHost}
           />
         )}
-        {showQueryHostModal && host && (
+        {showSelectQueryModal && host && (
           <SelectQueryModal
-            onCancel={() => setShowQueryHostModal(false)}
+            onCancel={() => setShowSelectQueryModal(false)}
             queries={fleetQueries || []}
             queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
