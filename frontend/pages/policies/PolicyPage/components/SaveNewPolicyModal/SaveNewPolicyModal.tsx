@@ -129,6 +129,7 @@ const SaveNewPolicyModal = ({
             value={description}
             inputClassName={`${baseClass}__policy-save-modal-description`}
             label="Description"
+            type="textarea"
             placeholder="Add a description here (optional)"
           />
           <InputField
