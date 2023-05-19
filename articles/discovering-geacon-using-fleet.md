@@ -88,7 +88,7 @@ The Geacon project is a new threat to macOS devices. Enterprise security teams s
 
 Here are some additional tips for protecting your macOS devices from Geacon and other threats:
 
-* Add a firewall rule blocking access to the IP addresses detailed in the indicators of compromise.
+* Add a [firewall rule](#using-packet-filter-on-macos-to-block-an-ip-address) blocking access to the IP addresses detailed in the indicators of compromise.
 * Keep your macOS devices up to date with the latest security patches.
 * Use a strong password manager to create and store strong passwords for all of your accounts.
 * Be careful about what websites you visit and what files you open.
@@ -154,7 +154,7 @@ You should see your rules listed.
 
 > Please note that these steps require administrator access and that you should exercise caution when configuring firewall rules. Misconfigurations could block necessary network traffic or expose your system to security risks. It is a good practice to backup any configuration files before modifying them. You should back up your `/etc/pf.conf` file before editing it. 
 
-These rules do not persist across reboots. If you want these rules to persist after rebooting your system, you should create a Launch Daemon to do load the packet filter rules.
+These rules do not persist across reboots. If you want these rules to persist after rebooting your system, you should create a Launch Daemon to load the packet filter rules.
 
 
 <meta name="articleTitle" value="Discovering Geacon using Fleet">
