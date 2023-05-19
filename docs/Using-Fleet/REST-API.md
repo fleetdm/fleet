@@ -2109,8 +2109,7 @@ Returns the information of the specified host.
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-1"]
+        "vulnerabilities": null
       },
       {
         "id": 1146,
@@ -2128,8 +2127,7 @@ Returns the information of the specified host.
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"]
+        "vulnerabilities": null
       }
     ],
     "id": 1,
@@ -2340,8 +2338,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
           "version": "0.8.0",
           "source": "python_packages",
           "generated_cpe": "",
-          "vulnerabilities": null,
-          "installed_paths": ["/usr/lib/some_path/"]
+          "vulnerabilities": null
       }
     ],
     "id": 33,
@@ -5145,9 +5142,7 @@ Returns the query specified by ID.
 
 ### List queries
 
-Returns a list of all queries in the Fleet instance (both global and team queries).
-
-> `team_id` will be blank for global queries.
+Returns a list of global queries or team queries.
 
 `GET /api/v1/fleet/queries`
 
@@ -5231,7 +5226,7 @@ Returns a list of all queries in the Fleet instance (both global and team querie
 ```
 
 ### Create query
-Creates a global query.
+Creates a global query or team query.
 
 `POST /api/v1/fleet/queries`
 
@@ -5493,6 +5488,8 @@ load balancer timeout.
   ]
 }
 ```
+
+---
 
 ## Schedule
 
@@ -6524,7 +6521,7 @@ _Available in Fleet Premium_
 
 #### Example (add users to a team)
 
-`PATCH /api/v1/fleet/teams/1/users`
+`PATCH /api/v1/fleet/teams/1`
 
 ##### Request body
 
@@ -7349,7 +7346,7 @@ The selected user is logged out of Fleet and required to reset their password du
 | Name  | Type    | In   | Description                                                                                    |
 | ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
 | id    | integer | path | **Required**. The user's id.                                                                   |
-| require | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
 
 #### Example
 
