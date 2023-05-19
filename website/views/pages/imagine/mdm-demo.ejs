@@ -14,7 +14,7 @@
                   <img style="width: 400px; height: auto" alt="an arrow" src="/images/mdm-demo-intro-arrow.png">
                 </div>
                 <h3 class="pb-4 text-center">Drag as many files as you<br> can to their matching system.</h3>
-                <p class="tex-center text-muted">Click anywhere to begin</p>
+                <p class="text-center text-muted">Click to begin</p>
               </div>
             </div>
             <div purpose="muted-demo" class="d-flex flex-row justify-content-around">
@@ -117,7 +117,7 @@
         </div>
         <div class="mx-auto" purpose="mdm-demo-container">
           <div class="d-flex flex-column align-items-center h-100 justify-content-center">
-            <h1>Results:</h1>
+            <h1 class="pb-4">Results:</h1>
             <p>
               <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
               {{counter.hostOne}} changes deployed.
@@ -142,11 +142,37 @@
         <h1>How the future of MDM works...</h1>
       </div>
       <div class="mx-auto" purpose="mdm-demo-container">
+        <div purpose="demo-complete-overlay" v-if="showStageFourInstructions">
+          <div class="d-flex flex-column h-100 align-items-center justify-content-center">
+            <div purpose="button-row" class="pt-5 mt-5 pb-5">
+              <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="clickStartStageFour()">Start</a>
+            </div>
+            <h3>Drag the config file into the GitOps flow</h3>
+          </div>
+        </div>
         <div purpose="demo-complete-overlay" v-if="showSuccessMessage">
           <div class="d-flex flex-column h-100 align-items-center justify-content-center">
-            You did it!
-            <div purpose="button-row">
-              <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="moveToNextDemoStage()">Read about the future of MDM</a>
+            <div class="d-flex flex-column align-items-center h-100 justify-content-center">
+              <h1 class="pb-4">Results:</h1>
+              <h4 class="pb-3">Final Time: {{finalFinishingTime}} seconds remaining</h4>
+              <p>
+                5
+                <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo">
+                config changes deployed.
+              </p>
+              <p>
+                6
+                <img class="d-inline mr-2" style="height: 24px; width: auto" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo">
+                 changes deployed.
+              </p>
+              <p>
+                6
+                <img class="d-inline mr-2" style="height: 25px; width: auto" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo">
+                changes deployed.
+              </p>
+              <div purpose="button-row">
+                <a class="mx-auto" style="max-width: 450px;" purpose="cta-button" @click="moveToNextDemoStage()">Read about the future of MDM</a>
+              </div>
             </div>
           </div>
         </div>
@@ -175,21 +201,29 @@
               </div>
             </div>
             <div purpose="gitops">
-              <img alt="a white orb with the Fleet logo" src="/images/mdm-demo-fleet-orb.png">
+              <img alt="gitops" src="/images/mdm-demo-gitops.png">
+              <div purpose="button-row" class="pt-5 mt-5" v-if="showStageFourDeployButton">
+                <ajax-button purpose="cta-button" :syncing="syncing" @click="clickApproveStageFourChanges">Approve</ajax-button>
+              </div>
               <div purpose="deploying-message" class="d-flex flex-row justify-content-center align-items-center" v-if="showDeployingMsg">
-                <p class="mb-0">Deploying changes....</p>
+                <h4 class="mb-0">Deploying changes....</h4>
               </div>
             </div>
-            <div>
-              <img alt="an arrow" purpose="arrow-one" src="/images/mdm-demo-arrow-1.png">
-            </div>
-            <div>
-              <img alt="an arrow" purpose="arrow-two" style="height: auto; width: 85px;" src="/images/mdm-demo-arrow-2.png">
-            </div>
-            <div>
-              <img alt="an arrow" purpose="arrow-three" src="/images/mdm-demo-arrow-3.png">
+            <div purpose="deployed-files">
+              <div purpose="deployed-linux-file-images">
+                <!-- <img purpose="deployed-linux-file-image" alt="a deployed file" src="/images/mdm-demo-linux-file.png"> -->
+                <img purpose="deployed-linux-file-image" alt="a deployed file" src="/images/mdm-demo-linux-file.png" v-for="position in stageFourDeployedLinuxFilesFinalPositions">
+              </div>
+              <div purpose="deployed-mac-file-images">
+                <!-- <img purpose="deployed-mac-file-image" alt="a deployed file" src="/images/mdm-demo-mac-file.png"> -->
+                <img purpose="deployed-mac-file-image" src="/images/mdm-demo-mac-file.png" alt="a deployed file" v-for="position in stageFourDeployedMacFilesFinalPositions">
+              </div>
+              <div purpose="deployed-windows-file-images">
+                <img purpose="deployed-windows-file-image" src="/images/mdm-demo-windows-file.png" alt="a deployed file" v-for="position in stageFourDeployedWindowsFilesFinalPositions">
+              </div>
             </div>
           </div>
+
           <div class="justify-self-end h-100">
             <div id="stageTwoHosts"><img alt="a group of computers"  style="height: 700px;" src="/images/mdm-demo-hosts.png"></div>
           </div>
@@ -199,7 +233,7 @@
     <%// Slides after "game" %>
     <div class="pt-5" v-if="demoStage === 5">
       <div purpose="demo-title">
-        <h3>You did it!</h3>
+        <h3></h3>
       </div>
       <div id="slideshowControls" class="carousel slide" data-ride="carousel">
         <div class="carousel-inner mx-auto" purpose="slideshow-container">

@@ -22,6 +22,7 @@ parasails.registerPage('mdm-demo', {
     },
     gameDurationInSeconds: 25,
     timeLeft: 25,
+    finalFinishingTime: undefined,
     showDeployingMsg: false,
     formData: {},
     formErrors: {},
@@ -29,6 +30,31 @@ parasails.registerPage('mdm-demo', {
     syncing: false,
     cloudError: false,
     showSuccessMessage: false,
+    showStageFourDeployButton: false,
+    showStageFourInstructions: true,
+    stageFourDeployedLinuxFilesFinalPositions:[
+      { top: '36px', right: '120px'},
+      { top: '98px', right: '39px'},
+      { top: '148px', right: '152px'},
+      { top: '186px', right: '300px'},
+      { top: '71px', right: '246px'},
+    ],
+    stageFourDeployedWindowsFilesFinalPositions:[
+      { top: '300px', right: '296px'},
+      { top: '326px', right: '203px'},
+      { top: '239px', right: '178px'},
+      { top: '238px', right: '60px'},
+      { top: '338px', right: '13px'},
+      { top: '391px', right: '144px'},
+    ],
+    stageFourDeployedMacFilesFinalPositions:[
+      { top: '566px', right: '274px'},
+      { top: '414px', right: '292px'},
+      { top: '489px', right: '186px'},
+      { top: '445px', right: '54px'},
+      { top: '547px', right: '25px'},
+      { top: '594px', right: '141px'},
+    ],
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -57,7 +83,6 @@ parasails.registerPage('mdm-demo', {
         this.demoStage = 4;
         await this.forceRender();
         this.setupStageTwo();
-        this.startDemoTimer();
       } else {
         this.demoStage++;
       }
@@ -98,10 +123,9 @@ parasails.registerPage('mdm-demo', {
       this.dragElements.fileThree.addEventListener('dragend', this.dropFile);
       this.dropTargets.gitops.addEventListener('dragover', this.dragOverTarget);
       this.dropTargets.gitops.addEventListener('drop', this.dropFileOnGitops);
-      this.startDemoTimer();
     },
 
-    startDemoTimer() {
+    startDemoTimer: async function() {
       this.timeLeft = this.gameDurationInSeconds;
       let timer = setInterval(() => {
         if (this.timeLeft > 0) {
@@ -115,7 +139,12 @@ parasails.registerPage('mdm-demo', {
       }, 1000);
     },
 
-    nextGameStage: function(){
+    clickStartStageFour: function() {
+      this.showStageFourInstructions = false;
+      this.startDemoTimer();
+    },
+
+    nextGameStage: function() {
       if(this.demoStage <= 4) {
         this.demoStage++;
       }
@@ -142,7 +171,7 @@ parasails.registerPage('mdm-demo', {
 
     dropFileOnHostOne: async function(event) {
       event.preventDefault();
-      var data = event.dataTransfer.getData('text/plain');
+      let data = event.dataTransfer.getData('text/plain');
       if(data === 'fileThree'){
         this.counter.hostOne++;
       }
@@ -151,8 +180,7 @@ parasails.registerPage('mdm-demo', {
 
     dropFileOnHostTwo: async function(event) {
       event.preventDefault();
-      var data = event.dataTransfer.getData('text/plain');
-      console.log(data);
+      let data = event.dataTransfer.getData('text/plain');
       if(data === 'fileOne'){
         this.counter.hostTwo++;
       }
@@ -161,8 +189,7 @@ parasails.registerPage('mdm-demo', {
 
     dropFileOnHostThree: async function(event) {
       event.preventDefault();
-      var data = event.dataTransfer.getData('text/plain');
-      console.log(data);
+      let data = event.dataTransfer.getData('text/plain');
       if(data === 'fileTwo'){
         this.counter.hostThree++;
       }
@@ -171,35 +198,83 @@ parasails.registerPage('mdm-demo', {
 
     dropFileOnGitops: async function(event) {
       event.preventDefault();
-      var data = event.dataTransfer.getData('text/plain');
-      let fileToDisappear = document.getElementById(data);
+      let fileId = event.dataTransfer.getData('text/plain');
+      let fileToDisappear = document.getElementById(fileId);
 
       fileToDisappear.classList.add('deploying');
-      this.showDeployingMsg = true;
-      let arrow;
-      if(data === 'windowsFile'){
-        arrow = $('[purpose="arrow-two"]')[0];
-        arrow.style.animation = 'blinkFade 1s linear';
-        this.counter.gitOps++;
-      } else if(data === 'macFile') {
-        arrow = $('[purpose="arrow-three"]')[0];
-        arrow.style.animation = 'blinkFade 1s linear';
-        this.counter.gitOps++;
-      } else if(data === 'linuxFile') {
-        arrow = $('[purpose="arrow-one"]')[0];
-        arrow.style.animation = 'blinkFade 1s linear';
-        this.counter.gitOps++;
-      }
+      this.counter.gitOps++;
       // After the animation ends, remove the element from the page.
-      fileToDisappear.addEventListener('animationend', () => {
+      fileToDisappear.addEventListener('animationend', ()=>{
         fileToDisappear.parentNode.removeChild(fileToDisappear);
         this.showDeployingMsg = false;
+        if(this.counter.gitOps === 3){
+          this.showStageFourDeployButton = true;
+        }
       });
-      await this.isGameFinished();
+    },
+
+    clickApproveStageFourChanges: async function() {
+      this.showStageFourDeployButton = false;
+      this.showDeployingMsg = true;
+      await setTimeout( async()=>{
+        for (let image of $('[purpose="deployed-linux-file-image"]')) {
+          let position = this.stageFourDeployedLinuxFilesFinalPositions[_.indexOf($('[purpose="deployed-linux-file-image"]'), image)];
+          $(image).css({
+            right: position.right,
+            top: position.top,
+          });
+          let randomNumberOfMilliseconds = Math.floor(Math.random() * (1201)) + 1000;
+          await setTimeout(()=>{
+            $(image).css({
+              animation: 'blinkFade 1s linear',
+              opacity: 0,
+            });
+          }, randomNumberOfMilliseconds);
+        }
+      }, 1500);
+      await setTimeout( async()=>{
+        for (let image of $('[purpose="deployed-mac-file-image"]')) {
+          let position = this.stageFourDeployedMacFilesFinalPositions[_.indexOf($('[purpose="deployed-mac-file-image"]'), image)];
+          $(image).css({
+            right: position.right,
+            top: position.top,
+          });
+          let randomNumberOfMilliseconds = Math.floor(Math.random() * (1201)) + 1000;
+          await setTimeout(()=>{
+            $(image).css({
+              animation: 'blinkFade 1s linear',
+              opacity: 0,
+            });
+
+          }, randomNumberOfMilliseconds);
+        }
+
+      }, 1750);
+      await setTimeout( async()=>{
+        for (let image of $('[purpose="deployed-windows-file-image"]')) {
+          let position = this.stageFourDeployedWindowsFilesFinalPositions[_.indexOf($('[purpose="deployed-windows-file-image"]'), image)];
+          $(image).css({
+            right: position.right,
+            top: position.top,
+          });
+          let randomNumberOfMilliseconds = Math.floor(Math.random() * (1201)) + 1000;
+          await setTimeout(()=>{
+            $(image).css({
+              animation: 'blinkFade 1s linear',
+              opacity: 0
+            });
+          }, randomNumberOfMilliseconds);
+        }
+      }, 1100);
+      await setTimeout( ()=>{
+        this.finalFinishingTime = this.gameDurationInSeconds - this.timeLeft;
+        this.isGameFinished();
+      }, 3000);
     },
 
     isGameFinished: async function() {
       if(this.counter.gitOps === 3){
+
         await setTimeout(()=>{
           this.showSuccessMessage = true;
         }, 2000);
