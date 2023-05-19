@@ -48,7 +48,7 @@
           width: $col-md;
         }
         .version__header {
-          width: $col-sm;
+          width: $col-xs;
         }
         .vulnerabilities__header {
           min-width: 130px;
@@ -94,6 +94,23 @@
         .installed_paths__cell {
           display: none;
           width: 0px;
+
+          .installed_paths__tooltip {
+            max-width: 550px;
+
+            // gap between each filepath
+            .tooltip__tooltip-text {
+              display: flex;
+              flex-direction: column;
+              gap: $pad-small;
+
+              .tooltip__tooptip_text_line {
+                display: block;
+                word-wrap: break-word;
+                max-width: 550px;
+              }
+            }
+          }
         }
         .hosts_count__cell {
           .hosts-cell__wrapper {
@@ -211,12 +228,14 @@
           display: table-cell;
         }
         .linkToFilteredHosts__cell {
-          width: 120px;
+          .view-all-hosts-link {
+            width: 120px;
+          }
         }
       }
     }
 
-    @media (min-width: $break-1600) {
+    @media (min-width: $break-1500) {
       thead {
         .installed_paths__header {
           display: table-cell;
@@ -234,6 +253,7 @@
             overflow: initial;
             white-space: initial;
             word-wrap: break-word;
+            margin-left: $pad-large;
           }
           .tooltip {
             display: inline; // center tooltip with hovered text
