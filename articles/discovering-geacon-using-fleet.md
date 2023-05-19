@@ -163,4 +163,4 @@ These rules do not persist across reboots. If you want these rules to persist af
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-05-18">
 <meta name="articleImageUrl" value="../website/assets/images/articles/discovering-geacon-using-fleet-1600x900@2x.jpg">
-<meta name="description" content="Geacon, a Go implementation of Cobalt Strike, is a new threat to macOS devices. Enterprise security teams can use Fleet to identify and locate Geacon payloads and protect their macOS devices from this threat.">
+<meta name="description" value="Enterprise security teams can use Fleet to identify and locate Geacon payloads and protect their macOS devices from this threat.">
