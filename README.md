@@ -1,10 +1,10 @@
 <h1><a href="https://fleetdm.com"><img width="200" alt="Fleet logo, landscape, dark text, transparent background" src="https://user-images.githubusercontent.com/618009/103300491-9197e280-49c4-11eb-8677-6b41027be800.png"></a></h1>
 
-#### [News](https://fleetdm.com/announcements) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Handbook](https://fleetdm.com/handbook/company) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source)
+#### [News](https://fleetdm.com/announcements) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Handbook](https://fleetdm.com/handbook/company) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
 
 Open-source posture management for clouds and computers, designed for GitOps, webhooks, APIs, YAML, and humans.  Built on osquery, nanoMDM, and Nudge.
 
-[![Wallpaper featuring a futuristic cloud city with the Fleet logo](https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101)](https://fleetdm.com/logos)
+<a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" href="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
 
 
 ## What's it for?
