@@ -4,7 +4,7 @@
 
 Open-source posture management for clouds and computers, designed for GitOps, webhooks, APIs, YAML, and humans.  Built on osquery, nanoMDM, and Nudge.
 
-<a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" href="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
+<a href="https://fleetdm.com/logos"><img alt="Wallpaper featuring a futuristic cloud city with the Fleet logo" src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101"/></a>
 
 
 ## What's it for?
