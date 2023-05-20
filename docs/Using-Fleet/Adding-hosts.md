@@ -277,6 +277,10 @@ installation should appear as the same host in the Fleet UI. If other settings a
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
+## Add Chromebooks with the Fleetd Chrome extension
+
+> Documentation for adding hosts on ChromeOS is coming soon. In the mean time, basic instructions are available in the [fleetd-chrome README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
+
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
 is required to deploy these profiles, you

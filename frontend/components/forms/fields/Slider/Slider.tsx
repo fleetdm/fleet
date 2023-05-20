@@ -10,6 +10,7 @@ interface ISliderProps {
   value: boolean;
   inactiveText: string;
   activeText: string;
+  className?: string;
 }
 
 const baseClass = "fleet-slider";
@@ -36,6 +37,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     "label",
     "error",
     "name",
+    "className",
   ]) as IFormFieldProps;
 
   return (

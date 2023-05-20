@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -203,15 +204,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	// // TODO: Call Apple Business Manager API to define new enrollment profile (depends on
-	// // https://github.com/fleetdm/fleet/issues/10995)
-	// //
-	// // modify the method signature of the syncer to include a team config pointer
-	// // and check enable_end_user_authenthication in the team config if not nil
-	// // otherwise check enable_end_user_authenthication the app config.
-	// if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
-	// 	return err
-	// }
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
+	}
+
 	var act fleet.ActivityDetails
 	if enable {
 		act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
@@ -464,9 +460,8 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	deniedFields := map[string]string{
-		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
-		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
 	}
 	for k, msg := range deniedFields {
 		if _, ok := m[k]; ok {
@@ -640,6 +635,26 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
+	// Store information for automatic account population/creation
+	//
+	// For now, we just grab whatever comes before the `@` in UserID, which
+	// must be an email.
+	//
+	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username, _, found := strings.Cut(auth.UserID(), "@")
+	if !found {
+		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		username = auth.UserID()
+	}
+	idpAcc := fleet.MDMIdPAccount{
+		UUID:     uuid.New().String(),
+		Username: username,
+		Fullname: auth.UserDisplayName(),
+	}
+	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+	}
+
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
@@ -655,7 +670,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	q := url.Values{"profile_token": {depProf.Token}}
+	q := url.Values{
+		"profile_token": {depProf.Token},
+		// using the idp token as a reference just because that's the
+		// only thing we're referencing later on during enrollment.
+		"enrollment_reference": {idpAcc.UUID},
+	}
 	if eula != nil {
 		q.Add("eula_token", eula.Token)
 	}

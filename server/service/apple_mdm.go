@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -1033,7 +1034,8 @@ func (svc *Service) EnqueueMDMAppleCommand(
 }
 
 type mdmAppleEnrollRequest struct {
-	Token string `query:"token"`
+	Token               string `query:"token"`
+	EnrollmentReference string `query:"enrollment_reference,optional"`
 }
 
 func (r mdmAppleEnrollResponse) error() error { return r.Err }
@@ -1063,7 +1065,7 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
-	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token)
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
@@ -1072,7 +1074,7 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (profile []byte, err error) {
+func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1089,11 +1091,21 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
-	// on enrollments).
+	enrollURL := appConfig.ServerSettings.ServerURL
+	if ref != "" {
+		u, err := url.Parse(enrollURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
+		}
+		q := u.Query()
+		q.Add("enroll_reference", ref)
+		u.RawQuery = q.Encode()
+		enrollURL = u.String()
+	}
+
 	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL,
+		enrollURL,
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
@@ -2149,46 +2161,90 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 		if info.InstalledFromDEP {
 			svc.logger.Log("info", "running post-enroll commands in newly enrolled DEP device", "host_uuid", r.ID)
-			cmdUUID := uuid.New().String()
-			if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
-				return err
+			if err := svc.installEnrollmentPackages(r, m, info.TeamID); err != nil {
+				return fmt.Errorf("installing post-enrollment packages: %w", err)
 			}
-			svc.logger.Log("info", "sent command to install fleetd", "host_uuid", r.ID)
 
-			meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(r.Context, info.TeamID)
-			if err != nil {
-				var nfe fleet.NotFoundError
-				if errors.As(err, &nfe) {
-					svc.logger.Log("info", "unable to find a bootstrap package for DEP enrolled device, skppping installation", "host_uuid", r.ID)
-					return nil
+			if ref, ok := r.Params["enroll_reference"]; ok {
+				svc.logger.Log("info", "got an enroll_reference", "host_uuid", r.ID, "ref", ref)
+				appCfg, err := svc.ds.AppConfig(r.Context)
+				if err != nil {
+					return fmt.Errorf("getting app config: %w", err)
 				}
 
-				return err
+				acct, err := svc.ds.GetMDMIdPAccount(r.Context, ref)
+				if err != nil {
+					return fmt.Errorf("getting idp account details for enroll reference %s: %w", ref, err)
+				}
+
+				ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+				if info.TeamID != 0 {
+					team, err := svc.ds.Team(r.Context, info.TeamID)
+					if err != nil {
+
+						return fmt.Errorf("fetch team to send AccountConfiguration: %w", err)
+					}
+					ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+				}
+
+				if ssoEnabled {
+					svc.logger.Log("info", "setting username and fullname", "host_uuid", r.ID)
+					if err := svc.commander.AccountConfiguration(
+						r.Context,
+						[]string{m.Enrollment.UDID},
+						uuid.New().String(),
+						acct.Fullname,
+						acct.Username,
+					); err != nil {
+						return fmt.Errorf("sending AccountConfiguration command: %w", err)
+					}
+				}
 			}
 
-			appCfg, err := svc.ds.AppConfig(r.Context)
-			if err != nil {
-				return err
-			}
-
-			url, err := meta.URL(appCfg.ServerSettings.ServerURL)
-			if err != nil {
-				return err
-			}
-
-			manifest := appmanifest.NewFromSha(meta.Sha256, url)
-			cmdUUID = uuid.New().String()
-			err = svc.commander.InstallEnterpriseApplicationWithEmbeddedManifest(r.Context, []string{m.Enrollment.UDID}, cmdUUID, manifest)
-			if err != nil {
-				return err
-			}
-			err = svc.ds.RecordHostBootstrapPackage(r.Context, cmdUUID, r.ID)
-			if err != nil {
-				return err
-			}
-			svc.logger.Log("info", "sent command to install bootstrap package", "host_uuid", r.ID)
 		}
 	}
+	return nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) installEnrollmentPackages(r *mdm.Request, m *mdm.TokenUpdate, teamID uint) error {
+	cmdUUID := uuid.New().String()
+	if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
+		return err
+	}
+	svc.logger.Log("info", "sent command to install fleetd", "host_uuid", r.ID)
+
+	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(r.Context, teamID)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		if errors.As(err, &nfe) {
+			svc.logger.Log("info", "unable to find a bootstrap package for DEP enrolled device, skppping installation", "host_uuid", r.ID)
+			return nil
+		}
+
+		return err
+	}
+
+	appCfg, err := svc.ds.AppConfig(r.Context)
+	if err != nil {
+		return err
+	}
+
+	url, err := meta.URL(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return err
+	}
+
+	manifest := appmanifest.NewFromSha(meta.Sha256, url)
+	cmdUUID = uuid.New().String()
+	err = svc.commander.InstallEnterpriseApplicationWithEmbeddedManifest(r.Context, []string{m.Enrollment.UDID}, cmdUUID, manifest)
+	if err != nil {
+		return err
+	}
+	err = svc.ds.RecordHostBootstrapPackage(r.Context, cmdUUID, r.ID)
+	if err != nil {
+		return err
+	}
+	svc.logger.Log("info", "sent command to install bootstrap package", "host_uuid", r.ID)
 	return nil
 }
 

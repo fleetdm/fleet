@@ -2201,10 +2201,19 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	t := s.T()
 
+	// create a host with device token to test device authenticated routes
+	tkn := "D3V1C370K3N"
+	createHostAndDeviceToken(t, s.ds, tkn)
+
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
-		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
+		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
+		path := route.path
+		if route.deviceAuthenticated {
+			path = fmt.Sprintf(route.path, tkn)
+		}
+		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+		assert.Contains(t, errMsg, expectedErr.Error())
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2634,7 +2643,8 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
 	}
-	require.NoError(t, s.ds.UpdateHostSoftware(ctx, host.ID, software))
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
 	bar := host.Software[0]

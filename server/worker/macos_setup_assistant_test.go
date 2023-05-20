@@ -2,11 +2,13 @@ package worker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,8 +104,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 			err = json.Unmarshal(b, &reqProf)
 			require.NoError(t, err)
 
-			// use the profile name as profile uuid
-			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: reqProf.ProfileName})
+			// use the profile name as profile uuid, and append "+sso" if it was
+			// registered with the sso url (end-user auth enabled).
+			profUUID := reqProf.ProfileName
+			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
+				profUUID += "+sso"
+			}
+			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID})
 			require.NoError(t, err)
 
 		case "/profile/devices":
@@ -142,9 +149,8 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// no default profile registered yet
-	profUUID, _, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.Empty(t, profUUID)
+	_, err = ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	start := time.Now().Truncate(time.Second)
 
@@ -154,10 +160,17 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// all devices are assigned the default profile
-	profUUID, modTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+	autoProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.NoError(t, err)
-	require.Equal(t, defaultProfileName, profUUID)
-	require.False(t, modTime.Before(start))
+	require.NotEmpty(t, autoProf.Token)
+
+	tmIDs := []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm2.ID), ptr.Uint(tm3.ID)}
+	for _, tmID := range tmIDs {
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.Equal(t, defaultProfileName, profUUID)
+		require.False(t, modTime.Before(start))
+	}
 	require.Equal(t, map[string]string{
 		"serial-0": defaultProfileName,
 		"serial-1": defaultProfileName,
@@ -180,11 +193,12 @@ func TestMacosSetupAssistant(t *testing.T) {
 	runCheckDone()
 
 	// default profile is unchanged
-	prevProfUUID, prevModTime := profUUID, modTime
-	profUUID, modTime, err = depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.Equal(t, prevProfUUID, profUUID)
-	require.Equal(t, prevModTime, modTime)
+	for _, tmID := range tmIDs {
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.Equal(t, defaultProfileName, profUUID)
+		require.False(t, modTime.Before(start))
+	}
 
 	// team 1 setup assistant is registered
 	tm1Asst, err = ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
@@ -198,6 +212,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 		"serial-3": "team1",
 		"serial-4": defaultProfileName,
 		"serial-5": defaultProfileName,
+	}, serialsToProfile)
+
+	// enable end-user auth for team 2
+	tm2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	tm2, err = ds.SaveTeam(ctx, tm2)
+	require.NoError(t, err)
+
+	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	require.NoError(t, err)
+	runCheckDone()
+
+	require.Equal(t, map[string]string{
+		"serial-0": defaultProfileName,
+		"serial-1": defaultProfileName,
+		"serial-2": "team1",
+		"serial-3": "team1",
+		"serial-4": defaultProfileName + "+sso",
+		"serial-5": defaultProfileName + "+sso",
 	}, serialsToProfile)
 
 	// create a custom setup assistant for teams 2 and 3, delete the one for team 1 and process the jobs
@@ -222,6 +254,24 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm3.ID)
 	require.NoError(t, err)
 	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileDeleted, &tm1.ID)
+	require.NoError(t, err)
+	runCheckDone()
+
+	require.Equal(t, map[string]string{
+		"serial-0": defaultProfileName,
+		"serial-1": defaultProfileName,
+		"serial-2": defaultProfileName,
+		"serial-3": defaultProfileName,
+		"serial-4": "team2+sso",
+		"serial-5": "team2+sso",
+	}, serialsToProfile)
+
+	// disable end-user auth for team 2
+	tm2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+	tm2, err = ds.SaveTeam(ctx, tm2)
+	require.NoError(t, err)
+
+	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -285,9 +335,13 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	runCheckDone()
 
-	_, modTime, err = depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-	require.NoError(t, err)
-	require.True(t, modTime.After(reset))
+	// team 2 got deleted, update the list of team IDs
+	tmIDs = []*uint{nil, ptr.Uint(tm1.ID), ptr.Uint(tm3.ID)}
+	for _, tmID := range tmIDs {
+		_, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
+		require.NoError(t, err)
+		require.True(t, modTime.After(reset))
+	}
 
 	require.Equal(t, map[string]string{
 		"serial-0": "no-team",

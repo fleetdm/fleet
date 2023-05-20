@@ -16,7 +16,12 @@ const MacSettingsModal = ({
   onClose,
 }: IMacSettingsModalProps) => {
   return (
-    <Modal title="macOS settings" onExit={onClose} className={baseClass}>
+    <Modal
+      title="macOS settings"
+      onExit={onClose}
+      className={baseClass}
+      width="large"
+    >
       <>
         <MacSettingsTable hostMacSettings={hostMacSettings} />
         <div className="modal-cta-wrap">

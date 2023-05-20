@@ -4,6 +4,12 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+export interface IEulaMetadataResponse {
+  name: string;
+  token: string;
+  created_at: string;
+}
+
 export default {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
@@ -122,10 +128,12 @@ export default {
 
     return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
   },
+
   deleteBootstrapPackage: (teamId: number) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
     return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
   },
+
   getBootstrapPackageAggregate: (teamId?: number) => {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 
@@ -134,5 +142,29 @@ export default {
     }
 
     return sendRequest("GET", path);
+  },
+
+  getEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    return sendRequest("GET", MDM_EULA_METADATA);
+  },
+
+  uploadEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
+  },
+
+  deleteEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("DELETE", MDM_EULA(token));
+  },
+
+  downloadEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("GET", MDM_EULA(token));
   },
 };

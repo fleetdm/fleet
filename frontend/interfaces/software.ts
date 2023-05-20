@@ -33,6 +33,7 @@ export interface ISoftware {
   vulnerabilities: IVulnerability[] | null;
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
+  installed_paths?: string[];
 }
 
 export const TYPE_CONVERSION: Record<string, string> = {
