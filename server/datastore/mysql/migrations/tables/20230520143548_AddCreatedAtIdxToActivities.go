@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230515204536, Down_20230515204536)
+	MigrationClient.AddMigration(Up_20230520143548, Down_20230520143548)
 }
 
-func Up_20230515204536(tx *sql.Tx) error {
+func Up_20230520143548(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"CREATE INDEX activities_created_at_idx ON activities (created_at);",
 	); err != nil {
@@ -18,6 +18,6 @@ func Up_20230515204536(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230515204536(tx *sql.Tx) error {
+func Down_20230520143548(tx *sql.Tx) error {
 	return nil
 }
