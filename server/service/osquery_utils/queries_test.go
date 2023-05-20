@@ -547,7 +547,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				KernelVersion: "10.0.22000.795",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
 			},
 		},
 	}
