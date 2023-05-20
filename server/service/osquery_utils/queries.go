@@ -166,8 +166,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		Query: `
 	SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -178,7 +177,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["display_version"]
+			version := rows[0]["version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
@@ -186,10 +185,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				)
 			}
 
-			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
-			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
-			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
-			host.OSVersion = s
+			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], version)
 
 			return nil
 		},
@@ -487,8 +483,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -907,7 +902,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Platform:      rows[0]["platform"],
 	}
 
-	version := rows[0]["display_version"]
+	version := rows[0]["version"]
 	if version == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
