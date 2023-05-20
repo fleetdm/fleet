@@ -185,7 +185,10 @@ var hostDetailQueries = map[string]DetailQuery{
 				)
 			}
 
-			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], version)
+			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
+			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
+			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			host.OSVersion = s
 
 			return nil
 		},
