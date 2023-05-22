@@ -28,7 +28,7 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 Fleet is currently hiring for the following positions:
 
 - [🚀 Product Quality Specialist](https://fleetdm.com/handbook/company/product-quality-specialist)
-- [🚀 Senior Software Engineer (Golang)](https://fleetdm.com/handbook/company/senior-software-backend-engineer)
+- 🚀 Senior Software Engineer (Golang)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
