@@ -26,3 +26,22 @@ assignees: ''
 This issue's estimation includes completing:
 - [ ] UI changes: TODO
 - [ ] QA complete?
+
+## QA
+
+<!--
+Make sure that someone verified each step outlined below before the associated PR is merged.
+--> 
+
+### Manual testing steps
+<!-- 
+Add detailed manual testing steps for all affected user flows. 
+-->
+
+1. Step 1
+2. Step 2
+3. Step 3
+
+### Testing notes
+<!-- Any additional testing notes relevant to this story or tools required for testing. -->
+
