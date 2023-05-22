@@ -166,9 +166,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
 | ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
 | 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| Other department | ❌ | ❌ | ❌ | ✅ | ❌
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
 
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
