@@ -36,8 +36,8 @@ module.exports = {
 
   fn: async function ({host}) {
 
-    if(!sails.config.custom.customerWorkspaceOneUrl) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneUrl configured! Please set this value to be the base url of the customers Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneBaseUrl) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneBaseUrl configured! Please set this value to be the base url of the customers Workspace One instance.');
     }
 
     if(!sails.config.custom.customerWorkspaceOneTenentId) {
@@ -55,7 +55,7 @@ module.exports = {
         'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationToken,
         'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenentId,
       },
-      baseUrl: sails.config.custom.customerWorkspaceOneUrl
+      baseUrl: sails.config.custom.customerWorkspaceOneBaseUrl
     }).intercept((err)=>{
       if(err.raw.statusCode === 404){
         return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the specified host was not found on the customer's Workspace One instance. Full error: ${err}`);
