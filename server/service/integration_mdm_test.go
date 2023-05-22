@@ -4417,7 +4417,7 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
 	require.Zero(t, *getDesktopResp.FailingPolicies)
-	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration) // TODO: test is failing here (hunch: ingest from DEP sync is not working as expected and we're not upsering host_dep_assignments for pre-existing hosts)
 	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
 	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
 	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)

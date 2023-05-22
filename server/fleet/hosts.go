@@ -297,6 +297,15 @@ type Host struct {
 	// are expected to clear the timestamp. For now there's a single use-case
 	// so we don't need this.
 	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
+
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
+	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
+	// responses.
+	//
+	// The boolean is based on information ingested from the Apple DEP API that is stored in the
+	// host_dep_assignments table.
+	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 }
 
 type MDMHostData struct {

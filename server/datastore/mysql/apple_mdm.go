@@ -740,10 +740,39 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, ids); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
+		}
+
 		return nil
 	})
 
 	return createdCount, teamID, err
+}
+
+func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	if len(hostIDs) < 1 {
+		return nil
+	}
+
+	stmt := `
+		INSERT INTO host_dep_assignments (host_id)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL`
+
+	args := []interface{}{}
+	values := []string{}
+	for _, id := range hostIDs {
+		args = append(args, id)
+		values = append(values, "(?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments")
+	}
+
+	return nil
 }
 
 func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
@@ -919,6 +948,19 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 	}
 
 	return stmt, args
+}
+
+func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+	var res fleet.HostDEPAssignment
+	err := sqlx.GetContext(ctx, ds.reader, &res, `
+		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
+	}
+	return &res, nil
 }
 
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {

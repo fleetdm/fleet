@@ -98,12 +98,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() || (!host.MDMInfo.IsDEPFleetEnrolled() && host.DEPAssignedToFleet != nil && *host.DEPAssignedToFleet) {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
 		if host.IsOsqueryEnrolled() &&
-			host.MDMInfo.IsDEPCapable() &&
+			host.DEPAssignedToFleet != nil && *host.DEPAssignedToFleet &&
 			host.MDMInfo.IsEnrolledInThirdPartyMDM() {
 			sum.Notifications.NeedsMDMMigration = true
 		}

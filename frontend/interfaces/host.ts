@@ -177,7 +177,7 @@ export interface IHostResponse {
 }
 
 export interface IDeviceUserResponse {
-  host: IHost;
+  host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
   disk_encryption_enabled?: boolean;
@@ -255,4 +255,12 @@ export interface IHost {
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
+}
+
+/*
+ * IHostDevice is an extension of IHost that is returned by the /devices endpoint. It includes the
+ * dep_assigned_to_fleet field, which is not returned by the /hosts endpoint.
+ */
+export interface IHostDevice extends IHost {
+  dep_assigned_to_fleet: boolean;
 }

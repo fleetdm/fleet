@@ -16,13 +16,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
-var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
-var wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
+var (
+	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
+	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
+)
 
 // Fixme: We should not make implementation details of the database schema part of the API.
 var defaultHostColumnTableAliases = map[string]string{
@@ -1576,13 +1579,18 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested
+      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
+	  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, NULL) AS dep_assigned_to_fleet
     FROM
       hosts h
     LEFT OUTER JOIN
       host_mdm hm
     ON
       hm.host_id = h.id
+	LEFT OUTER JOIN
+	  host_dep_assignments hdep
+	ON
+	  hdep.host_id = h.id
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms
     ON
@@ -1609,6 +1617,9 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 				MDMID:            hostWithMDM.MDMID,
 				Name:             *hostWithMDM.Name,
 			}
+		}
+		if hostWithMDM.DEPAssignedToFleet == nil {
+			host.DEPAssignedToFleet = ptr.Bool(false)
 		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1670,7 +1681,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.installed_from_dep,
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name
+      COALESCE(mdms.name, ?) AS name,
+	  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, NULL) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1681,6 +1693,10 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       host_disks hd ON hd.host_id = hda.host_id
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
+	LEFT OUTER JOIN
+	  host_dep_assignments hdep
+	ON
+	  hdep.host_id = h.id
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
@@ -1700,6 +1716,9 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 				MDMID:            hostWithMDM.MDMID,
 				Name:             *hostWithMDM.Name,
 			}
+		}
+		if hostWithMDM.DEPAssignedToFleet == nil {
+			host.DEPAssignedToFleet = ptr.Bool(false)
 		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
