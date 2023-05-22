@@ -40,20 +40,20 @@ module.exports = {
       throw new Error('No sails.config.custom.customerWorkspaceOneUrl configured! Please set this value to be the base url of the customers Workspace One instance.');
     }
 
-    if(!sails.config.custom.customerWorkspaceOneTenentID) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneTenentID configured! Please set this value to be a the "AirWatch" API token from the Customer\'s Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneTenentId) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneTenentId configured! Please set this value to be a the "AirWatch" API token from the Customer\'s Workspace One instance.');
     }
 
-    if(!sails.config.custom.customerWorkspaceOneAuthorizationHeader) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneAuthorizationHeader configured! Please set this value to be the authorization header for requests to the customer\'s Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneAuthorizationToken) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneAuthorizationToken configured! Please set this value to be the authorization header for requests to the customer\'s Workspace One instance.');
     }
 
     // Send a request to unenroll this host in the customer's Workspace One instance.
     await sails.helpers.http.post.with({
       url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${host.hardware_serial}&command=EnterpriseWipe`,
       headers: {
-        'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationHeader,
-        'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenentID,
+        'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationToken,
+        'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenentId,
       },
       baseUrl: sails.config.custom.customerWorkspaceOneUrl
     }).intercept((err)=>{
