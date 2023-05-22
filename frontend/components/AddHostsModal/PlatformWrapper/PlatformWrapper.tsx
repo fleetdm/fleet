@@ -11,6 +11,7 @@ import { stringToClipboard } from "utilities/copy_text";
 import configAPI from "services/entities/config";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -19,9 +20,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
-
-import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IPlatformSubNav {
   name: string;
@@ -196,14 +194,14 @@ const PlatformWrapper = ({
                   <br />
                 </>
               )}
-              <a
-                href="#downloadCertificate"
+              <Button
+                variant="text-icon"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
               >
                 Download
-                <img src={DownloadIcon} alt="download" />
-              </a>
+                <Icon name="download" color="core-fleet-blue" size="small" />
+              </Button>
             </p>
           ) : (
             <p className={`${baseClass}__certificate-error`}>
@@ -298,7 +296,7 @@ const PlatformWrapper = ({
               className={`${baseClass}__installer-copy-icon`}
               onClick={onCopyInstaller}
             >
-              <img src={CopyIcon} alt="copy" />
+              <Icon name="clipboard" />
             </Button>
           </span>
         </span>
@@ -344,13 +342,17 @@ const PlatformWrapper = ({
                     Osquery uses an enroll secret to authenticate with the Fleet
                     server.
                     <br />
-                    <a
-                      href="#downloadEnrollSecret"
+                    <Button
+                      variant="text-icon"
                       onClick={onDownloadEnrollSecret}
                     >
                       Download
-                      <img src={DownloadIcon} alt="download icon" />
-                    </a>
+                      <Icon
+                        name="download"
+                        color="core-fleet-blue"
+                        size="small"
+                      />
+                    </Button>
                   </p>
                 </div>
                 {renderFleetCertificateBlock("plain")}
@@ -368,10 +370,14 @@ const PlatformWrapper = ({
                         {fetchCertificateError}
                       </span>
                     ) : (
-                      <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
+                      <Button variant="text-icon" onClick={onDownloadFlagfile}>
                         Download
-                        <img src={DownloadIcon} alt="download icon" />
-                      </a>
+                        <Icon
+                          name="download"
+                          color="core-fleet-blue"
+                          size="small"
+                        />
+                      </Button>
                     )}
                   </p>
                 </div>

@@ -87,8 +87,8 @@
   .buttons {
     display: block;
     align-items: center;
-    position: absolute;
-    right: 15px;
+    position: relative;
+    right: 540px;
     top: 40px;
 
     a {
@@ -144,12 +144,6 @@
   &__advanced--installer {
     p {
       margin: 0;
-    }
-  }
-
-  &__advanced--osqueryd {
-    .buttons {
-      top: 73px;
     }
   }
 
