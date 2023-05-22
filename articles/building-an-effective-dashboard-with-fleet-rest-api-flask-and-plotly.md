@@ -1,6 +1,6 @@
-# Building an Effective Dashboard with Fleet's REST API, Flask, and Plotly: A Step-by-Step Guide
+# Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide
 
-![Building an Effective Dashboard with Fleet's REST API, Flask, and Plotly: A Step-by-Step Guide](../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg)
+![Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide](../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg)
 
 ## Background
 
@@ -89,7 +89,7 @@ Hopefully, this article sparked your interest in the Fleet REST API and potentia
 
 
 
-<meta name="articleTitle" value="Building an Effective Dashboard with Fleet's REST API, Flask, and Plotly: A Step-by-Step Guide">
+<meta name="articleTitle" value="Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide">
 <meta name="authorFullName" value="Dave Herder">
 <meta name="authorGitHubUsername" value="dherder">
 <meta name="category" value="guides">
