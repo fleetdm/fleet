@@ -26,7 +26,7 @@ module.exports = {
   },
 
 
-  fn: async function (timestamp, host) {
+  fn: async function ({timestamp, host}) {
 
     if(!sails.config.custom.customerWorkspaceOneUrl) {
       throw new Error('No sails.config.custom.customerWorkspaceOneUrl configured! Please set this!')// FUTURE: better error
