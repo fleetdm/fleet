@@ -85,11 +85,14 @@
   }
 
   .buttons {
-    display: block;
+    display: flex;
+    flex-direction: row-reverse;
     align-items: center;
     position: relative;
-    right: 540px;
     top: 40px;
+    margin-right: $pad-medium;
+    height: 12px;
+    gap: $pad-small;
 
     a {
       display: flex;
@@ -104,7 +107,7 @@
 
   &__run-osquery-input {
     .buttons {
-      top: 12px;
+      top: 34px;
     }
   }
 

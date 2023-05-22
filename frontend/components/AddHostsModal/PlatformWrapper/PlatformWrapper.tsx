@@ -286,18 +286,18 @@ const PlatformWrapper = ({
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
-            {copyMessage[packageType] && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage[packageType]} `}</span>
-            )}
             <Button
               variant="unstyled"
               className={`${baseClass}__installer-copy-icon`}
               onClick={onCopyInstaller}
             >
-              <Icon name="clipboard" />
+              <Icon name="copy" />
             </Button>
+            {copyMessage[packageType] && (
+              <span
+                className={`${baseClass}__copy-message`}
+              >{`${copyMessage[packageType]} `}</span>
+            )}
           </span>
         </span>
       </>
