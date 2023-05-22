@@ -812,11 +812,8 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	}
 
 	var r []map[string]string
-	for i, fi := range software {
-		installedPath := ""
-		if i%2 == 0 {
-			installedPath = fmt.Sprintf("/some/path/%s", fi.Name)
-		}
+	for _, fi := range software {
+		installedPath := fmt.Sprintf("/some/path/%s", fi.Name)
 		r = append(r, map[string]string{
 			"name":           fi.Name,
 			"version":        fi.Version,
