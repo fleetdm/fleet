@@ -88,3 +88,23 @@ $max-width: 2560px;
     margin-right: $pad-medium;
   }
 }
+
+// used to share styles across the manual enroll mdm modal and the auto enroll mdm modal.
+@mixin enroll-mdm-modal {
+  &__description {
+    margin: $pad-large 0;
+  }
+
+  &__download-button {
+    margin-top: 12px;
+  }
+
+  ol {
+    padding-left: 0;
+  }
+
+  li {
+    margin-bottom: $pad-large;
+    list-style-position: inside;
+  }
+}
