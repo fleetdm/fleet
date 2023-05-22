@@ -133,6 +133,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 ## Compensation changes
 Fleet's founders [evaluate and update compensation decisions yearly](#workiversaries), shortly after the anniversary of a team member's start date.
 
+Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
 
 ## CEO handbook
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
