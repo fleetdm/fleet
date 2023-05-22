@@ -2,7 +2,7 @@
 
 There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
-Deploying on AWS with Fleet’s reference architecture will get you a fully functional Fleet instance that can scale to your needs.
+Deploying on AWS with Fleet’s reference architecture is an easy way to get a fully functional Fleet instance that can scale to your needs.
 
 
 ## Prerequisites:
@@ -28,7 +28,7 @@ Each module defines the required resource and consumes the next nested module. T
 configuring it as necessary. The `byo-vpc` module creates the database and cache instances that get passed into the `byo-db` module. And finally the `byo-db` module
 creates the ECS cluster and load balancer to be consumed by the `byo-ecs` module.
 
-The modules are made to be flexible if so desired you can bring your own infrastructure. For example if you already have an existing VPC
+The modules are made to be flexible allowing you to bring your own infrastructure. For example if you already have an existing VPC
 you'd like to deploy Fleet into, you could opt to use the `byo-vpc` module, supplying the necessary configuration like subnets(database, cache, and application need to communicate) and VPC ID.
 
 
@@ -40,7 +40,7 @@ module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 }
 ```
-This configuration would utilize all the modules Fleet defines with the default configurations. In essence this would provision:
+This configuration utilizes all the modules Fleet defines with the default configurations. In essence this would provision:
 1. VPC
 2. DB & Cache
 3. ECS for compute
@@ -63,7 +63,7 @@ module "fleet_vpcless" {
 }
 ```
 
-This configuration would allow you to bring your own VPC, public & private subnets, and ACM certificate. All of these are required
+This configuration allows you to bring your own VPC, public & private subnets, and ACM certificate. All of these are required
 to configure the remainder of the infrastructure, like the Database and ECS.
 
 ##### Bring only Fleet
@@ -94,7 +94,7 @@ module "fleet_ecs" {
 }
 ```
 
-This configuration would assume you have brought all the required dependencies of Fleet, the VPC, MySQL, Redis, and ALB/networking.
+This configuration assumes you have brought all the required dependencies of Fleet, the VPC, MySQL, Redis, and ALB/networking.
 
 
 ## Infrastructure
@@ -126,12 +126,12 @@ we are creating public and private subnets in addition to separate data layer fo
 to using a single NAT Gateway.
 
 ### Backups
-RDS daily snapshots are enabled by default and retention is set to 30 days. If there is ever a need a snapshot identifier can be supplied via terraform variable (`rds_initial_snapshot`)
+RDS daily snapshots are enabled by default and retention is set to 30 days. A snapshot identifier can be supplied via terraform variable (`rds_initial_snapshot`)
 in order to create the database from a previous snapshot.
 
 ## Deployment
 
-We're going to deploy Fleet using the module system with a few configurations. First start off by creating `fleet.tf` or naming it whateer you like.
+We're going to deploy Fleet using the module system with a few configurations. First start off by creating `fleet.tf` or naming it whatever you like.
 
 ```terraform
 module "fleet" {
@@ -143,9 +143,9 @@ module "fleet" {
 }
 ```
 
-Run `terraform get` to have terraform pull down the module. After this completes you should get a linting error saying that a required property is not defined `certificate_arn`.
+Run `terraform get` to have terraform pull down the module. After this completes you should get a linting error saying that a required property,`certificate_arn`, is not defined .
 
-To fix this issue lets also define some Route53 resources:
+To fix this issue lets define some Route53 resources:
 
 ```terraform
 module "acm" {
@@ -246,7 +246,7 @@ resource "aws_route53_record" "main" {
 }
 ```
 
-Now we can start to provision the infrastructure. In order to do this we'll need to apply in stages, that layer up the infrastructure.
+Now we can start to provision the infrastructure. In order to do this we'll need to run `terraform apply` in stages to layer up the infrastructure.
 
 First run:
 ```shell
@@ -264,14 +264,14 @@ You should see the planned output, and you will need to confirm the creation. Re
 
 During this process, terraform will create a `hosted zone` with an `NS` record for your domain and request a certificate from [AWS Certificate Manager (ACM)](https://aws.amazon.com/certificate-manager/). While the process is running, you'll need to add the `NS` records to your domain as well. 
 
-Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com`, and put the same `NS` records that get created after terraform creates the `fleet.queryops.com` hosted zone.
+Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com` and copy the `NS` records that were created by terraform for the `fleet.queryops.com` hosted zone.
 
 ![Route 53 QueryOps Hosted Zone](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-1-622x250@2x.png)
 
 
 ### Modifying the Fleet configuration
 
-To modify Fleet in you can override any of the exposed keys in `fleet_config` for example:
+To modify Fleet, you can override any of the exposed keys in `fleet_config`. Here is an example:
 ```terraform
 module "fleet" {
   source          = "github.com/fleetdm/fleet//terraform?ref=main"
@@ -290,7 +290,7 @@ module "fleet" {
 
 ## Conclusion
 
-Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. The Fleet team’s goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
+Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. Our goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
 
 ## Troubleshooting
 
