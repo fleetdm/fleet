@@ -723,6 +723,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-marketing`              | Jarod Reyes                                                            |
+| Private Vendor channels     | Jarod Reyes                                                            |
 | `#help-public-relations`    | Jarod Reyes                                                            |
 | `#help-promote`             | Jarod Reyes                                                            |
 | `#help-swag`                | Drew Baker                                                          |
