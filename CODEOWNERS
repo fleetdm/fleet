@@ -20,6 +20,7 @@ go.mod @fleetdm/go
 
 # GitHub issue templates
 /.github/ISSUE_TEMPLATE @mikermcneil
+/.github/ISSUE_TEMPLATE/9-renewal.md @zayhanlon
 
 # Codeowners file
 /CODEOWNERS @mikermcneil
