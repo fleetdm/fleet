@@ -280,9 +280,7 @@ const ManagePolicyPage = ({
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      if (!isEmpty(newSearchQuery)) {
-        newQueryParams.query = newSearchQuery;
-      }
+      newQueryParams.query = newSearchQuery;
 
       // Updates main policy table URL params
       // No change to inherited policy table URL params
