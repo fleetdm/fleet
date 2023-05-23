@@ -3617,7 +3617,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		depSerial := "dep-serial"
 		depUUID := "dep-uuid"
 		depOrbitNodeKey := "dep-orbit-node-key"
-		depDeviceToken := "dep-device-token"
+		depDeviceTok := "dep-device-token"
 
 		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
 		require.NoError(t, err)
@@ -3625,6 +3625,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		var depHostID uint
 		err = sqlx.GetContext(ctx, ds.reader, &depHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", depSerial)
+		require.NoError(t, err)
 
 		// host MDM row is created when DEP device is ingested
 		getHostResp, err := ds.Host(ctx, depHostID)
@@ -3653,7 +3654,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.NotNil(t, testHost)
 
 		// create device auth token for host
-		err = ds.SetOrUpdateDeviceAuthToken(context.Background(), depHostID, depDeviceToken)
+		err = ds.SetOrUpdateDeviceAuthToken(context.Background(), depHostID, depDeviceTok)
 		require.NoError(t, err)
 
 		// host MDM doesn't change upon Orbit enrollment
@@ -3669,7 +3670,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceToken, 1*time.Hour)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
 
@@ -3690,7 +3691,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceToken, 1*time.Hour)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
 
@@ -3711,7 +3712,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceToken, 1*time.Hour)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
 
@@ -3732,7 +3733,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceToken, 1*time.Hour)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
@@ -3754,7 +3755,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceToken, 1*time.Hour)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 
 		// check the host DEP assignment is still there
