@@ -108,7 +108,7 @@
         .selector-count {
           margin-left: 8px;
           font-size: $xxx-small;
-          font-weight: 700;
+          font-weight: $bold;
         }
         &[data-selected="true"] {
           background-color: $ui-vibrant-blue-10;
@@ -133,7 +133,7 @@
     align-items: center;
 
     span {
-      font-weight: 700;
+      font-weight: $bold;
     }
 
     .icon-tooltip {
