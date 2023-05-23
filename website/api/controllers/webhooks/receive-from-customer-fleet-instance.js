@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Receive from customer fleet instance',
+  friendlyName: 'Receive from customer Fleet instance',
 
 
   description: 'Receive webhook requests from a customer\'s Fleet instance and sends a request to unenroll a specfied host from the customer\'s Workspace One instance.',
