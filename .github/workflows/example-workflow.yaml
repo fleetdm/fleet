@@ -36,7 +36,7 @@ jobs:
         with:
           FLEET_API_TOKEN: $FLEET_API_TOKEN
           FLEET_URL: $FLEET_URL
-          FLEET_TEAM_NAME: Workstations
+          FLEET_TEAM_NAME: 💻 Workstations
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
           MAC_OS_MIN_VERSION: 13.3.2
