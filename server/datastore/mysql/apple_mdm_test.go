@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -3637,18 +3638,13 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is created when DEP device is ingested
-		var depAssigment struct {
-			HostID    uint       `db:"host_id"`
-			AddedAt   time.Time  `db:"added_at"`
-			DeletedAt *time.Time `db:"deleted_at"`
-		}
-		err = sqlx.GetContext(ctx, ds.reader, &depAssigment, "SELECT host_id, added_at, deleted_at FROM host_dep_assignments WHERE host_id = ?", depHostID)
+		depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
 		require.NoError(t, err)
-		require.Equal(t, depHostID, depAssigment.HostID)
-		require.Nil(t, depAssigment.DeletedAt)
-		require.WithinDuration(t, time.Now(), depAssigment.AddedAt, 1*time.Second)
+		require.Equal(t, depHostID, depAssignment.HostID)
+		require.Nil(t, depAssignment.DeletedAt)
+		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 1*time.Second)
 
-		// similate initial osquery enrollement via Orbit
+		// simulate initial osquery enrollment via Orbit
 		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
 		require.NoError(t, err)
 		require.NotNil(t, testHost)
@@ -3664,7 +3660,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get hos
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is reported for load host by Orbit node key and by device token
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -3735,6 +3731,9 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
 		// from MDM)
@@ -3757,18 +3756,15 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
-
-		// check the host DEP assignment is still there
-		var dest struct {
-			HostID    uint       `db:"host_id"`
-			AddedAt   time.Time  `db:"added_at"`
-			DeletedAt *time.Time `db:"deleted_at"`
-		}
-		err = sqlx.GetContext(ctx, ds.reader, &dest, "SELECT host_id, added_at, deleted_at FROM host_dep_assignments WHERE host_id = ?", depHostID)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
-		require.Equal(t, depHostID, dest.HostID)
-		require.Nil(t, dest.DeletedAt)
-		require.Equal(t, depAssigment.AddedAt, dest.AddedAt)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		hdepa, err := ds.GetHostDEPAssignment(ctx, depHostID)
+		require.NoError(t, err)
+		require.Equal(t, depHostID, hdepa.HostID)
+		require.Nil(t, hdepa.DeletedAt)
+		require.Equal(t, depAssignment.AddedAt, hdepa.AddedAt)
 	})
 
 	t.Run("manual enrollment", func(t *testing.T) {
@@ -3795,15 +3791,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// check host DEP assignment not created for non-DEP host
-		var dest struct {
-			HostID    uint       `db:"host_id"`
-			AddedAt   time.Time  `db:"added_at"`
-			DeletedAt *time.Time `db:"deleted_at"`
-		}
-		err = sqlx.GetContext(ctx, ds.reader, &dest, "SELECT host_id, added_at, deleted_at FROM host_dep_assignments WHERE host_id = ?", manualHostID)
-		require.EqualError(t, err, sql.ErrNoRows.Error())
+		hdepa, err := ds.GetHostDEPAssignment(ctx, manualHostID)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.Nil(t, hdepa)
 
-		// similate initial osquery enrollement via Orbit
+		// simulate initial osquery enrollment via Orbit
 		manualHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}, manualOrbitNodeKey, nil)
 		require.NoError(t, err)
 		require.Equal(t, manualHostID, manualHost.ID)

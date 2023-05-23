@@ -3281,7 +3281,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	require.NoError(t, err)
 	<-ch
 
-	// hosts mets all requirements, webhook is run
+	// hosts meets all requirements, webhook is run
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
 	require.True(t, webhookCalled)
 	webhookCalled = false

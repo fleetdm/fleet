@@ -751,11 +751,13 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
-		// only upsert MDM info for hosts that don't have any. This
+		// only upsert MDM info for hosts that are unmanaged. This
 		// prevents us from overriding valuable info with potentially
 		// incorrect data. For example: if a host is enrolled in a
 		// third-party MDM, but gets assigned in ABM to Fleet (during
-		// migration) we'll get an 'added' event.
+		// migration) we'll get an 'added' event. In that case, we
+		// expect that MDM info will be updated in due time as we ingest
+		// future osquery data from the host
 		if err := upsertMDMAppleHostMDMInfoDB(
 			ctx,
 			tx,
@@ -773,7 +775,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 }
 
 func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
-	if len(hosts) < 1 {
+	if len(hosts) == 0 {
 		return nil
 	}
 
