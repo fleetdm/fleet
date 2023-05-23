@@ -151,7 +151,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		if err != nil && !fleet.IsNotFound(err) {
 			return getDeviceHostResponse{Err: err}, nil
 		}
-		resp.DEPAssignedToFleet = ptr.Bool(hdep != nil && hdep.IsDEPAssignedToFleet())
+		resp.DEPAssignedToFleet = ptr.Bool(hdep.IsDEPAssignedToFleet())
 	}
 
 	return getDeviceHostResponse{

@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -1581,7 +1580,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
-	  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, NULL) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -1618,9 +1617,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 				MDMID:            hostWithMDM.MDMID,
 				Name:             *hostWithMDM.Name,
 			}
-		}
-		if hostWithMDM.DEPAssignedToFleet == nil {
-			host.DEPAssignedToFleet = ptr.Bool(false)
 		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1683,7 +1679,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-	  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, NULL) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1717,9 +1713,6 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 				MDMID:            hostWithMDM.MDMID,
 				Name:             *hostWithMDM.Name,
 			}
-		}
-		if hostWithMDM.DEPAssignedToFleet == nil {
-			host.DEPAssignedToFleet = ptr.Bool(false)
 		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -3731,8 +3730,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
-		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
@@ -3754,8 +3751,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
-		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
-		require.NoError(t, err)
 		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
@@ -3792,7 +3787,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// check host DEP assignment not created for non-DEP host
 		hdepa, err := ds.GetHostDEPAssignment(ctx, manualHostID)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.ErrorIs(t, err, sql.ErrNoRows)
 		require.Nil(t, hdepa)
 
 		// simulate initial osquery enrollment via Orbit

@@ -451,7 +451,10 @@ type HostDEPAssignment struct {
 	DeletedAt *time.Time `db:"deleted_at"`
 }
 
-func (h HostDEPAssignment) IsDEPAssignedToFleet() bool {
+func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
+	if h == nil {
+		return false
+	}
 	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
 }
 
