@@ -281,6 +281,22 @@ type Host struct {
 	// other host fields, it is not filled in by all host-returning datastore
 	// methods.
 	MDMInfo *HostMDM `json:"-" csv:"-"`
+
+	// RefetchCriticalQueriesUntil can be set to a timestamp up to which the
+	// "critical" queries will be constantly reported to the host that checks in
+	// to be re-executed until a condition is met (or the timestamp expires). The
+	// notion of "critical query" is voluntarily loosely defined so that future
+	// requirements may use this mechanism. The difference with RefetchRequested
+	// is that the latter is a one-time request, while this one is a persistent
+	// until the timestamp expires. The initial use-case is to check for a host
+	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
+	// workflow.
+	//
+	// In the future, if we want to use it for more than one use-case, we could
+	// add a "reason" field with well-known labels so we know what condition(s)
+	// are expected to clear the timestamp. For now there's a single use-case
+	// so we don't need this.
+	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
 }
 
 type MDMHostData struct {
@@ -703,6 +719,38 @@ func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsEnrolledInThirdPartyMDM returns true if and only if the host's MDM
+// information indicates that the device is currently enrolled into a
+// third-party MDM (an MDM that's not Fleet)
+func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
+	if h == nil {
+		return false
+	}
+	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// IsDEPCapable returns true if and only if the host's MDM information
+// indicates that the device is capable of doing DEP/AEP enrollments.
+func (h *HostMDM) IsDEPCapable() bool {
+	if h == nil {
+		return false
+	}
+	// TODO: InstalledFromDep doesn't necessarily mean DEP capable, we need
+	// to improve our internal state. See the differences at
+	// https://fleetdm.com/tables/mdm
+	return !h.IsServer && h.InstalledFromDep
+}
+
+// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
+func (h *HostMDM) IsDEPFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
@@ -855,11 +903,23 @@ type AggregatedMacadminsData struct {
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
-// HostShort is a minimal host representation returned when querying hosts.
-type HostShort struct {
-	ID          uint   `json:"id" db:"id"`
-	Hostname    string `json:"hostname" db:"hostname"`
+// HostVulnerabilitySummary type used with webhooks and third-party vulnerability automations.
+// Contains all pertinent host info plus the installed paths of all affected software.
+type HostVulnerabilitySummary struct {
+	// ID Is the ID of the host
+	ID uint `json:"id" db:"id"`
+	// Hostname the host's hostname
+	Hostname string `json:"hostname" db:"hostname"`
+	// DisplayName either the 'computer_name' or the 'host_name' (whatever is not empty)
 	DisplayName string `json:"display_name" db:"display_name"`
+	// SoftwareInstalledPaths paths of vulnerable software installed on the host.
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
+}
+
+func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
+	if p != "" {
+		hvs.SoftwareInstalledPaths = append(hvs.SoftwareInstalledPaths, p)
+	}
 }
 
 type OSVersions struct {
@@ -909,4 +969,16 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+}
+
+// HostSoftwareInstalledPath represents where in the file system a software on a host was installed
+type HostSoftwareInstalledPath struct {
+	// ID row id
+	ID uint `db:"id"`
+	// HostID is the id of the host where the software in question is installed
+	HostID uint `db:"host_id"`
+	// SoftwareID is the id of the software
+	SoftwareID uint `db:"software_id"`
+	// InstalledPath is the file system path where the software is installed
+	InstalledPath string `db:"installed_path"`
 }

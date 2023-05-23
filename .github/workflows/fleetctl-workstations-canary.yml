@@ -2,7 +2,7 @@
 # It uses a fleet instance also built and executed from source.
 #
 # It runs automatically when a file is changed in /mdm_profiles.
-name: Apply latest MDM profiles (Canary) (Test)
+name: Apply latest MDM profiles (Canary)
 
 on:
   push:
@@ -36,12 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Apply configuration profiles and updates
-        uses: fleetdm/fleet-mdm-gitops@f733749565c313a60c81c00ec19162933955d97e
+        uses: fleetdm/fleet-mdm-gitops@026ee84a69cb89c869fedbe27c969bf89def418b
         with:
-          FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
-          FLEET_URL: ${{ secrets.DOGFOOD_URL }}
+          FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
+          FLEET_URL: $DOGFOOD_URL
           FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
+          MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
-          MAC_OS_MIN_VERSION: 13.3.1
+          MAC_OS_MIN_VERSION: '13.4.0'
           MAC_OS_VERSION_DEADLINE: 2023-05-15
           MAC_OS_ENABLE_DISK_ENCRYPTION: true

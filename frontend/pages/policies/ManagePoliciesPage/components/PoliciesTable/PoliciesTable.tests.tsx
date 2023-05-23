@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
 
 import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
@@ -19,6 +20,7 @@ describe("Policies table", () => {
         isSandboxMode
         searchQuery=""
         page={0}
+        onQueryChange={noop}
       />
     );
 
@@ -44,6 +46,7 @@ describe("Policies table", () => {
         isSandboxMode={false}
         searchQuery=""
         page={0}
+        onQueryChange={noop}
       />
     );
 

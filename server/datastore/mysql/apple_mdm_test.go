@@ -46,7 +46,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
-		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
+		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
@@ -57,6 +57,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleEULA", testMDMAppleEULA},
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
+		{"TestListMDMAppleSerials", testListMDMAppleSerials},
+		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 	}
 
 	for _, c := range cases {
@@ -1810,16 +1812,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 }
 
-func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
+func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	acc := &fleet.MDMIdPAccount{
 		UUID:     "ABC-DEF",
 		Username: "email@example.com",
-		SaltedSHA512PBKDF2Dictionary: fleet.SaltedSHA512PBKDF2Dictionary{
-			Iterations: 50000,
-			Salt:       []byte("salt"),
-			Entropy:    []byte("entropy"),
-		},
+		Fullname: "John Doe",
 	}
 
 	err := ds.InsertMDMIdPAccount(ctx, acc)
@@ -1829,20 +1827,14 @@ func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	// try to insert an empty account
-	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
-	require.Error(t, err)
+	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
+	require.NoError(t, err)
+	require.Equal(t, acc, out)
 
-	// duplicated values get updated
-	acc.SaltedSHA512PBKDF2Dictionary.Iterations = 3000
-	acc.SaltedSHA512PBKDF2Dictionary.Salt = []byte("tlas")
-	acc.SaltedSHA512PBKDF2Dictionary.Entropy = []byte("yportne")
-	err = ds.InsertMDMIdPAccount(ctx, acc)
-	require.NoError(t, err)
-	var out fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
-	require.NoError(t, err)
-	require.Equal(t, acc, &out)
+	var nfe fleet.NotFoundError
+	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
@@ -3467,4 +3459,146 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	getProf.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
 	require.Equal(t, profMan, getProf)
+}
+
+func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a mix of DEP-enrolled hosts, non-Fleet-MDM, pending DEP-enrollment
+	hosts := make([]*fleet.Host, 10)
+	for i := 0; i < len(hosts); i++ {
+		serial := fmt.Sprintf("serial-%d", i)
+		if i == 9 {
+			serial = ""
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			Platform:       "darwin",
+			HardwareSerial: serial,
+		})
+		require.NoError(t, err)
+		switch {
+		case i <= 3:
+			// dep-enrolled in fleet
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet)
+		case i == 4:
+			// pending dep enrollment in fleet
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "https://example.com", true, fleet.WellKnownMDMFleet)
+		case i == 5:
+			// manually enrolled in fleet
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+		case i == 6:
+			// dep enrolled in fleet but is a server
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, true, true, "https://example.com", true, fleet.WellKnownMDMFleet)
+		case i == 7:
+			// dep enrolled in non-Fleet
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)
+		case i == 8:
+			// not mdm-enrolled at all
+			err = nil
+		case i == 9:
+			// dep-enrolled in fleet, but empty serial so not returned
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet)
+		}
+		require.NoError(t, err)
+		if i <= 3 {
+			nanoEnroll(t, ds, h, false)
+		}
+		hosts[i] = h
+		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)
+	}
+
+	// create teams
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// assign hosts[2,7,8] to tm1
+	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[7].ID, hosts[8].ID})
+	require.NoError(t, err)
+
+	// list serials in team 2, has none
+	serials, err := ds.ListMDMAppleDEPSerialsInTeam(ctx, &tm2.ID)
+	require.NoError(t, err)
+	require.Empty(t, serials)
+
+	// list serials in team 1, has one (hosts[2])
+	serials, err = ds.ListMDMAppleDEPSerialsInTeam(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"serial-2"}, serials)
+
+	// list serials in no-team, has 4 (hosts[0,1,3,4]), hosts[4] is pending, the others enrolled
+	serials, err = ds.ListMDMAppleDEPSerialsInTeam(ctx, nil)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-3", "serial-4"}, serials)
+
+	// list serials with no host IDs returns empty
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, serials)
+
+	// list serials in hosts[0,1,2,3,4] returns all of them
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3", "serial-4"}, serials)
+
+	// list serials in hosts[5,6,7,8,9] returns none
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[5].ID, hosts[6].ID, hosts[7].ID, hosts[8].ID, hosts[9].ID})
+	require.NoError(t, err)
+	require.Empty(t, serials)
+
+	// list serials in all hosts returns [0-4]
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{
+		hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID,
+		hosts[5].ID, hosts[6].ID, hosts[7].ID, hosts[8].ID, hosts[9].ID,
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3", "serial-4"}, serials)
+}
+
+func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// get non-existing
+	_, _, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// set for no team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "no-team")
+	require.NoError(t, err)
+
+	// get for no team returns the same data
+	uuid, ts, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, "no-team", uuid)
+	require.NotZero(t, ts)
+
+	// set for non-existing team fails
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, ptr.Uint(123), "xyz")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "foreign key constraint fails")
+
+	// get for non-existing team fails
+	_, _, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, ptr.Uint(123))
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err))
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tm"})
+	require.NoError(t, err)
+
+	// set for existing team
+	err = ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, &tm.ID, "tm")
+	require.NoError(t, err)
+
+	// get for existing team
+	uuid, ts, err = ds.GetMDMAppleDefaultSetupAssistant(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.Equal(t, "tm", uuid)
+	require.NotZero(t, ts)
 }

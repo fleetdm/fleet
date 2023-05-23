@@ -43,6 +43,8 @@ export enum ActivityType {
   DeletedBootstrapPackage = "deleted_bootstrap_package",
   ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
   DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
+  EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
+  DisabledMacOSSetupEndUserAuth = "disabled_macos_setup_end_user_auth",
 }
 export interface IActivity {
   created_at: string;

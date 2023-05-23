@@ -425,23 +425,7 @@ This is the callback endpoint that the identity provider will use to send securi
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet as well as additional meta data
-for pagination. The following types of activity are included:
-
-- Created pack
-- Edited pack
-- Deleted pack
-- Applied pack with fleetctl
-- Created policy
-- Edited policy
-- Deleted policy
-- Applied policy with fleetctl
-- Created saved query
-- Edited saved query
-- Deleted saved query
-- Applied query with fleetctl
-- Ran live query
-- Created team - _Available in Fleet Premium_
-- Deleted team - _Available in Fleet Premium_
+for pagination. For a comprehensive list of activity types and detailed information, please see [Audit activities](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
 `GET /api/v1/fleet/activities`
 
@@ -798,7 +782,8 @@ None.
 {
   "org_info": {
     "org_name": "fleet",
-    "org_logo_url": ""
+    "org_logo_url": "",
+    "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
@@ -856,6 +841,11 @@ None.
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
+    },
+    "macos_migration": {
+      "enable": false,
+      "mode": "voluntary",
+      "webhook_url": "https://webhook.example.com"
     },
     "macos_setup": {
       "bootstrap_package": "",
@@ -1036,6 +1026,9 @@ Modifies the Fleet's configuration with the supplied information.
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
+| mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
+| webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#end-user-authentication). **Requires Fleet Premium license** |
@@ -1071,7 +1064,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "org_info": {
     "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
+    "org_logo_url": "https://fleetdm.com/logo.png",
+    "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
@@ -1131,6 +1125,11 @@ Modifies the Fleet's configuration with the supplied information.
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
+    },
+    "macos_migration": {
+      "enable": false,
+      "mode": "voluntary",
+      "webhook_url": "https://webhook.example.com"
     },
     "macos_setup": {
       "bootstrap_package": "",
@@ -2110,7 +2109,8 @@ Returns the information of the specified host.
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-1"]
       },
       {
         "id": 1146,
@@ -2128,7 +2128,8 @@ Returns the information of the specified host.
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
     "id": 1,
@@ -2339,7 +2340,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
           "version": "0.8.0",
           "source": "python_packages",
           "generated_cpe": "",
-          "vulnerabilities": null
+          "vulnerabilities": null,
+          "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
     "id": 33,
@@ -5489,6 +5491,7 @@ load balancer timeout.
 - [Add query to schedule](#add-query-to-schedule)
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
+- [Team schedule](#team-schedule)
 
 Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
@@ -6514,7 +6517,7 @@ _Available in Fleet Premium_
 
 #### Example (add users to a team)
 
-`PATCH /api/v1/fleet/teams/1`
+`PATCH /api/v1/fleet/teams/1/users`
 
 ##### Request body
 
@@ -7339,7 +7342,7 @@ The selected user is logged out of Fleet and required to reset their password du
 | Name  | Type    | In   | Description                                                                                    |
 | ----- | ------- | ---- | ---------------------------------------------------------------------------------------------- |
 | id    | integer | path | **Required**. The user's id.                                                                   |
-| reset | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
+| require | boolean | body | Whether or not the user is required to reset their password during the next attempt to log in. |
 
 #### Example
 

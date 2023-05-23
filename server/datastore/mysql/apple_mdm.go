@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1590,17 +1591,28 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, salt, entropy, iterations)
+        (uuid, username, fullname)
       VALUES
-        (?, ?, ?, ?, ?)
+        (?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        salt       = VALUES(salt),
-        entropy    = VALUES(entropy),
-        iterations = VALUES(iterations)`
+        fullname   = VALUES(fullname)`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Salt, account.Entropy, account.Iterations)
+	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
+}
+
+func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader, &acct, stmt, uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", uuid)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
+	}
+	return &acct, nil
 }
 
 func subqueryDiskEncryptionVerifying() (string, []interface{}) {
@@ -2137,4 +2149,113 @@ func (ds *Datastore) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *u
 		return ctxerr.Wrap(ctx, err, "delete mdm apple setup assistant")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
+	var args []any
+	teamCond := `h.team_id IS NULL`
+	if teamID != nil {
+		teamCond = `h.team_id = ?`
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	hardware_serial
+FROM
+	hosts h
+	-- mdm join
+	%s
+WHERE
+	h.hardware_serial != '' AND
+	-- team_id condition
+	%s AND
+	hmdm.name = ? AND
+	-- hmdm.enrolled can be either 0 or 1, does not matter
+	hmdm.installed_from_dep = 1 AND
+	NOT COALESCE(hmdm.is_server, false)
+`, hostMDMJoin, teamCond)
+	args = append(args, fleet.WellKnownMDMFleet)
+
+	var serials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &serials, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	}
+	return serials, nil
+}
+
+func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	hardware_serial
+FROM
+	hosts h
+	-- mdm join
+	%s
+WHERE
+	h.hardware_serial != '' AND
+	h.id IN (?) AND
+	hmdm.name = ? AND
+	-- hmdm.enrolled can be either 0 or 1, does not matter
+	hmdm.installed_from_dep = 1 AND
+	NOT COALESCE(hmdm.is_server, false)
+`, hostMDMJoin)
+
+	stmt, args, err := sqlx.In(stmt, hostIDs, fleet.WellKnownMDMFleet)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var serials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &serials, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple dep serials")
+	}
+	return serials, nil
+}
+
+func (ds *Datastore) SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error {
+	const stmt = `
+		INSERT INTO
+			mdm_apple_default_setup_assistants (team_id, global_or_team_id, profile_uuid)
+		VALUES
+			(?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			profile_uuid = VALUES(profile_uuid)
+`
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	_, err := ds.writer.ExecContext(ctx, stmt, teamID, globalOrTmID, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm apple default setup assistant")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+	const stmt = `
+	SELECT
+		profile_uuid,
+		updated_at as uploaded_at
+	FROM
+		mdm_apple_default_setup_assistants
+	WHERE global_or_team_id = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	var asst fleet.MDMAppleSetupAssistant
+	if err := sqlx.GetContext(ctx, ds.writer /* needs to read recent writes */, &asst, stmt, globalOrTmID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", time.Time{}, ctxerr.Wrap(ctx, notFound("MDMAppleDefaultSetupAssistant").WithID(globalOrTmID))
+		}
+		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple default setup assistant")
+	}
+	return asst.ProfileUUID, asst.UploadedAt, nil
 }

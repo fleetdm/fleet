@@ -82,6 +82,9 @@ type Service interface {
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
 
+	// GetFleetDesktopSummary returns a summary of the host used by Fleet Desktop to operate.
+	GetFleetDesktopSummary(ctx context.Context) (DesktopSummary, error)
+
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.
 	//
@@ -336,9 +339,6 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
-
-	// FailingPoliciesCount returns the number of failling policies for 'host'
-	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -604,7 +604,7 @@ type Service interface {
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
 	// Desktop, in the My Device page). See #8701.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
@@ -716,6 +716,10 @@ type Service interface {
 	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
+
+	// TriggerMigrateMDMDevice posts a webhook request to the URL configured
+	// for MDM macOS migration.
+	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

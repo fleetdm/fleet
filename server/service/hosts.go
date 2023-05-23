@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
 )
 
@@ -649,6 +650,22 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
+	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
+	}
+	if len(serials) > 0 {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantHostsTransferred,
+			teamID,
+			serials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
+		}
+	}
+
 	return nil
 }
 
@@ -709,6 +726,21 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	}
 	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
+	}
+	if len(serials) > 0 {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantHostsTransferred,
+			teamID,
+			serials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
+		}
 	}
 	return nil
 }

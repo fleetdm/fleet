@@ -18,6 +18,8 @@ body {
 html,
 body {
   height: 100%;
+  // desired default line-height for text is 1.5x the font size.
+  line-height: 1.5;
 
   .__react_component_tooltip {
     text-align: center;
@@ -100,7 +102,7 @@ input {
 
 // syntax highlighting for pretty-printed JSON
 pre {
-  padding: 15px;
+  padding: $pad-large;
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;

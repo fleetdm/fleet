@@ -56,6 +56,10 @@ Osquery should always be written in lowercase unless used to start a sentence or
 - Open-source software, built on osquery.
 - Osquery and Fleet provide structured, convenient access to information about your devices.
 
+#### Device vs endpoint
+When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
+
+
 ## Grammar and mechanics
 
 ### Headings

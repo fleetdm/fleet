@@ -1033,6 +1033,8 @@ func isChildForeignKeyError(err error) bool {
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
 }
 
+type patternReplacer func(string) string
+
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
 	m = strings.Replace(m, "_", "\\_", -1)
@@ -1040,15 +1042,24 @@ func likePattern(m string) string {
 	return "%" + m + "%"
 }
 
+// noneReplacer doesn't manipulate
+func noneReplacer(m string) string {
+	return m
+}
+
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
 //
 // The input columns must be sanitized if they are provided by the user.
 func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, match, likePattern, columns...)
+}
+
+func searchLikePattern(sql string, params []interface{}, match string, replacer patternReplacer, columns ...string) (string, []interface{}) {
 	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
 
-	pattern := likePattern(match)
+	pattern := replacer(match)
 	ors := make([]string, 0, len(columns))
 	for _, column := range columns {
 		ors = append(ors, column+" LIKE ?")
@@ -1071,17 +1082,45 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 // in this.
 var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
 
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+/*
+This regex matches any occurrence of a character from the ASCII character set followed by one or more characters that are not from the ASCII character set.
+The first part `[[:ascii:]]` matches any character that is within the ASCII range (0 to 127 in the ASCII table),
+while the second part `[^[:ascii:]]` matches any character that is not within the ASCII range.
+So, when these two parts are combined with no space in between, the resulting regex matches any
+sequence of characters where the first character is within the ASCII range and the following characters are not within the ASCII range.
+*/
+var nonascii = regexp.MustCompile(`(?P<ascii>[[:ascii:]])(?P<nonascii>[^[:ascii:]]+)`)
+var nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
+
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
+	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
 	// special-case for hosts: if match looks like an email address, add searching
 	// in host_emails table as an option, in addition to the provided columns.
 	if rxLooseEmail.MatchString(match) {
+		matchesEmail = true
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args
+	return base, args, matchesEmail
+}
+
+func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, buildWildcardMatchPhrase(match), noneReplacer, columns...)
+}
+
+func buildWildcardMatchPhrase(matchQuery string) string {
+	return replaceMatchAny(likePattern(matchQuery))
+}
+
+func hasNonASCIIRegex(s string) bool {
+	return nonascii.MatchString(s)
+}
+
+func replaceMatchAny(s string) string {
+	return nonacsiiReplace.ReplaceAllString(s, "_")
 }
 
 func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {

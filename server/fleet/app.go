@@ -142,6 +142,7 @@ type MDM struct {
 	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
+	MacOSMigration        MacOSMigration           `json:"macos_migration"`
 	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	/////////////////////////////////////////////////////////////////
@@ -261,6 +262,32 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+}
+
+// MacOSMigration contains settings related to the MDM migration work flow.
+type MacOSMigration struct {
+	Enable     bool               `json:"enable"`
+	Mode       MacOSMigrationMode `json:"mode"`
+	WebhookURL string             `json:"webhook_url"`
+}
+
+// MacOSMigrationMode defines the possible modes that can be set if a user enables the MDM migration
+// work flow in Fleet.
+type MacOSMigrationMode string
+
+const (
+	MacOSMigrationModeForced    MacOSMigrationMode = "forced"
+	MacOSMigrationModeVoluntary MacOSMigrationMode = "voluntary"
+)
+
+// IsValid returns true if the mode is one of the valid modes.
+func (s MacOSMigrationMode) IsValid() bool {
+	switch s {
+	case MacOSMigrationModeForced, MacOSMigrationModeVoluntary:
+		return true
+	default:
+		return false
+	}
 }
 
 // MDMEndUserAuthentication contains settings related to end user authentication
@@ -580,7 +607,12 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 type OrgInfo struct {
 	OrgName    string `json:"org_name"`
 	OrgLogoURL string `json:"org_logo_url"`
+	// ContactURL is the URL displayed for users to contact support. By default,
+	// https://fleetdm.com/company/contact is used.
+	ContactURL string `json:"contact_url"`
 }
+
+const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {

@@ -1,13 +1,17 @@
 .mac-os-updates {
   font-size: $x-small;
 
-  h2 {
-    font-size: $small;
-    margin: 0;
-  }
-
   &__description {
     margin: $pad-xxlarge 0;
+  }
+
+  &__title {
+    margin: 0 0 $pad-large;
+    padding-bottom: $pad-small;
+    font-size: $medium;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    border-bottom: solid 1px $ui-fleet-black-10;
   }
 
   &__content {
@@ -16,6 +20,11 @@
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;
+
+    h2 {
+      font-size: $small;
+      margin: 0;
+    }
   }
 
   &__os-versions-card {

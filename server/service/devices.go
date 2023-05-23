@@ -48,8 +48,8 @@ func (svc *Service) DisableAuthForPing(ctx context.Context) {
 /////////////////////////////////////////////////////////////////////////////////
 
 type fleetDesktopResponse struct {
-	Err             error `json:"error,omitempty"`
-	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
+	Err error `json:"error,omitempty"`
+	fleet.DesktopSummary
 }
 
 func (r fleetDesktopResponse) error() error { return r.Err }
@@ -65,19 +65,19 @@ func (r *getFleetDesktopRequest) deviceAuthToken() string {
 // getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
 // endpoint should not include any kind of identifying information about the host.
 func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
-
-	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return fleetDesktopResponse{Err: err}, nil
-	}
-
-	r, err := svc.FailingPoliciesCount(ctx, host)
+	sum, err := svc.GetFleetDesktopSummary(ctx)
 	if err != nil {
 		return fleetDesktopResponse{Err: err}, nil
 	}
+	return fleetDesktopResponse{DesktopSummary: sum}, nil
+}
 
-	return fleetDesktopResponse{FailingPolicies: &r}, nil
+func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSummary, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.DesktopSummary{}, fleet.ErrMissingLicense
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -296,14 +296,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return nil, fleet.ErrMissingLicense
 }
 
-func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return 0, fleet.ErrMissingLicense
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Transparency URL Redirect
 ////////////////////////////////////////////////////////////////////////////////
@@ -341,7 +333,7 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 
@@ -455,5 +447,42 @@ func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Signal start of mdm migration on a device
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceMigrateMDMRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceMigrateMDMRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceMigrateMDMResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deviceMigrateMDMResponse) error() error { return r.Err }
+
+func (r deviceMigrateMDMResponse) Status() int { return http.StatusNoContent }
+
+func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return deviceMigrateMDMResponse{Err: err}, nil
+	}
+
+	if err := svc.TriggerMigrateMDMDevice(ctx, host); err != nil {
+		return deviceMigrateMDMResponse{Err: err}, nil
+	}
+	return deviceMigrateMDMResponse{}, nil
+}
+
+func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
 	return fleet.ErrMissingLicense
 }

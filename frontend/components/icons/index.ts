@@ -56,6 +56,7 @@ import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
 import FilePkg from "./FilePkg";
+import FilePdf from "./FilePdf";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -112,6 +113,7 @@ export const ICON_MAP = {
   "file-bash": FileBash,
   "file-pkg": FilePkg,
   "file-generic": FileGeneric,
+  "file-pdf": FilePdf,
   refresh: Refresh,
 };
 
