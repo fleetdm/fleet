@@ -300,24 +300,22 @@ func main() {
 					(sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile) &&
 					mdmMigrator.CanRun() {
 
-					// if the device is unmanaged or we're
-					// in force mode and the device needs
-					// migration, enable aggressive mode.
-					aggressive := sum.Notifications.RenewEnrollmentProfile ||
-						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced)
-
 					// update org info in case it changed
 					mdmMigrator.SetProps(useraction.MDMMigratorProps{
-						OrgInfo:    sum.Config.OrgInfo,
-						Aggressive: aggressive,
+						OrgInfo:     sum.Config.OrgInfo,
+						IsUnmanaged: sum.Notifications.RenewEnrollmentProfile,
 					})
 
 					// enable tray items
 					migrateMDMItem.Enable()
 					migrateMDMItem.Show()
 
-					if aggressive {
-						log.Info().Msg("MDM migration is in aggressive mode, automatically showing dialog")
+					// if the device is unmanaged or we're
+					// in force mode and the device needs
+					// migration, enable aggressive mode.
+					if sum.Notifications.RenewEnrollmentProfile ||
+						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced) {
+						log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 						if err := mdmMigrator.ShowInterval(); err != nil {
 							log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 						}
