@@ -40,8 +40,8 @@ module.exports = {
       throw new Error('No sails.config.custom.customerWorkspaceOneBaseUrl configured! Please set this value to be the base url of the customers Workspace One instance.');
     }
 
-    if(!sails.config.custom.customerWorkspaceOneTenentId) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneTenentId configured! Please set this value to be a the "AirWatch" API token from the Customer\'s Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneTenantId) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneTenantId configured! Please set this value to be a the "AirWatch" API token from the Customer\'s Workspace One instance.');
     }
 
     if(!sails.config.custom.customerWorkspaceOneAuthorizationToken) {
@@ -53,7 +53,7 @@ module.exports = {
       url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${host.hardware_serial}&command=EnterpriseWipe`,
       headers: {
         'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationToken,
-        'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenentId,
+        'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenantId,
       },
       baseUrl: sails.config.custom.customerWorkspaceOneBaseUrl
     }).intercept((err)=>{
