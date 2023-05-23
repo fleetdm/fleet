@@ -174,10 +174,9 @@ func queryCommand() *cli.Command {
 						if online > 0 {
 							percentOnline = 100 * float64(responded) / float64(online)
 						}
-					}
-
-					if responded >= online && flExit {
-						return nil
+						if responded >= online && flExit {
+							return nil
+						}
 					}
 
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
