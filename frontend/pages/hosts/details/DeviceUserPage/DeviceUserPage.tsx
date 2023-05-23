@@ -8,10 +8,10 @@ import { pick } from "lodash";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import {
-  IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
+  IHostDevice,
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
@@ -72,7 +72,7 @@ const DeviceUserPage = ({
     hostDiskEncryption,
     setHostDiskEncryption,
   ] = useState<IHostDiskEncryptionProps>({});
-  const [host, setHost] = useState<IHost | null>();
+  const [host, setHost] = useState<IHostDevice | null>();
   const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -116,6 +116,22 @@ const DeviceUserPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
   };
+
+  const isRefetching = ({
+    refetch_requested,
+    refetch_critical_queries_until,
+  }: IHostDevice) => {
+    if (!refetch_critical_queries_until) {
+      return refetch_requested;
+    }
+
+    const now = new Date();
+    const refetchUntil = new Date(refetch_critical_queries_until);
+    const isRefetchingCriticalQueries =
+      !isNaN(refetchUntil.getTime()) && refetchUntil > now;
+    return refetch_requested || isRefetchingCriticalQueries;
+  };
+
   const {
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
@@ -131,7 +147,7 @@ const DeviceUserPage = ({
       retry: false,
       select: (data: IDeviceUserResponse) => data,
       onSuccess: (returnedHost: IDeviceUserResponse) => {
-        setShowRefetchSpinner(returnedHost.host.refetch_requested);
+        setShowRefetchSpinner(isRefetching(returnedHost.host));
         setIsPremiumTier(returnedHost.license.tier === "premium");
         setHostSoftware(returnedHost.host.software ?? []);
         setHost(returnedHost.host);
@@ -144,7 +160,7 @@ const DeviceUserPage = ({
         });
         setOrgLogoURL(returnedHost.org_logo_url);
         setGlobalConfig(returnedHost.global_config);
-        if (returnedHost?.host.refetch_requested) {
+        if (isRefetching(returnedHost.host)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
@@ -298,7 +314,7 @@ const DeviceUserPage = ({
   );
 
   const renderEnrollMdmModal = () => {
-    return host?.mdm.enrollment_status === "Pending" ? (
+    return host?.dep_assigned_to_fleet ? (
       <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal

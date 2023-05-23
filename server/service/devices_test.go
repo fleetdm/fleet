@@ -31,8 +31,9 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		cases := []struct {
-			mdm fleet.MDM
-			out fleet.DesktopNotifications
+			mdm         fleet.MDM
+			depAssigned bool
+			out         fleet.DesktopNotifications
 		}{
 			{
 				mdm: fleet.MDM{
@@ -41,8 +42,22 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: true,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      true,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				mdm: fleet.MDM{
+					EnabledAndConfigured: true,
+					MacOSMigration: fleet.MacOSMigration{
+						Enable: true,
+					},
+				},
+				depAssigned: false,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
 				},
 			},
@@ -53,6 +68,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: true,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -65,6 +81,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: false,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -77,6 +94,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: false,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -92,7 +110,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			}
 
 			ctx := test.HostContext(ctx, &fleet.Host{
-				OsqueryHostID: ptr.String("test"),
+				OsqueryHostID:      ptr.String("test"),
+				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
 					IsServer:         false,
 					InstalledFromDep: true,
@@ -116,8 +135,9 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		}
 
 		cases := []struct {
-			mdm fleet.MDM
-			out fleet.DesktopNotifications
+			mdm         fleet.MDM
+			depAssigned bool
+			out         fleet.DesktopNotifications
 		}{
 			{
 				mdm: fleet.MDM{
@@ -126,6 +146,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: true,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: true,
@@ -138,6 +159,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: true,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -150,6 +172,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: false,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -162,6 +185,7 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 						Enable: false,
 					},
 				},
+				depAssigned: true,
 				out: fleet.DesktopNotifications{
 					NeedsMDMMigration:      false,
 					RenewEnrollmentProfile: false,
@@ -177,7 +201,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			}
 
 			ctx = test.HostContext(ctx, &fleet.Host{
-				OsqueryHostID: ptr.String("test"),
+				OsqueryHostID:      ptr.String("test"),
+				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
 					IsServer:         false,
 					InstalledFromDep: true,
@@ -232,7 +257,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			{
 				name: "manually enrolled into another MDM",
 				host: &fleet.Host{
-					OsqueryHostID: ptr.String("test"),
+					OsqueryHostID:      ptr.String("test"),
+					DEPAssignedToFleet: ptr.Bool(false),
 					MDMInfo: &fleet.HostMDM{
 						IsServer:         false,
 						InstalledFromDep: false,
@@ -248,7 +274,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			{
 				name: "DEP capable, but already unenrolled",
 				host: &fleet.Host{
-					OsqueryHostID: ptr.String("test"),
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
 						IsServer:         false,
 						InstalledFromDep: true,
@@ -264,7 +291,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			{
 				name: "DEP capable, but enrolled into Fleet",
 				host: &fleet.Host{
-					OsqueryHostID: ptr.String("test"),
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
 						IsServer:         false,
 						InstalledFromDep: true,
@@ -280,7 +308,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			{
 				name: "all conditions met",
 				host: &fleet.Host{
-					OsqueryHostID: ptr.String("test"),
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
 						IsServer:         false,
 						InstalledFromDep: true,
