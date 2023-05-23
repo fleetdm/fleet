@@ -100,8 +100,9 @@ func TestLiveQuery(t *testing.T) {
 				DistributedQueryCampaignID: 321,
 				Rows:                       []map[string]string{{"bing": "fds"}},
 				Host: fleet.ResultHostData{
-					ID:       99,
-					Hostname: "somehostname",
+					ID:          99,
+					Hostname:    "somehostname",
+					DisplayName: "somehostname",
 				},
 			},
 		))
