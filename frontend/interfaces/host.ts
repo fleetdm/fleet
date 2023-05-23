@@ -203,7 +203,7 @@ export interface IHost {
   last_enrolled_at: string;
   seen_time: string;
   refetch_requested: boolean;
-  refetch_critical_queries_until: string;
+  refetch_critical_queries_until: string | null;
   hostname: string;
   uuid: string;
   platform: string;
