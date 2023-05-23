@@ -23,7 +23,7 @@ module.exports = {
         hardware_serial: 'string'//eslint-disable-line camelcase
       },
       required: true,
-      description: 'An object containing information about a host that will be unenrolled from the customers Workspace ONE instance.'
+      description: 'An dictionary containing information about a host that will be unenrolled from the customers Workspace ONE instance.'
     }
 
   },
