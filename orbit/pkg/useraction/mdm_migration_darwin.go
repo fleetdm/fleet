@@ -32,7 +32,7 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 
 To begin, click "Start." Your default browser will open your My Device page.
 
-{{ if .Aggressive }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
+{{ if .IsUnmanaged }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
 
 	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n" +
 
@@ -231,7 +231,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if !m.props.Aggressive {
+		if !m.props.IsUnmanaged {
 			// show the loading spinner
 			m.renderLoadingSpinner()
 
