@@ -120,7 +120,7 @@ const DeviceUserPage = ({
   const isRefetching = ({
     refetch_requested,
     refetch_critical_queries_until,
-  }: IHost) => {
+  }: IHostDevice) => {
     if (!refetch_critical_queries_until) {
       return refetch_requested;
     }
