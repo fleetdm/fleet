@@ -522,6 +522,28 @@ func (h *Host) IsOsqueryEnrolled() bool {
 	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
 }
 
+// IsDEPAssignedToFleet returns true if the host was assigned to the Fleet
+// server in ABM.
+func (h *Host) IsDEPAssignedToFleet() bool {
+	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsElegibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func (h *Host) IsElegibleForDEPMigration() bool {
+	return h.IsOsqueryEnrolled() &&
+		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.IsEnrolledInThirdPartyMDM()
+}
+
+// NeedsDEPEnrollment returns true if the host should be DEP enrolled into
+// fleet but it's currently unenrolled.
+func (h *Host) NeedsDEPEnrollment() bool {
+	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		h.IsDEPAssignedToFleet()
+}
+
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty

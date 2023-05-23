@@ -3820,14 +3820,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
-		// host DEP assignment is nil for load host by Orbit node key and by device token (but it will marshal to
-		// default false in those endpoint responses) and nil for the general get host (will be omitted
-		// from the endpoint response) for the non-DEP host
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, manualOrbitNodeKey)
 		require.NoError(t, err)
-		require.Nil(t, h.DEPAssignedToFleet)
+		require.False(t, *h.DEPAssignedToFleet)
 		h, err = ds.LoadHostByDeviceAuthToken(ctx, manualDeviceToken, 1*time.Hour)
 		require.NoError(t, err)
-		require.Nil(t, h.DEPAssignedToFleet)
+		require.False(t, *h.DEPAssignedToFleet)
 	})
 }

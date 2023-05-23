@@ -11,13 +11,13 @@ func init() {
 
 func Up_20230520153236(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE host_dep_assignments (
-    host_id INT(10) UNSIGNED NOT NULL,
-    added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
+          CREATE TABLE host_dep_assignments (
+            host_id INT(10) UNSIGNED NOT NULL,
+            added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            deleted_at TIMESTAMP NULL,
 
-    PRIMARY KEY (host_id)
-);`)
+           PRIMARY KEY (host_id)
+        )`)
 	if err != nil {
 		return fmt.Errorf("failed to create host_dep_assignments table: %w", err)
 	}

@@ -3244,8 +3244,44 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	require.NoError(t, err)
 	require.Nil(t, h.RefetchCriticalQueriesUntil)
 
-	// host is enrolled to a third-party MDM so migration is allowed
+	// host is enrolled to a third-party MDM but hasn't been assigned in
+	// ABM yet, so migration is not allowed
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
+	require.False(t, webhookCalled)
+
+	// simulate that the device is assigned to Fleet in ABM
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			require.NoError(t, err)
+		case "/server/devices", "/devices/sync":
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.DeviceResponse{
+				Devices: []godep.Device{
+					{
+						SerialNumber: h.HardwareSerial,
+						Model:        "Mac Mini",
+						OS:           "osx",
+						OpType:       "added",
+					},
+				},
+			})
+			require.NoError(t, err)
+		}
+	}))
+	ch := make(chan bool)
+	s.onDEPScheduleDone = func() { close(ch) }
+	_, err = s.depSchedule.Trigger()
+	require.NoError(t, err)
+	<-ch
+
+	// hosts mets all requirements, webhook is run
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusNoContent)
 	require.True(t, webhookCalled)
 	webhookCalled = false
@@ -4399,8 +4435,39 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
+	// simulate that the device is assigned to Fleet in ABM
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			require.NoError(t, err)
+		case "/server/devices", "/devices/sync":
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(godep.DeviceResponse{
+				Devices: []godep.Device{
+					{
+						SerialNumber: host.HardwareSerial,
+						Model:        "Mac Mini",
+						OS:           "osx",
+						OpType:       "added",
+					},
+				},
+			})
+			require.NoError(t, err)
+		}
+	}))
+	ch := make(chan bool)
+	s.onDEPScheduleDone = func() { close(ch) }
+	_, err := s.depSchedule.Trigger()
+	require.NoError(t, err)
+	<-ch
+
 	// simulate that the device is enrolled in a third-party MDM and DEP capable
-	err := s.ds.SetOrUpdateMDMData(
+	err = s.ds.SetOrUpdateMDMData(
 		ctx,
 		host.ID,
 		false,
@@ -4417,7 +4484,7 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
 	require.Zero(t, *getDesktopResp.FailingPolicies)
-	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration) // TODO: test is failing here (hunch: ingest from DEP sync is not working as expected and we're not upsering host_dep_assignments for pre-existing hosts)
+	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
 	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
 	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)

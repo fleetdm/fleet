@@ -6426,6 +6426,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		// compare only the fields we care about
 		h.CreatedAt = returned.CreatedAt
 		h.UpdatedAt = returned.UpdatedAt
+		h.DEPAssignedToFleet = ptr.Bool(false)
 		assert.Equal(t, h, returned)
 	}
 
@@ -6436,15 +6437,16 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	createOrbitHost := func(tag string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			Platform:        tag,
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(tag),
-			NodeKey:         ptr.String(tag),
-			UUID:            tag,
-			Hostname:        tag + ".local",
+			Platform:           tag,
+			DetailUpdatedAt:    time.Now(),
+			LabelUpdatedAt:     time.Now(),
+			PolicyUpdatedAt:    time.Now(),
+			SeenTime:           time.Now(),
+			OsqueryHostID:      ptr.String(tag),
+			NodeKey:            ptr.String(tag),
+			UUID:               tag,
+			Hostname:           tag + ".local",
+			DEPAssignedToFleet: ptr.Bool(false),
 		})
 		require.NoError(t, err)
 
