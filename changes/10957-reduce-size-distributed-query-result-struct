@@ -1,0 +1,1 @@
+* Reduce size of live query websocket message by removing unused host data.
