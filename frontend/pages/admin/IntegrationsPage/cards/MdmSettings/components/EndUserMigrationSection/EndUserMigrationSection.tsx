@@ -18,6 +18,8 @@ import EmptyTable from "components/EmptyTable/EmptyTable";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
+import MdmMigrationPreview from "../../../../../../../../assets/images/mdm-migration-preview.gif";
+
 const baseClass = "end-user-migration-section";
 
 const VOLUNTARY_MODE_DESCRIPTION =
@@ -141,7 +143,11 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         enrolled to your old MDM solution.
       </p>
 
-      <img src="" alt="end user migration preview" />
+      <img
+        src={MdmMigrationPreview}
+        alt="end user migration preview"
+        className={`${baseClass}__migration-preview`}
+      />
       <form>
         <Slider
           value={formData.isEnabled}

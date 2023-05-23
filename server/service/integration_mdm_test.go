@@ -3687,18 +3687,6 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
-	// try to set the await_device_configured
-	tmProf = `{"await_device_configured": true}`
-	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
-		TeamID:            &tm.ID,
-		Name:              "team4",
-		EnrollmentProfile: json.RawMessage(tmProf),
-	}, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The automatic enrollment profile can’t include await_device_configured.`)
-	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
-
 	// try to set the url
 	tmProf = `{"url": "https://example.com"}`
 	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{

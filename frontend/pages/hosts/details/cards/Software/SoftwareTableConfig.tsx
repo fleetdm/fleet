@@ -144,7 +144,10 @@ const condenseInstalledPaths = (installedPaths: string[]): string[] => {
 const tooltipTextWithLineBreaks = (lines: string[]) => {
   return lines.map((line) => {
     return (
-      <span key={Math.random().toString().slice(2)}>
+      <span
+        className="tooltip__tooptip_text_line"
+        key={Math.random().toString().slice(2)}
+      >
         {line}
         <br />
       </span>
@@ -352,6 +355,7 @@ export const generateSoftwareTableHeaders = ({
           </TooltipWrapper>
         );
       },
+      disableSortBy: true,
       accessor: "installed_paths",
       Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
         const numInstalledPaths = cellProps.cell.value?.length || 0;
@@ -378,6 +382,7 @@ export const generateSoftwareTableHeaders = ({
                 effect="solid"
                 backgroundColor={COLORS["tooltip-bg"]}
                 id={`installed_paths__${cellProps.row.original.id}`}
+                className="installed_paths__tooltip"
                 data-html
                 clickable
                 delayHide={300}
