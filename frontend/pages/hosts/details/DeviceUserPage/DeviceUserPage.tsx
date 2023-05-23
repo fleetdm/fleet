@@ -121,6 +121,10 @@ const DeviceUserPage = ({
     refetch_requested,
     refetch_critical_queries_until,
   }: IHost) => {
+    if (!refetch_critical_queries_until) {
+      return refetch_requested;
+    }
+
     const now = new Date();
     const refetchUntil = new Date(refetch_critical_queries_until);
     const isRefetchingCriticalQueries =
