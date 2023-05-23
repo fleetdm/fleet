@@ -27,6 +27,11 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "pending-partial",
       tooltipText: "Setting will be enforced when the host comes online.",
     },
+    verified: {
+      statusText: "Verifying",
+      iconName: "success",
+      tooltipText: "Host applied the setting.",
+    },
     verifying: {
       statusText: "Verifying",
       iconName: "success-partial",
@@ -43,6 +48,11 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       statusText: "Removing enforcement (pending)",
       iconName: "pending-partial",
       tooltipText: "Enforcement will be removed when the host comes online.",
+    },
+    verified: {
+      statusText: "Verifying",
+      iconName: "success",
+      tooltipText: "Host applied the setting.",
     },
     verifying: null, // should not be reached
     failed: {

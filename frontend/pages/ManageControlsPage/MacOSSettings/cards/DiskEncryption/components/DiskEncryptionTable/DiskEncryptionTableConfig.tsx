@@ -1,9 +1,7 @@
 import React from "react";
 
-import {
-  FileVaultProfileStatus,
-  IFileVaultSummaryResponse,
-} from "interfaces/mdm";
+import { FileVaultProfileStatus } from "interfaces/mdm";
+import { IFileVaultSummaryResponse } from "services/entities/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -112,16 +110,23 @@ export const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
+  verified: {
+    displayName: "Verified",
+    statusName: "success",
+    value: "verified",
+    tooltip:
+      "Fleet verified that disk encryption is on and key stored in Fleet.",
+  },
   verifying: {
     displayName: "Verifying",
     statusName: "successPartial",
-    value: FileVaultProfileStatus.VERIFYING,
+    value: "verifying",
     tooltip: "Disk encryption on and key stored in Fleet. Fleet will verify.",
   },
   action_required: {
     displayName: "Action required (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.ACTION_REQUIRED,
+    value: "action_required",
     tooltip: (
       <>
         Ask the end user to follow <b>Disk encryption</b> instructions on their{" "}
@@ -132,18 +137,18 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
   enforcing: {
     displayName: "Enforcing (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.ENFORCING,
+    value: "enforcing",
     tooltip: "Setting will be enforced when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
     statusName: "error",
-    value: FileVaultProfileStatus.FAILED,
+    value: "failed",
   },
   removing_enforcement: {
     displayName: "Removing enforcement (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
+    value: "removing_enforcement",
     tooltip: "Enforcement will be removed when the hosts come online.",
   },
 };

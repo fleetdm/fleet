@@ -4,6 +4,15 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+export interface IFileVaultSummaryResponse {
+  verified: number;
+  verifying: number;
+  action_required: number;
+  enforcing: number;
+  failed: number;
+  removing_enforcement: number;
+}
+
 export interface IEulaMetadataResponse {
   name: string;
   token: string;

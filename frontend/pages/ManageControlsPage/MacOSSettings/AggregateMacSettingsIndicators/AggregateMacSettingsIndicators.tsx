@@ -19,6 +19,13 @@ interface IAggregateDisplayOption {
 
 const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
+    value: "verified",
+    text: "Verified",
+    iconName: "success",
+    tooltipText:
+      "Fleet verified that these hosts installed all configuration profiles.",
+  },
+  {
     value: "verifying",
     text: "Verifying",
     iconName: "success-partial",
