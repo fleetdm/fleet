@@ -7,9 +7,9 @@ assignees: ''
 
 ---
 
-> **This issue's remaining effort can be completed in ≤1 sprint.  It will be valuable even if nothing else ships.**
+> **This request is expected to be doable in ≤1 sprint.  It would be valuable even if nothing else ships.**
 > 
-> It is [planned and ready](https://fleetdm.com/handbook/company/development-groups#making-changes) to implement.  It is on the proper kanban board.
+> It will be reviewed by the acting PM for the #g-website product group, and then hopefully [prioritized, drafted, and implemented](https://fleetdm.com/handbook/company/development-groups#making-changes).
 
 ## Goal
 

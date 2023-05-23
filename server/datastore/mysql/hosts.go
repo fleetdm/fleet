@@ -22,6 +22,7 @@ import (
 )
 
 var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
+var wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 
 // Fixme: We should not make implementation details of the database schema part of the API.
 var defaultHostColumnTableAliases = map[string]string{
@@ -785,7 +786,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
 	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
-	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+	sql, params, _ = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
 
 	return sql, params
@@ -1156,13 +1157,13 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDM
 	// (the latter shows that it might not be top priority to index this field, if we're
 	// going to recommend using the host uuid as osquery identifier, as osquery_host_id
 	// _is_ indexed and unique).
-	//if uuid != "" {
+	// if uuid != "" {
 	//	if query.Len() > 0 {
 	//		_, _ = query.WriteString(" UNION ")
 	//	}
 	//	_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)`)
 	//	args = append(args, uuid)
-	//}
+	// }
 
 	if serial != "" && isMDMEnabled {
 		if query.Len() > 0 {
@@ -1439,7 +1440,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 // getContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
 func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
-	//nolint the statements are closed in Datastore.Close.
+	// nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
 		err = stmt.GetContext(ctx, dest, args...)
 	} else {
@@ -1818,31 +1819,56 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   ` + hostMDMJoin + `
-  WHERE TRUE`
+  WHERE TRUE AND `
 
-	var args []interface{}
+	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
-		query, args = hostSearchLike(query, args, matchQuery, hostSearchColumns...)
+		// first we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
+		// to get all the additional data for hosts that match the search criteria by host_id
+		matchingHosts := "SELECT id FROM hosts WHERE TRUE"
+		var args []interface{}
+		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
+		// if matchQuery is "email like" then don't bother with the additional wildcard searching
+		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
+			union, wildCardArgs := hostSearchLikeAny(matchingHosts, args, matchQuery, wildCardableHostSearchColumns...)
+			searchHostsQuery += " UNION " + union
+			args = wildCardArgs
+		}
+		searchHostsQuery += " AND TRUE ORDER BY id DESC LIMIT 10"
+		searchHostsQuery = ds.reader.Rebind(searchHostsQuery)
+		err := sqlx.SelectContext(ctx, ds.reader, &matchingHostIDs, searchHostsQuery, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "searching hosts")
+		}
 	}
-	var in interface{}
-	// use -1 if there are no values to omit.
-	// Avoids empty args error for `sqlx.In`
-	in = omit
-	if len(omit) == 0 {
-		in = -1
+
+	// we attempted to search for something that yielded no results, this should return empty set, no point in continuing
+	if len(matchingHostIDs) == 0 && len(matchQuery) > 0 {
+		return []*fleet.Host{}, nil
 	}
-	args = append(args, in)
-	query += " AND id NOT IN (?) AND "
+	var args []interface{}
+	if len(matchingHostIDs) > 0 {
+		args = append(args, matchingHostIDs)
+		query += " id IN (?) AND "
+	}
+	if len(omit) > 0 {
+		args = append(args, omit)
+		query += " id NOT IN (?) AND "
+	}
 	query += ds.whereFilterHostsByTeams(filter, "h")
 	query += ` ORDER BY h.id DESC LIMIT 10`
 
-	query, args, err := sqlx.In(query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
+	var err error
+	if len(args) > 0 {
+		query, args, err = sqlx.In(query, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
+		}
 	}
+
 	query = ds.reader.Rebind(query)
-	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
+	var hosts []*fleet.Host
+	if err = sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 

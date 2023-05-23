@@ -92,18 +92,30 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 	sum.FailingPolicies = &r
 
-	appCfg, err := svc.ds.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	if appCfg.MDM.EnabledAndConfigured &&
-		appCfg.MDM.MacOSMigration.Enable &&
-		host.IsOsqueryEnrolled() &&
-		host.MDMInfo.IsDEPCapable() &&
-		host.MDMInfo.IsEnrolledInThirdPartyMDM() {
-		sum.Notifications.NeedsMDMMigration = true
+	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+			sum.Notifications.RenewEnrollmentProfile = true
+		}
+
+		if host.IsOsqueryEnrolled() &&
+			host.MDMInfo.IsDEPCapable() &&
+			host.MDMInfo.IsEnrolledInThirdPartyMDM() {
+			sum.Notifications.NeedsMDMMigration = true
+		}
 	}
+
+	// organization information
+	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
+	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
+	sum.Config.OrgInfo.ContactURL = appCfg.OrgInfo.ContactURL
+
+	// mdm information
+	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
 }

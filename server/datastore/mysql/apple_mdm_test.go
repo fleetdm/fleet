@@ -46,7 +46,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
-		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
+		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
@@ -1812,16 +1812,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 }
 
-func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
+func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	acc := &fleet.MDMIdPAccount{
 		UUID:     "ABC-DEF",
 		Username: "email@example.com",
-		SaltedSHA512PBKDF2Dictionary: fleet.SaltedSHA512PBKDF2Dictionary{
-			Iterations: 50000,
-			Salt:       []byte("salt"),
-			Entropy:    []byte("entropy"),
-		},
+		Fullname: "John Doe",
 	}
 
 	err := ds.InsertMDMIdPAccount(ctx, acc)
@@ -1831,20 +1827,14 @@ func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	// try to insert an empty account
-	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
-	require.Error(t, err)
+	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
+	require.NoError(t, err)
+	require.Equal(t, acc, out)
 
-	// duplicated values get updated
-	acc.SaltedSHA512PBKDF2Dictionary.Iterations = 3000
-	acc.SaltedSHA512PBKDF2Dictionary.Salt = []byte("tlas")
-	acc.SaltedSHA512PBKDF2Dictionary.Entropy = []byte("yportne")
-	err = ds.InsertMDMIdPAccount(ctx, acc)
-	require.NoError(t, err)
-	var out fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
-	require.NoError(t, err)
-	require.Equal(t, acc, &out)
+	var nfe fleet.NotFoundError
+	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {

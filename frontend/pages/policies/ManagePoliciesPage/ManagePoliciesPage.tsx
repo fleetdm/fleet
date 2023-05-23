@@ -275,18 +275,16 @@ const ManagePolicyPage = ({
         searchQuery: newSearchQuery,
         sortDirection: newSortDirection,
         sortHeader: newSortHeader,
-        inheritedTable,
+        editingInheritedTable,
       } = newTableQuery;
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      if (!isEmpty(newSearchQuery)) {
-        newQueryParams.query = newSearchQuery;
-      }
+      newQueryParams.query = newSearchQuery;
 
       // Updates main policy table URL params
       // No change to inherited policy table URL params
-      if (!inheritedTable) {
+      if (!editingInheritedTable) {
         newQueryParams.order_key = newSortHeader;
         newQueryParams.order_direction = newSortDirection;
         newQueryParams.page = newPageIndex.toString();
@@ -312,7 +310,7 @@ const ManagePolicyPage = ({
 
       // Updates inherited policy table URL params
       // No change to main policy table URL params
-      if (showInheritedTable && inheritedTable) {
+      if (showInheritedTable && editingInheritedTable) {
         newQueryParams.inherited_order_key = newSortHeader;
         newQueryParams.inherited_order_direction = newSortDirection;
         newQueryParams.inherited_page = newPageIndex.toString();

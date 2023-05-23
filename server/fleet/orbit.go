@@ -8,6 +8,7 @@ import "encoding/json"
 type OrbitConfigNotifications struct {
 	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
 	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
+	NeedsMDMMigration       bool `json:"needs_mdm_migration,omitempty"`
 }
 
 type OrbitConfig struct {
