@@ -1753,7 +1753,6 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit...)
 			tt.wantErr(t, err)
 			resultHostIDs := make([]uint, len(got))
@@ -5752,6 +5751,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer.Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
+
+	_, err = ds.writer.Exec(`INSERT INTO host_dep_assignments (host_id) VALUES (?)`, host.ID)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
