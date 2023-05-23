@@ -1,6 +1,6 @@
 import React from "react";
 
-import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "learn-fleet";
 
@@ -18,7 +18,7 @@ const LearnFleet = (): JSX.Element => {
         rel="noopener noreferrer"
       >
         Learn how to use Fleet&nbsp;
-        <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+        <Icon name="arrow" color="core-fleet-blue" />
       </a>
     </div>
   );

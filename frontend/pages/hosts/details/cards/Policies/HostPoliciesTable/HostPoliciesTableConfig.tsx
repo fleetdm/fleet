@@ -1,5 +1,5 @@
 import React from "react";
-import StatusIndicator from "components/StatusIndicator";
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -71,9 +71,15 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        return (
-          <StatusIndicator value={getPolicyStatus(cellProps.row.original)} />
-        );
+        if (cellProps.row.original.response) {
+          return (
+            <StatusIndicatorWithIcon
+              value={getPolicyStatus(cellProps.row.original)}
+              status={cellProps.row.original.response}
+            />
+          );
+        }
+        return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
       },
     },
     {

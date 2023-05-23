@@ -6,13 +6,12 @@ import { memoize } from "lodash";
 
 import { ColumnInstance } from "react-table";
 
+import Icon from "components/Icon/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import { IHostPolicyQuery } from "interfaces/host";
 import sortUtils from "utilities/sort";
-import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
-import FailIcon from "../../../../../../assets/images/icon-action-fail-16x16@2x.png";
 
 interface IHeaderProps {
   column: ColumnInstance & IDataColumn;
@@ -70,12 +69,12 @@ const generateTableHeaders = (): IDataColumn[] => {
         <>
           {cellProps.cell.value.length ? (
             <>
-              <img alt="host passing" src={PassIcon} />
+              <Icon name="success" />
               <span className="status-header-text">Yes</span>
             </>
           ) : (
             <>
-              <img alt="host passing" src={FailIcon} />
+              <Icon name="error" />
               <span className="status-header-text">No</span>
             </>
           )}

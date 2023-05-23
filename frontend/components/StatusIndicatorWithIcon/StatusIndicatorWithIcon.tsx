@@ -14,7 +14,9 @@ export type IndicatorStatus =
   | "successPartial"
   | "pending"
   | "pendingPartial"
-  | "error";
+  | "error"
+  | "pass"
+  | "fail";
 
 interface IStatusIndicatorWithIconProps {
   status: IndicatorStatus;
@@ -32,6 +34,8 @@ const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   pending: "pending",
   pendingPartial: "pending-partial",
   error: "error",
+  pass: "success",
+  fail: "error",
 };
 
 const StatusIndicatorWithIcon = ({
