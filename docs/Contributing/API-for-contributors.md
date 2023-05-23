@@ -2236,6 +2236,7 @@ Returns the host information about the device that makes the request.
     "gigs_disk_space_available": 46.1,
     "percent_disk_space_available": 73,
     "disk_encryption_enabled": true,
+    "dep_assigned_to_fleet": false,
     "users": [
       {
         "uid": 0,
@@ -2404,6 +2405,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
+- `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 
 
 
