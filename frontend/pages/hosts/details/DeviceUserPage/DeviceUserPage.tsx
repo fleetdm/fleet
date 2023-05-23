@@ -8,10 +8,10 @@ import { pick } from "lodash";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import {
-  IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
+  IHostDevice,
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
@@ -72,7 +72,7 @@ const DeviceUserPage = ({
     hostDiskEncryption,
     setHostDiskEncryption,
   ] = useState<IHostDiskEncryptionProps>({});
-  const [host, setHost] = useState<IHost | null>();
+  const [host, setHost] = useState<IHostDevice | null>();
   const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -120,7 +120,7 @@ const DeviceUserPage = ({
   const isRefetching = ({
     refetch_requested,
     refetch_critical_queries_until,
-  }: IHost) => {
+  }: IHostDevice) => {
     if (!refetch_critical_queries_until) {
       return refetch_requested;
     }
@@ -314,7 +314,7 @@ const DeviceUserPage = ({
   );
 
   const renderEnrollMdmModal = () => {
-    return host?.mdm.enrollment_status === "Pending" ? (
+    return host?.dep_assigned_to_fleet ? (
       <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal

@@ -2610,6 +2610,7 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		HardwareSerial:  uuid.New().String(),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
