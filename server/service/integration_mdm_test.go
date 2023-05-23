@@ -301,19 +301,50 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
+	var returnType string
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
+		switch returnType {
+		case "not_signed":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
+		case "unauthorized":
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{}`))
+		case "success":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"auth_session_token": "abcd"}`))
+		default:
+			require.Fail(t, "unexpected return type: %s", returnType)
+		}
 	}))
 
 	config := s.getConfig()
 	require.False(t, config.MDM.AppleBMTermsExpired)
 
-	var getAppleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusInternalServerError, &getAppleBMResp)
+	// not signed error flips the AppleBMTermsExpired flag
+	returnType = "not_signed"
+	res := s.DoRaw("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "DEP auth error: 403 Forbidden")
 
 	config = s.getConfig()
 	require.True(t, config.MDM.AppleBMTermsExpired)
+
+	// a successful call clears it
+	returnType = "success"
+	s.DoRaw("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusOK)
+
+	config = s.getConfig()
+	require.False(t, config.MDM.AppleBMTermsExpired)
+
+	// an unauthorized call returns 400 but does not flip the terms expired flag
+	returnType = "unauthorized"
+	res = s.DoRaw("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "DEP auth error: 401 Unauthorized")
+
+	config = s.getConfig()
+	require.False(t, config.MDM.AppleBMTermsExpired)
 }
 
 func (s *integrationMDMTestSuite) TestProfileManagement() {

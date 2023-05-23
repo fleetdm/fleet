@@ -23,6 +23,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	depclient "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -66,6 +67,15 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
+		var authErr *depclient.AuthError
+		if errors.As(err, &authErr) {
+			// authentication failure means that the configured Apple BM certificate
+			// and/or token are invalid. Fail with a 400 Bad Request.
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     err.Error(), // or a more user-friendly message to check certificate/token?
+				InternalErr: err,
+			}, "apple GET /account request failed with authentication error")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
 	}
 
