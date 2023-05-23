@@ -296,7 +296,7 @@ type Host struct {
 	// add a "reason" field with well-known labels so we know what condition(s)
 	// are expected to clear the timestamp. For now there's a single use-case
 	// so we don't need this.
-	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
+	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
 
 	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
 	// It is a *bool becase we want it to be returned from only a subset of endpoints related to

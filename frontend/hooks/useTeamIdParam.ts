@@ -277,6 +277,9 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      // TODO: This results in a warning that TableProvider is being updated while rendering while
+      // rendering a different component (the component that invokes the useTeamIdParam hook).
+      // This requires further investigation but is not currently causing any known issues.
       if (resetSelectedRowsOnTeamChange) {
         setResetSelectedRows(true);
       }
