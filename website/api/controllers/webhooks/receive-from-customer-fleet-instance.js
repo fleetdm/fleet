@@ -12,8 +12,9 @@ module.exports = {
     timestamp: {
       type: 'string',
       required: true,
-      description: 'An ISO timestamp representing when this request was sent.',
-      extendedDescription: 'This value is not used by the webhook.'
+      description: 'An ISO 8601 timestamp representing when this request was sent.',
+      extendedDescription: 'This value is not used by the webhook.',
+      example: '0000-00-00T00:00:00Z'
     },
 
     host: {
@@ -50,13 +51,15 @@ module.exports = {
 
     // Send a request to unenroll this host in the customer's Workspace One instance.
     await sails.helpers.http.post.with({
-      url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${host.hardware_serial}&command=EnterpriseWipe`,
+      // Contrary to what you what think the EnterpriseWipe command only unenrolls the host from a Workspace One instance.
+      // [?] [Workspace One URL]/API/help/#!/CommandsV1/CommandsV1_ExecuteByAlternateIdAsync
+      url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${encodeURIComponent(host.hardware_serial)}&command=EnterpriseWipe`,
       headers: {
         'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationToken,
         'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenantId,
       },
       baseUrl: sails.config.custom.customerWorkspaceOneBaseUrl
-    }).intercept((err)=>{
+    }).intercept('non200Response', (err)=>{
       if(err.raw.statusCode === 404){
         return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the specified host was not found on the customer's Workspace One instance. Full error: ${err}`);
       } else if(err.raw.statusCode === 400) {
