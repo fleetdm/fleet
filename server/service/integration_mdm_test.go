@@ -107,6 +107,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	var depSchedule *schedule.Schedule
@@ -151,7 +152,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onProfileScheduleDone != nil {
 								defer s.onProfileScheduleDone()
 							}
-							return ReconcileProfiles(ctx, ds, apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+							return ReconcileProfiles(ctx, ds, mdmCommander, logger)
 						}),
 					)
 					return profileSchedule, nil
@@ -178,9 +179,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, kitlog.NewJSONLogger(os.Stdout)),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, kitlog.NewJSONLogger(os.Stdout)),
 	}
+	appleMDMJob := &worker.AppleMDM{
+		Datastore: s.ds,
+		Log:       kitlog.NewJSONLogger(os.Stdout),
+		Commander: mdmCommander,
+	}
 	workr := worker.NewWorker(s.ds, kitlog.NewJSONLogger(os.Stdout))
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob)
+	workr.Register(macosJob, appleMDMJob)
 	s.worker = workr
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3078,8 +3084,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
-		err := d.device.Enroll()
+		err := d.device.Enroll() // queues DEP post-enrollment worker job
 		require.NoError(t, err)
+
+		// process worker jobs
+		s.runWorker()
+
 		cmd, err := d.device.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
