@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { kebabCase } from "lodash";
+import { kebabCase, noop } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
@@ -13,8 +13,8 @@ import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x1
 const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
-  buttonText: string;
-  onActionButtonClick: (ids: number[]) => void | undefined;
+  buttonText: string | ((targetIds: number[]) => string);
+  onActionButtonClick?: (ids: number[]) => void;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
@@ -46,7 +46,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     iconPosition,
     indicatePremiumFeature,
   } = buttonProps;
-  const onButtonClick = useActionCallback(onActionButtonClick);
+  const onButtonClick = useActionCallback(onActionButtonClick || noop);
 
   const iconLink = ((iconProp) => {
     // check if using pre-defined short-hand otherwise otherwise return the prop

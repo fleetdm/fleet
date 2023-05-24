@@ -206,7 +206,7 @@ resource "random_uuid" "jitprovisioner" {
 
 # Use the local to make the trigger work.
 locals {
-  fleet_tag = "v4.26.0"
+  fleet_tag = "v4.31.0"
 }
 
 resource "null_resource" "standard-query-library" {
@@ -219,7 +219,7 @@ resource "null_resource" "standard-query-library" {
 
   provisioner "local-exec" {
     working_dir = "${path.module}/../../../"
-    command     = "git archive -o infrastructure/sandbox/JITProvisioner/lambda/standard-query-library.yml fleet-${local.fleet_tag} docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+    command     = "git archive fleet-${local.fleet_tag} docs/01-Using-Fleet/standard-query-library/standard-query-library.yml | tar -xO docs/01-Using-Fleet/standard-query-library/standard-query-library.yml > infrastructure/sandbox/JITProvisioner/lambda/standard-query-library.yml"
   }
 }
 

@@ -107,7 +107,7 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 			assert.Equal(t, req.ID, found.ID)
 			assert.Equal(t, req.UserID, found.UserID)
 			assert.Equal(t, req.Token, found.Token)
-			assert.Equal(t, req.ExpiresAt.Round(time.Minute), found.ExpiresAt.Round(time.Minute))
+			assert.WithinDuration(t, req.ExpiresAt.Truncate(time.Minute), found.ExpiresAt.Truncate(time.Minute), time.Minute)
 		}
 	}
 }

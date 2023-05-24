@@ -6,7 +6,7 @@ If a host is offline when you run a command, the host will run the command the n
 
 ## Custom commands
 
-You can run a custom commands and view a specific command's results using the `fleetctl` command-line interface.
+You can run custom commands and view a specific command's results using the `fleetctl` command-line interface.
 
 To run a custom command, we will do the following steps:
 1. Create a `.xml` with the request payload

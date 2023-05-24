@@ -28065,6 +28065,31 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
+    "name": "cis_audit",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Enables querying CIS item values.",
+    "columns": [
+      {
+        "name": "item",
+        "type": "text",
+        "required": false,
+        "description": "Contains the input CIS item to query. If empty, no CIS item is queried."
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "required": false,
+        "description": "Contains the value for the queried CIS item."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/cis_audit",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
+  },
+  {
     "name": "munki_installs",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",

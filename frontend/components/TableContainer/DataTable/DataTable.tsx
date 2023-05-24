@@ -48,10 +48,7 @@ interface IDataTableProps {
   resultsTitle: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
-  primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
-  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick: any; // figure out type
+  primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
   onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
@@ -91,10 +88,7 @@ const DataTable = ({
   resultsTitle,
   defaultPageSize,
   defaultPageIndex,
-  primarySelectActionButtonIcon,
-  primarySelectActionButtonVariant,
-  onPrimarySelectActionClick,
-  primarySelectActionButtonText,
+  primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
   onClientSidePaginationChange,
@@ -403,18 +397,18 @@ const DataTable = ({
   const renderPrimarySelectAction = (): JSX.Element | null => {
     const targetIds = selectedFlatRows.map((row: any) => row.original.id);
     const buttonText =
-      typeof primarySelectActionButtonText === "function"
-        ? primarySelectActionButtonText(targetIds)
-        : primarySelectActionButtonText;
+      typeof primarySelectAction?.buttonText === "function"
+        ? primarySelectAction?.buttonText(targetIds)
+        : primarySelectAction?.buttonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
 
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: onPrimarySelectActionClick,
+      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
-      variant: primarySelectActionButtonVariant,
-      icon: primarySelectActionButtonIcon,
+      variant: primarySelectAction?.variant,
+      icon: primarySelectAction?.icon,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
@@ -482,8 +476,7 @@ const DataTable = ({
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
-                      {primarySelectActionButtonText &&
-                        renderPrimarySelectAction()}
+                      {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (

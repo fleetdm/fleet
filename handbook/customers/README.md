@@ -21,7 +21,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
 > TODO: dedupe between this section and the "Sale" issue template
 
@@ -57,7 +57,7 @@ This workflow outlines the process that sales and customer success can follow wh
         - Any proof of concept (POC) notes that are relevant
         - Customer expectations for timeline
         - Server deployment type
-4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+4. (CS) The CSM kicks off the CS responsibilities in the 'New Sale Issue'
     - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
     - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
     - Create the customer Slack channel
@@ -117,7 +117,7 @@ When we do prospect calls, add the customer's name in both the google doc title 
 
 ## Customer support service level agreements (SLA's)
 
-### Fleet Free
+### Fleet Community Edition
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:---|:---|:---|:---|
 | All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |

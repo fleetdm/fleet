@@ -3,4 +3,5 @@
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
   gap: $pad-xsmall;
+  white-space: nowrap;
 }

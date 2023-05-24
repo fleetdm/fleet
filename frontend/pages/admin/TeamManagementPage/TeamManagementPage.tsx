@@ -276,12 +276,13 @@ const TeamManagementPage = (): JSX.Element => {
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}
             inputPlaceHolder={"Search"}
-            actionButtonText={"Create team"}
-            actionButtonVariant={"brand"}
-            hideActionButton={
-              teams && teams.length === 0 && searchString === ""
-            }
-            onActionButtonClick={toggleCreateTeamModal}
+            actionButton={{
+              name: "create team",
+              buttonText: "Create team",
+              variant: "brand",
+              onActionButtonClick: toggleCreateTeamModal,
+              hideButton: teams && teams.length === 0 && searchString === "",
+            }}
             onQueryChange={onQueryChange}
             resultsTitle={"teams"}
             emptyComponent={() =>

@@ -32,6 +32,7 @@ module.exports = {
 
     let daysSinceBugsWereOpened = [];
     let daysSincePullRequestsWereOpened = [];
+    let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
 
 
@@ -149,6 +150,7 @@ module.exports = {
       async()=>{
         let pullRequestResultsPageNumber = 0;
         let allOpenPullRequests = [];
+        let contributorPullRequests = [];
         // Fetch all open pull requests in the fleetdm/fleet repo.
         // Note: This will send requests to GitHub until the number of results is less than the number we requested.
         await sails.helpers.flow.until(async ()=>{
@@ -179,6 +181,10 @@ module.exports = {
           if (!pullRequest.draft) {// Exclude draft PRs
             daysSincePullRequestsWereOpened.push(timeOpenInDays);
           }
+          if (!pullRequest.draft && pullRequest.user.type !== 'Bot') {// Exclude draft PRs and PRs from bots
+            daysSinceContributorPullRequestsWereOpened.push(timeOpenInDays);
+            contributorPullRequests.push(pullRequest);
+          }
         }//∞
 
       }
@@ -189,6 +195,7 @@ module.exports = {
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
     let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
+    let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
     // Log the results
     sails.log(`
@@ -207,7 +214,10 @@ module.exports = {
     Open pull requests
     ---------------------------
     Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
-    Average open time: ${averageDaysPullRequestsAreOpenFor} days.`);
+    Average open time: ${averageDaysPullRequestsAreOpenFor} days.
+
+    Number of open pull requests in the fleetdm/fleet Github repo (no bots): ${daysSinceContributorPullRequestsWereOpened.length}
+    Average open time (no bots): ${averageDaysContributorPullRequestsAreOpenFor} days.`);
   }
 
 };

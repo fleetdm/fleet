@@ -178,7 +178,7 @@
       comingSoon: false
     - name: Self-managed autoupdate registry
       tier: Premium
-      comingSoon: true
+      comingSoon: false
     - name: Manage osquery extensions remotely
       tier: Premium
       comingSoon: false

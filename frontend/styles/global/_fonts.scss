@@ -1,38 +1,30 @@
 @font-face {
-  font-family: "Nunito Sans";
-  font-style: normal;
+  font-family: "Inter";
   font-weight: 400;
-  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot");
-  src: local(""),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.eot?#iefix")
-      format("embedded-opentype"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.woff") format("woff"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular.ttf")
-      format("truetype");
+  src: url("../assets/fonts/inter/Inter-Regular.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular.woff") format("woff");
 }
+
 @font-face {
-  font-family: "Nunito Sans";
-  font-style: normal;
-  font-weight: 700;
-  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot");
-  src: local(""),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.eot?#iefix")
-      format("embedded-opentype"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.woff") format("woff"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Bold.ttf") format("truetype");
-}
-@font-face {
-  font-family: "Nunito Sans";
+  font-family: "Inter";
   font-style: italic;
   font-weight: 400;
-  src: url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot");
-  src: local(""),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.eot?#iefix")
-      format("embedded-opentype"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.woff")
-      format("woff"),
-    url("../assets/fonts/nunito-sans/Nunito-Sans-Regular-Italic.ttf")
-      format("truetype");
+  src: url("../assets/fonts/inter/Inter-Regular-Italic.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular-Italic.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 600;
+  src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 700;
+  src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
 }
 
 @font-face {
@@ -65,7 +57,7 @@
       format("woff"),
     url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf")
       format("truetype");
-  font-weight: 600;
+  font-weight: $bold;
   font-style: normal;
 }
 

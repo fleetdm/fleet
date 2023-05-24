@@ -28,7 +28,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import NewPolicyModal from "../NewPolicyModal";
+import SaveNewPolicyModal from "../SaveNewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
@@ -82,7 +82,9 @@ const PolicyForm = ({
   backendValidators,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState(false);
+  const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
+    false
+  );
   const [showQueryEditor, setShowQueryEditor] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -169,7 +171,11 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+    !isEditMode || // save a new policy
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
+    (isTeamMaintainer && policyTeamId === storedPolicy?.team_id); // team maintainer cannot save global policy
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -235,7 +241,7 @@ const PolicyForm = ({
     }
 
     if (!isEditMode) {
-      setIsNewPolicyModalOpen(true);
+      setIsSaveNewPolicyModalOpen(true);
     } else {
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
@@ -519,37 +525,39 @@ const PolicyForm = ({
         {isEditMode && isPremiumTier && renderCriticalPolicy()}
         {renderLiveQueryWarning()}
         <div className={`${baseClass}__button-wrap`}>
-          <span
-            className={`${baseClass}__button-wrap--tooltip`}
-            data-tip
-            data-for={`${baseClass}__button-wrap--tooltip`}
-            data-tip-disable={!isEditMode || isAnyPlatformSelected}
-          >
-            {hasSavePermissions && (
-              <Button
-                variant="brand"
-                onClick={promptSavePolicy()}
-                disabled={isEditMode && !isAnyPlatformSelected}
-                className="save-loading"
-                isLoading={isUpdatingPolicy}
+          {hasSavePermissions && (
+            <>
+              <span
+                className={`${baseClass}__button-wrap--tooltip`}
+                data-tip
+                data-for={`${baseClass}__button-wrap--tooltip`}
+                data-tip-disable={!isEditMode || isAnyPlatformSelected}
               >
-                Save
-              </Button>
-            )}
-          </span>
-          <ReactTooltip
-            className={`${baseClass}__button-wrap--tooltip`}
-            place="bottom"
-            effect="solid"
-            id={`${baseClass}__button-wrap--tooltip`}
-            backgroundColor="#3e4771"
-          >
-            Select the platform(s) this
-            <br />
-            policy will be checked on
-            <br />
-            to save or run the policy.
-          </ReactTooltip>
+                <Button
+                  variant="brand"
+                  onClick={promptSavePolicy()}
+                  disabled={isEditMode && !isAnyPlatformSelected}
+                  className="save-loading"
+                  isLoading={isUpdatingPolicy}
+                >
+                  Save
+                </Button>
+              </span>
+              <ReactTooltip
+                className={`${baseClass}__button-wrap--tooltip`}
+                place="bottom"
+                effect="solid"
+                id={`${baseClass}__button-wrap--tooltip`}
+                backgroundColor="#3e4771"
+              >
+                Select the platform(s) this
+                <br />
+                policy will be checked on
+                <br />
+                to save or run the policy.
+              </ReactTooltip>
+            </>
+          )}
           <span
             className={`${baseClass}__button-wrap--tooltip`}
             data-tip
@@ -580,15 +588,14 @@ const PolicyForm = ({
           </ReactTooltip>
         </div>
       </form>
-      {isNewPolicyModalOpen && (
-        <NewPolicyModal
+      {isSaveNewPolicyModalOpen && (
+        <SaveNewPolicyModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
-          setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
+          setIsSaveNewPolicyModalOpen={setIsSaveNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
-          lastEditedQueryPlatform={lastEditedQueryPlatform}
           isUpdatingPolicy={isUpdatingPolicy}
         />
       )}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -18,6 +19,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -152,6 +154,87 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
+}
+
+func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.validateMDMAppleSetupPayload(ctx, payload); err != nil {
+		return err
+	}
+
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		tm, err := svc.teamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.updateTeamMDMAppleSetup(ctx, tm, payload)
+	}
+	return svc.updateAppConfigMDMAppleSetup(ctx, payload)
+}
+
+func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	ac, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return err
+	}
+
+	var didUpdate, didUpdateMacOSEndUserAuth bool
+	if payload.EnableEndUserAuthentication != nil {
+		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
+			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
+			didUpdate = true
+			didUpdateMacOSEndUserAuth = true
+		}
+	}
+
+	if didUpdate {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return err
+		}
+		if didUpdateMacOSEndUserAuth {
+			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
+	}
+
+	var act fleet.ActivityDetails
+	if enable {
+		act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
+	} else {
+		act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+	}
+	return nil
+}
+
+func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+	ac, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.MDM.EnabledAndConfigured {
+		return &fleet.MDMNotConfiguredError{}
+	}
+	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication == true && ac.MDM.EndUserAuthentication.IsEmpty() {
+		// TODO: update this error message to include steps to resolve the issue once docs for IdP
+		// config are available
+		return fleet.NewInvalidArgumentError("enable_end_user_authentication",
+			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+	}
+	return nil
 }
 
 func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
@@ -377,16 +460,14 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	deniedFields := map[string]string{
-		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
-		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
 	}
 	for k, msg := range deniedFields {
 		if _, ok := m[k]; ok {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
-	// TODO(mna): enqueue job to Define/Assign profile svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -402,6 +483,15 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileChanged,
+			newAsst.TeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
+		}
+
 		var teamName *string
 		if newAsst.TeamID != nil {
 			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
@@ -445,6 +535,15 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileDeleted,
+			teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
+		}
+
 		var teamName *string
 		if teamID != nil {
 			tm, err := svc.ds.Team(ctx, *teamID)
@@ -505,7 +604,6 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	}
 
 	return idpURL, nil
-
 }
 
 func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
@@ -537,6 +635,26 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}
 
+	// Store information for automatic account population/creation
+	//
+	// For now, we just grab whatever comes before the `@` in UserID, which
+	// must be an email.
+	//
+	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username, _, found := strings.Cut(auth.UserID(), "@")
+	if !found {
+		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		username = auth.UserID()
+	}
+	idpAcc := fleet.MDMIdPAccount{
+		UUID:     uuid.New().String(),
+		Username: username,
+		Fullname: auth.UserDisplayName(),
+	}
+	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+	}
+
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
@@ -552,7 +670,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	q := url.Values{"profile_token": {depProf.Token}}
+	q := url.Values{
+		"profile_token": {depProf.Token},
+		// using the idp token as a reference just because that's the
+		// only thing we're referencing later on during enrollment.
+		"enrollment_reference": {idpAcc.UUID},
+	}
 	if eula != nil {
 		q.Add("eula_token", eula.Token)
 	}
@@ -561,22 +684,10 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	// TODO(mna): all profiles must be updated: this gets called when the ServerURL or MDM
-	// SSO got modified. And then all devices part of the profile's team must be re-assigned
-	// the updated profile. Enqueue a worker job to take care of this.
-
-	// get the automatic enrollment profile to re-define it with Apple.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
-
-	if depProf == nil {
-		// CreateDefaultProfile takes care of registering the profile with Apple.
-		return svc.depService.CreateDefaultProfile(ctx)
-	}
-
-	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
+	return nil
 }
 
 // returns the default automatic enrollment profile, or nil (without error) if none exists.

@@ -10,7 +10,7 @@
           <p>Introducing the first GitOps-driven MDM with real-time visibility into every platform.</p>
           <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-self-start align-items-center">
             <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-            <a href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+            <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
           </div>
           <div purpose="hero-quote" class="d-flex flex-row align-items-between justify-content-center justify-content-md-start">
             <div><img alt="An opening quotation mark" src="/images/homepage-hero-quote-mark-22x17@2x.png"></div>
@@ -95,7 +95,7 @@
     <%/* Call to action */%>
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-      <a href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+middle" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
   </div>
@@ -110,7 +110,7 @@
           <div class="d-flex flex-column">
             <h2>Instant deployment with Fleet Managed Cloud.</h2>
             <p>Focus on device management, and leave your Fleet server management to us.</p>
-            <a href="https://kqphpqst851.typeform.com/to/yoo5smT9" target="_blank" purpose="animated-arrow-button-red">Join the beta</a>
+            <a style="max-width: 144px;" href="https://kqphpqst851.typeform.com/to/yoo5smT9" target="_blank" purpose="animated-arrow-button-red">Join the beta</a>
           </div>
         </div>
       </div>
@@ -218,7 +218,7 @@
         <h1>Think for yourself</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-          <a href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+bottom" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
     </div>

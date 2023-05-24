@@ -52,7 +52,7 @@
               </div>
             </div>
             <div class="justify-self-end mt-auto">
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+premium">Talk to sales</a>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" @click="clickOpenChatWidget()">Talk to sales</a>
             </div>
           </div>
           <%// Fleet Ultimate %>
@@ -107,7 +107,7 @@
               </div>
             </div>
             <div class="justify-self-end">
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+ultimate">Talk to sales</a>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" @click="clickOpenChatWidget()">Talk to sales</a>
             </div>
           </div>
         </div>
@@ -183,14 +183,14 @@
                 <td v-else></td>
                 <td v-if="index === 0">
                   <strong>Premium</strong>
-                  <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+table+premium">
+                  <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" @click="clickOpenChatWidget()">
                     Talk to sales
                   </a>
                 </td>
                 <td v-else></td>
                 <td v-if="index === 0">
                   <strong>Ultimate</strong>
-                  <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+table+ultimate">
+                  <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" @click="clickOpenChatWidget()">
                     Talk to sales
                   </a>
                 </td>
@@ -338,10 +338,10 @@
     <div purpose="bottom-cta" class="d-block mx-auto">
       <h2 class="text-center">Still have questions?</h2>
       <div class="d-flex flex-column flex-sm-row flex-nowrap btn-toolbar justify-content-center" style="text-align: center" >
-        <a purpose="chat-button" style="max-width: 250px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary my-3 mx-sm-2" @click="clickChatButton()">
+        <a purpose="chat-button" style="max-width: 250px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary my-3 mx-sm-2" href="https://fleetdm.com/company/contact">
           Ask us anything
         </a>
-        <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="animated-arrow-button" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom">
+        <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="animated-arrow-button" @click="clickOpenChatWidget()">
           Talk to an expert
         </a>
       </div>

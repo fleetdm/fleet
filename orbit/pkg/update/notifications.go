@@ -44,6 +44,18 @@ func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetch
 // to renew the enrollment profile.
 func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := h.Fetcher.GetConfig()
+
+	// TODO: download and use swiftDialog following the same patterns we
+	// use for Nudge.
+	//
+	// updaterHasTarget := h.UpdateRunner.HasRunnerOptTarget("swiftDialog")
+	// runnerHasLocalHash := h.UpdateRunner.HasLocalHash("swiftDialog")
+	// if !updaterHasTarget || !runnerHasLocalHash {
+	//         log.Info().Msg("refreshing the update runner config with swiftDialog targets and hashes")
+	//         log.Debug().Msgf("updater has target: %t, runner has local hash: %t", updaterHasTarget, runnerHasLocalHash)
+	//         return cfg, h.setTargetsAndHashes()
+	// }
+
 	if err == nil && cfg.Notifications.RenewEnrollmentProfile {
 		if h.cmdMu.TryLock() {
 			defer h.cmdMu.Unlock()

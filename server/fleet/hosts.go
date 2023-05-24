@@ -281,6 +281,31 @@ type Host struct {
 	// other host fields, it is not filled in by all host-returning datastore
 	// methods.
 	MDMInfo *HostMDM `json:"-" csv:"-"`
+
+	// RefetchCriticalQueriesUntil can be set to a timestamp up to which the
+	// "critical" queries will be constantly reported to the host that checks in
+	// to be re-executed until a condition is met (or the timestamp expires). The
+	// notion of "critical query" is voluntarily loosely defined so that future
+	// requirements may use this mechanism. The difference with RefetchRequested
+	// is that the latter is a one-time request, while this one is a persistent
+	// until the timestamp expires. The initial use-case is to check for a host
+	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
+	// workflow.
+	//
+	// In the future, if we want to use it for more than one use-case, we could
+	// add a "reason" field with well-known labels so we know what condition(s)
+	// are expected to clear the timestamp. For now there's a single use-case
+	// so we don't need this.
+	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
+
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
+	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
+	// responses.
+	//
+	// The boolean is based on information ingested from the Apple DEP API that is stored in the
+	// host_dep_assignments table.
+	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 }
 
 type MDMHostData struct {
@@ -497,6 +522,28 @@ func (h *Host) IsOsqueryEnrolled() bool {
 	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
 }
 
+// IsDEPAssignedToFleet returns true if the host was assigned to the Fleet
+// server in ABM.
+func (h *Host) IsDEPAssignedToFleet() bool {
+	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsElegibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func (h *Host) IsElegibleForDEPMigration() bool {
+	return h.IsOsqueryEnrolled() &&
+		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.IsEnrolledInThirdPartyMDM()
+}
+
+// NeedsDEPEnrollment returns true if the host should be DEP enrolled into
+// fleet but it's currently unenrolled.
+func (h *Host) NeedsDEPEnrollment() bool {
+	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		h.IsDEPAssignedToFleet()
+}
+
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
@@ -703,6 +750,38 @@ func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsEnrolledInThirdPartyMDM returns true if and only if the host's MDM
+// information indicates that the device is currently enrolled into a
+// third-party MDM (an MDM that's not Fleet)
+func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
+	if h == nil {
+		return false
+	}
+	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// IsDEPCapable returns true if and only if the host's MDM information
+// indicates that the device is capable of doing DEP/AEP enrollments.
+func (h *HostMDM) IsDEPCapable() bool {
+	if h == nil {
+		return false
+	}
+	// TODO: InstalledFromDep doesn't necessarily mean DEP capable, we need
+	// to improve our internal state. See the differences at
+	// https://fleetdm.com/tables/mdm
+	return !h.IsServer && h.InstalledFromDep
+}
+
+// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
+func (h *HostMDM) IsDEPFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
@@ -855,11 +934,23 @@ type AggregatedMacadminsData struct {
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
-// HostShort is a minimal host representation returned when querying hosts.
-type HostShort struct {
-	ID          uint   `json:"id" db:"id"`
-	Hostname    string `json:"hostname" db:"hostname"`
+// HostVulnerabilitySummary type used with webhooks and third-party vulnerability automations.
+// Contains all pertinent host info plus the installed paths of all affected software.
+type HostVulnerabilitySummary struct {
+	// ID Is the ID of the host
+	ID uint `json:"id" db:"id"`
+	// Hostname the host's hostname
+	Hostname string `json:"hostname" db:"hostname"`
+	// DisplayName either the 'computer_name' or the 'host_name' (whatever is not empty)
 	DisplayName string `json:"display_name" db:"display_name"`
+	// SoftwareInstalledPaths paths of vulnerable software installed on the host.
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
+}
+
+func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
+	if p != "" {
+		hvs.SoftwareInstalledPaths = append(hvs.SoftwareInstalledPaths, p)
+	}
 }
 
 type OSVersions struct {
@@ -909,4 +1000,16 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+}
+
+// HostSoftwareInstalledPath represents where in the file system a software on a host was installed
+type HostSoftwareInstalledPath struct {
+	// ID row id
+	ID uint `db:"id"`
+	// HostID is the id of the host where the software in question is installed
+	HostID uint `db:"host_id"`
+	// SoftwareID is the id of the software
+	SoftwareID uint `db:"software_id"`
+	// InstalledPath is the file system path where the software is installed
+	InstalledPath string `db:"installed_path"`
 }

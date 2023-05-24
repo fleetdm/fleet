@@ -62,7 +62,7 @@ $base-class: "button";
   padding: $pad-small $pad-medium;
   border-radius: 6px;
   font-size: $x-small;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -278,7 +278,6 @@ $base-class: "button";
     color: $core-vibrant-red;
     border: 0;
     box-sizing: border-box;
-    padding: 0;
 
     &:hover,
     &:focus {

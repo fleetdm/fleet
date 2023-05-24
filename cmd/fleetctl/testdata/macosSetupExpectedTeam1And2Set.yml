@@ -12,6 +12,7 @@ spec:
         enable_disk_encryption: false
       macos_setup:
         bootstrap_package: %s
+        enable_end_user_authentication: false
         macos_setup_assistant: %s
       macos_updates:
         deadline: ""

@@ -950,15 +950,15 @@ func TestMDMAppleConfig(t *testing.T) {
 				raw := json.RawMessage("{}")
 				return &fleet.MDMAppleEnrollmentProfile{DEPProfile: &raw}, nil
 			}
-
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+				return job, nil
+			}
 			depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
 				return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
 			}
-
 			depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
 				return &nanodep_client.OAuth1Tokens{}, nil
 			}
-
 			depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
 				return nil
 			}

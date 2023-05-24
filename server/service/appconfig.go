@@ -117,6 +117,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
+	if config.OrgInfo.ContactURL == "" {
+		config.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
+	}
+
 	features := config.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
@@ -208,7 +212,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		response.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
 
-	if license.Tier != "premium" || response.FleetDesktop.TransparencyURL == "" {
+	if (!license.IsPremium()) || response.FleetDesktop.TransparencyURL == "" {
 		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
 	}
 
@@ -258,7 +262,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
-		if license.Tier != "premium" {
+		if !license.IsPremium() {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -295,6 +299,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
+	if appConfig.OrgInfo.ContactURL == "" {
+		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -383,7 +391,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if license.Tier != "premium" {
+	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
@@ -400,15 +408,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
-		}
-	}
-
-	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
-		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmSSOSettingsChanged || serverURLChanged) && license.Tier == "premium" {
-		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sync DEP profile")
 		}
 	}
 
@@ -480,6 +479,28 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	mdmEnableEndUserAuthChanged := oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
+	if mdmEnableEndUserAuthChanged {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableEndUserAuthentication {
+			act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+		}
+	}
+
+	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
+		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
+		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
@@ -498,6 +519,9 @@ func (svc *Service) validateMDM(
 	}
 	if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
+	}
+	if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
+		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -520,6 +544,10 @@ func (svc *Service) validateMDM(
 
 		if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("macos_setup.bootstrap_package",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+		if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
+			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
@@ -559,6 +587,39 @@ func (svc *Service) validateMDM(
 		}
 
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+	}
+
+	// MacOSSetup validation
+	if mdm.MacOSSetup.EnableEndUserAuthentication {
+		if mdm.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			invalid.Append("macos_setup.enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
+	}
+
+	updatingMacOSMigration := mdm.MacOSMigration.Enable != oldMdm.MacOSMigration.Enable ||
+		mdm.MacOSMigration.Mode != oldMdm.MacOSMigration.Mode ||
+		mdm.MacOSMigration.WebhookURL != oldMdm.MacOSMigration.WebhookURL
+
+	// MacOSMigration validation
+	if updatingMacOSMigration {
+		if mdm.MacOSMigration.Enable {
+			if license.Tier != fleet.TierPremium {
+				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
+				return
+			}
+			if !mdm.MacOSMigration.Mode.IsValid() {
+				invalid.Append("macos_migration.mode", "mode must be one of 'voluntary' or 'forced'")
+			}
+			// TODO: improve url validation generally
+			if u, err := url.ParseRequestURI(mdm.MacOSMigration.WebhookURL); err != nil {
+				invalid.Append("macos_migration.webhook_url", err.Error())
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("macos_migration.webhook_url", "webhook_url must be https or http")
+			}
+		}
 	}
 }
 

@@ -157,13 +157,11 @@ const OperatingSystems = ({
             isLoading={isFetching}
             defaultSortHeader={DEFAULT_SORT_HEADER}
             defaultSortDirection={DEFAULT_SORT_DIRECTION}
-            hideActionButton
             resultsTitle={"Operating systems"}
             emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
-            disableActionButton
             isClientSidePagination={showPaginationControls}
             disablePagination={!showPaginationControls}
             pageSize={PAGE_SIZE}
