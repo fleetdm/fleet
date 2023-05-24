@@ -373,6 +373,7 @@ const DataTable = ({
       variant,
       hideButton,
       icon,
+      iconSvg,
       iconPosition,
       indicatePremiumFeature,
     } = actionButtonProps;
@@ -388,6 +389,7 @@ const DataTable = ({
           hideButton={hideButton}
           indicatePremiumFeature={indicatePremiumFeature}
           icon={icon}
+          iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
       </div>
@@ -409,6 +411,7 @@ const DataTable = ({
       targetIds,
       variant: primarySelectAction?.variant,
       icon: primarySelectAction?.icon,
+      iconSvg: primarySelectAction?.iconSvg,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);

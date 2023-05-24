@@ -210,6 +210,10 @@ $base-class: "button";
     cursor: pointer;
     white-space: nowrap;
 
+    .icon {
+      margin: 0 6px;
+    }
+
     img {
       transform: scale(0.5);
     }
