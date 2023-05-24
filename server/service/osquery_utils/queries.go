@@ -1174,8 +1174,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
-			// Thus, explicitly ignore them here.
-			installedPath != "null" {
+			// Thus, we explicitly ignore such value here.
+			strings.ToLower(installedPath) != "null" {
 			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 			sPaths[key] = struct{}{}
 		}
