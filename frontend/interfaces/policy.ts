@@ -1,6 +1,5 @@
 import PropTypes from "prop-types";
 import { IPlatformString } from "interfaces/platform";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -62,9 +61,11 @@ export interface IPolicyWebhookPreviewPayload {
   critical?: boolean;
 }
 
+export type PolicyStatusResponse = "pass" | "fail" | "";
+
 // Used on the host details page and other places where the status of individual hosts are displayed
 export interface IHostPolicy extends IPolicy {
-  response: IndicatorStatus; // "pass" | "fail"
+  response: PolicyStatusResponse;
 }
 
 export interface ILoadAllPoliciesResponse {

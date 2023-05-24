@@ -1,16 +1,17 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import Button from "components/buttons/Button";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import StatusIndicator from "components/StatusIndicator";
 import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
 import getHostStatusTooltipText from "pages/hosts/helpers";
+
+import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import StatusIndicator from "components/StatusIndicator";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
@@ -87,6 +88,7 @@ const HostSummary = ({
             onClick={onRefetchHost}
             variant="text-icon"
           >
+            <Icon name="refresh" color="core-fleet-blue" size="small" />
             {showRefetchSpinner
               ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}

@@ -2,11 +2,14 @@ import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
-interface IQuery {
+interface IRefresh {
   color?: Colors;
   size?: IconSizes;
 }
-const Refresh = ({ color = "ui-fleet-black-75", size = "medium" }: IQuery) => {
+const Refresh = ({
+  color = "ui-fleet-black-75",
+  size = "medium",
+}: IRefresh) => {
   return (
     <svg
       width={ICON_SIZES[size]}

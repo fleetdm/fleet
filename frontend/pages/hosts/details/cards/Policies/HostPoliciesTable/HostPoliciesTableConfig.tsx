@@ -4,12 +4,21 @@ import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
+}
+
+type PolicyStatus = "pass" | "fail";
+
+interface IStatusCellValue {
+  displayName: string;
+  statusName: IndicatorStatus;
+  value: PolicyStatus;
 }
 interface ICellProps {
   cell: {
@@ -30,20 +39,24 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const getPolicyStatus = (policy: IHostPolicy): string => {
-  if (policy.response === "pass") {
-    return "Yes";
-  } else if (policy.response === "fail") {
-    return "No";
-  }
-  return DEFAULT_EMPTY_CELL_VALUE;
-};
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
   togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void
 ): IDataColumn[] => {
+  const STATUS_CELL_VALUES: Record<PolicyStatus, IStatusCellValue> = {
+    pass: {
+      displayName: "Yes",
+      statusName: "success",
+      value: "pass",
+    },
+    fail: {
+      displayName: "No",
+      statusName: "error",
+      value: "fail",
+    },
+  };
+
   return [
     {
       title: "Name",
@@ -71,15 +84,18 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        if (cellProps.row.original.response) {
-          return (
-            <StatusIndicatorWithIcon
-              value={getPolicyStatus(cellProps.row.original)}
-              status={cellProps.row.original.response}
-            />
-          );
+        if (cellProps.row.original.response === "") {
+          return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
         }
-        return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
+
+        const responseValue =
+          STATUS_CELL_VALUES[cellProps.row.original.response];
+        return (
+          <StatusIndicatorWithIcon
+            value={responseValue.displayName}
+            status={responseValue.statusName}
+          />
+        );
       },
     },
     {
