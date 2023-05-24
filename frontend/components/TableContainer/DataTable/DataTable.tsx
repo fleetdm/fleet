@@ -372,7 +372,6 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      icon,
       iconSvg,
       iconPosition,
       indicatePremiumFeature,
@@ -388,7 +387,6 @@ const DataTable = ({
           variant={variant}
           hideButton={hideButton}
           indicatePremiumFeature={indicatePremiumFeature}
-          icon={icon}
           iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
@@ -410,7 +408,6 @@ const DataTable = ({
       onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
-      icon: primarySelectAction?.icon,
       iconSvg: primarySelectAction?.iconSvg,
     };
 

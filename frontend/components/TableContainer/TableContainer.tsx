@@ -337,12 +337,6 @@ const TableContainer = ({
                 >
                   <>
                     {actionButton.buttonText}
-                    {actionButton.icon && (
-                      <img
-                        src={actionButton.icon}
-                        alt={`${actionButton.buttonText} icon`}
-                      />
-                    )}
                     {actionButton.iconSvg && (
                       <Icon name={actionButton.iconSvg} />
                     )}
