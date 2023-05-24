@@ -58,6 +58,10 @@ module.exports = {
       throw new Error('No sails.config.custom.customerWorkspaceOneAuthorizationToken configured! Please set this value to be the authorization header for requests to the customer\'s Workspace One instance.');
     }
 
+    if(!sails.config.custom.customerMigrationWebhookSecret) {
+      throw new Error('No sails.config.custom.customerMigrationWebhookSecret configured! Please set this value to be the shared webhook secret for the host migration webhook.');
+    }
+
     if(webhookSecret !== sails.config.custom.customerMigrationWebhookSecret) {
       throw 'unauthorized';
     }
@@ -75,11 +79,11 @@ module.exports = {
     })
     .intercept('non200Response', (err)=>{
       if(err.raw.statusCode === 404){
-        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the specified host was not found on the customer's Workspace One instance. Full error: ${err}`);
+        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the specified host was not found on the customer's Workspace One instance. Full error: ${err.stack}`);
       } else if(err.raw.statusCode === 400) {
-        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the Workspace One instance could not unenroll the specified host. Full error: ${err}`);
+        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), the Workspace One instance could not unenroll the specified host. Full error: ${err.stack}`);
       } else {
-        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), an error occured. Full error: ${err}`);
+        return new Error(`When sending a request to unenroll a host from a Workspace One instance (Host information: Serial number: ${host.hardware_serial}, id: ${host.id}, uuid: ${host.uuid}), an error occured. Full error: ${err.stack}`);
       }
     });
 
