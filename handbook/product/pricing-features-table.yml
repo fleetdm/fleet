@@ -164,7 +164,7 @@
       comingSoon: false
 - categoryName: Deployment
   features:
-    - name: Self-managed
+    - name: Self-hosted
       tier: Free
       comingSoon: false
     - name: Deployment tools (Helm, Terraform)
