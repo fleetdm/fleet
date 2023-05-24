@@ -30,7 +30,8 @@ module.exports = {
     webhookSecret: {
       type: 'string',
       required: true,
-      description: 'A shared secret used to confirm that this request came from a customer\'s Fleet instance',
+      description: 'A shared secret used to confirm that this request came from a customer\'s Fleet instance.',
+      extendedDescription: 'This webhook handler should always be requested over TLS.  It is not safe to transmit shared secrets without transport-layer encryption.',
     }
 
   },
