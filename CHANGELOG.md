@@ -1,4 +1,4 @@
-## Fleet 4.32.0 (May 23, 2023)
+## Fleet 4.32.0 (May 24, 2023)
 
 * Added support to add a EULA as part of the AEP/DEP unboxing flow.
 
@@ -55,6 +55,7 @@
 * Added page header for macOS updates UI.
 
 * Back to queries button returns to previous table state.
+
 * Bookmarkable URLs are now source of truth for Manage Queries page table state.
 
 * Added mechanism to refetch MDM enrollment status of a host pending unenrollment (due to a migration to Fleet) at a high interval.
