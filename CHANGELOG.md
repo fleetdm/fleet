@@ -1,6 +1,6 @@
 ## Fleet 4.32.0 (May 23, 2023)
 
-* Added support to add an EULA as part of the AEP/DEP unboxing flow.
+* Added support to add a EULA as part of the AEP/DEP unboxing flow.
 
 * DEP enrollments configured with SSO now pre-populate the username/fullname fields during account
   creation.
@@ -13,9 +13,9 @@
 * Added device-authenticated endpoint to signal the Fleet server to send a webbook request with the
   device UUID and serial number to the webhook URL configured for MDM migration.
 
-* Added UI for new automic enrollment under the integration settings.
+* Added UI for new automatic enrollment under the integration settings.
 
-* Added UI for end user migration setup.
+* Added UI for end-user migration setup.
 
 * Changed macOS settings UI to always show the profile status aggregate data.
 
@@ -36,7 +36,7 @@
 
 * On the login and password reset pages, added email validation and fixed some minor styling bugs.
 
-* Ensure sentence casing on labels in host details page.
+* Ensure sentence casing on labels on host details page.
 
 * Fix 3 Windows CIS benchmark policies that had false positive results initally merged March 24.
 
@@ -52,11 +52,10 @@
 
 * Greyed out unusable select all queries checkbox.
 
-* Added page header for macos updates UI.
+* Added page header for macOS updates UI.
 
 * Back to queries button returns to previous table state.
-
-* Bookmarkable URLs now source of truth for Manage Queries page table state.
+Bookmarkable URLs are now source of truth for Manage Queries page table state.
 
 * Added mechanism to refetch MDM enrollment status of a host pending unenrollment (due to a migration to Fleet) at a high interval.
 
