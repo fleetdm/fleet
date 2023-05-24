@@ -132,13 +132,7 @@ module.exports.custom = {
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
-    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-    'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
-    'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
-    'docs/Deploying/FAQ.md': ['ksatter'],
-    'docs/Contributing/FAQ.md': ['ksatter'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter'],
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
     'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
