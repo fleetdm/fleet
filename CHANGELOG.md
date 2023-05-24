@@ -10,7 +10,7 @@
 * Re-assign and update the macOS setup assistants (and the default one) whenever required, such as
   when it is modified, when a host is transferred, a team is deleted, etc.
 
-* Added device-authenticated endpoint to signal the Fleet server to send a webbook request with the
+* Added device-authenticated endpoint to signal the Fleet server to send a webhook request with the
   device UUID and serial number to the webhook URL configured for MDM migration.
 
 * Added UI for new automatic enrollment under the integration settings.
