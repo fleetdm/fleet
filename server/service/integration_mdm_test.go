@@ -341,7 +341,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	returnType = "unauthorized"
 	res = s.DoRaw("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "DEP auth error: 401 Unauthorized")
+	require.Contains(t, errMsg, "Apple Business Manager certificate or server token is invalid")
 
 	config = s.getConfig()
 	require.False(t, config.MDM.AppleBMTermsExpired)

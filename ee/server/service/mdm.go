@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -69,10 +70,15 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 	if err != nil {
 		var authErr *depclient.AuthError
 		if errors.As(err, &authErr) {
-			// authentication failure means that the configured Apple BM certificate
-			// and/or token are invalid. Fail with a 400 Bad Request.
+			// authentication failure with 401 unauthorized means that the configured
+			// Apple BM certificate and/or token are invalid. Fail with a 400 Bad
+			// Request.
+			msg := err.Error()
+			if authErr.StatusCode == http.StatusUnauthorized {
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help."
+			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help.",
+				Message:     msg,
 				InternalErr: err,
 			}, "apple GET /account request failed with authentication error")
 		}
