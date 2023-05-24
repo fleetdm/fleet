@@ -94,6 +94,8 @@
         .installed_paths__cell {
           display: none;
           width: 0px;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
 
           .installed_paths__tooltip {
             max-width: 550px;
