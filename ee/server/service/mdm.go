@@ -72,7 +72,7 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 			// authentication failure means that the configured Apple BM certificate
 			// and/or token are invalid. Fail with a 400 Bad Request.
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     err.Error(), // or a more user-friendly message to check certificate/token?
+				Message:     "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help.",
 				InternalErr: err,
 			}, "apple GET /account request failed with authentication error")
 		}
