@@ -1,15 +1,11 @@
-# This workflow applies the latest configuration profiles (macOS settings) and macOS updates minimum version and deadline to the workstations team.
-# It uses a Fleet instance also built and executed from source.
-#
-# It runs when the GitHub action is triggered manually
-name: Apply latest configuration profiles and macOS updates
-
+# This workflow applies the latest configuration profiles (macOS settings) and macOS updates minimum version and deadline to the provided team.
+name: Apply latest configuration profiles (example)
 on:
   push:
     branches:
       - main
     paths:
-      - "mdm_profiles/**.mobileconfig"
+      - "path/to/**.mobileconfig"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -26,9 +22,9 @@ permissions:
   contents: read
 
 env:
-  DOGFOOD_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
-  DOGFOOD_URL: ${{ secrets.DOGFOOD_URL }}
-  CLOUD_MANAGEMENT_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
+  FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
+  FLEET_URL: ${{ secrets.DOGFOOD_URL }}
+  TOKEN_USED_BY_PROFILE: ${{ secrets.TOKEN_USED_BY_PROFILE }}
 
 jobs:
   apply-profiles:
@@ -38,11 +34,11 @@ jobs:
       - name: Apply configuration profiles and updates
         uses: fleetdm/fleet-mdm-gitops@026ee84a69cb89c869fedbe27c969bf89def418b
         with:
-          FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
-          FLEET_URL: $DOGFOOD_URL
-          FLEET_TEAM_NAME: 💻 Workstations
+          FLEET_API_TOKEN: $FLEET_API_TOKEN
+          FLEET_URL: $FLEET_URL
+          FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
-          MAC_OS_MIN_VERSION: 13.4.0
-          MAC_OS_VERSION_DEADLINE: '2023-05-26'
+          MAC_OS_MIN_VERSION: 13.3.2
+          MAC_OS_VERSION_DEADLINE: 2023-06-15
           MAC_OS_ENABLE_DISK_ENCRYPTION: true

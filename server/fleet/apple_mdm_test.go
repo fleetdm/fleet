@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -278,4 +280,49 @@ func TestHostMDMAppleProfileIgnoreClientError(t *testing.T) {
 		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
 		OperationType: MDMAppleOperationTypeRemove,
 	}.IgnoreMDMClientError())
+}
+
+func TestHostDEPAssignment(t *testing.T) {
+	cases := []struct {
+		testName string
+		input    HostDEPAssignment
+		expect   bool
+	}{
+		{
+			testName: "assigned to Fleet",
+			input: HostDEPAssignment{
+				HostID:    1,
+				AddedAt:   time.Now(),
+				DeletedAt: nil,
+			},
+			expect: true,
+		},
+		{
+			testName: "was assigned Fleet but now deleted",
+			input: HostDEPAssignment{
+				HostID:    1,
+				AddedAt:   time.Now(),
+				DeletedAt: ptr.Time(time.Now()),
+			},
+			expect: false,
+		},
+		{
+			testName: "empty struct",
+			input:    HostDEPAssignment{},
+			expect:   false,
+		},
+		{
+			testName: "empty added at",
+			input: HostDEPAssignment{
+				HostID: 1,
+			},
+			expect: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			require.Equal(t, c.expect, c.input.IsDEPAssignedToFleet())
+		})
+	}
 }

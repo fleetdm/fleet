@@ -619,7 +619,6 @@ mdm:
   end_user_authentication:
     entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
     metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
 

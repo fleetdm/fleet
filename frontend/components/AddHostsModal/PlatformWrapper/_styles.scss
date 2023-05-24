@@ -54,7 +54,7 @@
     &__textarea,
     &--disabled {
       font-family: "SourceCodePro", $monospace;
-      font-weight: 600;
+      font-weight: $bold;
       font-size: 13px;
       color: $core-fleet-blue;
       line-height: 20px;
