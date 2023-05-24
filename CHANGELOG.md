@@ -55,7 +55,7 @@
 * Added page header for macOS updates UI.
 
 * Back to queries button returns to previous table state.
-Bookmarkable URLs are now source of truth for Manage Queries page table state.
+* Bookmarkable URLs are now source of truth for Manage Queries page table state.
 
 * Added mechanism to refetch MDM enrollment status of a host pending unenrollment (due to a migration to Fleet) at a high interval.
 
