@@ -192,6 +192,9 @@ func queryCommand() *cli.Command {
 
 					if status != nil && totals != nil && responded >= online && flExit {
 						s.Stop()
+						if !flQuiet {
+							fmt.Fprintln(os.Stderr, msg)
+						}
 						return nil
 					}
 
