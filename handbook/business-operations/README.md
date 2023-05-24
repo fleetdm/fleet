@@ -752,9 +752,14 @@ template.
 - Update "Equity plan" to reflect updated status and equity grant for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
+## Trust
+Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-## Security
+### Vendor questionnaires 
+Work in progress
+https://docs.google.com/spreadsheets/d/19sSZA75B_0gksp1Mu9l_txNkDOPeb_-4/edit#gid=663308682
 
+### Security
 Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
