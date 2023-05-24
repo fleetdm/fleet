@@ -30,11 +30,13 @@ data "aws_iam_policy_document" "firehose_policy" {
   statement {
     effect  = "Allow"
     actions = ["logs:PutLogEvents"]
-    resources = [
+    resources = join([
       "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_results_name}:*",
       "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_status_name}:*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_audit_name}:*"
-    ]
+      ],
+      var.firehose_status_name == "" ? [] : [
+        "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_audit_name}:*"
+    ])
   }
 
   statement {

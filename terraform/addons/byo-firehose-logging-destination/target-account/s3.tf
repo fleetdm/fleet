@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 data "aws_kms_alias" "s3" {
-  name = "aws/s3"
+  name = "alias/s3"
 }
 
 resource "aws_s3_bucket" "destination" {
