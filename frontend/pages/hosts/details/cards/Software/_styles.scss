@@ -245,7 +245,6 @@
       tbody {
         .installed_paths__cell {
           display: table-cell;
-          padding: $pad-small 0;
 
           .text-cell {
             width: $col-lg;
@@ -253,7 +252,6 @@
             overflow: initial;
             white-space: initial;
             word-wrap: break-word;
-            margin-left: $pad-large;
           }
           .tooltip {
             display: inline; // center tooltip with hovered text
