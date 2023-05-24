@@ -206,8 +206,7 @@
     }
   }
 
-  // Only show this column to macos users
-  .macos .data-table-block .data-table__table {
+  .data-table-block .data-table__table {
     .installed_paths__header {
       border-right: none;
     }
