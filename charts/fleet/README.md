@@ -31,7 +31,7 @@ apiVersion: v1
 metadata:
   name: fleet
   namespace: fleet
-stringData:
+data:
   server.cert: |
     your-pem-encoded-certificate-here
   server.key: |
