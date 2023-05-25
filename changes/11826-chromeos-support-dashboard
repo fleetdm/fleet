@@ -1,0 +1,2 @@
+- Added built-in label for ChromeOS.
+- Fixed issue with `chrome_extensions` virtual table not returning path column.

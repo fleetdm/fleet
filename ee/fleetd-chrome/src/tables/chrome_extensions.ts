@@ -11,6 +11,7 @@ export default class TableChromeExtensions extends Table {
     "update_url",
     "permissions",
     "permissions_json",
+    "path",
   ];
 
   async generate() {
