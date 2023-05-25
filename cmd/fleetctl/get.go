@@ -18,9 +18,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
+	"sigs.k8s.io/yaml"
 )
 
 const (

@@ -15,8 +15,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
+	"sigs.k8s.io/yaml"
 )
 
 func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {

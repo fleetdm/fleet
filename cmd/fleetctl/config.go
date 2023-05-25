@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
+	"sigs.k8s.io/yaml"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
