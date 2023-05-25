@@ -132,12 +132,15 @@ export const updateCampaignState = (socketData: ISocketData) => {
         return updateCampaignStateFromStatus(campaign, socketData);
       case "error":
         if (socketData.data.includes("unexpected exit in receiveMessages")) {
-          const campaignID = socketData.data.substring(socketData.data.indexOf("=") + 1);
+          const campaignID = socketData.data.substring(
+            socketData.data.indexOf("=") + 1
+          );
           renderFlash(
             "error",
             `Fleet's connection to Redis failed (campaign ID ${campaignID}). If this issue persists, please contact your administrator.`
           );
         }
+        return { campaign };
       default:
         return { campaign };
     }
