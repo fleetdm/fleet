@@ -273,9 +273,6 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
-      console.log("handleTeamChange", teamId);
-      console.log("pathname", pathname);
-      console.log("search", search);
       // TODO: This results in a warning that TableProvider is being updated while rendering while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
