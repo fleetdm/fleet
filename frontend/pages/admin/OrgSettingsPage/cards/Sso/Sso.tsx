@@ -224,7 +224,7 @@ const Sso = ({
               parseTarget
             >
               <>
-                Automatically create Observer user on login{" "}
+                Create user and sync permissions on login{" "}
                 <CustomLink
                   url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
                   text="Learn more"
