@@ -73,8 +73,6 @@ The landscape of cybersecurity and IT is too complex.  Let's open it up.
 
 Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
-> Fleet is built on osquery, nanoMDM, and Nudge.  Huge props to Mike Arpaia, Ted Reeves, Victor Vrantchan, Jesse Peterson, Erik Gomez, the osquery TSC, and everyone who contributes to the ecosystem.  Thank you for making it easier to build better tools.
-
 <!-- - Great contributions are motivated by real-world use cases or learning.
 - Some of the most valuable contributions might not touch any code at all.
 - Small, iterative, simple (boring) changes are the easiest to merge. -->
@@ -91,3 +89,5 @@ Complete documentation for Fleet can be found at [https://fleetdm.com/docs](http
 
 ## License
 The free version of Fleet is available under the MIT license.  The commercial license is also designed to allow contributions to paid features for users whose employment agreements allow them to contribute to open source projects.  (See LICENSE.md for details.)
+
+> Fleet is built on osquery, nanoMDM, and Nudge.  Huge props to Mike Arpaia, Ted Reeves, Victor Vrantchan, Jesse Peterson, Erik Gomez, the osquery TSC, and everyone who contributes to the ecosystem.  Thank you for making it easier to build better tools.
