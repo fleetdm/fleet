@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
@@ -35,19 +36,20 @@ type campaignStatus struct {
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	logging.WithExtras(ctx, "campaign_id", campaignID)
+	logger := log.With(svc.logger, "campaignID", campaignID)
 
 	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
 	// read results is the same user that initiated the query. This means the observer check already
 	// happened with the actual value for this query.
 	if err := svc.authz.Authorize(ctx, &fleet.TargetedQuery{Query: &fleet.Query{ObserverCanRun: true}}, fleet.ActionRun); err != nil {
-		level.Info(svc.logger).Log("err", "stream results authorization failed")
+		level.Info(logger).Log("err", "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		level.Info(svc.logger).Log("err", "stream results viewer missing")
+		level.Info(logger).Log("err", "stream results viewer missing")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
@@ -61,7 +63,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Ensure the same user is opening to read results as initiated the query
 	if campaign.UserID != vc.User.ID {
-		level.Info(svc.logger).Log(
+		level.Info(logger).Log(
 			"err", "campaign user ID does not match",
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
@@ -150,7 +152,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	if err := updateStatus(); err != nil {
-		_ = svc.logger.Log("msg", "error updating status", "err", err)
+		_ = logger.Log("msg", "error updating status", "err", err)
 		return
 	}
 
@@ -175,13 +177,13 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 					return
 				}
 				if err != nil {
-					_ = svc.logger.Log("msg", "error writing to channel", "err", err)
+					_ = level.Error(logger).Log("msg", "error writing to channel", "err", err)
 				}
 				status.ActualResults++
 			case error:
-				svc.logger.Log("msg", "received error from pubsub channel", "err", res)
+				level.Error(logger).Log("msg", "received error from pubsub channel", "err", res)
 				if err := conn.WriteJSONError("pubsub error: " + res.Error()); err != nil {
-					svc.logger.Log("msg", "failed to write pubsub error", "err", err)
+					logger.Log("msg", "failed to write pubsub error", "err", err)
 				}
 			}
 
@@ -193,7 +195,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 			// Update status
 			if err := updateStatus(); err != nil {
-				svc.logger.Log("msg", "error updating status", "err", err)
+				level.Error(logger).Log("msg", "error updating status", "err", err)
 				return
 			}
 		}

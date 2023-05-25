@@ -129,12 +129,14 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	var wg sync.WaitGroup
 
+	logger := log.With(r.logger, "campaignID", query.ID)
+
 	// Run a separate goroutine feeding redis messages into msgChannel.
 	wg.Add(+1)
 	go func() {
 		defer wg.Done()
 
-		receiveMessages(ctx, psc, msgChannel, r.logger)
+		receiveMessages(ctx, psc, msgChannel, logger)
 	}()
 
 	wg.Add(+1)
@@ -147,7 +149,8 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
-					writeOrDone(ctx, outChannel, ctxerr.New(ctx, "unexpected exit in receiveMessages"))
+					level.Error(logger).Log("msg", "unexpected exit in receiveMessages")
+					writeOrDone(ctx, outChannel, ctxerr.Errorf(ctx, "unexpected exit in receiveMessages, campaignID=%d", query.ID))
 					return
 				}
 
@@ -164,6 +167,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
+					level.Error(logger).Log("msg", "error received from pubsub channel", "err", msg)
 					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}
