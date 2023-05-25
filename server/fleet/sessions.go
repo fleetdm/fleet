@@ -114,6 +114,7 @@ func (s SSORolesInfo) isEmpty() bool {
 const (
 	globalUserRoleSSOAttrName     = "FLEET_JIT_USER_ROLE_GLOBAL"
 	teamUserRoleSSOAttrNamePrefix = "FLEET_JIT_USER_ROLE_TEAM_"
+	ssoAttrNullRoleValue          = "null"
 )
 
 // RolesFromSSOAttributes loads Global and Team roles from SAML custom attributes.
@@ -121,7 +122,8 @@ const (
 //   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` are used
 //     for setting role for a team with ID <TEAM_ID>.
 //
-// For both attributes currently supported values are `admin`, `maintainer` and `observer`
+// For both attributes currently supported values are `admin`, `maintainer`, `observer`,
+// `observer_plus` and `null`. A `null` value is used to ignore the attribute.
 func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 	ssoRolesInfo := SSORolesInfo{}
 	for _, attribute := range attributes {
@@ -130,6 +132,10 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			role, err := parseRole(attribute.Values)
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse global role: %w", err)
+			}
+			if role == ssoAttrNullRoleValue {
+				// If the role is set to the null value then the attribute is ignored.
+				continue
 			}
 			ssoRolesInfo.Global = ptr.String(role)
 		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
@@ -141,6 +147,10 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			teamRole, err := parseRole(attribute.Values)
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse team role: %w", err)
+			}
+			if teamRole == ssoAttrNullRoleValue {
+				// If the role is set to the null value then the attribute is ignored.
+				continue
 			}
 			ssoRolesInfo.Teams = append(ssoRolesInfo.Teams, TeamRole{
 				ID:   uint(teamID),
@@ -170,7 +180,8 @@ func parseRole(values []SAMLAttributeValue) (string, error) {
 	if value != RoleAdmin &&
 		value != RoleMaintainer &&
 		value != RoleObserver &&
-		value != RoleObserverPlus {
+		value != RoleObserverPlus &&
+		value != ssoAttrNullRoleValue {
 		return "", fmt.Errorf("invalid role: %s", value)
 	}
 	return value, nil

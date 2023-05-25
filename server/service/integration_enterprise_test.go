@@ -2014,7 +2014,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	})
 	require.NoError(t, err)
 
-	// A user with pre-configured roles can be created
+	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
 	auth, body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
 	assert.Equal(t, "sso_user_4_team_maintainer@example.com", auth.UserID())
@@ -2023,6 +2023,54 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 		Values: []fleet.SAMLAttributeValue{{
 			Value: "maintainer",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// A user with pre-configured roles can be created,
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
+	assert.Equal(t, "sso_user_5_team_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 5", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "admin",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// A user with pre-configured roles can be created,
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
+	assert.Equal(t, "sso_user_6_global_observer@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 6", auth.UserDisplayName())
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
 		}},
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
