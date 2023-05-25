@@ -11,16 +11,16 @@ import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
-import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -115,10 +115,10 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-link"
+          variant="text-icon"
         >
           <>
-            Show query <img alt="Show query" src={EyeIcon} />
+            Show query <Icon name="eye" size="small" />
           </>
         </Button>
         <Button
@@ -128,11 +128,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="text-link"
+          variant="text-icon"
         >
           <>
-            {`Export ${tableType}`}{" "}
-            <img alt={`Export ${tableType}`} src={DownloadIcon} />
+            Export {tableType}
+            <Icon name="download" color="core-fleet-blue" />
           </>
         </Button>
       </div>

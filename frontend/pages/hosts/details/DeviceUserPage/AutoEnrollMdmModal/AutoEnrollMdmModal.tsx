@@ -7,7 +7,7 @@ interface IAutoEnrollMdmModalProps {
   onCancel: () => void;
 }
 
-const baseClass = "auto-enroll-mdm-modal enroll-mdm-modal";
+const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
   onCancel,
