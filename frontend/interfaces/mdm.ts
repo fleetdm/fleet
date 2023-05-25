@@ -99,6 +99,7 @@ export enum FileVaultProfileStatus {
   REMOVING_ENFORCEMENT = "removing_enforcement",
 }
 
+// // TODO: update when list profiles API returns identifier
 // export const FLEET_FILEVAULT_PROFILE_IDENTIFIER =
 //   "com.fleetdm.fleet.mdm.filevault";
 

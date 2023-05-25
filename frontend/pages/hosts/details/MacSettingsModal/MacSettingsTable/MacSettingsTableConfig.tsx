@@ -1,5 +1,7 @@
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
+
+import { IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
@@ -9,7 +11,6 @@ import {
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import MacSettingStatusCell from "./MacSettingStatusCell";
-import { IHostMdmData } from "interfaces/host";
 
 export interface IMacSettingsTableRow
   extends Omit<IHostMacMdmProfile, "status"> {

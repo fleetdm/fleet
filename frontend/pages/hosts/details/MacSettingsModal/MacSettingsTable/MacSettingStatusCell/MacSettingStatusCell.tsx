@@ -8,12 +8,11 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import { MacMdmProfileOperationType } from "interfaces/mdm";
 
 import { MacSettingsTableStatusValue } from "../MacSettingsTableConfig";
-import {
-  TooltipContent,
+import TooltipContent, {
   TooltipInnerContentFunc,
   TooltipInnerContentOption,
 } from "./components/Tooltip/TooltipContent";
-import { TooltipInnerContentActionRequired } from "./components/Tooltip/ActionRequired";
+import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
 
 const baseClass = "mac-setting-status-cell";
 

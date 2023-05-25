@@ -1,6 +1,6 @@
 import React from "react";
 
-export const TooltipInnerContentActionRequired = (props: {
+const TooltipInnerContentActionRequired = (props: {
   isDeviceUser: boolean;
   profileName: string;
 }) => {
@@ -30,3 +30,5 @@ export const TooltipInnerContentActionRequired = (props: {
     </>
   );
 };
+
+export default TooltipInnerContentActionRequired;

@@ -11,7 +11,7 @@ export type TooltipInnerContentProps = Record<
   string | number | boolean
 >;
 
-export const TooltipContent = (props: {
+const TooltipContent = (props: {
   innerContent: TooltipInnerContentOption;
   innerProps: TooltipInnerContentProps;
 }): JSX.Element => {
@@ -21,3 +21,5 @@ export const TooltipContent = (props: {
   }
   return <>{tooltip}</>;
 };
+
+export default TooltipContent;
