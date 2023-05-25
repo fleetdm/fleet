@@ -16,7 +16,7 @@
   - [Installing Fleet with kubectl](#installing-fleet-with-kubectl)
   - [Installing Helm](#installing-helm)
   - [Installing Fleet with Helm](#installing-fleet-with-helm)
-  - [Installing infrastructure dependencies](#installing-infrastructure-dependencies)
+  - [Installing infrastructure dependencies](#installing-infrastructure-dependencies-with-helm)
     - [MySQL](#mysql-2)
     - [Redis](#redis-2)
   - [Setting up and installing Fleet](#setting-up-and-installing-Fleet)
