@@ -30,6 +30,7 @@ export default class TableChromeExtensions extends Table {
         permissions: mergedPerms.join(", "),
         permissions_json: JSON.stringify(mergedPerms),
         state: ext.enabled ? 1 : 0,
+        path: ''
       });
     }
 
