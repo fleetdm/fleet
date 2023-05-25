@@ -34,15 +34,9 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 		result := fleet.DistributedQueryResult{
 			DistributedQueryCampaignID: 9999,
 			Rows:                       []map[string]string{{"bing": "fds"}},
-			Host: fleet.HostResponseForHostCheap(&fleet.Host{
+			Host: fleet.ResultHostData{
 				ID: 4,
-				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-					UpdateTimestamp: fleet.UpdateTimestamp{
-						UpdatedAt: time.Now().UTC(),
-					},
-				},
-				DetailUpdatedAt: time.Now().UTC(),
-			}),
+			},
 		}
 
 		// Write with no subscriber
@@ -108,59 +102,23 @@ func TestQueryResultsStore(t *testing.T) {
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"foo": "bar"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
+				Host: fleet.ResultHostData{
 					ID: 1,
-					// Note these times need to be set to avoid
-					// issues with roundtrip serializing the zero
-					// time value. See https://goo.gl/CCEs8x
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-						CreateTimestamp: fleet.CreateTimestamp{
-							CreatedAt: time.Now().UTC(),
-						},
-					},
-
-					DetailUpdatedAt: time.Now().UTC(),
-					SeenTime:        time.Now().UTC(),
-				}),
+				},
 			},
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"whoo": "wahh"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
+				Host: fleet.ResultHostData{
 					ID: 3,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-						CreateTimestamp: fleet.CreateTimestamp{
-							CreatedAt: time.Now().UTC(),
-						},
-					},
-
-					DetailUpdatedAt: time.Now().UTC(),
-					SeenTime:        time.Now().UTC(),
-				}),
+				},
 			},
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"bing": "fds"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
+				Host: fleet.ResultHostData{
 					ID: 4,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-						CreateTimestamp: fleet.CreateTimestamp{
-							CreatedAt: time.Now().UTC(),
-						},
-					},
-
-					DetailUpdatedAt: time.Now().UTC(),
-					SeenTime:        time.Now().UTC(),
-				}),
+				},
 			},
 		}
 
@@ -174,38 +132,16 @@ func TestQueryResultsStore(t *testing.T) {
 			{
 				DistributedQueryCampaignID: 2,
 				Rows:                       []map[string]string{{"tim": "tom"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
+				Host: fleet.ResultHostData{
 					ID: 1,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-						CreateTimestamp: fleet.CreateTimestamp{
-							CreatedAt: time.Now().UTC(),
-						},
-					},
-
-					DetailUpdatedAt: time.Now().UTC(),
-					SeenTime:        time.Now().UTC(),
-				}),
+				},
 			},
 			{
 				DistributedQueryCampaignID: 2,
 				Rows:                       []map[string]string{{"slim": "slam"}},
-				Host: fleet.HostResponseForHostCheap(&fleet.Host{
+				Host: fleet.ResultHostData{
 					ID: 3,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
-						CreateTimestamp: fleet.CreateTimestamp{
-							CreatedAt: time.Now().UTC(),
-						},
-					},
-
-					DetailUpdatedAt: time.Now().UTC(),
-					SeenTime:        time.Now().UTC(),
-				}),
+				},
 			},
 		}
 
@@ -222,7 +158,6 @@ func TestQueryResultsStore(t *testing.T) {
 					results1 = append(results1, res)
 				}
 			}
-
 		}()
 		readerWg.Add(1)
 		go func() {
@@ -233,7 +168,6 @@ func TestQueryResultsStore(t *testing.T) {
 					results2 = append(results2, res)
 				}
 			}
-
 		}()
 
 		// Wait to ensure subscriptions are activated before writing

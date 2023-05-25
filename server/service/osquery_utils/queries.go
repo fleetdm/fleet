@@ -166,8 +166,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		Query: `
 	SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -178,7 +177,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["display_version"]
+			version := rows[0]["version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
@@ -487,8 +486,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -907,7 +905,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Platform:      rows[0]["platform"],
 	}
 
-	version := rows[0]["display_version"]
+	version := rows[0]["version"]
 	if version == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
@@ -1172,7 +1170,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		software = append(software, s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
-		if installedPath != "" {
+		if installedPath != "" &&
+			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
+			// Thus, we explicitly ignore such value here.
+			strings.ToLower(installedPath) != "null" {
 			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 			sPaths[key] = struct{}{}
 		}

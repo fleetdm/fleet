@@ -176,10 +176,6 @@ func queryCommand() *cli.Command {
 						}
 					}
 
-					if responded >= online && flExit {
-						return nil
-					}
-
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
 
 					s.Lock()
@@ -187,6 +183,14 @@ func queryCommand() *cli.Command {
 					s.Unlock()
 
 					if total == responded && status != nil {
+						s.Stop()
+						if !flQuiet {
+							fmt.Fprintln(os.Stderr, msg)
+						}
+						return nil
+					}
+
+					if status != nil && totals != nil && responded >= online && flExit {
 						s.Stop()
 						if !flQuiet {
 							fmt.Fprintln(os.Stderr, msg)

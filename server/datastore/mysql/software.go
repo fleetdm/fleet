@@ -355,7 +355,7 @@ func applyChangesForNewSoftwareDB(
 	r.WasCurrInstalled = currentSoftware
 
 	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
-		return nil, nil
+		return r, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
