@@ -755,12 +755,6 @@ template.
 ## Trust
 Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-### Vendor questionnaires 
-Work in progress
-https://docs.google.com/spreadsheets/d/19sSZA75B_0gksp1Mu9l_txNkDOPeb_-4/edit#gid=663308682
-
-TODO: Replace with subpage in handbook with all the rows busted out into little headings and the quick and dirty answers.  Avoid duplication, just link to other handbook sections. Declassify any customer info  (dave's gonna own that and then hand over the DRI-ship to Joanne, then he's gonna delete this TODO).  fleetdm.com/handbook/
-
 ### Security
 Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
@@ -772,6 +766,8 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
+### Vendor questionnaires 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application Security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor Questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
