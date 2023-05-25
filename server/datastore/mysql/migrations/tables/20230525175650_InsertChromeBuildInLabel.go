@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230524185637, Down_20230524185637)
+	MigrationClient.AddMigration(Up_20230525175650, Down_20230525175650)
 }
 
-func Up_20230524185637(tx *sql.Tx) error {
+func Up_20230525175650(tx *sql.Tx) error {
 	label := fleet.Label{
 		Name:        "ChromeOS",
 		Query:       "select 1 from os_version where platform = 'chrome';",
@@ -31,10 +31,9 @@ func Up_20230524185637(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func Down_20230524185637(tx *sql.Tx) error {
+func Down_20230525175650(tx *sql.Tx) error {
 	return nil
 }
