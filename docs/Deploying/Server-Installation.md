@@ -351,7 +351,7 @@ helm upgrade --install fleet fleet \
 
 The Fleet Helm Chart [README.md](https://github.com/fleetdm/fleet/blob/main/charts/fleet/README.md) also includes an example using namespaces, which is outside the scope of the examples below.
 
-### Installing infrastructure dependencies
+### Installing infrastructure dependencies with Helm
 
 For the sake of this tutorial, we will again use Helm, this time to install MySQL and Redis.
 
