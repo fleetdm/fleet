@@ -36,15 +36,11 @@ const rebuildQueryStringWithTeamId = (
   const inheritedPageIndex = parts.findIndex((p) =>
     p.startsWith("inherited_page=")
   );
-
-  const newPagePart = "page=0";
-  const newInheritedPagePart = "inherited_page=0";
-
-  if (pageIndex) {
-    parts.splice(pageIndex, 1, newPagePart);
+  if (pageIndex !== -1) {
+    parts.splice(pageIndex, 1, "page=0");
   }
-  if (inheritedPageIndex) {
-    parts.splice(inheritedPageIndex, 1, newInheritedPagePart);
+  if (inheritedPageIndex !== -1) {
+    parts.splice(inheritedPageIndex, 1, "inherited_page=0");
   }
 
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
@@ -52,7 +48,7 @@ const rebuildQueryStringWithTeamId = (
   const newTeamPart =
     newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
 
-  if (teamIndex < 0) {
+  if (teamIndex === -1) {
     // nothing to remove/replace so add the new part (if any) and rejoin
     return joinQueryStringParts(
       newTeamPart ? parts.concat(newTeamPart) : parts
@@ -277,6 +273,9 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      console.log("handleTeamChange", teamId);
+      console.log("pathname", pathname);
+      console.log("search", search);
       // TODO: This results in a warning that TableProvider is being updated while rendering while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
