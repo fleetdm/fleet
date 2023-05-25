@@ -508,7 +508,7 @@ CREATE TABLE `labels` (
   FULLTEXT KEY `labels_search` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `labels` VALUES (1,'2023-05-25 21:58:28','2023-05-25 21:58:28','ChromeOS','All ChromeOS hosts','select 1 from os_version where platform = \'chrome\';','',1,0);
+INSERT INTO `labels` VALUES (1,'2023-05-25 22:02:13','2023-05-25 22:02:13','ChromeOS','All ChromeOS hosts','select 1 from os_version where platform = \'chrome\';','',1,0);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `locks` (
