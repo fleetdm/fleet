@@ -3071,6 +3071,8 @@ For this to work correctly make sure that:
 
 #### Customization of user roles
 
+> This feature requires setting `sso_settings.enable_jit_provisioning` to `true`.
+
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
@@ -3084,8 +3086,6 @@ NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<T
 
 Following is the behavior that will take place on every SSO login:
 A. If the account does not exist then:
-  - If `enable_jit_provisioning` is `false` then the login request will fail.
-  - If `enable_jit_provisioning` is `true` then:
     - If the `SAMLResponse` has any role attributes then those will be used to set the account roles.
     - If the `SAMLResponse` does not have any role attributes set, then Fleet will default to use the `Global Observer` role.
 B. If the account already exists:

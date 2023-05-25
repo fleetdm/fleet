@@ -32,6 +32,12 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		// If the user exists, we want to update the user roles from the attributes received
 		// in the SAMLResponse.
 
+		// If JIT provisioning is disabled, then Fleet does not attempt to change
+		// the role of the existing user.
+		if !config.SSOSettings.EnableJITProvisioning {
+			return user, nil
+		}
+
 		// Load custom roles from SSO attributes.
 		ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 		if err != nil {

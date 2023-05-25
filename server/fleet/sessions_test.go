@@ -246,7 +246,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 		},
 		{
-			name: "null-value-on-team-attribute-is-ignored-should-use-default",
+			name: "null-value-on-team-attribute-is-ignored",
 			attributes: []SAMLAttribute{
 				{
 					Name: teamUserRoleSSOAttrNamePrefix + "1",
@@ -255,13 +255,11 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 			},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: ptr.String("observer"),
-			},
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
 		},
 		{
-			name: "null-attributes-are-ignored-should-use-default",
+			name: "null-attributes-on-global-and-team-are-ignored",
 			attributes: []SAMLAttribute{
 				{
 					Name: globalUserRoleSSOAttrName,
@@ -276,10 +274,8 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 			},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: ptr.String("observer"),
-			},
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
 		},
 		{
 			name: "null-attributes-are-ignored-should-use-the-set-global-attribute",

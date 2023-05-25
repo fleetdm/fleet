@@ -1879,7 +1879,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1894,7 +1893,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// users can't be created if SSO is disabled
 	auth, body := s.LoginSSOUser("sso_user", "user123#")
@@ -1903,6 +1901,8 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+
+	// If enable_jit_provisioning is enabled Roles won't be updated for existing SSO users.
 
 	// enable JIT provisioning
 	acResp = appConfigResponse{}
@@ -1918,7 +1918,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// a new user is created and redirected accordingly
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
