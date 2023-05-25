@@ -1,2 +1,3 @@
 - Added built-in label for ChromeOS.
-- Fixed issue with `chrome_extensions` virtual table not returning path column.
+- Fixed issue with `chrome_extensions` virtual table not returning path column on `fleetd-chrome`.
+- Added `storage_info` virtual table on `fleetd-chrome`

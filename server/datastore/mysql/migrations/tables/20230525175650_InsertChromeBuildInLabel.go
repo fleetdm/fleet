@@ -24,10 +24,12 @@ func Up_20230525175650(tx *sql.Tx) error {
 			description,
 			query,
 			platform,
-			label_type
-		) VALUES (?, ?, ?, ?, ?)
+			label_type,
+			created_at,
+			updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
 `
-	_, err := tx.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType)
+	_, err := tx.Exec(sql, label.Name, label.Description, label.Query, label.Platform, label.LabelType, "2023-05-25 00:00:00", "2023-05-25 00:00:00")
 	if err != nil {
 		return err
 	}
