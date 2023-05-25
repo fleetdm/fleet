@@ -8,7 +8,6 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
-import { ButtonVariant } from "components/buttons/Button/Button";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";

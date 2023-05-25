@@ -1,5 +1,5 @@
-import React, { useState, useContext } from "react";
-import { Row } from "react-table";
+import React, { useState, useContext, useEffect } from "react";
+import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
@@ -17,7 +17,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import resultsTableHeaders from "./QueryResultsTableConfig";
+import generateResultsTableHeaders from "./QueryResultsTableConfig";
 
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
@@ -83,6 +83,16 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
+  const [tableHeaders, setTableHeaders] = useState<null | Column[]>(null);
+
+  // set tableHeaders when initial results come in
+  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
+  // set these
+  useEffect(() => {
+    if (tableHeaders === null && !!queryResults?.length) {
+      setTableHeaders(generateResultsTableHeaders(queryResults));
+    }
+  }, [tableHeaders, queryResults]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -165,7 +175,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={resultsTableHeaders(tableData || [])}
+          columns={tableHeaders}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -185,7 +195,9 @@ const QueryResults = ({
   };
 
   const renderResultsTab = () => {
-    const hasNoResultsYet = !isQueryFinished && !queryResults?.length;
+    // TODO - clean up these conditions
+    const hasNoResultsYet =
+      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
     const finishedWithNoResults =
       isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
