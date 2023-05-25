@@ -77,6 +77,7 @@ export type MacMdmProfileOperationType = "remove" | "install";
 export interface IHostMacMdmProfile {
   profile_id: number;
   name: string;
+  // identifier?: string; // TODO: add when API is updated to return this
   operation_type: MacMdmProfileOperationType;
   status: MdmProfileStatus;
   detail: string;
@@ -97,6 +98,11 @@ export enum FileVaultProfileStatus {
   FAILED = "failed",
   REMOVING_ENFORCEMENT = "removing_enforcement",
 }
+
+// export const FLEET_FILEVAULT_PROFILE_IDENTIFIER =
+//   "com.fleetdm.fleet.mdm.filevault";
+
+export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 
 // TODO: update when we have API
 export interface IMdmScript {

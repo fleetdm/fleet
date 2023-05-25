@@ -7,12 +7,13 @@ import DropdownButton from "components/buttons/DropdownButton";
 import Icon from "components/Icon/Icon";
 
 import MoreIcon from "../../../../assets/images/icon-more-menu-3x13@2x.png";
+import { IconNames } from "components/icons";
 
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
   buttonVariant?: ButtonVariant;
-  icon?: string;
+  icon?: IconNames;
   hideAction?: boolean;
   onClick: () => void;
 }
