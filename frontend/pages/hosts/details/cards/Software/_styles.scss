@@ -94,6 +94,8 @@
         .installed_paths__cell {
           display: none;
           width: 0px;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
 
           .installed_paths__tooltip {
             max-width: 550px;
@@ -206,8 +208,7 @@
     }
   }
 
-  // Only show this column to macos users
-  .macos .data-table-block .data-table__table {
+  .data-table-block .data-table__table {
     .installed_paths__header {
       border-right: none;
     }
@@ -245,7 +246,6 @@
       tbody {
         .installed_paths__cell {
           display: table-cell;
-          padding: $pad-small 0;
 
           .text-cell {
             width: $col-lg;
@@ -253,7 +253,6 @@
             overflow: initial;
             white-space: initial;
             word-wrap: break-word;
-            margin-left: $pad-large;
           }
           .tooltip {
             display: inline; // center tooltip with hovered text
