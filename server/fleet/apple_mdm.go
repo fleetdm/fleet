@@ -444,6 +444,20 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings" // TODO: add mdm_apple_setup to rego?
 }
 
+// HostDEPAssignment represents a row in the host_dep_assignments table
+type HostDEPAssignment struct {
+	HostID    uint       `db:"host_id"`
+	AddedAt   time.Time  `db:"added_at"`
+	DeletedAt *time.Time `db:"deleted_at"`
+}
+
+func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
+	if h == nil {
+		return false
+	}
+	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
+}
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly

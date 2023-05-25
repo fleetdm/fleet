@@ -12,13 +12,46 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.) Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
 1. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
-2. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
-3. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
+1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
+1. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
 
 ### Running migrations
 
 After applying terraform with the commands above and before performing your tests, run the following command:
 `aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"`
+
+### MDM
+
+If you need to run a load test with MDM enabled and configured you will need to set MDM certificates, keys and tokens to the Fleet configuration.
+
+1. Place the files in a known location:
+```sh
+/Users/foobar/mdm/fleet-mdm-apple-scep.crt
+/Users/foobar/mdm/fleet-mdm-apple-scep.key
+
+/Users/foobar/mdm/mdmcert.download.push.pem
+/Users/foobar/mdm/mdmcert.download.push.key
+
+/Users/foobar/mdm/downloadtoken.p7m
+
+/Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt
+/Users/foobar/mdm/fleet-apple-mdm-bm-private.key
+```
+
+2. Then set the `fleet_config` terraform var the following way (make sure to add any extra configuration you need to this JSON):
+```sh
+export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_MDM_APPLE_SCEP_CHALLENGE":"foobar","FLEET_MDM_APPLE_SCEP_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_SCEP_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_CERT_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.pem | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_KEY_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES":"'$(cat /Users/foobar/mdm/downloadtoken.p7m | gsed -z 's/\n/\\n/g' | gsed 's/"smime\.p7m"/\\"smime.p7m\\"/g' | tr -d '\r\n')'","FLEET_MDM_APPLE_BM_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-private.key | gsed -z 's/\n/\\n/g')'"}'
+```
+
+- The above is needed because the newline characters in the certificate/key/token files.
+- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
+- The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
+- Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
+This has an impact on real devices because they will not be notified of any command to execute (it may take a reboot for them to reach out to Fleet for more commands).
+
+3. Add the following `osquery-perf` arguments to [loadtesting.tf](./loadtesting.tf)
+- `-mdm_prob 1.0`
+- `-mdm_scep_challenge` set to the same value as `FLEET_MDM_APPLE_SCEP_CHALLENGE` above.
 
 ### Running a loadtest
 

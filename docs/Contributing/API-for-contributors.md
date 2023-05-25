@@ -586,12 +586,12 @@ Once base64-decoded, they are PEM-encoded certificate and keys.
 
 #### Parameters
 
-| Name          | Type   | In    | Description                                                                                                                       |
-| ------------- | ------ | ----  | --------------------------------------------------------------------------------------                                            |
-| team_id       | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
-| team_name     | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
-| dry_run       | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles      | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
+| Name      | Type   | In    | Description                                                                                                                       |
+| --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
+| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
+| dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| profiles  | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not part of a team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
 
@@ -1154,18 +1154,18 @@ If the `name` is not already associated with an existing team, this API route cr
 #### Parameters
 
 | Name                                      | Type   | In    | Description                                                                                                                                                                                                                         |
-| -------------                             | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ----------------------------------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name                                      | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options                             | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
 | secrets                                   | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The team's MDM configuration options.                                                                                                                                                                                               |
-| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge. |
-| mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version. |
-| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version. |
-| mdm.macos_settings                        | object | body  | The macOS-specific MDM settings. |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team. |
-| mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team. |
+| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
+| mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
+| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
+| mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
+| mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
@@ -1933,7 +1933,9 @@ o
     "data": {
       "distributed_query_execution_id": 39,
       "host": {
-        // host data
+        "id": 42,
+        "hostname": "foobar",
+        "display_name": "foobar"
       },
       "rows": [
         // query results data for the given host
@@ -2072,7 +2074,9 @@ o
     "data": {
       "distributed_query_execution_id": 39,
       "host": {
-        // host data
+        "id": 42,
+        "hostname": "foobar",
+        "display_name": "foobar"
       },
       "rows": [
         // query results data for the given host
@@ -2236,6 +2240,7 @@ Returns the host information about the device that makes the request.
     "gigs_disk_space_available": 46.1,
     "percent_disk_space_available": 73,
     "disk_encryption_enabled": true,
+    "dep_assigned_to_fleet": false,
     "users": [
       {
         "uid": 0,
@@ -2404,6 +2409,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
+- `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 
 
 

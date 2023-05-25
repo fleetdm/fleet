@@ -18,7 +18,7 @@ provider "aws" {
 resource "random_pet" "main" {}
 
 module "main" {
-  source          = "../"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name                 = random_pet.main.id
@@ -58,7 +58,7 @@ data "aws_route53_zone" "main" {
 }
 
 module "firehose-logging" {
-  source = "../addons/logging-destination-firehose"
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
   osquery_results_s3_bucket = {
     name = "${random_pet.main.id}-results"
   }
@@ -68,7 +68,7 @@ module "firehose-logging" {
 }
 
 module "vulnprocessing" {
-  source          = "../addons/vuln-processing"
+  source          = "github.com/fleetdm/fleet//terraform/addons/vuln-processing?ref=tf-mod-addon-vuln-processing-v1.0.0"
   customer_prefix = "fleet"
   ecs_cluster     = module.main.byo-vpc.byo-db.byo-ecs.cluster.cluster_arn
   vpc_id          = module.main.vpc.vpc_id

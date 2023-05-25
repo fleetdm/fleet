@@ -4,6 +4,8 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
+import Icon from "components/Icon/Icon";
+
 import MoreIcon from "../../../../assets/images/icon-more-menu-3x13@2x.png";
 
 export interface IActionButtonProps {
@@ -61,11 +63,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <Button variant="text-icon" onClick={action.onClick}>
                   <>
                     {action.label}
-                    {action.icon ? (
-                      <img src={action.icon} alt={action.label} />
-                    ) : (
-                      <></>
-                    )}
+                    {action.icon && <Icon name={action.icon} />}
                   </>
                 </Button>
               ))

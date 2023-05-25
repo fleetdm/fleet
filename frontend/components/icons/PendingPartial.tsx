@@ -1,18 +1,18 @@
 import React from "react";
 
-const PendingPartial = () => {
+import { COLORS, Colors } from "styles/var/colors";
+
+interface ICheckProps {
+  color?: Colors;
+}
+
+const PendingPartial = ({ color = "ui-fleet-black-50" }: ICheckProps) => {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="9" cy="9" r="8" stroke="#8B8FA2" strokeWidth="2" />
-      <circle cx="5.6665" cy="9" r="1" fill="#8B8FA2" />
-      <circle cx="8.6665" cy="9" r="1" fill="#8B8FA2" />
-      <circle cx="11.6665" cy="9" r="1" fill="#8B8FA2" />
+    <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="7" stroke={COLORS[color]} strokeWidth="2" />
+      <circle cx="4.667" cy="8" r="1" fill={COLORS[color]} />
+      <circle cx="7.667" cy="8" r="1" fill={COLORS[color]} />
+      <circle cx="10.666" cy="8" r="1" fill={COLORS[color]} />
     </svg>
   );
 };

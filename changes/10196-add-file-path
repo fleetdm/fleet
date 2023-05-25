@@ -1,4 +1,0 @@
-- The 'GET /api/v1/fleet/hosts/{id}' and 'GET /api/v1/fleet/hosts/identifier/{identifier}' now
-  include the software installed path on their payload.
-- Third party vulnerability integrations now include the installed path of the vulnerable software
-  on each host.
