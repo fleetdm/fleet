@@ -377,13 +377,13 @@ This helm package will create a Kubernetes `Service` which exposes the MySQL ser
 fleet-database-mysql:3306
 ```
 
-We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files.  For the Fleet Helm Chart, this will be used in the `values.yaml`.
+We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files. For the Fleet Helm Chart, this will be used in the `values.yaml`.
 
 ##### Database migrations
 
 Note: this step is not neccessary when using the Fleet Helm Chart as it handles migrations automatically.
 
-The last step is to run the Fleet database migrations on your new MySQL server.  To do this, run the following:
+The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```
 kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
@@ -411,7 +411,7 @@ This helm package will create a Kubernetes `Service` which exposes the Redis ser
 fleet-cache-redis:6379
 ```
 
-We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files.  If you are using the Fleet Helm Chart, this will also be used in the `values.yaml` file.
+We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. If you are using the Fleet Helm Chart, this will also be used in the `values.yaml` file.
 
 ### Setting up and installing Fleet
 
