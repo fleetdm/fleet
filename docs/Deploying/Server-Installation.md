@@ -349,7 +349,7 @@ helm upgrade --install fleet fleet \
   --values values.yaml
 ```
 
-The Fleet Helm Chart [README.md](#https://github.com/fleetdm/fleet/blob/main/charts/fleet/README.md) also includes an example using namespaces, which is outside the scope of the examples below.
+The Fleet Helm Chart [README.md](https://github.com/fleetdm/fleet/blob/main/charts/fleet/README.md) also includes an example using namespaces, which is outside the scope of the examples below.
 
 ### Installing infrastructure dependencies
 
