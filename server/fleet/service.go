@@ -580,6 +580,9 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
+	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.

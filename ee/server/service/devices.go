@@ -39,7 +39,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration not enabled")
 	case ac.MDM.MacOSMigration.WebhookURL == "":
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
-	case !host.IsOsqueryEnrolled(), !host.MDMInfo.IsDEPCapable(), !host.MDMInfo.IsEnrolledInThirdPartyMDM():
+	case !host.IsElegibleForDEPMigration():
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
 		// the webhook has already been triggered successfully recently (within the
@@ -98,13 +98,11 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+		if host.NeedsDEPEnrollment() {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if host.IsOsqueryEnrolled() &&
-			host.MDMInfo.IsDEPCapable() &&
-			host.MDMInfo.IsEnrolledInThirdPartyMDM() {
+		if host.IsElegibleForDEPMigration() {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 	}

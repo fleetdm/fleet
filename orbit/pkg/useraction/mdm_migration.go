@@ -24,8 +24,8 @@ type MDMMigrator interface {
 // MDMMigratorProps are props required to display the dialog. It's akin to the
 // concept of props in UI frameworks like React.
 type MDMMigratorProps struct {
-	OrgInfo    fleet.DesktopOrgInfo
-	Aggressive bool
+	OrgInfo     fleet.DesktopOrgInfo
+	IsUnmanaged bool
 }
 
 // MDMMigratorHandler handles remote actions/callbacks that the migrator calls.

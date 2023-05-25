@@ -1,7 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
@@ -47,9 +47,10 @@ describe("Device User Page", () => {
     };
 
     it("shows a banner when MDM is configured and the device is unenrolled", async () => {
-      const host = createMockHost();
+      const host = createMockHost() as IHostDevice;
       host.mdm.enrollment_status = "Off";
       host.platform = "darwin";
+      host.dep_assigned_to_fleet = false;
 
       const user = await setupTest({
         host,
@@ -62,9 +63,10 @@ describe("Device User Page", () => {
     });
 
     it("shows a banner when MDM is configured and the device doesn't have MDM info", async () => {
-      const host = createMockHost();
+      const host = createMockHost() as IHostDevice;
       host.mdm.enrollment_status = null;
       host.platform = "darwin";
+      host.dep_assigned_to_fleet = false;
 
       const user = await setupTest({
         host,
@@ -77,9 +79,10 @@ describe("Device User Page", () => {
     });
 
     it("doesn't  show a banner when MDM is not configured", async () => {
-      const host = createMockHost();
+      const host = createMockHost() as IHostDevice;
       host.mdm.enrollment_status = null;
       host.platform = "darwin";
+      host.dep_assigned_to_fleet = false;
 
       await setupTest({
         host,
@@ -93,9 +96,10 @@ describe("Device User Page", () => {
     });
 
     it("doesn't  show a banner when the host already has MDM enabled", async () => {
-      const host = createMockHost();
+      const host = createMockHost() as IHostDevice;
       host.mdm.enrollment_status = "On (manual)";
       host.platform = "darwin";
+      host.dep_assigned_to_fleet = false;
 
       await setupTest({
         host,

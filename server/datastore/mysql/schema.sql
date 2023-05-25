@@ -180,6 +180,15 @@ CREATE TABLE `host_batteries` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `host_dep_assignments` (
+  `host_id` int(10) unsigned NOT NULL,
+  `added_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_device_auth` (
   `host_id` int(10) unsigned NOT NULL,
   `token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,

@@ -24,10 +24,10 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewQueryModal from "../NewQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -344,13 +344,17 @@ const QueryForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+            <Button
+              variant="small-icon"
+              className="edit-link"
+              onClick={() => setIsEditingName(true)}
+            >
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                size="small"
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -376,16 +380,17 @@ const QueryForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <a
+            <Button
+              variant="small-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                size="small"
               />
-            </a>
+            </Button>
           </div>
         </>
       );

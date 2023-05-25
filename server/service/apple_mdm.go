@@ -372,15 +372,16 @@ func (r listMDMAppleConfigProfilesResponse) error() error { return r.Err }
 
 func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMAppleConfigProfilesRequest)
-	res := listMDMAppleConfigProfilesResponse{}
 
 	cps, err := svc.ListMDMAppleConfigProfiles(ctx, req.TeamID)
 	if err != nil {
-		res.Err = err
-		return &res, err
+		return &listMDMAppleConfigProfilesResponse{Err: err}, nil
 	}
-	res.ConfigProfiles = cps
 
+	res := listMDMAppleConfigProfilesResponse{ConfigProfiles: cps}
+	if cps == nil {
+		res.ConfigProfiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
+	}
 	return &res, nil
 }
 
@@ -2181,7 +2182,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				if info.TeamID != 0 {
 					team, err := svc.ds.Team(r.Context, info.TeamID)
 					if err != nil {
-
 						return fmt.Errorf("fetch team to send AccountConfiguration: %w", err)
 					}
 					ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
