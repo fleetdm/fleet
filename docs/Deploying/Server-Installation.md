@@ -244,7 +244,7 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
-There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster.  The first is via `kubectl` with a `deployment.yml` file.  The second is using the Helm, the Kubernetes Package Manager.
+There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The first is via `kubectl` with a `deployment.yml` file. The second is using Helm, the Kubernetes Package Manager.
 
 ### Deploying Fleet with kubectl
 
