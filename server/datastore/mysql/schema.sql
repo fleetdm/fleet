@@ -11,6 +11,7 @@ CREATE TABLE `activities` (
   PRIMARY KEY (`id`),
   KEY `fk_activities_user_id` (`user_id`),
   KEY `activities_streamed_idx` (`streamed`),
+  KEY `activities_created_at_idx` (`created_at`),
   CONSTRAINT `activities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
