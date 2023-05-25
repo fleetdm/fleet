@@ -272,6 +272,13 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
     }
   },
+    'GET /vulnerability-management': {
+    action: 'view-vulnerability-management',
+    locals: {
+      pageTitleForMeta: 'Vulnerability management | Fleet for osquery',
+      pageDescriptionForMeta: 'Know what’s going on with your computers. Measure and automate risk across your laptops and servers.',
+    }
+  },
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
