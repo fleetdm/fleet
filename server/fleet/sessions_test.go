@@ -15,20 +15,16 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 		expectedSSORolesInfo SSORolesInfo
 	}{
 		{
-			name:       "nil-should-use-default",
-			attributes: nil,
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: ptr.String("observer"),
-			},
+			name:                 "nil",
+			attributes:           nil,
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
 		},
 		{
-			name:       "empty-should-use-default",
-			attributes: []SAMLAttribute{},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: ptr.String("observer"),
-			},
+			name:                 "no-role-attributes",
+			attributes:           []SAMLAttribute{},
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
 		},
 		{
 			name: "unknown-key-should-use-default",
@@ -40,10 +36,8 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 			},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: ptr.String("observer"),
-			},
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
 		},
 		{
 			name: "global-only",

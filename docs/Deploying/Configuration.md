@@ -3082,10 +3082,15 @@ SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
 
-During every SSO login, if `sso_settings.enable_jit_role_sync` is set to `true` (default is `false`) and if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
-> IMPORTANT: Beware that if `sso_settings.enable_jit_role_sync` is set to `true` but no SAML role attributes are configured for accounts then all Fleet users are changed to Global observers on every SSO login (overriding any previous role change).
-
-If none of the attributes above are set, then Fleet will default to use the `Global Observer` role.
+Following is the behavior that will take place on every SSO login:
+A. If the account does not exist then:
+  - If `enable_jit_provisioning` is `false` then the login request will fail.
+  - If `enable_jit_provisioning` is `true` then:
+    - If the `SAMLResponse` has any role attributes then those will be used to set the account roles.
+    - If the `SAMLResponse` does not have any role attributes set, then Fleet will default to use the `Global Observer` role.
+B. If the account already exists:
+    - If the `SAMLResponse` has any role attributes then those will be used to update the account roles.
+    - If the `SAMLResponse` does not have any role attributes set, no role change is attempted.
 
 Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 ```xml

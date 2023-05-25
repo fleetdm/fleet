@@ -1913,8 +1913,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": false
+			"enable_jit_provisioning": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
@@ -1943,13 +1942,14 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		return false
 	})
 
-	// Test that roles are not updated for an existing user because enable_jit_role_sync is false.
+	// Test that roles are not updated for an existing user when SSO attributes are not set.
 
 	// Change role to global admin first.
 	user.GlobalRole = ptr.String("admin")
 	err = s.ds.SaveUser(context.Background(), user)
 	require.NoError(t, err)
-	// Login should NOT change the role to the default (global observer).
+	// Login should NOT change the role to the default (global observer) because SSO attributes
+	// are not set for this user (see ../../tools/saml/users.php).
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
 	assert.Equal(t, "sso_user@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
@@ -1958,32 +1958,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
 	require.Equal(t, *user.GlobalRole, "admin")
-
-	// Test that roles are updated for an existing user because enable_jit_role_sync is true.
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"sso_settings": {
-			"enable_sso": true,
-			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": true
-		}
-	}`), http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.True(t, acResp.SSOSettings.EnableJITRoleSync)
-	// Login should change the role to the default role (global observer).
-	auth, body = s.LoginSSOUser("sso_user", "user123#")
-	assert.Equal(t, "sso_user@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
-	require.Contains(t, body, "Redirecting to Fleet at  ...")
-	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
-	require.NoError(t, err)
-	require.NotNil(t, user.GlobalRole)
-	require.Equal(t, *user.GlobalRole, "observer")
 
 	// A user with pre-configured roles can be created
 	// see `tools/saml/users.php` for details.
@@ -1997,6 +1971,26 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}},
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// Test that roles are updated for an existing user when SSO attributes are set.
+
+	// Change role to global maintainer first.
+	user3, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user3.Email)
+	user3.GlobalRole = ptr.String("maintainer")
+	err = s.ds.SaveUser(context.Background(), user3)
+	require.NoError(t, err)
+
+	// Login should change the role to the configured role in the SSO attributes (global admin).
+	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
+	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, user3.GlobalRole)
+	require.Equal(t, *user3.GlobalRole, "admin")
 
 	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
