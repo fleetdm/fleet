@@ -386,7 +386,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
+	assert.Equal(t, "Windows 11 Enterprise 10.0.22000", host.OSVersion)
 
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -408,7 +408,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
+	assert.Equal(t, "Windows 10 Enterprise LTSC 10.0.17763", host.OSVersion)
 }
 
 func TestDetailQueriesOSVersionChrome(t *testing.T) {
@@ -547,7 +547,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				KernelVersion: "10.0.22000.795",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
 			},
 		},
 	}

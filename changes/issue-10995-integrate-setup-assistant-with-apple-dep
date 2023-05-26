@@ -1,2 +1,0 @@
-* Integrated the macOS setup assistant feature with Apple DEP so that the setup assistants are assigned to the enrolled devices.
-* Re-assign and update the macOS setup assistants (and the default one) whenever required, such as when it is modified, when a host is transferred, a team is deleted, etc.

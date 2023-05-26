@@ -839,6 +839,9 @@ type Datastore interface {
 	// specified list of host IDs.
 	ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error)
 
+	// GetHostDEPAssignment returns the DEP assignment for the host.
+	GetHostDEPAssignment(ctx context.Context, hostID uint) (*HostDEPAssignment, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 

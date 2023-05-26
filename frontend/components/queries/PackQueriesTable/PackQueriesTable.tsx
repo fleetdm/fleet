@@ -7,11 +7,11 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
+import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
   generateDataSet,
 } from "./PackQueriesTable/PackQueriesTableConfig";
-import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "pack-queries-table";
 
@@ -93,7 +93,7 @@ const PackQueriesTable = ({
           actionButton={{
             name: "add query",
             buttonText: "Add query",
-            icon: AddQueryIcon,
+            icon: "plus",
             variant: "text-icon",
             onActionButtonClick: onAddPackQuery,
           }}
@@ -118,7 +118,7 @@ const PackQueriesTable = ({
           >
             <>
               Add query
-              <img src={AddQueryIcon} alt={`Add query icon`} />
+              <Icon name="plus" />
             </>
           </Button>
         </div>
