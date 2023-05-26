@@ -1,82 +1,77 @@
-import React, { useContext } from "react";
-import { Link } from "react-router";
+import React from "react";
+import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
 import configAPI from "services/entities/config";
-import mdmAPI from "services/entities/mdm";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { IConfig } from "interfaces/config";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
 import { useQuery } from "react-query";
 import { ITeamConfig } from "interfaces/team";
 import Spinner from "components/Spinner";
-import { NotificationContext } from "context/notification";
+import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
+import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 
 const baseClass = "end-user-authentication";
 
+const getEnabledEndUserAuth = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+) => {
+  if (globalConfig === undefined && teamConfig === undefined) {
+    return false;
+  }
+
+  // team is "No team" when currentTeamId === 0
+  if (currentTeamId === 0) {
+    return (
+      globalConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false
+    );
+  }
+
+  return teamConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false;
+};
+
 interface IEndUserAuthenticationProps {
   currentTeamId: number;
+  router: InjectedRouter;
 }
 
 const EndUserAuthentication = ({
   currentTeamId,
+  router,
 }: IEndUserAuthenticationProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: currentTeamId === 0,
+  });
 
-  const [isEndUserAuthEnabled, setEndUserAuthEnabled] = React.useState(false);
-  const [isUpdating, setIsUpdating] = React.useState(false);
+  const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: currentTeamId !== 0,
+    select: (res) => res.team,
+  });
 
-  const { isLoading: isLoadingGlobalConfig } = useQuery<IConfig, Error>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      enabled: currentTeamId === 0,
-      onSuccess: (res) => {
-        setEndUserAuthEnabled(
-          res.mdm?.macos_setup.enable_end_user_authentication ?? false
-        );
-      },
-    }
+  const defaultIsEndUserAuthEnabled = getEnabledEndUserAuth(
+    currentTeamId,
+    globalConfig,
+    teamConfig
   );
 
-  const { isLoading: isLoadingTeamConfig } = useQuery<ILoadTeamResponse, Error>(
-    ["team", currentTeamId],
-    () => teamsAPI.load(currentTeamId),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      enabled: currentTeamId !== 0,
-      onSuccess: (res) => {
-        setEndUserAuthEnabled(
-          res.team.mdm?.macos_setup.enable_end_user_authentication ?? false
-        );
-      },
-    }
-  );
-
-  const onToggleEndUserAuth = (newCheckVal: boolean) => {
-    setEndUserAuthEnabled(newCheckVal);
-  };
-
-  const onClickSave = async (e: React.FormEvent<SubmitEvent>) => {
-    setIsUpdating(true);
-    try {
-      await mdmAPI.updateEndUserAuthentication(
-        currentTeamId,
-        isEndUserAuthEnabled
-      );
-      renderFlash("success", "Successfully updated!");
-    } catch {
-      renderFlash("error", "Couldn’t update. Please try again.");
-    } finally {
-      setIsUpdating(false);
-    }
+  const onClickConnect = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
   };
 
   return (
@@ -86,25 +81,15 @@ const EndUserAuthentication = ({
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
-          <form>
-            <Checkbox
-              value={isEndUserAuthEnabled}
-              onChange={onToggleEndUserAuth}
-            >
-              On
-            </Checkbox>
-            <p>
-              Require end users to authenticate with your identity provider
-              (IdP) and agree to an end user license agreement (EULA) when they
-              setup their new macOS hosts.{" "}
-              <Link to={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT}>
-                View IdP and EULA
-              </Link>
-            </p>
-            <Button isLoading={isUpdating} onClick={onClickSave}>
-              Save
-            </Button>
-          </form>
+          {false ? (
+            <RequireEndUserAuth onClickConnect={onClickConnect} />
+          ) : (
+            <EndUserAuthForm
+              currentTeamId={currentTeamId}
+              defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+            />
+          )}
+          {/* TODO: get gif */}
           <EndUserExperiencePreview previewImage="">
             <p>
               When the end user reaches the <b>Remote Management</b> pane in the
