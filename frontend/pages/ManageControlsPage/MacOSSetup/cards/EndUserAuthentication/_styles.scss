@@ -1,0 +1,12 @@
+.end-user-authentication {
+
+  &__content {
+    display: flex;
+    gap: 2.5rem;
+
+    form > p {
+      font-size: $x-small;
+      margin: 0 0 $pad-large;
+    }
+  }
+}
