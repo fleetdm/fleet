@@ -5,6 +5,7 @@ import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
+import { useDebouncedCallback } from "use-debounce";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
@@ -84,6 +85,19 @@ const QueryResults = ({
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
   const [tableHeaders, setTableHeaders] = useState<null | Column[]>(null);
+  const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
+    queryResults
+  );
+
+  const debounceQueryResults = useDebouncedCallback(
+    setQueryResultsForTableRender,
+    1000,
+    { maxWait: 2000 }
+  );
+
+  useEffect(() => {
+    debounceQueryResults(queryResults);
+  }, [queryResults, debounceQueryResults]);
 
   // set tableHeaders when initial results come in
   // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
@@ -209,7 +223,7 @@ const QueryResults = ({
       return renderNoResults();
     }
 
-    return renderTable(queryResults, "results");
+    return renderTable(queryResultsForTableRender, "results");
   };
 
   const renderErrorsTab = () => renderTable(errors, "errors");
