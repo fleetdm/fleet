@@ -16,7 +16,7 @@
       display: inline-flex;
       flex-direction: column;
       align-items: center;
-      bottom: -2px; // Fix shift of new font
+      bottom: -2px; // Fix shifty text
 
       &:focus {
         box-shadow: none;
@@ -41,7 +41,7 @@
       }
       &--selected {
         font-weight: $bold;
-        bottom: -4px; // fix shift with bold text
+        bottom: -4px; // fix shifty bold text
 
         &::after {
           content: "";
