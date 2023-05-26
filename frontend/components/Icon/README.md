@@ -18,6 +18,8 @@ The `icons` directory includes separate files for all SVG components for Fleet i
 
 Each component can be modified to take various props including but not limited to `color` using `frontend/styles/var/colors.ts`, `size` using `frontend/styles/var/icon_sizes`, or `direction` using custom SVG paths (e.g., `Chevron.tsx`).
 
+`index.ts` maps all icon names used in `<Icon name="icon-name" />` to its respective SVG component.
+
 ## How to view Fleet icons
 
 Figma extensions for SVG previews cannot render all SVG components. Use [Storybook](../../README.md#storybook) to easily view Fleet icons by running `yarn storybook`.
