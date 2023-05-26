@@ -71,7 +71,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
-import Icon from "components/Icon/Icon";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
