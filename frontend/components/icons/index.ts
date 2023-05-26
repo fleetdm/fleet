@@ -43,7 +43,7 @@ import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
 import Error from "./Error";
 
-import Clipboard from "./Clipboard";
+import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
@@ -83,7 +83,7 @@ export const ICON_MAP = {
   issue: Issue,
   plus: Plus,
   query: Query,
-  clipboard: Clipboard,
+  copy: Copy,
   eye: Eye,
   pencil: Pencil,
   trash: TrashCan,

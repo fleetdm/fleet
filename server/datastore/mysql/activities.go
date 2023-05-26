@@ -39,43 +39,93 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 
 // ListActivities returns a slice of activities performed across the organization
 func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// Fetch activities
+
 	activities := []*fleet.Activity{}
-	query := `
-SELECT
-	a.id,
-	a.user_id,
-	a.created_at,
-	a.activity_type,
-	a.details,
-	coalesce(u.name, a.user_name) as name,
-	u.gravatar_url,
-	u.email,
-	a.streamed
-FROM activities a
-LEFT JOIN users u ON (a.user_id=u.id)
-WHERE true`
+	activitiesQ := `
+		SELECT
+			a.id,
+			a.user_id,
+			a.created_at,
+			a.activity_type,
+			a.details,
+			a.user_name as name,
+			a.streamed
+		FROM activities a
+		WHERE true`
 
 	var args []interface{}
 	if opt.Streamed != nil {
-		query += " AND a.streamed = ?"
+		activitiesQ += " AND a.streamed = ?"
 		args = append(args, *opt.Streamed)
 	}
+	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
-	if !(opt.ListOptions.UsesCursorPagination()) {
-		opt.ListOptions.IncludeMetadata = true
-	}
+	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
-	query, args = appendListOptionsWithCursorToSQL(query, args, &opt.ListOptions)
-
-	err := sqlx.SelectContext(ctx, ds.reader, &activities, query, args...)
+	err := sqlx.SelectContext(ctx, ds.reader, &activities, activitiesQ, args...)
 	if err == sql.ErrNoRows {
 		return nil, nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
 	}
 
-	var metaData *fleet.PaginationMetadata
+	// Fetch users as a stand-alone query (because of performance reasons)
 
+	lookup := make(map[uint][]int)
+	for idx, a := range activities {
+		if a.ActorID != nil {
+			lookup[*a.ActorID] = append(lookup[*a.ActorID], idx)
+		}
+	}
+
+	if len(lookup) != 0 {
+		usersQ := `
+			SELECT u.id, u.name, u.gravatar_url, u.email
+			FROM users u
+			WHERE id IN (?)
+		`
+		userIDs := make([]uint, 0, len(lookup))
+		for k := range lookup {
+			userIDs = append(userIDs, k)
+		}
+
+		usersQ, usersArgs, err := sqlx.In(usersQ, userIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding usersIDs")
+		}
+
+		var usersR []struct {
+			ID          uint   `db:"id"`
+			Name        string `db:"name"`
+			GravatarUrl string `db:"gravatar_url"`
+			Email       string `db:"email"`
+		}
+
+		err = sqlx.SelectContext(ctx, ds.reader, &usersR, usersQ, usersArgs...)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
+		}
+
+		for _, r := range usersR {
+			entries, ok := lookup[r.ID]
+			if !ok {
+				continue
+			}
+
+			email := r.Email
+			gravatar := r.GravatarUrl
+			name := r.Name
+
+			for _, idx := range entries {
+				activities[idx].ActorEmail = &email
+				activities[idx].ActorGravatar = &gravatar
+				activities[idx].ActorFullName = &name
+			}
+		}
+	}
+
+	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
 		if len(activities) > int(opt.ListOptions.PerPage) {
