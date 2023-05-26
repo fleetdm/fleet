@@ -81,9 +81,11 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProps): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
   const {
     data: certificate,
@@ -438,7 +440,20 @@ const PlatformWrapper = ({
                 type="textarea"
                 value={renderInstallerString(packageType)}
               />
-              <p>Distribute your package to add hosts to Fleet.</p>
+              <p className={`${baseClass}__advanced--instructions`}>
+                Distribute your package to add hosts to Fleet.
+              </p>
+              <InfoBanner className={`${baseClass}__chrome--instructions`}>
+                This works for macOS, Windows, and Linux hosts. To add
+                Chromebooks,{" "}
+                <Button
+                  variant="text-link"
+                  onClick={() => setSelectedTabIndex(4)}
+                >
+                  click here
+                </Button>
+                .
+              </InfoBanner>
             </div>
             <RevealButton
               className={baseClass}
@@ -553,7 +568,10 @@ const PlatformWrapper = ({
   return (
     <div className={baseClass}>
       <TabsWrapper>
-        <Tabs>
+        <Tabs
+          onSelect={(index) => setSelectedTabIndex(index)}
+          selectedIndex={selectedTabIndex}
+        >
           <TabList>
             {platformSubNav.map((navItem) => {
               // Bolding text when the tab is active causes a layout shift

@@ -145,13 +145,8 @@
     font-weight: normal;
   }
 
-  &__advanced--installer {
-    p {
-      margin: 0;
-    }
-  }
-
-  &__chrome--instructions {
+  &__chrome--instructions,
+  &__advanced--instructions {
     margin-bottom: $pad-medium;
   }
 
