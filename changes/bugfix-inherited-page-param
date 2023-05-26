@@ -1,0 +1,1 @@
+- Fixed UI bug where `inherited_page=0` was incorrectly added to some URLs
