@@ -68,6 +68,26 @@ Once a blog post has been written, approved, and published, make sure that it is
 - Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
 - Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
+### About Fleet Device Management
+
+#### (Under 50 words)
+
+Fleet is a lightweight, open-core, cross-platform solution providing real-time insights using osquery and GitOps-driven device management, including Mac, Windows, Linux, and ChromeOS. Fleet streamlines IT security with automated vulnerability management, facilitating compliance policy implementation. Offering seamless on-premise or cloud integration, Fleet is a trusted, accessible tool for robust IT administration.
+
+#### (Under 100 words)
+
+Fleet is a lightweight, open-core, cross-platform solution that provides real-time insights using osquery and GitOps-driven management for all your devices, including Mac, Windows, Linux, and ChromeOS. It empowers IT security and IT administrators by facilitating device investigation, mobile device management (MDM), and implementing standard compliance policies for remediation and updates. Fleet enhances IT security with automated vulnerability management and security workflows within a single application. Trusted by hundreds of companies, Fleet requires no certification and offers seamless on-premise or cloud integration. Fleet is a comprehensive, accessible tool to strengthen IT security and device management.
+
+#### (Under 200 words)
+
+Fleet is a lightweight, open-core, cross-platform platform that embraces the power of osquery to provide real-time insights and GitOps-driven management across all your devices, including Mac, Windows, Linux, and ChromeOS. This versatile platform is a comprehensive tool for IT security and IT administrators, offering a streamlined approach to investigating computers, servers, and managing mobile devices.
+
+Leverage Fleet's programmable Mobile Device Management (MDM) capabilities to illuminate the darkness surrounding MDM access and data acquisition. Trusted by hundreds of companies, Fleet and osquery deliver superior visibility into your devices, facilitating the implementation of standard compliance policies for real-time remediation and updates.
+
+Fleet offers seamless integration for on-premise or cloud-based operations, requiring no certification or education to start, making Fleet accessible and straightforward. Additionally, Fleet contributes to robust IT security by enabling the automation of vulnerability management and security workflows within a single application. Create or install policies to ascertain device compliance with your security guidelines, and build automations to address vulnerabilities in your environment promptly.
+
+As a result, Fleet emerges as a practical and efficient solution for IT administrators seeking to
+enhance their IT security landscape through GitOps and elevate their device management capabilities.
 
 ### Press releases
 
