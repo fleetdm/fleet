@@ -64,13 +64,13 @@ const CHROME_INFO = {
   extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
   url: "https://chrome.fleetdm.com/updates.xml",
   policyForExtension: `{
-    "fleet_url": {
-      "Value": "https://dogfood.fleetdm.com"
-    },
-    "enroll_secret": {
-      "Value": "eeb2e8a7d132d9cbbdd0f024f9419f88"
-    }
-  }`,
+  "fleet_url": {
+    "Value": "https://dogfood.fleetdm.com"
+  },
+  "enroll_secret": {
+    "Value": "eeb2e8a7d132d9cbbdd0f024f9419f88"
+  }
+}`,
 };
 
 const baseClass = "platform-wrapper";
@@ -356,14 +356,15 @@ const PlatformWrapper = ({
           >
             <Icon name="copy" />
           </Button>
-          <span className={`${baseClass}__copy-message`}>Copied!</span>
+          {copyMessage[label] && (
+            <span className={`${baseClass}__copy-message`}>Copied!</span>
+          )}
         </span>
       </>
     );
   };
 
   const renderTab = (packageType: string) => {
-    console.log("packageType", packageType);
     if (packageType === "chrome") {
       return (
         <div className={baseClass}>
@@ -376,7 +377,7 @@ const PlatformWrapper = ({
                 Add the extension for the relevant users & browsers using the
                 information below.
               </p>
-              <InfoBanner className={`${baseClass}__sandbox-info`}>
+              <InfoBanner className={`${baseClass}__chrome--instructions`}>
                 For a step-by-step guide, see the documentation page for{" "}
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension"
@@ -389,7 +390,7 @@ const PlatformWrapper = ({
                 <InputField
                   disabled
                   inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-extension-id`}
-                  name="extension ID"
+                  name="Extension ID"
                   label={renderChromeLabel(
                     "Extension ID",
                     CHROME_INFO.extensionId
@@ -406,7 +407,7 @@ const PlatformWrapper = ({
                 <InputField
                   disabled
                   inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-policy-for-extension`}
-                  name="policy for extension"
+                  name="Policy for extension"
                   label={renderChromeLabel(
                     "Policy for extension",
                     CHROME_INFO.policyForExtension

@@ -48,7 +48,7 @@
 
   .input-field {
     &__textarea {
-      min-height: 94px;
+      min-height: 68px;
     }
 
     &__textarea,
@@ -65,7 +65,7 @@
 
   &__advanced--installer {
     .input-field {
-      height: 115px;
+      height: 85px;
     }
   }
 
@@ -89,7 +89,7 @@
     flex-direction: row-reverse;
     align-items: center;
     position: relative;
-    top: 34px;
+    top: 38px;
     margin-right: $pad-medium;
     height: 12px;
     gap: $pad-small;
@@ -148,6 +148,17 @@
   &__advanced--installer {
     p {
       margin: 0;
+    }
+  }
+
+  &__chrome--instructions {
+    margin-bottom: $pad-medium;
+  }
+
+  &__chrome-extension-id,
+  &__chrome-url {
+    .buttons {
+      top: 34px;
     }
   }
 
