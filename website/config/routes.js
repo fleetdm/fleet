@@ -277,7 +277,7 @@ module.exports.routes = {
     action: 'view-vulnerability-management',
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet for osquery',
-      pageDescriptionForMeta: 'Know what’s going on with your computers. Measure and automate risk across your laptops and servers.',
+      pageDescriptionForMeta: 'Know what\’s going on with your computers. Measure and automate risk across your laptops and servers.',
     }
   },
 
