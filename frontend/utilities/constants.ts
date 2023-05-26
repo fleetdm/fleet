@@ -194,6 +194,7 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
+  chrome: "ChromeOS",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =

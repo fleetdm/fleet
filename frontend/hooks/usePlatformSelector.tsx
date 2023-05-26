@@ -7,7 +7,7 @@ import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
-  getSelectedPlatforms: () => ("darwin" | "linux" | "windows")[];
+  getSelectedPlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
 }
