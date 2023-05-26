@@ -44,5 +44,5 @@ jobs:
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
           MAC_OS_MIN_VERSION: 13.4.0
-          MAC_OS_VERSION_DEADLINE: '2023-05-26'
+          MAC_OS_VERSION_DEADLINE: '2023-06-02'
           MAC_OS_ENABLE_DISK_ENCRYPTION: true
