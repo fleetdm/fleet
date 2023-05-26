@@ -95,6 +95,7 @@ const EditPackForm = ({
       targets: [...packFormTargets],
     });
   };
+
   return (
     <form
       className={`${baseClass} ${className}`}

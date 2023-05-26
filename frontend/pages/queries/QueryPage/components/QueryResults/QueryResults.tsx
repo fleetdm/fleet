@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
@@ -74,21 +74,13 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: liveQueryResults, errors } =
+  const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
-  const [queryResults, setQueryResults] = useState<any>();
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setQueryResults(liveQueryResults);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [liveQueryResults]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
