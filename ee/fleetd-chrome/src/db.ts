@@ -9,7 +9,6 @@ import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableUsers from "./tables/users";
 import Table from "./tables/Table";
 import TableChromeExtensions from "./tables/chrome_extensions";
-import TableStorageInfo from "./tables/storage_info";
 
 export default class VirtualDatabase {
   sqlite3: SQLiteAPI;
@@ -34,12 +33,6 @@ export default class VirtualDatabase {
       db,
       new TableChromeExtensions(sqlite3, db)
     );
-    VirtualDatabase.register(
-      sqlite3,
-      db,
-      new TableStorageInfo(sqlite3, db)
-    );
-
   }
 
   public static async init(): Promise<VirtualDatabase> {
