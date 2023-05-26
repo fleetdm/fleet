@@ -70,7 +70,12 @@ const AddHostsModal = ({
   };
 
   return (
-    <Modal onExit={onCancel} title={"Add hosts"} className={baseClass}>
+    <Modal
+      onExit={onCancel}
+      title={"Add hosts"}
+      className={baseClass}
+      width="large"
+    >
       {renderModalContent()}
     </Modal>
   );

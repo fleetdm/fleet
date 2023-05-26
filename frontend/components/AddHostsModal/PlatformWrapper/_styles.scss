@@ -59,7 +59,7 @@
       color: $core-fleet-blue;
       line-height: 20px;
       margin-bottom: 0;
-      padding: $pad-medium $pad-large $pad-medium $pad-medium;
+      padding: 12px $pad-large 12px $pad-medium;
     }
   }
 
@@ -89,7 +89,7 @@
     flex-direction: row-reverse;
     align-items: center;
     position: relative;
-    top: 40px;
+    top: 34px;
     margin-right: $pad-medium;
     height: 12px;
     gap: $pad-small;
@@ -135,7 +135,8 @@
     }
   }
 
-  &__advanced--heading {
+  &__advanced--heading,
+  &__chrome--heading {
     font-weight: $bold;
     margin-bottom: $pad-small;
   }
@@ -147,6 +148,14 @@
   &__advanced--installer {
     p {
       margin: 0;
+    }
+  }
+
+  &__chrome-policy-for-extension {
+    height: 230px;
+
+    .input-field--disabled {
+      height: 190px;
     }
   }
 

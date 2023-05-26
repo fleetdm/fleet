@@ -18,6 +18,8 @@ import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import CustomLink from "components/CustomLink/CustomLink";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 
@@ -44,6 +46,10 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "deb",
   },
   {
+    name: "ChromeOS",
+    type: "chrome",
+  },
+  {
     name: "Advanced",
     type: "advanced",
   },
@@ -53,6 +59,19 @@ interface IPlatformWrapperProps {
   enrollSecret: string;
   onCancel: () => void;
 }
+
+const CHROME_INFO = {
+  extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
+  url: "https://chrome.fleetdm.com/updates.xml",
+  policyForExtension: `{
+    "fleet_url": {
+      "Value": "https://dogfood.fleetdm.com"
+    },
+    "enroll_secret": {
+      "Value": "eeb2e8a7d132d9cbbdd0f024f9419f88"
+    }
+  }`,
+};
 
 const baseClass = "platform-wrapper";
 
@@ -304,7 +323,103 @@ const PlatformWrapper = ({
     );
   };
 
+  const renderChromeLabel = (label: string, value: string) => {
+    const onCopyChromeLabel = (evt: React.MouseEvent) => {
+      evt.preventDefault();
+
+      stringToClipboard(value)
+        .then(() => setCopyMessage((prev) => ({ ...prev, [label]: "Copied!" })))
+        .catch(() =>
+          setCopyMessage((prev) => ({
+            ...prev,
+            [label]: "Copy failed",
+          }))
+        );
+
+      // Clear message after 1 second
+      setTimeout(
+        () => setCopyMessage((prev) => ({ ...prev, [label]: "" })),
+        1000
+      );
+
+      return false;
+    };
+
+    return (
+      <>
+        {label}
+        <span className="buttons">
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__chrome-copy-icon`}
+            onClick={onCopyChromeLabel}
+          >
+            <Icon name="copy" />
+          </Button>
+          <span className={`${baseClass}__copy-message`}>Copied!</span>
+        </span>
+      </>
+    );
+  };
+
   const renderTab = (packageType: string) => {
+    console.log("packageType", packageType);
+    if (packageType === "chrome") {
+      return (
+        <div className={baseClass}>
+          <div className={`${baseClass}__chrome`}>
+            <div className={`${baseClass}__chrome--add-extension`}>
+              <p className={`${baseClass}__chrome--heading`}>
+                In Google Admin:
+              </p>
+              <p>
+                Add the extension for the relevant users & browsers using the
+                information below.
+              </p>
+              <InfoBanner className={`${baseClass}__sandbox-info`}>
+                For a step-by-step guide, see the documentation page for{" "}
+                <CustomLink
+                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension"
+                  text="adding hosts"
+                  newTab
+                  multiline
+                />
+              </InfoBanner>
+              <div className={`${baseClass}__chrome--installer`}>
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-extension-id`}
+                  name="extension ID"
+                  label={renderChromeLabel(
+                    "Extension ID",
+                    CHROME_INFO.extensionId
+                  )}
+                  value={CHROME_INFO.extensionId}
+                />
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-url`}
+                  name="URL"
+                  label={renderChromeLabel("URL", CHROME_INFO.url)}
+                  value={CHROME_INFO.url}
+                />
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-policy-for-extension`}
+                  name="policy for extension"
+                  label={renderChromeLabel(
+                    "Policy for extension",
+                    CHROME_INFO.policyForExtension
+                  )}
+                  type="textarea"
+                  value={CHROME_INFO.policyForExtension}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (packageType === "advanced") {
       return (
         <div className={baseClass}>
@@ -319,7 +434,7 @@ const PlatformWrapper = ({
                   packageType,
                   renderInstallerString(packageType)
                 )}
-                type={"textarea"}
+                type="textarea"
                 value={renderInstallerString(packageType)}
               />
               <p>Distribute your package to add hosts to Fleet.</p>
