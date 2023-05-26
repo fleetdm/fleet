@@ -78,11 +78,15 @@ const isAllHosts = (entity: ISelectTargetsEntity) =>
   entity.label_type === "builtin";
 
 const parseLabels = (list?: ILabelSummary[]) => {
+  console.log("list", list);
   const allHosts = list?.filter((l) => l.name === "All Hosts") || [];
   const platforms =
     list?.filter(
       (l) =>
-        l.name === "macOS" || l.name === "MS Windows" || l.name === "All Linux"
+        l.name === "macOS" ||
+        l.name === "MS Windows" ||
+        l.name === "All Linux" ||
+        l.name === "ChromeOS"
     ) || [];
   const other = list?.filter((l) => l.label_type === "regular") || [];
 

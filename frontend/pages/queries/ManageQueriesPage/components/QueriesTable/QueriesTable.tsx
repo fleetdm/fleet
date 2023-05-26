@@ -220,7 +220,6 @@ const QueriesTable = ({
     );
   };
 
-  console.log("platformFilteroptions here", PLATFORM_FILTER_OPTIONS);
   const renderPlatformDropdown = () => {
     return (
       <Dropdown
