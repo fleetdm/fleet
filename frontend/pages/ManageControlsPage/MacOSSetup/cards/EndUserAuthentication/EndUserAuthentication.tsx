@@ -81,7 +81,7 @@ const EndUserAuthentication = ({
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
-          {false ? (
+          {true ? (
             <RequireEndUserAuth onClickConnect={onClickConnect} />
           ) : (
             <EndUserAuthForm
