@@ -72,15 +72,15 @@ Once a blog post has been written, approved, and published, make sure that it is
 
 #### (Under 50 words)
 
-Fleet is an open-core, cross-platform solution providing real-time insights using osquery and GitOps-driven device management, including Mac, Windows, Linux, and ChromeOS. Fleet streamlines IT security with automated vulnerability management, facilitating compliance policy implementation. Offering seamless on-premise or cloud integration, Fleet is a trusted, accessible tool for robust IT administration.
+Fleet is a lightweight, open-core, cross-platform solution providing real-time insights using osquery and GitOps-driven device management, including Mac, Windows, Linux, and ChromeOS. Fleet streamlines IT security with automated vulnerability management, facilitating compliance policy implementation. Offering seamless on-premise or cloud integration, Fleet is a trusted, accessible tool for robust IT administration.
 
 #### (Under 100 words)
 
-Fleet is an open-core, cross-platform solution that provides real-time insights using osquery and GitOps-driven management for all your devices, including Mac, Windows, Linux, and ChromeOS. It empowers IT security and IT administrators by facilitating device investigation, mobile device management (MDM), and implementing standard compliance policies for remediation and updates. Fleet enhances IT security with automated vulnerability management and security workflows within a single application. Trusted by hundreds of companies, Fleet requires no certification and offers seamless on-premise or cloud integration. Fleet is a comprehensive, accessible tool to strengthen IT security and device management.
+Fleet is a lightweight, open-core, cross-platform solution that provides real-time insights using osquery and GitOps-driven management for all your devices, including Mac, Windows, Linux, and ChromeOS. It empowers IT security and IT administrators by facilitating device investigation, mobile device management (MDM), and implementing standard compliance policies for remediation and updates. Fleet enhances IT security with automated vulnerability management and security workflows within a single application. Trusted by hundreds of companies, Fleet requires no certification and offers seamless on-premise or cloud integration. Fleet is a comprehensive, accessible tool to strengthen IT security and device management.
 
 #### (Under 200 words)
 
-Fleet is an open-core, cross-platform platform that embraces the power of osquery to provide real-time insights and GitOps-driven management across all your devices, including Mac, Windows, Linux, and ChromeOS. This versatile platform is a comprehensive tool for IT security and IT administrators, offering a streamlined approach to investigating computers, servers, and managing mobile devices.
+Fleet is a lightweight, open-core, cross-platform platform that embraces the power of osquery to provide real-time insights and GitOps-driven management across all your devices, including Mac, Windows, Linux, and ChromeOS. This versatile platform is a comprehensive tool for IT security and IT administrators, offering a streamlined approach to investigating computers, servers, and managing mobile devices.
 
 Leverage Fleet's programmable Mobile Device Management (MDM) capabilities to illuminate the darkness surrounding MDM access and data acquisition. Trusted by hundreds of companies, Fleet and osquery deliver superior visibility into your devices, facilitating the implementation of standard compliance policies for real-time remediation and updates.
 
