@@ -78,7 +78,6 @@ const isAllHosts = (entity: ISelectTargetsEntity) =>
   entity.label_type === "builtin";
 
 const parseLabels = (list?: ILabelSummary[]) => {
-  console.log("list", list);
   const allHosts = list?.filter((l) => l.name === "All Hosts") || [];
   const platforms =
     list?.filter(
