@@ -15,6 +15,10 @@ export default class TableOSVersion extends Table {
     "codename",
   ];
 
+  getName(platform: string): string {
+    return platform.replace("Chrome OS", "ChromeOS")
+  }
+
   getCodename(platformVersion: string): string {
     return `ChromeOS ${platformVersion}`
   }
@@ -61,7 +65,7 @@ export default class TableOSVersion extends Table {
     // Some of these values won't actually be correct on a non-chromeOS machine.
     return [
       {
-        name: data.platform,
+        name: this.getName(data.platform),
         platform: "chrome",
         platform_like: "chrome",
         version,
