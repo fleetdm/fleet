@@ -465,8 +465,8 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
 	},
-	// On ChromeOS, the `users` table returns only information about the primary account.
-	"chromeos_users": {
+	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
+	"chromeos_profile_user_info": {
 		Query:            `SELECT email FROM user`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Platforms:        []string{"chrome"},
