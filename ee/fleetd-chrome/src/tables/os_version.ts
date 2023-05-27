@@ -15,6 +15,10 @@ export default class TableOSVersion extends Table {
     "codename",
   ];
 
+  getCodename(platformVersion: string): string {
+    return `ChromeOS ${platformVersion}`
+  }
+
   async generate() {
     // @ts-expect-error Typescript doesn't include the userAgentData API yet.
     const data = await navigator.userAgentData.getHighEntropyValues([
@@ -51,8 +55,8 @@ export default class TableOSVersion extends Table {
     // Note we can actually get the platform of Chrome running on non-ChromeOS devices, but instead
     // we just hardcode to "chrome" so that Fleet always sees this Chrome extension as a Chrome
     // device even when we are doing local dev on a non-ChromeOS machine.
-    const platform_info = await chrome.runtime.getPlatformInfo();
-    const { arch } = platform_info;
+    const platformInfo = await chrome.runtime.getPlatformInfo();
+    const { arch } = platformInfo;
 
     // Some of these values won't actually be correct on a non-chromeOS machine.
     return [
@@ -65,7 +69,7 @@ export default class TableOSVersion extends Table {
         minor,
         build,
         patch,
-        codename: `Chrome OS ${data.platformVersion}`,
+        codename: this.getCodename(data.platformVersion),
         arch: arch,
       },
     ];

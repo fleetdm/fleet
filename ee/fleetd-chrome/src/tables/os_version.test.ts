@@ -1,6 +1,15 @@
 import VirtualDatabase from "../db";
+import TableOSVersion from "./os_version";
 
 describe("os_version", () => {
+  describe("getCodename", () => {
+    const sut = new TableOSVersion(null, null)
+
+    it("has the proper prefix", () => {
+      expect(sut.getCodename("10.0.0").startsWith("ChromeOS")).toBe(true)
+    })
+  })
+
   test("success", async () => {
     // @ts-expect-error Typescript doesn't include the userAgentData API yet.
     global.navigator.userAgentData = {
@@ -36,7 +45,7 @@ describe("os_version", () => {
         build: "5481",
         patch: "177",
         arch: "x86-64",
-        codename: "Chrome OS 13.2.1",
+        codename: "ChromeOS 13.2.1",
       },
     ]);
   });
@@ -77,7 +86,7 @@ describe("os_version", () => {
         build: "",
         patch: "",
         arch: "x86-64",
-        codename: "Chrome OS 13.2.1",
+        codename: "ChromeOS 13.2.1",
       },
     ]);
     expect(console.warn).toHaveBeenCalledWith(
