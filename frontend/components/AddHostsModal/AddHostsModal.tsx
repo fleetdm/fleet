@@ -36,6 +36,13 @@ const AddHostsModal = ({
     openEnrollSecretModal && openEnrollSecretModal();
   };
 
+  // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+  // and Fleet Sandbox runs Fleet Free so the currentTeam check here is an
+  // additional precaution/reminder to revisit this in connection with future changes.
+  // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+  const shouldRenderDownloadInstallersContent =
+    isSandboxMode && !isAnyTeamSelected;
+
   const renderModalContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -58,11 +65,7 @@ const AddHostsModal = ({
       );
     }
 
-    // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-    // and Fleet Sandbox runs Fleet Free so the currentTeam check here is an
-    // additional precaution/reminder to revisit this in connection with future changes.
-    // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-    return isSandboxMode && !isAnyTeamSelected ? (
+    return shouldRenderDownloadInstallersContent ? (
       <DownloadInstallers onCancel={onCancel} enrollSecret={enrollSecret} />
     ) : (
       <PlatformWrapper onCancel={onCancel} enrollSecret={enrollSecret} />
@@ -70,7 +73,12 @@ const AddHostsModal = ({
   };
 
   return (
-    <Modal onExit={onCancel} title={"Add hosts"} className={baseClass}>
+    <Modal
+      onExit={onCancel}
+      title={"Add hosts"}
+      className={baseClass}
+      width={shouldRenderDownloadInstallersContent ? "large" : "medium"}
+    >
       {renderModalContent()}
     </Modal>
   );
