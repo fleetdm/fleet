@@ -1,0 +1,3 @@
+- Changed `os_version` from ChromeOS hosts from `Chrome OS` to `ChromeOS`
+- Changed ChromeOS host's computer name prefix from `ChromeOS` to `Chromebook`
+- Added query to fill in `device_mapping` from ChromeOS hosts.
