@@ -467,7 +467,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
 	"chromeos_profile_user_info": {
-		Query:            `SELECT email FROM user`,
+		Query:            `SELECT email FROM users`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Platforms:        []string{"chrome"},
 	},
