@@ -4443,6 +4443,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
+	// Enroll generated the TokenUpdate request to Fleet and enqueued the
+	// Post-DEP enrollment job, it needs to be processed.
+	s.runWorker()
+
 	// ask for commands and verify that we get AccountConfiguration
 	var accCmd *micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
