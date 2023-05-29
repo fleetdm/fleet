@@ -2186,48 +2186,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	return nil
 }
 
-func (svc *MDMAppleCheckinAndCommandService) installEnrollmentPackages(r *mdm.Request, m *mdm.TokenUpdate, teamID uint) error {
-	cmdUUID := uuid.New().String()
-	if err := svc.commander.InstallEnterpriseApplication(r.Context, []string{m.Enrollment.UDID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
-		return err
-	}
-	svc.logger.Log("info", "sent command to install fleetd", "host_uuid", r.ID)
-
-	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(r.Context, teamID)
-	if err != nil {
-		var nfe fleet.NotFoundError
-		if errors.As(err, &nfe) {
-			svc.logger.Log("info", "unable to find a bootstrap package for DEP enrolled device, skppping installation", "host_uuid", r.ID)
-			return nil
-		}
-
-		return err
-	}
-
-	appCfg, err := svc.ds.AppConfig(r.Context)
-	if err != nil {
-		return err
-	}
-
-	url, err := meta.URL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return err
-	}
-
-	manifest := appmanifest.NewFromSha(meta.Sha256, url)
-	cmdUUID = uuid.New().String()
-	err = svc.commander.InstallEnterpriseApplicationWithEmbeddedManifest(r.Context, []string{m.Enrollment.UDID}, cmdUUID, manifest)
-	if err != nil {
-		return err
-	}
-	err = svc.ds.RecordHostBootstrapPackage(r.Context, cmdUUID, r.ID)
-	if err != nil {
-		return err
-	}
-	svc.logger.Log("info", "sent command to install bootstrap package", "host_uuid", r.ID)
-	return nil
-}
-
 // CheckOut handles MDM [CheckOut][1] requests.
 //
 // This method is executed after the request has been handled by nanomdm, note
