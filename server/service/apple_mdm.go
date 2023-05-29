@@ -2181,48 +2181,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
 			}
-
-			/*
-				if err := svc.installEnrollmentPackages(r, m, info.TeamID); err != nil {
-					return fmt.Errorf("installing post-enrollment packages: %w", err)
-				}
-
-				if ref, ok := r.Params["enroll_reference"]; ok {
-					svc.logger.Log("info", "got an enroll_reference", "host_uuid", r.ID, "ref", ref)
-					appCfg, err := svc.ds.AppConfig(r.Context)
-					if err != nil {
-						return fmt.Errorf("getting app config: %w", err)
-					}
-
-					acct, err := svc.ds.GetMDMIdPAccount(r.Context, ref)
-					if err != nil {
-						return fmt.Errorf("getting idp account details for enroll reference %s: %w", ref, err)
-					}
-
-					ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-					if info.TeamID != 0 {
-						team, err := svc.ds.Team(r.Context, info.TeamID)
-						if err != nil {
-
-							return fmt.Errorf("fetch team to send AccountConfiguration: %w", err)
-						}
-						ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
-					}
-
-					if ssoEnabled {
-						svc.logger.Log("info", "setting username and fullname", "host_uuid", r.ID)
-						if err := svc.commander.AccountConfiguration(
-							r.Context,
-							[]string{m.Enrollment.UDID},
-							uuid.New().String(),
-							acct.Fullname,
-							acct.Username,
-						); err != nil {
-							return fmt.Errorf("sending AccountConfiguration command: %w", err)
-						}
-					}
-				}
-			*/
 		}
 	}
 	return nil

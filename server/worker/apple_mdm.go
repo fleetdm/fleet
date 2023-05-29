@@ -125,7 +125,7 @@ func (a *AppleMDM) installEnrollmentPackages(ctx context.Context, hostUUID strin
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if errors.As(err, &nfe) {
-			a.Log.Log("info", "unable to find a bootstrap package for DEP enrolled device, skppping installation", "host_uuid", hostUUID)
+			a.Log.Log("info", "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
 			return nil
 		}
 
