@@ -12,6 +12,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
@@ -53,7 +54,7 @@ func TestAppleMDM(t *testing.T) {
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
 			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
-			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			UUID:           uuid.New().String(),
 			Platform:       "darwin",
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
 			TeamID:         teamID,
@@ -62,7 +63,7 @@ func TestAppleMDM(t *testing.T) {
 
 		// create the nano_device and enrollment
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number) VALUES (?, ?)`, h.UUID, h.HardwareSerial)
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`, h.UUID, h.HardwareSerial, "test")
 			if err != nil {
 				return err
 			}
@@ -339,6 +340,8 @@ func TestAppleMDM(t *testing.T) {
 		require.NoError(t, err)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		tm, err = ds.Team(ctx, tm.ID)
 		require.NoError(t, err)
 		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
 		_, err = ds.SaveTeam(ctx, tm)
