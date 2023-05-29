@@ -17,6 +17,8 @@
               @click="clickFilterByPlatform('linux')">Linux</div>
             <div class="dropdown-item d-block"
               @click="clickFilterByPlatform('darwin')">macOS</div>
+            <div class="dropdown-item d-block"
+              @click="clickFilterByPlatform('chromeos')">ChromeOS</div>
           </div>
         </div>
         <div class="d-flex">
@@ -68,9 +70,10 @@
         <div purpose="table-container" class="d-flex flex-column pl-xl-5 pl-lg-3 w-100">
           <div purpose="schema-table">
             <div purpose="platform-logos" class="d-flex flex-row align-items-center">
-              <img class="mx-2" style="height: 24px" src="/images/os-linux-black-32x36@2x.png" alt="Linux logo" v-if="_.includes(tableToDisplay.platforms, 'linux')">
-              <img class="mx-2" style="height: 24px" src="/images/os-windows-black-38x36@2x.png" alt="Windows logo" v-if="_.includes(tableToDisplay.platforms, 'windows')">
-              <img class="mx-2" style="height: 25px" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'darwin')">
+              <img class="mx-2" style="height: 25px" src="/images/os-macos-dark-24x24@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'darwin')">
+              <img class="mx-2" style="height: 24px" src="/images/os-windows-dark-24x24@2x.png" alt="Windows logo" v-if="_.includes(tableToDisplay.platforms, 'windows')">
+              <img class="mx-2" style="height: 24px" src="/images/os-linux-dark-24x24@2x.png" alt="Linux logo" v-if="_.includes(tableToDisplay.platforms, 'linux')">
+              <img class="mx-2" style="height: 25px" src="/images/os-chromeos-dark-24x24@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'chromeos')">
             </div>
             <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, tableToDisplay.htmlId)))) %>
           </div>
