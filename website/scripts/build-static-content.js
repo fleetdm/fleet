@@ -581,14 +581,17 @@ module.exports = {
 
                   let platformString = '<br> **Only available on ';// start building a string to add to the column's description
 
-                  if(column.platforms.length === 2) { // Because there are only three options for platform, we can safely assume that there will be at most 2 platforms, so we'll just handle this one of two ways
-                    // If there are two values in the platforms array, we'll add the capitalized version of each to the columns description
-                    platformString += column.platforms[0]+' and '+ column.platforms[1];
+                  if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
+                    // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
+                    platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
+                  } else if(column.platforms.length === 2) {
+                    // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
+                    platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
                   } else {
                     // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
                     platformString += column.platforms[0];
                   }
-                  platformString += ' devices.** ';
+                  platformString += '** ';
                   columnDescriptionForTable += platformString; // Add the platform string to the column's description.
                 }
                 tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
