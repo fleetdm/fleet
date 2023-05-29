@@ -170,7 +170,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		contents = append(contents, (&files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		}).WithFileInfoDefaults(os.FileMode(0o700)))
 	}
 
 	if varLibSymlink {
@@ -186,7 +186,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
+	contents, err = files.PrepareForPackager(contents, os.FileMode(0o700), "", false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
 	}
