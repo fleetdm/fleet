@@ -31,10 +31,10 @@ jobs:
 
     steps:
       - name: Clone repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        uses: actions/checkout@v3
 
       - name: Install terraform
-        uses: hashicorp/setup-terraform@17d4c9b8043b238f6f35641cdd8433da1e6f3867 # v2.0.0
+        uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.3.0
 
