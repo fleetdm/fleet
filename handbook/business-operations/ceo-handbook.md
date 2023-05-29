@@ -69,26 +69,41 @@ This channel is for the CEO to drop ideas and tasks for his executive leadership
 
 
 ## Contacting the CEO
-Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
 
-- Non-urgent
-  - "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
-  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
-- Urgent
-  - “Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
-- Emergency
-  - “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
+If you mention the CEO from within a Slack thread, he will not read your message.
+
+Please find a different way to get in touch:
+- If urgent, send a Slack direct message (DM) right away.
+- If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
+- Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
+- Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
 
-<!--
-## OKR planning
-OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
-At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
-- Review topdown and departmental OKRs as they are turned in.
-- OKRs are finalized one week from when topdown OKRs were initially reviewed.
-- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
-- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
--->
+### Why not mention the CEO in Slack threads?
+Everyone who works at Fleet who reads and acknowledges every time they're mentioned in Slack, even in threads.
+
+Except the CEO.
+
+Why?
+
+From Mike:
+
+> Staying on top of your Slack mentions (including in threads!) is very important.  Please use them.
+> 
+> But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
+>
+> I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.  
+> 
+> What do still read?
+> - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
+> - If you send me a direct message, I'll see and read that ASAP.
+>
+> Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+> 
+> When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+>
+> Thank you so much! 🙇
+
 
 ## Prep work
 
