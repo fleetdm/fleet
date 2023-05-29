@@ -420,6 +420,13 @@ type MDMAppleFleetdConfig struct {
 	EnrollSecret string
 }
 
+type MDMApplePreassignProfilePayload struct {
+	ExternalHostIdentifier string `json:"external_host_identifier"`
+	HostUUID               string `json:"host_uuid"`
+	Profile                []byte `json:"profile"`
+	Group                  string `json:"group"`
+}
+
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
