@@ -254,7 +254,7 @@ You can quickly suggest a product idea by adding a bullet to the bottom of ["Fea
 
 Digestion of these new product ideas (requests) happens at the **🗣 Feature Fest** meeting.  This recurring meeting is located on the "Office hours" calendar.
 
-At the **🗣 Product Fest** meeting, the product team weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.  The DRI for this decision is the Head of Product.
+At the **🗣 Feature Fest** meeting, the product team weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.  The DRI for this decision is the Head of Product.
 
 - A _request is prioritized_ when the business decides it is an immediate priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
@@ -262,7 +262,7 @@ At the **🗣 Product Fest** meeting, the product team weighs all requests in th
 ### Why this way?
 
 - At Fleet, we use quarterly metrics to align the organization with measurable goals.  These goals fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and engineering capacity.   This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the wider Fleet community.
-- The 🗣 Feature Fest meeting is a recurring ritual to make sure that the team weighs all requests.
+- The 🗣️ Feature Fest meeting is a recurring ritual to make sure that the team weighs all requests.
 - At Fleet, we tell the requestor whether their request is prioritized or put to the side within one business day from when the team weighs the request.
 - Fleet always prioritizes bugs.
 
