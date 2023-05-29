@@ -645,6 +645,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+
 	// make sure the host gets a request to install fleetd
 	var fleetdCmd *micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
