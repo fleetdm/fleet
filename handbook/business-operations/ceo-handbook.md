@@ -47,25 +47,23 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 ### CEO email management
 
-> TODO: let's rethink this.  -Mike, March 2023
-
- - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
- - Emails that need the CEO's attention should be "starred" 
- - EA should prepare draft responses, move drafts to the Inbox, and label
+TODO: Document
 
 ### Travel preferences
-Current preferences for flights are:
- - Non-middle seat, anywhere
- - Direct flight whenever possible
- - Check a bag for all trips longer than five nights
- - Add Brex card information for pre-flight snacks and drinks forms
- - Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
+Preferences for flights, in descending order of importance are:
+  - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
+  - Select a non-middle seat, whenever possible
+  - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
+  - The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
+  - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
+  - Use the Brex card.
+  - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-### `#Help Mission Control` slack channel
-This channel is for the CEO to drop ideas and tasks for his executive leadership team. The name of this channel was carefully chosen to reflect how we'll work together to help visualize and execute the plans for Fleet.
- - Labels: TODO, DOTO, FYI
- - Mark requests with 👀 to indicate that you are working on the task
- - Mark requests with ✅ to indicate that you completed the task
+### `#g-ceo` slack channel
+This channel is for the CEO to drop ideas and tasks when on the go.
+ - Prefixes: TODO, DOTO, FYI
+ - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
+ - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
 
 
 ## Contacting the CEO
@@ -80,11 +78,9 @@ Please find a different way to get in touch:
 
 
 ### Why not mention the CEO in Slack threads?
-Everyone who works at Fleet who reads and acknowledges every time they're mentioned in Slack, even in threads.
+Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
-Except the CEO.
-
-Why?
+So why not the CEO?
 
 From Mike:
 
