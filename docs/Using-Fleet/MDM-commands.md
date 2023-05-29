@@ -51,7 +51,7 @@ Fleet UI:
 1. Head to the **Hosts** page in Fleet and find your target host.
 2. Make sure the **Hostname** column is visible (select **Edit columns** if not) and find your host's hostname. You'll need this hostname to run the command.
 
-> A host must be enrolled to Fleet and have MDM turned on to run an command against it.
+> A host must be enrolled to Fleet and have MDM turned on to run a command against it.
 
 `fleetctl` CLI:
 
@@ -70,6 +70,19 @@ Fleet UI:
 1. Run the `fleetctl get mdm-command-results --id=<insert-command-id>`
 
 2. Look at the on-screen information.
+
+## List of recent commands
+
+You can view the list of recently executed commands using "fleetctl":
+
+1. Run `fleetctl get mdm-commands`
+2. View the list of recently executed commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
+
+The command ID can be used to view command results as documented in [Step 4 of the previous section](#step-4-view-the-commands-results). The possible status values are:
+* Pending: the command has yet to be executed on the host.
+* Acknowledged: the command was executed successfully.
+* Error: execution of the command failed.
+* CommandFormatError: an MDM protocal format error occurred, possibly due to a malformed command.
 
 <meta name="pageOrderInSection" value="1506">
 <meta name="title" value="MDM commands">
