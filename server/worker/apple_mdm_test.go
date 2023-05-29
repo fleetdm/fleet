@@ -75,6 +75,14 @@ func TestAppleMDM(t *testing.T) {
 		return h
 	}
 
+	getEnqueuedCommandTypes := func(t *testing.T) []string {
+		var commands []string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
+		})
+		return commands
+	}
+
 	t.Run("no-op with nil commander", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
@@ -161,12 +169,7 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
 		require.Empty(t, jobs)
-
-		var commands []string
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
-		})
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, commands)
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
 	t.Run("installs custom bootstrap manifest", func(t *testing.T) {
@@ -204,12 +207,8 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
 		require.Empty(t, jobs)
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
-		var commands []string
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
-		})
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, commands)
 		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
 		require.NoError(t, err)
 		require.Equal(t, "custom-bootstrap", ms.BootstrapPackageName)
@@ -253,14 +252,122 @@ func TestAppleMDM(t *testing.T) {
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
 		require.Empty(t, jobs)
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
-		var commands []string
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
-		})
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, commands)
 		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
 		require.NoError(t, err)
 		require.Equal(t, "custom-team-bootstrap", ms.BootstrapPackageName)
+	})
+
+	t.Run("unknown enroll reference", func(t *testing.T) {
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, "abcd")
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1)
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		require.Contains(t, jobs[0].Error, "MDMIdPAccount with uuid abcd was not found")
+		require.Equal(t, fleet.JobStateQueued, jobs[0].State)
+		require.Equal(t, 1, jobs[0].Retries)
+	})
+
+	t.Run("enroll reference but SSO disabled", func(t *testing.T) {
+		defer mysql.TruncateTables(t, ds)
+
+		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			UUID:     "abcd",
+			Username: "test",
+			Fullname: "test",
+		})
+		require.NoError(t, err)
+		h := createEnrolledHost(t, 1, nil)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, "abcd")
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1)
+		require.NoError(t, err)
+		require.Empty(t, jobs)
+		// confirm that AccountConfiguration command was not enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("enroll reference with SSO enabled", func(t *testing.T) {
+		defer mysql.TruncateTables(t, ds)
+
+		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			UUID:     "abcd",
+			Username: "test",
+			Fullname: "test",
+		})
+		require.NoError(t, err)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, &tm.ID, "abcd")
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1)
+		require.NoError(t, err)
+		require.Empty(t, jobs)
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
 }
