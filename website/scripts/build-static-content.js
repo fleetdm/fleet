@@ -683,7 +683,7 @@ module.exports = {
             }
             if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
-            } else if(!_.contains(['Free', 'Premium', 'Ultimate'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free", "Premium", or "Ultimate".
+            } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
             }
             if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value

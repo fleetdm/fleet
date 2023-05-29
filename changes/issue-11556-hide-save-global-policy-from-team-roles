@@ -1,1 +1,0 @@
-- Team admin and team maintainer cannot save/update a global policy so hide the save button when viewing or running a global policy

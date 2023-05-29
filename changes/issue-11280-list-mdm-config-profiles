@@ -1,0 +1,1 @@
+- Updated `GET /mdm/apple/profiles` endpoint to return empty array instead of null if no profiles are found.

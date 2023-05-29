@@ -159,7 +159,7 @@ module.exports.custom = {
     '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
 
   },
 
