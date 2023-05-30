@@ -497,8 +497,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
 
-	ue.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
-	ue.POST("/api/_version_/fleet/mdm/apple/profiles/match", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
+	ue.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
+	ue.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

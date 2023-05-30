@@ -661,8 +661,15 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
+	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
+	// request that will match the profiles to a team (or create one if needed),
+	// assign the host to that team and assign the profiles to the host.
 	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	MDMAppleMatchPreassignment(ctx context.Context, hostReference string) error
+
+	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
+	// team, creating one if none match, assigns the corresponding host to that
+	// team and assigns the matched team's profiles to the host.
+	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
