@@ -546,3 +546,11 @@ type MDMAppleSetupAssistant struct {
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
 }
+
+// ProfileMatcher defines the methods required to preassign and retrieve MDM
+// profiles for matching with teams and associating with hosts. A Redis-based
+// implementation is used in production.
+type ProfileMatcher interface {
+	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error
+}

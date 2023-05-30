@@ -725,12 +725,13 @@ func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-
-	// TODO(mna): store the profile in redis
+	if err := svc.profileMatcher.PreassignProfile(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "preassign profile")
+	}
 	return nil
 }
 
-func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) error {
+func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
@@ -741,6 +742,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) 
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: match teams, create if needed, assign hosts and profiles
+	// TODO(mna): TBD the exact signature, must return the list of profiles for matching
+	//profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
 	return nil
 }
