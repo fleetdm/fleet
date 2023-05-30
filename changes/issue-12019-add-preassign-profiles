@@ -1,0 +1,1 @@
+* Added the `POST /fleet/mdm/apple/preassign` endpoint to store profiles to be assigned to a host, for subsequent matching with an existing (or new) team.
