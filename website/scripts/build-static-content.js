@@ -582,7 +582,7 @@ module.exports = {
                   let platformString = '<br> **Only available on ';// start building a string to add to the column's description
 
                   if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
-                    throw new Error('Support for more than three platforms has not been implemented yet.')
+                    throw new Error('Support for more than three platforms has not been implemented yet.');
                   }
 
                   if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
