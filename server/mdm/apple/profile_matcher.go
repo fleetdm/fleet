@@ -39,13 +39,13 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 	}
 	if len(payload.Profile) == 0 {
 		invArg.Append("profile", "required")
-	}
-
-	// team ID is not relevant at this stage, this is just for validation
-	if cp, err := fleet.NewMDMAppleConfigProfile(payload.Profile, nil); err != nil {
-		invArg.Append("profile", err.Error())
-	} else if err := cp.ValidateUserProvided(); err != nil {
-		invArg.Append("profile", err.Error())
+	} else {
+		// team ID is not relevant at this stage, this is just for validation
+		if cp, err := fleet.NewMDMAppleConfigProfile(payload.Profile, nil); err != nil {
+			invArg.Append("profile", err.Error())
+		} else if err := cp.ValidateUserProvided(); err != nil {
+			invArg.Append("profile", err.Error())
+		}
 	}
 	if invArg.HasErrors() {
 		return ctxerr.Wrap(ctx, invArg)
@@ -59,7 +59,7 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 	args := []any{
 		// key is the prefix + the external identifier, all of this host's profiles
 		// will be stored under that hash, keyed by the md5-hash.
-		preassignKeyPrefix + payload.ExternalHostIdentifier,
+		keyForExternalHostIdentifier(payload.ExternalHostIdentifier),
 
 		// the host uuid must be stored (cannot clash with other fields as they are
 		// hex-encoded hashes), will be a no-op if it was already stored (i.e. not
@@ -102,4 +102,8 @@ func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdent
 	// TODO: find all profiles matching the host identifier
 	// TODO: cleanup all retrieved profiles?
 	return nil
+}
+
+func keyForExternalHostIdentifier(externalHostIdentifier string) string {
+	return preassignKeyPrefix + externalHostIdentifier
 }
