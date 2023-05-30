@@ -26,7 +26,6 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
   const primaryActions: IActionButtonProps[] = [];
   const secondaryActions: IActionButtonProps[] = [];
 
-  console.log("actions", actions);
   actions.forEach((action) => {
     const { type, hideAction } = action;
     if (hideAction) {

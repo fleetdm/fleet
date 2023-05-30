@@ -60,7 +60,6 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return null;
   }
 
-  console.log("iconSvg", iconSvg);
   return (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       {indicatePremiumFeature && (
