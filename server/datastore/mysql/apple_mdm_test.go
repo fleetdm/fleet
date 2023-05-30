@@ -46,7 +46,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
-		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
+		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
@@ -1812,16 +1812,12 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsVerifying, ptr.Uint(0), []*fleet.Host{}))
 }
 
-func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
+func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	acc := &fleet.MDMIdPAccount{
 		UUID:     "ABC-DEF",
 		Username: "email@example.com",
-		SaltedSHA512PBKDF2Dictionary: fleet.SaltedSHA512PBKDF2Dictionary{
-			Iterations: 50000,
-			Salt:       []byte("salt"),
-			Entropy:    []byte("entropy"),
-		},
+		Fullname: "John Doe",
 	}
 
 	err := ds.InsertMDMIdPAccount(ctx, acc)
@@ -1831,20 +1827,14 @@ func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	// try to insert an empty account
-	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
-	require.Error(t, err)
+	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
+	require.NoError(t, err)
+	require.Equal(t, acc, out)
 
-	// duplicated values get updated
-	acc.SaltedSHA512PBKDF2Dictionary.Iterations = 3000
-	acc.SaltedSHA512PBKDF2Dictionary.Salt = []byte("tlas")
-	acc.SaltedSHA512PBKDF2Dictionary.Entropy = []byte("yportne")
-	err = ds.InsertMDMIdPAccount(ctx, acc)
-	require.NoError(t, err)
-	var out fleet.MDMIdPAccount
-	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
-	require.NoError(t, err)
-	require.Equal(t, acc, &out)
+	var nfe fleet.NotFoundError
+	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
@@ -3611,4 +3601,218 @@ func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "tm", uuid)
 	require.NotZero(t, ts)
+}
+
+func TestHostDEPAssignments(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	ctx := context.Background()
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
+	require.NoError(t, err)
+
+	t.Run("DEP enrollment", func(t *testing.T) {
+		depSerial := "dep-serial"
+		depUUID := "dep-uuid"
+		depOrbitNodeKey := "dep-orbit-node-key"
+		depDeviceTok := "dep-device-token"
+
+		n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+		require.NoError(t, err)
+		require.Equal(t, int64(1), n)
+
+		var depHostID uint
+		err = sqlx.GetContext(ctx, ds.reader, &depHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", depSerial)
+		require.NoError(t, err)
+
+		// host MDM row is created when DEP device is ingested
+		getHostResp, err := ds.Host(ctx, depHostID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, depHostID, getHostResp.ID)
+		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// host DEP assignment is created when DEP device is ingested
+		depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
+		require.NoError(t, err)
+		require.Equal(t, depHostID, depAssignment.HostID)
+		require.Nil(t, depAssignment.DeletedAt)
+		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 1*time.Second)
+
+		// simulate initial osquery enrollment via Orbit
+		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+		require.NoError(t, err)
+		require.NotNil(t, testHost)
+
+		// create device auth token for host
+		err = ds.SetOrUpdateDeviceAuthToken(context.Background(), depHostID, depDeviceTok)
+		require.NoError(t, err)
+
+		// host MDM doesn't change upon Orbit enrollment
+		getHostResp, err = ds.Host(ctx, testHost.ID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, testHost.ID, getHostResp.ID)
+		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// host DEP assignment is reported for load host by Orbit node key and by device token
+		h, err := ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		// simulate osquery report of MDM detail query
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		require.NoError(t, err)
+
+		// enrollment status changes to "On (automatic)"
+		getHostResp, err = ds.Host(ctx, testHost.ID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, testHost.ID, getHostResp.ID)
+		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// host DEP assignment doesn't change
+		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		// simulate MDM unenroll
+		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, depUUID))
+
+		// host MDM row is deleted on unenrollment
+		getHostResp, err = ds.Host(ctx, testHost.ID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, testHost.ID, getHostResp.ID)
+		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.Empty(t, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// host DEP assignment doesn't change
+		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		// simulate osquery report of MDM detail query reflecting re-enrollment to MDM
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		require.NoError(t, err)
+
+		// host MDM row is re-created when osquery reports MDM detail query
+		getHostResp, err = ds.Host(ctx, testHost.ID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, testHost.ID, getHostResp.ID)
+		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// DEP assignment doesn't change
+		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
+		// from MDM)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "")
+		require.NoError(t, err)
+
+		// host MDM row is deleted when osquery reports MDM detail query with empty server URL
+		getHostResp, err = ds.Host(ctx, testHost.ID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, testHost.ID, getHostResp.ID)
+		require.Nil(t, getHostResp.MDM.EnrollmentStatus)
+		require.Nil(t, getHostResp.MDM.ServerURL)
+		require.Empty(t, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// DEP assignment doesn't change
+		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, depDeviceTok, 1*time.Hour)
+		require.NoError(t, err)
+		require.True(t, *h.DEPAssignedToFleet)
+
+		hdepa, err := ds.GetHostDEPAssignment(ctx, depHostID)
+		require.NoError(t, err)
+		require.Equal(t, depHostID, hdepa.HostID)
+		require.Nil(t, hdepa.DeletedAt)
+		require.Equal(t, depAssignment.AddedAt, hdepa.AddedAt)
+	})
+
+	t.Run("manual enrollment", func(t *testing.T) {
+		// create a non-DEP host
+		manualSerial := "manual-serial"
+		manualUUID := "manual-uuid"
+		manualOrbitNodeKey := "manual-orbit-node-key"
+		manualDeviceToken := "manual-device-token"
+
+		err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{SerialNumber: manualSerial, UDID: manualUUID})
+		require.NoError(t, err)
+
+		var manualHostID uint
+		err = sqlx.GetContext(ctx, ds.reader, &manualHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", manualSerial)
+		require.NoError(t, err)
+
+		// host MDM is "On (manual)"
+		getHostResp, err := ds.Host(ctx, manualHostID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, manualHostID, getHostResp.ID)
+		require.Equal(t, "On (manual)", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		// check host DEP assignment not created for non-DEP host
+		hdepa, err := ds.GetHostDEPAssignment(ctx, manualHostID)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+		require.Nil(t, hdepa)
+
+		// simulate initial osquery enrollment via Orbit
+		manualHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}, manualOrbitNodeKey, nil)
+		require.NoError(t, err)
+		require.Equal(t, manualHostID, manualHost.ID)
+
+		// create device auth token for host
+		err = ds.SetOrUpdateDeviceAuthToken(context.Background(), manualHostID, manualDeviceToken)
+		require.NoError(t, err)
+
+		// host MDM doesn't change upon Orbit enrollment
+		getHostResp, err = ds.Host(ctx, manualHostID)
+		require.NoError(t, err)
+		require.NotNil(t, getHostResp)
+		require.Equal(t, manualHostID, getHostResp.ID)
+		require.Equal(t, "On (manual)", *getHostResp.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
+		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
+
+		h, err := ds.LoadHostByOrbitNodeKey(ctx, manualOrbitNodeKey)
+		require.NoError(t, err)
+		require.False(t, *h.DEPAssignedToFleet)
+		h, err = ds.LoadHostByDeviceAuthToken(ctx, manualDeviceToken, 1*time.Hour)
+		require.NoError(t, err)
+		require.False(t, *h.DEPAssignedToFleet)
+	})
 }

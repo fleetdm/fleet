@@ -4992,7 +4992,10 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
-			sws = h.Software
+			sws = make([]fleet.Software, 0, len(h.Software))
+			for _, s := range h.Software {
+				sws = append(sws, s.Software)
+			}
 		}
 	}
 
@@ -6373,9 +6376,21 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
+	// not yet assigned in ABM
 	hFleetMDM := createOrbitEnrolledHost(t, "darwin", "fleetmdm", s.ds)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
 	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	// simulate ABM assignment
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO host_dep_assignments (host_id) VALUES (?)`
+		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, hFleetMDM.ID)
+		return err
+	})
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)

@@ -273,6 +273,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /vulnerability-management': {
+    action: 'view-vulnerability-management',
+    locals: {
+      pageTitleForMeta: 'Vulnerability management | Fleet for osquery',
+      pageDescriptionForMeta: 'Know what\’s going on with your computers. Measure and automate risk across your laptops and servers.',
+    }
+  },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
@@ -347,6 +355,7 @@ module.exports.routes = {
   'GET /handbook/company/product-groups': '/handbook/company/development-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
   'GET /platform': (req,res)=> {return res.redirect(302, '/');},// FUTURE: change this to a 301 (permanent) redirect once we are sure what the page that replaces this is.
+  'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -422,7 +431,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
-
+  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

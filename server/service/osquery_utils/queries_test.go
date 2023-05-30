@@ -257,6 +257,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"battery",
 		"os_windows",
 		"os_unix_like",
+		"os_chrome",
 		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
@@ -269,7 +270,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 23)
+	require.Len(t, queriesWithoutWinOSVuln, 24)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
@@ -386,7 +387,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
+	assert.Equal(t, "Windows 11 Enterprise 10.0.22000", host.OSVersion)
 
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -408,7 +409,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
+	assert.Equal(t, "Windows 10 Enterprise LTSC 10.0.17763", host.OSVersion)
 }
 
 func TestDetailQueriesOSVersionChrome(t *testing.T) {
@@ -547,7 +548,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				KernelVersion: "10.0.22000.795",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
 			},
 		},
 	}

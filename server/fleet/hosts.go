@@ -296,7 +296,16 @@ type Host struct {
 	// add a "reason" field with well-known labels so we know what condition(s)
 	// are expected to clear the timestamp. For now there's a single use-case
 	// so we don't need this.
-	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
+	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
+
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
+	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
+	// responses.
+	//
+	// The boolean is based on information ingested from the Apple DEP API that is stored in the
+	// host_dep_assignments table.
+	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 }
 
 type MDMHostData struct {
@@ -511,6 +520,28 @@ func (d *MDMHostData) Scan(v interface{}) error {
 // IsOsqueryEnrolled returns true if the host is enrolled via osquery.
 func (h *Host) IsOsqueryEnrolled() bool {
 	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
+}
+
+// IsDEPAssignedToFleet returns true if the host was assigned to the Fleet
+// server in ABM.
+func (h *Host) IsDEPAssignedToFleet() bool {
+	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsElegibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func (h *Host) IsElegibleForDEPMigration() bool {
+	return h.IsOsqueryEnrolled() &&
+		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.IsEnrolledInThirdPartyMDM()
+}
+
+// NeedsDEPEnrollment returns true if the host should be DEP enrolled into
+// fleet but it's currently unenrolled.
+func (h *Host) NeedsDEPEnrollment() bool {
+	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		h.IsDEPAssignedToFleet()
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -903,11 +934,23 @@ type AggregatedMacadminsData struct {
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
-// HostShort is a minimal host representation returned when querying hosts.
-type HostShort struct {
-	ID          uint   `json:"id" db:"id"`
-	Hostname    string `json:"hostname" db:"hostname"`
+// HostVulnerabilitySummary type used with webhooks and third-party vulnerability automations.
+// Contains all pertinent host info plus the installed paths of all affected software.
+type HostVulnerabilitySummary struct {
+	// ID Is the ID of the host
+	ID uint `json:"id" db:"id"`
+	// Hostname the host's hostname
+	Hostname string `json:"hostname" db:"hostname"`
+	// DisplayName either the 'computer_name' or the 'host_name' (whatever is not empty)
 	DisplayName string `json:"display_name" db:"display_name"`
+	// SoftwareInstalledPaths paths of vulnerable software installed on the host.
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty" db:"software_installed_paths"`
+}
+
+func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
+	if p != "" {
+		hvs.SoftwareInstalledPaths = append(hvs.SoftwareInstalledPaths, p)
+	}
 }
 
 type OSVersions struct {

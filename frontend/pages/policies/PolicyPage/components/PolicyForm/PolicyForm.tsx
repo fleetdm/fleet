@@ -26,11 +26,11 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
 
@@ -171,6 +171,7 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
+    !isEditMode || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
     (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
@@ -287,7 +288,7 @@ const PolicyForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="small-icon" onClick={onOpenSchemaSidebar}>
         <>
           <img alt="" src={InfoIcon} />
           Show schema
@@ -326,13 +327,17 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+            <Button
+              variant="small-icon"
+              className="edit-link"
+              onClick={() => setIsEditingName(true)}
+            >
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                size="small"
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -364,16 +369,17 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <a
+            <Button
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                size="small"
               />
-            </a>
+            </Button>
           </div>
         </>
       );
@@ -402,16 +408,17 @@ const PolicyForm = ({
               onKeyPress={onInputKeypress}
               isFocused={isEditingResolution}
             />
-            <a
+            <Button
+              variant="small-icon"
               className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img
-                className={`edit-icon ${isEditingResolution && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
+              <Icon
+                name="pencil"
+                className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+                size="small"
               />
-            </a>
+            </Button>
           </div>
         </>
       );

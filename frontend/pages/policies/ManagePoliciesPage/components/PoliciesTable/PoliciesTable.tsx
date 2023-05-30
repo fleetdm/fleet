@@ -21,20 +21,25 @@ const TAGGED_TEMPLATES = {
   },
 };
 
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "updated_at";
+
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
-  tableType?: string;
+  tableType?: "inheritedPolicies";
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   onClientSidePaginationChange?: (pageIndex: number) => void;
-  onQueryChange?: (newTableQuery: ITableQueryData) => void;
+  onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
+  sortHeader?: "name" | "failing_host_count";
+  sortDirection?: "asc" | "desc";
   page: number;
 }
 
@@ -52,9 +57,19 @@ const PoliciesTable = ({
   onQueryChange,
   onClientSidePaginationChange,
   searchQuery,
+  sortHeader,
+  sortDirection,
   page,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
+
+  // Inherited table uses the same onQueryChange but require different URL params
+  const onTableQueryChange = (newTableQuery: ITableQueryData) => {
+    onQueryChange({
+      ...newTableQuery,
+      editingInheritedTable: tableType === "inheritedPolicies",
+    });
+  };
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
@@ -124,7 +139,7 @@ const PoliciesTable = ({
         <Spinner />
       ) : (
         <TableContainer
-          resultsTitle={"policies"}
+          resultsTitle="policies"
           columns={generateTableHeaders(
             {
               selectedTeamId: currentTeam?.id,
@@ -141,17 +156,16 @@ const PoliciesTable = ({
           )}
           filters={{ global: searchQuery }}
           isLoading={isLoading}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
+          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
           defaultSearchQuery={searchQuery}
           defaultPageIndex={page}
-          manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
             name: "delete policy",
             buttonText: "Delete",
-            icon: "delete",
+            iconSvg: "trash",
             variant: "text-icon",
             onActionButtonClick: onDeletePolicyClick,
           }}
@@ -169,7 +183,7 @@ const PoliciesTable = ({
           onClientSidePaginationChange={onClientSidePaginationChange}
           isClientSideFilter
           searchQueryColumn="name"
-          onQueryChange={onQueryChange}
+          onQueryChange={onTableQueryChange}
           inputPlaceHolder="Search by name"
           searchable={searchable}
         />

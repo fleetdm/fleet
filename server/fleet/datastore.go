@@ -430,8 +430,13 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
-	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
+	// specified Software installed. Includes the path were the software was installed.
+	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
+	// *DEPRECATED use HostVulnSummariesBySoftwareIDs instead* HostsByCVE
+	// returns a list of all hosts that have at least one software suceptible to the provided CVE.
+	// Includes the path were the software was installed.
+	HostsByCVE(ctx context.Context, cve string) ([]HostVulnerabilitySummary, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
@@ -834,6 +839,9 @@ type Datastore interface {
 	// specified list of host IDs.
 	ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error)
 
+	// GetHostDEPAssignment returns the DEP assignment for the host.
+	GetHostDEPAssignment(ctx context.Context, hostID uint) (*HostDEPAssignment, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -882,6 +890,9 @@ type Datastore interface {
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
+
+	// GetMDMIdPAccount returns MDM IdP account that matches the given token.
+	GetMDMIdPAccount(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned

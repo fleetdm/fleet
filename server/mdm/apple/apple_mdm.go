@@ -56,19 +56,32 @@ const (
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, MDMPath)
+	return resolveURL(serverURL, MDMPath, false)
+}
+
+func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, EnrollPath, false)
 }
 
 func ResolveAppleSCEPURL(serverURL string) (string, error) {
-	return resolveURL(serverURL, SCEPPath)
+	// Apple's SCEP client appends a query string to the SCEP URL in the
+	// enrollment profile, without checking if the URL already has a query
+	// string. Eg: if the URL is `/test/example?foo=bar` it'll make a
+	// request to `/test/example?foo=bar?SCEPOperation=..`
+	//
+	// As a consequence we ensure that the query is always clean for the SCEP URL.
+	return resolveURL(serverURL, SCEPPath, true)
 }
 
-func resolveURL(serverURL, relPath string) (string, error) {
+func resolveURL(serverURL, relPath string, cleanQuery bool) (string, error) {
 	u, err := url.Parse(serverURL)
 	if err != nil {
 		return "", err
 	}
 	u.Path = path.Join(u.Path, relPath)
+	if cleanQuery {
+		u.RawQuery = ""
+	}
 	return u.String(), nil
 }
 

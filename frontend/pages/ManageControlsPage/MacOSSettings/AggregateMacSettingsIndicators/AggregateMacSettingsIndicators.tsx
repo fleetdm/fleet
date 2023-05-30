@@ -6,6 +6,7 @@ import { MdmProfileStatus, ProfileSummaryResponse } from "interfaces/mdm";
 import MacSettingsIndicator from "pages/hosts/details/MacSettingsIndicator";
 
 import { IconNames } from "components/icons";
+import Spinner from "components/Spinner";
 
 const baseClass = "aggregate-mac-settings-indicators";
 
@@ -41,15 +42,19 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
 ];
 
 interface AggregateMacSettingsIndicatorsProps {
+  isLoading: boolean;
   teamId: number;
-  aggregateProfileStatusData: ProfileSummaryResponse;
+  aggregateProfileStatusData?: ProfileSummaryResponse;
 }
 
 const AggregateMacSettingsIndicators = ({
+  isLoading,
   teamId,
   aggregateProfileStatusData,
 }: AggregateMacSettingsIndicatorsProps) => {
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
+    if (!aggregateProfileStatusData) return null;
+
     const { value, text, iconName, tooltipText } = status;
     const count = aggregateProfileStatusData[value];
 
@@ -71,6 +76,14 @@ const AggregateMacSettingsIndicators = ({
       </div>
     );
   });
+
+  if (isLoading) {
+    return (
+      <div className={baseClass}>
+        <Spinner className={`${baseClass}__loading-spinner`} centered={false} />
+      </div>
+    );
+  }
 
   return <div className={baseClass}>{indicators}</div>;
 };

@@ -580,6 +580,9 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
+	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
@@ -604,7 +607,7 @@ type Service interface {
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
 	// Desktop, in the My Device page). See #8701.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.

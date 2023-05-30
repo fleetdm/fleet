@@ -179,7 +179,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications
 	if host.IsOsqueryEnrolled() {
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+		if host.NeedsDEPEnrollment() {
 			notifs.RenewEnrollmentProfile = true
 		}
 
@@ -250,6 +250,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
+	}
+
+	if config.MDM.EnabledAndConfigured &&
+		config.MDM.MacOSMigration.Enable &&
+		host.IsElegibleForDEPMigration() {
+		notifs.NeedsMDMMigration = true
 	}
 
 	return fleet.OrbitConfig{

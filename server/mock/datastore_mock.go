@@ -332,9 +332,9 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
+type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
-type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
+type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
 
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
@@ -570,6 +570,8 @@ type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
 
+type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
+
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
@@ -593,6 +595,8 @@ type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID str
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
+
+type GetMDMIdPAccountFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
@@ -1105,8 +1109,8 @@ type DataStore struct {
 	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
 	SyncHostsSoftwareFuncInvoked bool
 
-	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
-	HostsBySoftwareIDsFuncInvoked bool
+	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
+	HostVulnSummariesBySoftwareIDsFuncInvoked bool
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
@@ -1462,6 +1466,9 @@ type DataStore struct {
 	ListMDMAppleDEPSerialsInHostIDsFunc        ListMDMAppleDEPSerialsInHostIDsFunc
 	ListMDMAppleDEPSerialsInHostIDsFuncInvoked bool
 
+	GetHostDEPAssignmentFunc        GetHostDEPAssignmentFunc
+	GetHostDEPAssignmentFuncInvoked bool
+
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
@@ -1497,6 +1504,9 @@ type DataStore struct {
 
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
+
+	GetMDMIdPAccountFunc        GetMDMIdPAccountFunc
+	GetMDMIdPAccountFuncInvoked bool
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
@@ -2661,14 +2671,14 @@ func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) 
 	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
-	s.HostsBySoftwareIDsFuncInvoked = true
+	s.HostVulnSummariesBySoftwareIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostsBySoftwareIDsFunc(ctx, softwareIDs)
+	return s.HostVulnSummariesBySoftwareIDsFunc(ctx, softwareIDs)
 }
 
-func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
+func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
 	s.HostsByCVEFuncInvoked = true
 	s.mu.Unlock()
@@ -3494,6 +3504,13 @@ func (s *DataStore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs
 	return s.ListMDMAppleDEPSerialsInHostIDsFunc(ctx, hostIDs)
 }
 
+func (s *DataStore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentFunc(ctx, hostID)
+}
+
 func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	s.mu.Lock()
 	s.GetNanoMDMEnrollmentFuncInvoked = true
@@ -3576,6 +3593,13 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	s.InsertMDMIdPAccountFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMIdPAccountFunc(ctx, account)
+}
+
+func (s *DataStore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountFunc(ctx, uuid)
 }
 
 func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {

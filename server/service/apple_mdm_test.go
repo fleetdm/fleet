@@ -229,7 +229,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserNoRoles)
 	_, err := svc.GetMDMAppleInstallerByToken(ctx, "foo")
 	require.NoError(t, err)
-	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")
+	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
 	require.NoError(t, err)
@@ -995,12 +995,14 @@ func TestMDMTokenUpdate(t *testing.T) {
 	svc := MDMAppleCheckinAndCommandService{ds: ds, commander: cmdr, logger: kitlog.NewNopLogger()}
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 	serverURL := "https://example.com"
-	installEnterpriseApplicationCalls := 0
+	commands := map[string]int{}
 
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-		installEnterpriseApplicationCalls++
+		if _, ok := commands[cmd.Command.RequestType]; !ok {
+			commands[cmd.Command.RequestType] = 0
+		}
+		commands[cmd.Command.RequestType]++
 		require.NotNil(t, cmd)
-		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
 		return nil, nil
 	}
 
@@ -1030,6 +1032,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := &fleet.AppConfig{}
 		appCfg.ServerSettings.ServerURL = serverURL
+		// assign a name to simulate EndUserAuthentication being configured
+		appCfg.MDM.EndUserAuthentication.IDPName = "FooIdP"
 		return appCfg, nil
 	}
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
@@ -1053,11 +1057,24 @@ func TestMDMTokenUpdate(t *testing.T) {
 		require.Equal(t, wantTeamID, teamID)
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
-
 	ds.RecordHostBootstrapPackageFunc = func(ctx context.Context, commandUUID string, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		require.NotEmpty(t, commandUUID)
 		return nil
+	}
+	idpAcc := &fleet.MDMIdPAccount{
+		UUID:     "FOO-BAR",
+		Fullname: "Jane Doe",
+		Username: "jane.doe@example.com",
+	}
+	ds.GetMDMIdPAccountFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		require.Equal(t, idpAcc.UUID, uuid)
+		return idpAcc, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		tm := &fleet.Team{}
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		return tm, nil
 	}
 
 	err := svc.TokenUpdate(
@@ -1073,7 +1090,36 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.True(t, ds.RecordHostBootstrapPackageFuncInvoked)
-	require.Equal(t, 2, installEnterpriseApplicationCalls)
+	require.False(t, ds.GetMDMIdPAccountFuncInvoked)
+	require.Equal(t, 2, commands["InstallEnterpriseApplication"])
+	require.Equal(t, 0, commands["AccountConfiguration"])
+	ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked = false
+	ds.GetHostMDMCheckinInfoFuncInvoked = false
+	ds.AppConfigFuncInvoked = false
+	ds.RecordHostBootstrapPackageFuncInvoked = false
+	commands["InstallEnterpriseApplication"] = 0
+
+	// with enrollment reference
+	err = svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid},
+			Params:   map[string]string{"enroll_reference": idpAcc.UUID},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
+	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.True(t, ds.RecordHostBootstrapPackageFuncInvoked)
+	require.True(t, ds.GetMDMIdPAccountFuncInvoked)
+	require.Equal(t, 2, commands["InstallEnterpriseApplication"])
+	require.Equal(t, 1, commands["AccountConfiguration"])
 }
 
 func TestMDMCheckout(t *testing.T) {

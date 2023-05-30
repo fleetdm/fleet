@@ -112,6 +112,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	})
 }
 
+// getHostSoftwareInstalledPaths returns all HostSoftwareInstalledPath for the given hostID.
 func (ds *Datastore) getHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
@@ -354,7 +355,7 @@ func applyChangesForNewSoftwareDB(
 	r.WasCurrInstalled = currentSoftware
 
 	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
-		return nil, nil
+		return r, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
@@ -852,7 +853,27 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	if err != nil {
 		return err
 	}
-	host.Software = software
+
+	installedPaths, err := ds.getHostSoftwareInstalledPaths(
+		ctx,
+		host.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	lookup := make(map[uint][]string)
+	for _, ip := range installedPaths {
+		lookup[ip.SoftwareID] = append(lookup[ip.SoftwareID], ip.InstalledPath)
+	}
+
+	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
+	for _, s := range software {
+		host.Software = append(host.Software, fleet.HostSoftwareEntry{
+			Software:       s,
+			InstalledPaths: lookup[s.ID],
+		})
+	}
 	return nil
 }
 
@@ -1266,58 +1287,106 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	return nil
 }
 
-// HostsBySoftwareIDs returns a list of all hosts that have at least one of the specified Software
-// installed. It returns a minimal represention of matching hosts.
-func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
-	queryStmt := `
-    SELECT 
-      h.id,
-      h.hostname,
-      if(h.computer_name = '', h.hostname, h.computer_name) display_name
-    FROM
-      hosts h
-    INNER JOIN
-      host_software hs
-    ON
-      h.id = hs.host_id
-    WHERE
-      hs.software_id IN (?)
-	GROUP BY h.id, h.hostname
-    ORDER BY
-      h.id`
+func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+	stmt := `
+		SELECT DISTINCT 
+			h.id,
+			h.hostname,
+			if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+			COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+				INNER JOIN host_software hs ON h.id = hs.host_id AND hs.software_id IN (?)
+				LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		ORDER BY h.id`
 
-	stmt, args, err := sqlx.In(queryStmt, softwareIDs)
+	stmt, args, err := sqlx.In(stmt, softwareIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
-	var hosts []*fleet.HostShort
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
+
+	var qR []struct {
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
+			continue
+		}
+
+		mapped := fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
-func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
-	query := `
-SELECT DISTINCT
-    	(h.id),
-    	h.hostname,
-    	if(h.computer_name = '', h.hostname, h.computer_name) display_name
-FROM
-    hosts h
-    INNER JOIN host_software hs ON h.id = hs.host_id
-    INNER JOIN software_cve scv ON scv.software_id = hs.software_id
-WHERE
-    scv.cve = ?
-ORDER BY
-    h.id
-`
+// ** DEPRECATED **
+func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
+	stmt := `
+		SELECT DISTINCT
+				(h.id),
+				h.hostname,
+				if(h.computer_name = '', h.hostname, h.computer_name) display_name,
+				COALESCE(hsip.installed_path, '') AS software_installed_path
+		FROM hosts h
+			INNER JOIN host_software hs ON h.id = hs.host_id
+			INNER JOIN software_cve scv ON scv.software_id = hs.software_id
+			LEFT JOIN host_software_installed_paths hsip ON hs.host_id = hsip.host_id AND hs.software_id = hsip.software_id
+		WHERE scv.cve = ?
+		ORDER BY h.id`
 
-	var hosts []*fleet.HostShort
-	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, cve); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
+	var qR []struct {
+		HostID      uint   `db:"id"`
+		HostName    string `db:"hostname"`
+		DisplayName string `db:"display_name"`
+		SPath       string `db:"software_installed_path"`
 	}
-	return hosts, nil
+	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, cve); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
+	}
+
+	var result []fleet.HostVulnerabilitySummary
+	lookup := make(map[uint]int)
+
+	for _, r := range qR {
+		i, ok := lookup[r.HostID]
+
+		if ok {
+			result[i].AddSoftwareInstalledPath(r.SPath)
+			continue
+		}
+
+		mapped := fleet.HostVulnerabilitySummary{
+			ID:          r.HostID,
+			Hostname:    r.HostName,
+			DisplayName: r.DisplayName,
+		}
+		mapped.AddSoftwareInstalledPath(r.SPath)
+		result = append(result, mapped)
+
+		lookup[r.HostID] = len(result) - 1
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {

@@ -78,10 +78,12 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.True(t, getHostResp.GlobalConfig.MDM.EnabledAndConfigured)
 	hostDevResp := getHostResp.Host
 
-	// make request for same host on the host details API endpoint, responses should match, except for policies
+	// make request for same host on the host details API endpoint,
+	// responses should match, except for policies and DEP assignment
 	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	getHostResp.Host.Policies = nil
+	getHostResp.Host.DEPAssignedToFleet = ptr.Bool(false)
 	require.Equal(t, hostDevResp, getHostResp.Host)
 
 	// request a refetch for that valid host

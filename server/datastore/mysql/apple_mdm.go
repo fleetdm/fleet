@@ -715,13 +715,29 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			args = append(args, d.SerialNumber)
 			parts = append(parts, "?")
 		}
-		var hosts []fleet.Host
-		err = sqlx.SelectContext(ctx, tx, &hosts, fmt.Sprintf(`
-			SELECT id, hardware_model, hardware_serial FROM hosts WHERE hardware_serial IN(%s)`,
+		var hostsWithMDMInfo []hostWithMDMInfo
+		err = sqlx.SelectContext(ctx, tx, &hostsWithMDMInfo, fmt.Sprintf(`
+			SELECT
+				h.id,
+				h.hardware_model,
+				h.hardware_serial,
+				COALESCE(hmdm.enrolled, 0) as enrolled
+			FROM hosts h
+			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+			WHERE h.hardware_serial IN(%s)`,
 			strings.Join(parts, ",")),
 			args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
+		}
+
+		var hosts []fleet.Host
+		var unmanagedHostIDs []uint
+		for _, h := range hostsWithMDMInfo {
+			hosts = append(hosts, h.Host)
+			if h.Enrolled == nil || !*h.Enrolled {
+				unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
+			}
 		}
 
 		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
@@ -731,12 +747,24 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hosts...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 		}
-
-		var ids []uint
-		for _, h := range hosts {
-			ids = append(ids, h.ID)
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, true, ids...); err != nil {
+
+		// only upsert MDM info for hosts that are unmanaged. This
+		// prevents us from overriding valuable info with potentially
+		// incorrect data. For example: if a host is enrolled in a
+		// third-party MDM, but gets assigned in ABM to Fleet (during
+		// migration) we'll get an 'added' event. In that case, we
+		// expect that MDM info will be updated in due time as we ingest
+		// future osquery data from the host
+		if err := upsertMDMAppleHostMDMInfoDB(
+			ctx,
+			tx,
+			appCfg.ServerSettings,
+			true,
+			unmanagedHostIDs...,
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -744,6 +772,31 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	})
 
 	return createdCount, teamID, err
+}
+
+func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	stmt := `
+		INSERT INTO host_dep_assignments (host_id)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL`
+
+	args := []interface{}{}
+	values := []string{}
+	for _, host := range hosts {
+		args = append(args, host.ID)
+		values = append(values, "(?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host dep assignments")
+	}
+
+	return nil
 }
 
 func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
@@ -766,6 +819,10 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 }
 
 func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverSettings fleet.ServerSettings, fromSync bool, hostIDs ...uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
 	serverURL, err := apple_mdm.ResolveAppleMDMURL(serverSettings.ServerURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
@@ -919,6 +976,19 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 	}
 
 	return stmt, args
+}
+
+func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+	var res fleet.HostDEPAssignment
+	err := sqlx.GetContext(ctx, ds.reader, &res, `
+		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
+	}
+	return &res, nil
 }
 
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
@@ -1591,17 +1661,28 @@ WHERE
 func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
 	stmt := `
       INSERT INTO mdm_idp_accounts
-        (uuid, username, salt, entropy, iterations)
+        (uuid, username, fullname)
       VALUES
-        (?, ?, ?, ?, ?)
+        (?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        salt       = VALUES(salt),
-        entropy    = VALUES(entropy),
-        iterations = VALUES(iterations)`
+        fullname   = VALUES(fullname)`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Salt, account.Entropy, account.Iterations)
+	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
+}
+
+func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname FROM mdm_idp_accounts WHERE uuid = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader, &acct, stmt, uuid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", uuid)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
+	}
+	return &acct, nil
 }
 
 func subqueryDiskEncryptionVerifying() (string, []interface{}) {

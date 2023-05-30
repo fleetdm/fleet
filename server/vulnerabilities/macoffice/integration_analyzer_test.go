@@ -177,8 +177,8 @@ func TestIntegrationAnalyzer(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-		var powerpoint fleet.Software
-		var word fleet.Software
+		var powerpoint fleet.HostSoftwareEntry
+		var word fleet.HostSoftwareEntry
 		for _, s := range host.HostSoftware.Software {
 			if s.Name == "Microsoft PowerPoint.app" {
 				powerpoint = s

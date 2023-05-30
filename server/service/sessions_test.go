@@ -229,7 +229,6 @@ func TestGetSSOUser(t *testing.T) {
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
 				EnableJITProvisioning: true,
-				EnableJITRoleSync:     true,
 			},
 		}, nil
 	}
@@ -316,7 +315,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	require.True(t, ds.SaveUserFuncInvoked)
 
-	// (3) Test existing user's role is not changed after a new login if EnableJITRoleSync is false.
+	// (3) Test existing user's role is not changed after a new login if EnableJITProvisioning is false.
 
 	ds.SaveUserFuncInvoked = false
 
@@ -325,13 +324,11 @@ func TestGetSSOUser(t *testing.T) {
 			SSOSettings: fleet.SSOSettings{
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
-				EnableJITProvisioning: true,
-				EnableJITRoleSync:     false,
+				EnableJITProvisioning: false,
 			},
 		}, nil
 	}
 
-	// No configuration set for this user.
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
 			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
@@ -354,7 +351,6 @@ func TestGetSSOUser(t *testing.T) {
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
 				EnableJITProvisioning: true,
-				EnableJITRoleSync:     true,
 			},
 		}, nil
 	}
