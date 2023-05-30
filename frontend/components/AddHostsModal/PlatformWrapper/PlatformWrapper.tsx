@@ -47,7 +47,7 @@ const platformSubNav: IPlatformSubNav[] = [
   },
   {
     name: "ChromeOS",
-    type: "chrome",
+    type: "chromeos",
   },
   {
     name: "Advanced",
@@ -367,7 +367,7 @@ const PlatformWrapper = ({
   };
 
   const renderTab = (packageType: string) => {
-    if (packageType === "chrome") {
+    if (packageType === "chromeos") {
       return (
         <div className={baseClass}>
           <div className={`${baseClass}__chromeos`}>
