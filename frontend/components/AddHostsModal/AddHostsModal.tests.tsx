@@ -1,11 +1,12 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 import {
   renderWithAppContext,
   createCustomRenderer,
   renderWithSetup,
 } from "test/test-utils";
+import createMockConfig from "__mocks__/configMock";
 
 import AddHostsModal from "./AddHostsModal";
 
@@ -13,6 +14,16 @@ const ENROLL_SECRET = "abcdefg12345678";
 
 describe("AddHostsModal", () => {
   it("renders loading state", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
     render(
       <AddHostsModal isAnyTeamSelected={false} isLoading onCancel={noop} />
     );
@@ -50,15 +61,39 @@ describe("AddHostsModal", () => {
     // expect(advancedText).toBeInTheDocument();
   });
   it("renders installer with secret", async () => {
-    render(<AddHostsModal isAnyTeamSelected isLoading onCancel={noop} />);
-    const text = screen.getByText("Something's gone wrong.");
-    const ctaButton = screen.getByRole("button", {
-      name: "Manage enroll secrets",
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
     });
+
+    render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+    const text = screen.getByText(ENROLL_SECRET);
+
     expect(text).toBeInTheDocument();
-    expect(ctaButton).toBeEnabled();
   });
   it("renders no enroll secret cta", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
     render(
       <AddHostsModal
         isAnyTeamSelected={false}

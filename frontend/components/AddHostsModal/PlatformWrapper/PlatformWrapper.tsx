@@ -1,14 +1,11 @@
 import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
 // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
-
-import configAPI from "services/entities/config";
+import { IConfig } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -58,6 +55,10 @@ const platformSubNav: IPlatformSubNav[] = [
 interface IPlatformWrapperProps {
   enrollSecret: string;
   onCancel: () => void;
+  certificate: any;
+  isFetchingCertificate: boolean;
+  fetchCertificateError: any;
+  config: IConfig;
 }
 
 const CHROME_OS_INFO = {
@@ -78,27 +79,17 @@ const baseClass = "platform-wrapper";
 const PlatformWrapper = ({
   enrollSecret,
   onCancel,
+  certificate,
+  isFetchingCertificate,
+  fetchCertificateError,
+  config,
 }: IPlatformWrapperProps): JSX.Element => {
-  const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
-
-  const {
-    data: certificate,
-    error: fetchCertificateError,
-    isFetching: isFetchingCertificate,
-  } = useQuery<string, Error>(
-    ["certificate"],
-    () => configAPI.loadCertificate(),
-    {
-      enabled: !isPreviewMode,
-      refetchOnWindowFocus: false,
-    }
-  );
 
   let tlsHostname = config?.server_settings.server_url || "";
 
