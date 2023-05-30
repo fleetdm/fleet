@@ -136,7 +136,7 @@
   }
 
   &__advanced--heading,
-  &__chrome--heading {
+  &__chromeos--heading {
     font-weight: $bold;
     margin-bottom: $pad-small;
   }
@@ -145,19 +145,19 @@
     font-weight: normal;
   }
 
-  &__chrome--instructions,
+  &__chromeos--instructions,
   &__advanced--instructions {
     margin-bottom: $pad-medium;
   }
 
-  &__chrome-extension-id,
-  &__chrome-url {
+  &__chromeos-extension-id,
+  &__chromeos-url {
     .buttons {
       top: 34px;
     }
   }
 
-  &__chrome-policy-for-extension {
+  &__chromeos-policy-for-extension {
     height: 230px;
 
     .input-field--disabled {

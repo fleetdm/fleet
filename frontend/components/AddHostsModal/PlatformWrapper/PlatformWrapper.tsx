@@ -60,7 +60,7 @@ interface IPlatformWrapperProps {
   onCancel: () => void;
 }
 
-const CHROME_INFO = {
+const CHROME_OS_INFO = {
   extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
   url: "https://chrome.fleetdm.com/updates.xml",
   policyForExtension: `{
@@ -325,8 +325,8 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderChromeLabel = (label: string, value: string) => {
-    const onCopyChromeLabel = (evt: React.MouseEvent) => {
+  const renderChromeOSLabel = (label: string, value: string) => {
+    const onCopyChromeOSLabel = (evt: React.MouseEvent) => {
       evt.preventDefault();
 
       stringToClipboard(value)
@@ -353,8 +353,8 @@ const PlatformWrapper = ({
         <span className="buttons">
           <Button
             variant="unstyled"
-            className={`${baseClass}__chrome-copy-icon`}
-            onClick={onCopyChromeLabel}
+            className={`${baseClass}__chromeos-copy-icon`}
+            onClick={onCopyChromeOSLabel}
           >
             <Icon name="copy" />
           </Button>
@@ -370,16 +370,16 @@ const PlatformWrapper = ({
     if (packageType === "chrome") {
       return (
         <div className={baseClass}>
-          <div className={`${baseClass}__chrome`}>
-            <div className={`${baseClass}__chrome--add-extension`}>
-              <p className={`${baseClass}__chrome--heading`}>
+          <div className={`${baseClass}__chromeos`}>
+            <div className={`${baseClass}__chromeos--add-extension`}>
+              <p className={`${baseClass}__chromeos--heading`}>
                 In Google Admin:
               </p>
               <p>
                 Add the extension for the relevant users & browsers using the
                 information below.
               </p>
-              <InfoBanner className={`${baseClass}__chrome--instructions`}>
+              <InfoBanner className={`${baseClass}__chromeos--instructions`}>
                 For a step-by-step guide, see the documentation page for{" "}
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension"
@@ -388,34 +388,34 @@ const PlatformWrapper = ({
                   multiline
                 />
               </InfoBanner>
-              <div className={`${baseClass}__chrome--installer`}>
+              <div className={`${baseClass}__chromeos--installer`}>
                 <InputField
                   disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-extension-id`}
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
                   name="Extension ID"
-                  label={renderChromeLabel(
+                  label={renderChromeOSLabel(
                     "Extension ID",
-                    CHROME_INFO.extensionId
+                    CHROME_OS_INFO.extensionId
                   )}
-                  value={CHROME_INFO.extensionId}
+                  value={CHROME_OS_INFO.extensionId}
                 />
                 <InputField
                   disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-url`}
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
                   name="URL"
-                  label={renderChromeLabel("URL", CHROME_INFO.url)}
-                  value={CHROME_INFO.url}
+                  label={renderChromeOSLabel("URL", CHROME_OS_INFO.url)}
+                  value={CHROME_OS_INFO.url}
                 />
                 <InputField
                   disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chrome-policy-for-extension`}
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
                   name="Policy for extension"
-                  label={renderChromeLabel(
+                  label={renderChromeOSLabel(
                     "Policy for extension",
-                    CHROME_INFO.policyForExtension
+                    CHROME_OS_INFO.policyForExtension
                   )}
                   type="textarea"
-                  value={CHROME_INFO.policyForExtension}
+                  value={CHROME_OS_INFO.policyForExtension}
                 />
               </div>
             </div>
