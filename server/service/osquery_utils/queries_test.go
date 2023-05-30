@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -235,6 +236,33 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 	assert.ElementsMatch(t, keys, expectedKeys)
 }
 
+func TestGetDetailQueriesAreSegmentedCorrectly(t *testing.T) {
+	ctx := context.Background()
+
+	config := config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}
+	features := fleet.Features{EnableSoftwareInventory: true}
+
+	queries := GetDetailQueries(ctx, config, nil, &features)
+	seen := make(map[string]struct{})
+
+	for key, platforms := range fleet.LinuxOS {
+		for _, plat := range platforms {
+			// All platforms should match this
+			soft, ok := queries["software_linux"]
+			require.True(t, ok)
+			require.True(t, soft.RunsForPlatform(plat))
+
+			softOnPlat, ok := queries[fmt.Sprintf("software_linux_%s", key)]
+			if ok {
+				seen[key] = struct{}{}
+				softOnPlat.RunsForPlatform(plat)
+			}
+		}
+	}
+
+	require.True(t, reflect.DeepEqual(seen, map[string]struct{}{"rpm": {}, "debian": {}, "gentoo": {}}))
+}
+
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)
 
@@ -278,7 +306,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats", "software_linux_rpm", "software_linux_debian", "software_linux_gentoo")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 }
