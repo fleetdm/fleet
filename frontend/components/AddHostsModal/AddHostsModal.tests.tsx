@@ -1,11 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import {
-  renderWithAppContext,
-  createCustomRenderer,
-  renderWithSetup,
-} from "test/test-utils";
+import { renderWithAppContext, createCustomRenderer } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
 
 import AddHostsModal from "./AddHostsModal";
@@ -31,7 +27,17 @@ describe("AddHostsModal", () => {
     expect(loadingSpinner).toBeVisible();
   });
   it("renders platform tabs", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
       <AddHostsModal
         isAnyTeamSelected
         enrollSecret={ENROLL_SECRET}
