@@ -622,6 +622,15 @@ For example, someone in sales, marketing, or business operations might like to u
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
+#### Keeping laptops up to date
+Every week, the Head of Business Operations [checks for a new release of macOS](https://support.apple.com/en-us/HT201260).
+
+If a new release is out, then the Head of Business Operations will take the following steps:
+1. Enforce the new required OS update, but only for a limited group of team members ([Fleet's "canary" laptops](https://dogfood.fleetdm.com/controls/mac-os-updates?inherited_page=0&page=0&team_id=2))
+  - Update the minimum version to the latest version of macOS.
+  - Update the deadline to one week from the current date.
+2. After one week has passed, apply the same changes to [Fleet's "Workstations" laptops](https://dogfood.fleetdm.com/controls/mac-os-updates?inherited_page=0&page=0&team_id=9) to enforce the new minimum OS version for all team members.
+
 #### Buying other new equipment
 At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), the reason for the request, and a timeline for when the device is needed. 
 
