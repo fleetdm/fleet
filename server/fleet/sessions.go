@@ -107,8 +107,9 @@ func (s SSORolesInfo) verify() error {
 	return nil
 }
 
-func (s SSORolesInfo) isEmpty() bool {
-	return s.Global == nil && len(s.Teams) == 0
+// IsSet returns whether any role attributes were set.
+func (s SSORolesInfo) IsSet() bool {
+	return s.Global != nil || len(s.Teams) != 0
 }
 
 const (
@@ -162,11 +163,6 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 	}
 	if err := ssoRolesInfo.verify(); err != nil {
 		return SSORolesInfo{}, err
-	}
-	if ssoRolesInfo.isEmpty() {
-		// When the configuration is not set, the default is to
-		// make the user a global observer.
-		return SSORolesInfo{Global: ptr.String(RoleObserver)}, nil
 	}
 	return ssoRolesInfo, nil
 }
