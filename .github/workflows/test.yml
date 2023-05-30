@@ -64,8 +64,7 @@ jobs:
 
     - name: Run JS Tests
       run: |
-        make test-js
-
+        yarn test:ci
 
   lint-js:
     strategy:
