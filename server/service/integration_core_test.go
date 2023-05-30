@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -6332,8 +6333,12 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	createHostAndDeviceToken(t, s.ds, tkn)
 
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		which := fmt.Sprintf("%s %s", route.method, route.path)
+		log.Print(which)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
-		if route.premiumOnly {
+		if route.premiumOnly && route.deviceAuthenticated {
+			// user-authenticated premium-only routes will never see the ErrMissingLicense error
+			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
 			expectedErr = fleet.ErrMissingLicense
 		}
 		path := route.path
@@ -6342,7 +6347,7 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 		}
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error())
+		assert.Contains(t, errMsg, expectedErr.Error(), which)
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

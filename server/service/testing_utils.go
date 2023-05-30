@@ -602,5 +602,7 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 	}
 }
