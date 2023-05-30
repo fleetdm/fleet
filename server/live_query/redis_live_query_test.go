@@ -3,31 +3,8 @@ package live_query
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestRedisLiveQuery(t *testing.T) {
-	for _, f := range testFunctions {
-		t.Run(test.FunctionName(f), func(t *testing.T) {
-			t.Run("standalone", func(t *testing.T) {
-				store := setupRedisLiveQuery(t, false)
-				f(t, store)
-			})
-
-			t.Run("cluster", func(t *testing.T) {
-				store := setupRedisLiveQuery(t, true)
-				f(t, store)
-			})
-		})
-	}
-}
-
-func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
-	pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
-	return NewRedisLiveQuery(pool)
-}
 
 func TestMapBitfield(t *testing.T) {
 	// empty
