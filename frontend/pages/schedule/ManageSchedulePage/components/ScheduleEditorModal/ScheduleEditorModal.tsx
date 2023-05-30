@@ -233,6 +233,15 @@ const ScheduleEditorModal = ({
       width="large"
     >
       <form className={`${baseClass}__form`}>
+        <p className={`${baseClass}__platform-compatibility`}>
+          Scheduled queries can currently be run on macOS, Windows, and Linux
+          hosts. Interested in collecting data from your Chromebooks?{" "}
+          <CustomLink
+            url="https://www.fleetdm.com/contact"
+            text="Let us know"
+            newTab
+          />
+        </p>
         {!editQuery && (
           <Dropdown
             searchable
