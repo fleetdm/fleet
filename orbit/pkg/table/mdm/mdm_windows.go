@@ -7,11 +7,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"unsafe"
@@ -52,6 +54,7 @@ const (
 	flagsRegistryLocation = `SYSTEM\CurrentControlSet\Services\embeddedmode\Parameters`
 	flagsRegistryName     = `Flags`
 	mdmMutexName          = "__MDM_LOCAL_MANAGEMENT_NAMED_MUTEX__"
+	mdmExtractionCmd      = "extract_policies"
 )
 
 // SyncML XML Parsing Types
@@ -98,6 +101,11 @@ type SyncMLMessage struct {
 	Body    SyncMLBody   `xml:"SyncBody"`
 }
 
+type MDMPolicyValue struct {
+	Path  string
+	Value string
+}
+
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
@@ -140,18 +148,31 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// Executing the input MDM command if it was present
 	if len(inputCmd) > 0 {
 
-		// performs the actual MDM cmd execution against the OS MDM stack
-		outputCmd, err := executeMDMcommand(strings.TrimSpace(inputCmd))
-		if err != nil {
-			return nil, fmt.Errorf("mdm command execution: %s ", err)
-		}
+		minimalOutputCmd := ""
+		outputCmd := ""
 
-		log.Debug().Msgf("mdm_bridge output command response:\n%s", outputCmd)
+		if mdmExtractionCmd == inputCmd {
+			log.Debug().Msg("mdm_bridge performing policy extraction\n")
 
-		// grabbing the command parsed command output
-		minimalOutputCmd, err := getCmdResponseData(strings.TrimSpace(outputCmd))
-		if err != nil {
-			return nil, fmt.Errorf("mdm command response parsing: %s ", err)
+			// extract all MDM policies from the OS MDM stack
+			outputCmd, err = extractMDMPolicies()
+			if err != nil {
+				return nil, fmt.Errorf("mdm policies extraction: %s ", err)
+			}
+		} else {
+			// performs the actual MDM cmd execution against the OS MDM stack
+			outputCmd, err = executeMDMcommand(strings.TrimSpace(inputCmd))
+			if err != nil {
+				return nil, fmt.Errorf("mdm command execution: %s ", err)
+			}
+
+			log.Debug().Msgf("mdm_bridge output command response:\n%s", outputCmd)
+
+			// grabbing the command parsed command output
+			minimalOutputCmd, err = getCmdResponseData(strings.TrimSpace(outputCmd))
+			if err != nil {
+				return nil, fmt.Errorf("mdm command response parsing: %s ", err)
+			}
 		}
 
 		return []map[string]string{
@@ -354,6 +375,79 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// getDynamicMDMCommand returns a dynamic MDM command to be executed against the OS MDM stack
+func getValuesFromPath(mdmPath string, mdmPolicies *[]MDMPolicyValue) error {
+	log.Debug().Msgf("mdm_bridge retrieving value from path: %s", mdmPath)
+
+	// sanity check on input
+	if len(mdmPath) == 0 {
+		return errors.New("empty target path")
+	}
+
+	// target MDM command
+	targetCmd := "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>" + mdmPath + "</LocURI></Target></Item></Get></SyncBody>"
+
+	// performs the actual MDM cmd execution against the OS MDM stack
+	rawOutputCmd, err := executeMDMcommand(targetCmd)
+	if err != nil {
+		return fmt.Errorf("path %s - mdm command execution: %s", mdmPath, err)
+	}
+
+	// grabbing the command parsed command output
+	mdmValue, err := getCmdResponseData(strings.TrimSpace(rawOutputCmd))
+	if err != nil {
+		return fmt.Errorf("path %s - mdm command response parsing: %s", mdmPath, err)
+	}
+
+	// check return value to see if extra properties are present
+	regex := regexp.MustCompile(`^\w+(\/\w+)*$`)
+	if regex.MatchString(mdmValue) {
+		// split the returned into tokens if this is the case
+		propertyTokens := strings.Split(mdmValue, "/")
+		for _, property := range propertyTokens {
+			newMdmPath := mdmPath + "/" + property
+
+			err = getValuesFromPath(newMdmPath, mdmPolicies)
+			if err != nil {
+				return err
+			}
+		}
+
+	} else {
+		// add value if no extra properties were found
+		if len(mdmValue) > 0 {
+			*mdmPolicies = append(*mdmPolicies, MDMPolicyValue{Path: mdmPath, Value: mdmValue})
+		}
+	}
+
+	return nil
+}
+
+// extractMDMPolicies extracts all MDM policies from the OS MDM stack
+func extractMDMPolicies() (string, error) {
+	mdmPolicies := []MDMPolicyValue{}
+
+	// extract device MDM policies
+	err := getValuesFromPath("./Device/Vendor/MSFT", &mdmPolicies)
+	if err != nil {
+		return "", err
+	}
+
+	// extract user MDM policies
+	err = getValuesFromPath("./User/Vendor/MSFT", &mdmPolicies)
+	if err != nil {
+		return "", err
+	}
+
+	// convert the slice to JSON and return it
+	jsonBytes, err := json.Marshal(mdmPolicies)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonBytes), nil
 }
 
 // executeMDMcommand executes syncML MDM commands against the OS MDM stack and returns the status of the command execution
