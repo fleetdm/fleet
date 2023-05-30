@@ -714,3 +714,33 @@ func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.M
 	}
 	return prof, nil
 }
+
+func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO(mna): store the profile in redis
+	return nil
+}
+
+func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: match teams, create if needed, assign hosts and profiles
+	return nil
+}

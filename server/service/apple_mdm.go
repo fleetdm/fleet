@@ -1572,18 +1572,11 @@ func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	// for the preassign and match features, we don't know yet what team(s) will
-	// be affected, so we authorize only users with write-access to the no-team
-	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	// TODO(mna): store the profile in redis
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1611,18 +1604,11 @@ func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) error {
-	// for the preassign and match features, we don't know yet what team(s) will
-	// be affected, so we authorize only users with write-access to the no-team
-	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	// TODO: match teams, create if needed, assign hosts and profiles
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
