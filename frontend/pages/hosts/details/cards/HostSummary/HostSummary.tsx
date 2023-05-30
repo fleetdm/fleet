@@ -195,17 +195,19 @@ const HostSummary = ({
           </HostSummaryIndicator>
         )}
 
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Disk space</span>
-          <DiskSpaceGraph
-            baseClass="info-flex"
-            gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
-            percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-            id={`disk-space-tooltip-${titleData.id}`}
-            platform={titleData.platform}
-            tooltipPosition="bottom"
-          />
-        </div>
+        {titleData.platform !== "chrome" && ( // TODO: confirm this is the correct string to expect
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Disk space</span>
+            <DiskSpaceGraph
+              baseClass="info-flex"
+              gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
+              percentDiskSpaceAvailable={titleData.percent_disk_space_available}
+              id={`disk-space-tooltip-${titleData.id}`}
+              platform={titleData.platform}
+              tooltipPosition="bottom"
+            />
+          </div>
+        )}
 
         {typeof diskEncryption?.enabled === "boolean" &&
         diskEncryption?.tooltip ? (
