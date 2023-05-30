@@ -60,6 +60,7 @@ import {
 import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
@@ -96,7 +97,6 @@ import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 
@@ -1260,10 +1260,11 @@ const ManageHostsPage = ({
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
-            variant="text-link"
+            variant="text-icon"
           >
             <>
-              Export hosts <img alt="" src={DownloadIcon} />
+              Export hosts
+              <Icon name="download" size="small" color="core-fleet-blue" />
             </>
           </Button>
         )}

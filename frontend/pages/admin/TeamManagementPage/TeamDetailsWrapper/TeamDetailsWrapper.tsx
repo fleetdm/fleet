@@ -35,10 +35,6 @@ import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditor
 import AddHostsModal from "../../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 
-import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
-import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
-import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
-
 const baseClass = "team-details";
 
 interface ITeamDetailsSubNavItem {
@@ -418,21 +414,21 @@ const TeamDetailsWrapper = ({
                   type: "secondary",
                   label: "Manage enroll secrets",
                   buttonVariant: "text-icon",
-                  icon: EyeIcon,
+                  icon: "eye",
                   onClick: toggleManageEnrollSecretsModal,
                 },
                 {
                   type: "secondary",
                   label: "Edit team",
                   buttonVariant: "text-icon",
-                  icon: PencilIcon,
+                  icon: "pencil",
                   onClick: toggleEditTeamModal,
                 },
                 {
                   type: "secondary",
                   label: "Delete team",
                   buttonVariant: "text-icon",
-                  icon: TrashIcon,
+                  icon: "trash",
                   hideAction: !isGlobalAdmin,
                   onClick: toggleDeleteTeamModal,
                 },

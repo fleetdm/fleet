@@ -60,7 +60,7 @@ const InputFieldHiddenContent = ({
             className={`${baseClass}__copy-secret-icon`}
             onClick={onCopySecret}
           >
-            <Icon name="clipboard" />
+            <Icon name="copy" />
           </Button>
           <Button
             variant="unstyled"

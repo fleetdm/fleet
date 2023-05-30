@@ -54,10 +54,10 @@
             <p>Self-hosted</p>
           </div>
         </div>
-        <div purpose="premium-and-cloud-cards" class="d-flex flex-column">
+        <div purpose="premium-card" class="d-flex flex-column">
 
           <%// Fleet Premium tier card %>
-          <div purpose="premium-tier-card" class="card d-flex flex-column">
+          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column">
             <div purpose="pricing-tier-title">
               <div class="d-flex flex-sm-row flex-column justify-content-between">
                 <div class="d-flex flex-column justify-content-start">
@@ -90,6 +90,7 @@
               </div>
               <div class="w-sm-50 w-100" purpose="features-list">
                 <p>24x7 support</p>
+                <p>Self-managed or private cloud hosted</p>
                 <p>Dedicated Slack channel</p>
                 <p>End user sign-in with Okta, AD, or any IDP</p>
                 <p>Integrate with Munki, Chef, and Puppet</p>
@@ -114,6 +115,7 @@
               </div>
               <div class="w-sm-50 w-100" purpose="features-list">
                 <p>24x7 support</p>
+                <p>Self-managed or private cloud hosted</p>
                 <p>Sync user roles from Okta, AD, or any IDP</p>
                 <p>Just-in-time (JIT) provisioning</p>
                 <p>Aggregate insights for groups of devices</p>
@@ -123,20 +125,6 @@
 
             </div>
           </div>
-
-          <%// Fleet Premium Cloud card %>
-          <div purpose="premium-cloud-card" class="card d-flex flex-sm-row flex-column">
-            <div class="w-sm-50 w-100" purpose="cloud-banner-image"></div>
-            <div purpose="premium-cloud-text" class="w-sm-50 w-100 d-flex flex-column justify-content-between">
-              <h3>Premium Cloud</h3>
-              <%// IT pricing mode text%>
-              <p v-if="!displaySecurityPricingMode">Focus on device management, and leave your Fleet server management to us.</p>
-              <%// Security pricing mode text%>
-              <p v-else>Focus on reducing your risk, and leave your Fleet server management to us.</p>
-              <a purpose="animated-arrow-button-red" @click="clickOpenChatWidget()">Talk to sales</a>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
@@ -144,7 +132,7 @@
     <%// Features table %>
     <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0">
       <h2 class="text-center pb-3 mb-4">Compare plans</h2>
-      <div class="d-flex flex-column flex-wrap justify-content-center p-0">
+      <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop features tables %>
         <div class="d-none d-sm-block">
           <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTable">
