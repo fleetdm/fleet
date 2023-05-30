@@ -28,9 +28,13 @@ func NewProfileMatcher(pool fleet.RedisPool) fleet.ProfileMatcher {
 }
 
 // PreassignProfile stores the profile associated with the host in Redis for
-// later retrieval and matching to a team.
+// later retrieval and matching to a team. Note that to keep this logic fast,
+// we avoid accessing the mysql database, so the host is not validated at this
+// stage (i.e. checking that it is valid, enrolled in MDM, etc.). It is done in
+// the matching stage.
 func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
 	var invArg fleet.InvalidArgumentError
+
 	if payload.ExternalHostIdentifier == "" {
 		invArg.Append("external_host_identifier", "required")
 	}
