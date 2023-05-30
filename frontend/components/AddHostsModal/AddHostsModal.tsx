@@ -77,7 +77,7 @@ const AddHostsModal = ({
       onExit={onCancel}
       title={"Add hosts"}
       className={baseClass}
-      width={shouldRenderDownloadInstallersContent ? "large" : "medium"}
+      width="large"
     >
       {renderModalContent()}
     </Modal>
