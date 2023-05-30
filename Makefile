@@ -237,11 +237,18 @@ binary-bundle: xp-fleet xp-fleetctl
 
 # Build orbit/fleetd fleetd_tables extension
 fleetd-tables-windows:
-	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.ext ./orbit/cmd/fleetd_tables
+	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin_arm:
+	GOOS=darwin GOARCH=arm64 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal:
+	$(MAKE) fleetd-tables-darwin fleetd-tables-darwin_arm
+	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
+fleetd-tables-all:
+	$(MAKE) fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
 
 .pre-binary-arch:
 ifndef GOOS

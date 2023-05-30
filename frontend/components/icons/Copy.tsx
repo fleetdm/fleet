@@ -8,7 +8,6 @@ interface ICopy {
 }
 
 const Copy = ({ color = "core-fleet-blue", size = "medium" }: ICopy) => {
-  console.log("color for this icon", color);
   return (
     <svg
       width={ICON_SIZES[size]}
