@@ -105,7 +105,7 @@ LIMIT 1;`
 var hostDetailQueries = map[string]DetailQuery{
 	"network_interface_unix": {
 		Query:      fmt.Sprintf(networkInterfaceQuery, "r.interface = ia.interface", "gateway"),
-		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:  fleet.AllUnixOS(),
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_windows": {
@@ -326,7 +326,7 @@ var hostDetailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.AllUnixOS(),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
@@ -513,7 +513,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	FROM
 		os_version os,
 		kernel_info k`,
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.AllUnixOS(),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"os_chrome": {
@@ -549,7 +549,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query doesn't do any filtering as we've seen what's possibly an osquery bug because it's returning bad
 		// results if we filter further, so we'll do the filtering in Go.
 		Query:            `SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;`,
-		Platforms:        fleet.HostLinuxOSs,
+		Platforms:        fleet.AllLinuxOS(),
 		DirectIngestFunc: directIngestDiskEncryptionLinux,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
 		// osquery table on darwin and linux, it is always present.
@@ -705,98 +705,111 @@ var scheduledQueryStats = DetailQuery{
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 }
 
+var softwareLinuxDebian = DetailQuery{
+	Query: `
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (deb)' AS type,
+		'deb_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM deb_packages
+		WHERE status = 'install ok installed'`,
+	Platforms:        fleet.LinuxOS["debian"],
+	DirectIngestFunc: directIngestSoftware,
+}
+
+var softwareLinuxRpm = DetailQuery{
+	Query: `SELECT
+		name AS name,
+		version AS version,
+		'Package (RPM)' AS type,
+		'rpm_packages' AS source,
+		release AS release,
+		vendor AS vendor,
+		arch AS arch,
+		'' AS installed_path
+		FROM rpm_packages`,
+	Platforms:        fleet.LinuxOS["rpm"],
+	DirectIngestFunc: directIngestSoftware,
+}
+
+var softwareLinuxGentoo = DetailQuery{
+	Query: `SELECT
+		package AS name,
+		version AS version,
+		'Package (Portage)' AS type,
+		'portage_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM portage_packages`,
+	Platforms:        fleet.LinuxOS["gentoo"],
+	DirectIngestFunc: directIngestSoftware,
+}
+
 var softwareLinux = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
-SELECT
-  name AS name,
-  version AS version,
-  'Package (deb)' AS type,
-  'deb_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  '' AS installed_path
-FROM deb_packages
-WHERE status = 'install ok installed'
-UNION
-SELECT
-  package AS name,
-  version AS version,
-  'Package (Portage)' AS type,
-  'portage_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  '' AS installed_path
-FROM portage_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (RPM)' AS type,
-  'rpm_packages' AS source,
-  release AS release,
-  vendor AS vendor,
-  arch AS arch,
-  '' AS installed_path
-FROM rpm_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (NPM)' AS type,
-  'npm_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM npm_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (NPM)' AS type,
+		'npm_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM npm_packages
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Browser plugin (Chrome)' AS type,
+		'chrome_extensions' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Browser plugin (Firefox)' AS type,
+		'firefox_addons' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN firefox_addons USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (Atom)' AS type,
+		'atom_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN atom_packages USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (Python)' AS type,
+		'python_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM python_packages;
 `),
-	Platforms:        fleet.HostLinuxOSs,
+	Platforms:        fleet.AllLinuxOS(),
 	DirectIngestFunc: directIngestSoftware,
 }
 
@@ -1413,6 +1426,9 @@ func GetDetailQueries(
 
 	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
+		generatedMap["software_linux_rpm"] = softwareLinuxRpm
+		generatedMap["software_linux_debian"] = softwareLinuxDebian
+		generatedMap["software_linux_gentoo"] = softwareLinuxGentoo
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome

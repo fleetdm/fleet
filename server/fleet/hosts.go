@@ -651,28 +651,68 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
-// HostLinuxOSs are the possible linux values for Host.Platform.
-var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
+// LinuxOS All Linux OS grouped by what they are based on ("rpm", "debian", etc)
+var LinuxOS = map[string][]string{
+	"rpm": {
+		"centos",
+		"rhel",
+		"amzn",
+		"opensuse-leap",
+		"opensuse-tumbleweed",
+		"sles",
+	},
+	"debian": {
+		"ubuntu",
+		"debian",
+		"kali",
+		"linuxmint",
+		"pop",
+	},
+	"arch": {
+		"arch",
+		"endeavouros",
+		"manjaro",
+	},
+	"gentoo": {
+		"gentoo",
+	},
+	"other": {
+		"linux",
+		"void",
+		"nixos",
+	},
+}
+
+// AllLinuxOS All Linux OS
+func AllLinuxOS() []string {
+	var result []string
+	for _, os := range LinuxOS {
+		result = append(result, os...)
+	}
+	return result
+}
+
+// AllUnixOS All Linux OS plus "darwin"
+func AllUnixOS() []string {
+	var result []string
+	result = append(result, "darwin")
+	result = append(result, AllLinuxOS()...)
+	return result
 }
 
 func IsLinux(hostPlatform string) bool {
-	for _, linuxPlatform := range HostLinuxOSs {
-		if linuxPlatform == hostPlatform {
-			return true
+	for _, grp := range LinuxOS {
+		for _, os := range grp {
+			if os == hostPlatform {
+				return true
+			}
 		}
 	}
 	return false
 }
 
 func IsUnixLike(hostPlatform string) bool {
-	unixLikeOSs := append(HostLinuxOSs, "darwin")
-	for _, p := range unixLikeOSs {
-		if p == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return hostPlatform == "darwin" || IsLinux(hostPlatform)
 }
 
 // PlatformFromHost converts the given host platform into
@@ -704,10 +744,7 @@ func PlatformFromHost(hostPlatform string) string {
 func ExpandPlatform(platform string) []string {
 	switch platform {
 	case "linux":
-		// return a copy to make sure the caller cannot modify the slice
-		linuxOSs := make([]string, len(HostLinuxOSs))
-		copy(linuxOSs, HostLinuxOSs)
-		return linuxOSs
+		return AllLinuxOS()
 	default:
 		return []string{platform}
 	}

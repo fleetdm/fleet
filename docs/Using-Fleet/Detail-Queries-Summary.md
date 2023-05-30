@@ -25,7 +25,7 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -45,7 +45,7 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: darwin, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro
 
 - Query:
 
@@ -176,7 +176,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -268,9 +268,30 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT version FROM orbit_info
 ```
 
+## os_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.platform,
+		os.version AS version,
+		os.version AS kernel_version
+	FROM
+		os_version os
+```
+
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -309,8 +330,7 @@ SELECT * FROM os_version LIMIT 1
 ```sql
 SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os
 ```
@@ -327,8 +347,7 @@ SELECT
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k
@@ -385,7 +404,7 @@ FROM chrome_extensions
 
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -394,94 +413,118 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (NPM)' AS type,
+		'npm_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM npm_packages
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Browser plugin (Chrome)' AS type,
+		'chrome_extensions' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Browser plugin (Firefox)' AS type,
+		'firefox_addons' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN firefox_addons USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (Atom)' AS type,
+		'atom_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM cached_users CROSS JOIN atom_packages USING (uid)
+		UNION
+		SELECT
+		name AS name,
+		version AS version,
+		'Package (Python)' AS type,
+		'python_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		path AS installed_path
+		FROM python_packages;
+```
+
+## software_linux_debian
+
+- Platforms: ubuntu, debian, kali, linuxmint, pop
+
+- Query:
+
+```sql
 SELECT
-  name AS name,
-  version AS version,
-  'Package (deb)' AS type,
-  'deb_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  '' AS installed_path
-FROM deb_packages
-WHERE status = 'install ok installed'
-UNION
+		name AS name,
+		version AS version,
+		'Package (deb)' AS type,
+		'deb_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM deb_packages
+		WHERE status = 'install ok installed'
+```
+
+## software_linux_gentoo
+
+- Platforms: gentoo
+
+- Query:
+
+```sql
 SELECT
-  package AS name,
-  version AS version,
-  'Package (Portage)' AS type,
-  'portage_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  '' AS installed_path
-FROM portage_packages
-UNION
+		package AS name,
+		version AS version,
+		'Package (Portage)' AS type,
+		'portage_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM portage_packages
+```
+
+## software_linux_rpm
+
+- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles
+
+- Query:
+
+```sql
 SELECT
-  name AS name,
-  version AS version,
-  'Package (RPM)' AS type,
-  'rpm_packages' AS source,
-  release AS release,
-  vendor AS vendor,
-  arch AS arch,
-  '' AS installed_path
-FROM rpm_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (NPM)' AS type,
-  'npm_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM npm_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+		name AS name,
+		version AS version,
+		'Package (RPM)' AS type,
+		'rpm_packages' AS source,
+		release AS release,
+		vendor AS vendor,
+		arch AS arch,
+		'' AS installed_path
+		FROM rpm_packages
 ```
 
 ## software_macos
