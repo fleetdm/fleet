@@ -251,6 +251,79 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "null-value-on-team-attribute-is-ignored-should-use-default",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: ptr.String("observer"),
+			},
+		},
+		{
+			name: "null-attributes-are-ignored-should-use-default",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "2",
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: ptr.String("observer"),
+			},
+		},
+		{
+			name: "null-attributes-are-ignored-should-use-the-set-global-attribute",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "admin"},
+					},
+				},
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: ptr.String("admin"),
+			},
+		},
+		{
+			name: "attribute-with-no-values-should-fail",
+			attributes: []SAMLAttribute{
+				{
+					Name:   globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{},
+				},
+			},
+			shouldFail: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ssoRolesInfo, err := RolesFromSSOAttributes(tc.attributes)
