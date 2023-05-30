@@ -37,14 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Apply configuration profiles and updates
-        uses: fleetdm/fleet-mdm-gitops@8341367319e6c1c9c430f88d210482f3b448c61c
+        uses: fleetdm/fleet-mdm-gitops@v1.0.9
         with:
           FLEET_API_TOKEN: $DOGFOOD_API_TOKEN
           FLEET_URL: $DOGFOOD_URL
           FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
-          # The options below are set via the Fleet UI
-          # MAC_OS_MIN_VERSION: "13.4.0"
-          # MAC_OS_VERSION_DEADLINE: 2023-06-01
-          # MAC_OS_ENABLE_DISK_ENCRYPTION: true
+          MAC_OS_MIN_VERSION: "13.4.0"
+          MAC_OS_VERSION_DEADLINE: 2023-06-01
+          MAC_OS_ENABLE_DISK_ENCRYPTION: true
