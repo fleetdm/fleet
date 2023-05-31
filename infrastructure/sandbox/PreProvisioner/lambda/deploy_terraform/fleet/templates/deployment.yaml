@@ -58,6 +58,8 @@ spec:
             value: "1"
           - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
             value: "true"
+          - name: FLEET_LICENSE
+            value: "{{ .Values.fleet.licenseKey }}"
           - name: FLEET_VULNERABILITIES_DATABASES_PATH
             value: /tmp/vuln
           {{- if ne .Values.packaging.enrollSecret "" }}

@@ -54,6 +54,7 @@ fleet:
   listenPort: 8080
   # Name of the Secret resource storing TLS and S3 bucket secrets
   secretName: fleet
+  licenseKey: ""
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
   tls:
