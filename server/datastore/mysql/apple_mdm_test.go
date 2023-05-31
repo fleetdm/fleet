@@ -60,6 +60,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
+		{"TestMatchMDMAppleConfigProfiles", testMatchMDMAppleConfigProfiles},
 	}
 
 	for _, c := range cases {
@@ -3884,6 +3885,89 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 				return sqlx.GetContext(ctx, q, &id, `SELECT profile_id FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
 			})
 			require.Equal(t, prof.ProfileID, id)
+		})
+	}
+}
+
+func testMatchMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create some teams with different sets of profiles
+	tmNoProf, err := ds.NewTeam(ctx, &fleet.Team{Name: "no-prof"})
+	require.NoError(t, err)
+	require.NotNil(t, tmNoProf)
+
+	tmProfA, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-a"})
+	require.NoError(t, err)
+
+	tmProfAB, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-ab"})
+	require.NoError(t, err)
+
+	tmProfBC, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-bc"})
+	require.NoError(t, err)
+
+	tmProfABC, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-abc"})
+	require.NoError(t, err)
+
+	// create another team with profile A
+	tmProfA2, err := ds.NewTeam(ctx, &fleet.Team{Name: "prof-a2"})
+	require.NoError(t, err)
+
+	profA := configProfileForTest(t, "A", "A", "A")
+	profB := configProfileForTest(t, "B", "B", "B")
+	profC := configProfileForTest(t, "C", "C", "C")
+
+	profA.TeamID = &tmProfA.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
+	require.NoError(t, err)
+	profA.TeamID = &tmProfA2.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
+	require.NoError(t, err)
+	profA.TeamID = &tmProfAB.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
+	require.NoError(t, err)
+	profA.TeamID = &tmProfABC.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profA)
+	require.NoError(t, err)
+	profB.TeamID = &tmProfAB.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
+	require.NoError(t, err)
+	profB.TeamID = &tmProfBC.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
+	require.NoError(t, err)
+	profB.TeamID = &tmProfABC.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profB)
+	require.NoError(t, err)
+	profC.TeamID = &tmProfBC.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profC)
+	require.NoError(t, err)
+	profC.TeamID = &tmProfABC.ID
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *profC)
+	require.NoError(t, err)
+
+	// get the hashes for each profile, the same way the matching logic would
+	profAHash := (fleet.MDMApplePreassignProfilePayload{Profile: profA.Mobileconfig}).HexMD5Hash()
+	profBHash := (fleet.MDMApplePreassignProfilePayload{Profile: profB.Mobileconfig}).HexMD5Hash()
+	profCHash := (fleet.MDMApplePreassignProfilePayload{Profile: profC.Mobileconfig}).HexMD5Hash()
+
+	cases := []struct {
+		hashes  []string
+		teamIDs []uint
+	}{
+		{nil, nil},
+		{[]string{profAHash}, []uint{tmProfA.ID, tmProfA2.ID}},
+		{[]string{profBHash}, nil},
+		{[]string{profCHash}, nil},
+		{[]string{profAHash, profBHash}, []uint{tmProfAB.ID}},
+		{[]string{profAHash, profBHash, profCHash}, []uint{tmProfABC.ID}},
+		{[]string{profBHash, profCHash}, []uint{tmProfBC.ID}},
+		{[]string{profAHash, profCHash}, nil},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v", c.hashes), func(t *testing.T) {
+			matches, err := ds.MatchMDMAppleConfigProfiles(ctx, c.hashes)
+			require.NoError(t, err)
+			require.ElementsMatch(t, c.teamIDs, matches)
 		})
 	}
 }
