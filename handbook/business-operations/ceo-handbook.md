@@ -11,20 +11,20 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
-| CEO e-mail management                                       | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| General communications in #help-ceo slack channel           | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| Schedule internal and external meetings for the CEO         | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| [CEO e-mail management](https://fleetdm.com/handbook/business-operations/ceo-handbook#ceo-email-management)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| General communications in #help-ceo [slack channel](https://fleetdm.com/handbook/business-operations#slack-channels) | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| Schedule internal and external [meetings for the CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook#scheduling-with-the-ceo)| Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Meeting requests in #-meetings and #help-ceo slack channels | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
-| Preparing agendas and content for CEO's meetings            | Create and edit agenda, provide context, and contact information | PRN                   |
+| [Preparing agendas and content](https://fleetdm.com/handbook/business-operations/ceo-handbook#document-preparation) for CEO's meetings | Create and edit agenda, provide context, and contact information | PRN                   |
 | Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
-| Ad-hoc requests from the CEO                                | Triage requests, prioritize actions, flag actions for further review | PRN               |
-| Total travel coordination for the CEO    | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
-| Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
+| [Ad-hoc](https://fleetdm.com/handbook/customers#scheduling-a-customer-call) requests from the CEO | Triage requests, prioritize actions, flag actions for further review | PRN |   
+| Total [travel coordination](https://fleetdm.com/handbook/business-operations/ceo-handbook#travel-preferences) for the CEO | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
+| Coordinate the [weekly E-Group calendar](https://fleetdm.com/handbook/business-operations#weekly-updates) events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
 ### Scheduling with the CEO
 >Reach out to the EA to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
->All meetings on Mike's calendar should be scheduled and vetted by the EA to the CEO. 
+>All [meetings](https://fleetdm.com/handbook/business-operations#internal-meeting-scheduling) on Mike's calendar should be scheduled and vetted by the EA to the CEO. 
 >- Please do not directly schedule a meeting onto Mike's calendar without confirming with the EA to the CEO in advance or unless requested directly from Mike.
 >- The CEO requires meetings to originate from his calendar and on his Zoom account.
 
@@ -52,7 +52,10 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 ### CEO email management
 
-TODO: Document
+The EA to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for handling all email traffic prior to review by Mike. Multiple times daliy (minimum 3), The EA will reduce the scope of Mike's inbox to only inclued necessary and actionable communication.
+ -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
+ -  Esclate actionable sales communication and update Mike directly.
+ -  Ensure all calendar invites have [necessary documents](https://fleetdm.com/handbook/business-operations/ceo-handbook#document-preparation) included.
 
 ### Travel preferences
 Preferences for flights, in descending order of importance are:
@@ -95,7 +98,7 @@ From Mike:
 >
 > I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.  
 > 
-> What do still read?
+> What do I still read?
 > - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
 > - If you send me a direct message, I'll see and read that ASAP.
 >
@@ -107,6 +110,12 @@ From Mike:
 
 
 ## Prep work
+
+### Writing preferences
+
+Match writing style with current documentation. Dont reinvent the wheel, balance it. Read what you write lots, rewrite a lot to make it shorter.  Come up with heading(s) that make good permalinks when you click to copy.  Apply the advice about writing linked from the [company values](https://fleetdm.com/handbook/company#values) (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). Use the markdown formatting conventions that match the [handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy). Use links.  Add missing links.  Express links by lighting up the words that say what the link is about, when possible.  (Better SEO than lighting up “click here”). Don’t duplicate content.  Link to other places like the values or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way). Don’t make it awkward.  For example light up [“directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) (DRI)” to go to “why direct responsibility?”  But don’t be cheesy about linking to values. Read your own diff carefully in the PR, and edit it until the diff looks good.  Also check out the preview mode in GitHub to make sure the formatting all renders correctly.  Check it carefully with each change.  Read and reread, get to where you feel like it’s really good, really short, really simple, really clear, hack away at any word that’s too confusing.  Don’t sound formal, sound welcoming.  Anybody should be able to understand.  Use links rather than explanations.  Short sentences.
+Use a linkable section heading.  A big goal is to be able to link directly to this stuff when something comes up (it’s a way to gently remind and train people using what we already wrote, instead of repeating oneself). Avoid unnecessary changes.  And don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere)
+If you look at your diff and notice unintentional changes, remove them.  Don’t leave random white space additions in there, for example.  (It makes it harder to review)
 
 ### All Hands prep
 
@@ -128,12 +137,18 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. The EA will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
   3. Context that helps the CEO to understand the purpose of meeting at a glance
   4. Share the document with meeting participants
+
+Multiple times daily (minimum 4), The EA will correct any double booking in the CEO's calendar. Prioritzing in order of importance:
+ - External meetings
+ - Travel and personal commitments
+ - Sales meetings
+ - Investor meetings (eg Sid)
 
 **Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the `#-meetings` channel.**
 
