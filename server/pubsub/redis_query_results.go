@@ -150,6 +150,11 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			case msg, ok := <-msgChannel:
 				if !ok {
 					level.Error(logger).Log("msg", "unexpected exit in receiveMessages")
+					// NOTE(lucas): The below error string should not be modified. The UI is relying on it to detect
+					// when Fleet's connection to Redis has been interrupted unexpectedly.
+					//
+					// TODO(lucas): We should add a unit test (at the time it required many changes to this production code
+					// which increases risk).
 					writeOrDone(ctx, outChannel, ctxerr.Errorf(ctx, "unexpected exit in receiveMessages, campaignID=%d", query.ID))
 					return
 				}
