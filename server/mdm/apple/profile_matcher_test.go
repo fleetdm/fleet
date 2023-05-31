@@ -137,6 +137,85 @@ func TestPreassignProfile(t *testing.T) {
 	})
 }
 
+func TestRetrieveProfiles(t *testing.T) {
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		ctx := context.Background()
+		matcher := NewProfileMatcher(pool)
+
+		// preassign a profile with a group
+		p1 := fleet.MDMApplePreassignProfilePayload{
+			ExternalHostIdentifier: "abcd",
+			HostUUID:               "1234",
+			Profile:                generateProfile("p1", "p1", "Configuration", "p1"),
+			Group:                  "g1",
+		}
+		err := matcher.PreassignProfile(ctx, p1)
+		require.NoError(t, err)
+
+		// preassign a profile without a group
+		p2 := fleet.MDMApplePreassignProfilePayload{
+			ExternalHostIdentifier: "abcd",
+			HostUUID:               "1234",
+			Profile:                generateProfile("p2", "p2", "Configuration", "p2"),
+		}
+		err = matcher.PreassignProfile(ctx, p2)
+		require.NoError(t, err)
+
+		// retrieve from unknown external host identifier
+		profs, err := matcher.RetrieveProfiles(ctx, "efgh")
+		require.NoError(t, err)
+		require.Empty(t, profs.HostUUID)
+		require.Empty(t, profs.Profiles)
+
+		// retrieve from valid external host identifier
+		profs, err = matcher.RetrieveProfiles(ctx, "abcd")
+		require.NoError(t, err)
+		require.Equal(t, "1234", profs.HostUUID)
+		require.ElementsMatch(t, []fleet.MDMApplePreassignProfile{
+			{Profile: p1.Profile, Group: p1.Group, HexMD5Hash: p1.HexMD5Hash()},
+			{Profile: p2.Profile, Group: "", HexMD5Hash: p2.HexMD5Hash()},
+		}, profs.Profiles)
+
+		// after retrieval, the key is deleted
+		profs, err = matcher.RetrieveProfiles(ctx, "abcd")
+		require.NoError(t, err)
+		require.Empty(t, profs.HostUUID)
+		require.Empty(t, profs.Profiles)
+
+		// preassign to a host and generate invalid data
+		p3 := fleet.MDMApplePreassignProfilePayload{
+			ExternalHostIdentifier: "xyz",
+			HostUUID:               "5678",
+			Profile:                generateProfile("p3", "p3", "Configuration", "p3"),
+		}
+		err = matcher.PreassignProfile(ctx, p3)
+		require.NoError(t, err)
+
+		conn := redis.ConfigureDoer(pool, pool.Get())
+		defer conn.Close()
+		_, err = conn.Do("HSET", keyForExternalHostIdentifier("xyz"), "123ABC", "", "not-hex", "foo")
+		require.NoError(t, err)
+
+		// retrieves only the valid data for that host
+		profs, err = matcher.RetrieveProfiles(ctx, "xyz")
+		require.NoError(t, err)
+		require.Equal(t, "5678", profs.HostUUID)
+		require.ElementsMatch(t, []fleet.MDMApplePreassignProfile{
+			{Profile: p3.Profile, Group: "", HexMD5Hash: p3.HexMD5Hash()},
+		}, profs.Profiles)
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, preassignKeyPrefix, false, false, false)
+		runTest(t, pool)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, preassignKeyPrefix, true, true, false)
+		runTest(t, pool)
+	})
+}
+
 func TestPreassignProfileValidation(t *testing.T) {
 	ctx := context.Background()
 	pool := redistest.SetupRedis(t, preassignKeyPrefix, false, false, false)
