@@ -6359,6 +6359,20 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	t := s.T()
+	ctx := context.Background()
+
+	// set the enabled and configured flags,
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.EnabledAndConfigured = origEnabledAndConfigured
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
 
 	var resp orbitGetConfigResponse
 	// missing orbit key
@@ -6370,7 +6384,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
-	err := s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
 	require.NoError(t, err)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
@@ -6391,6 +6405,8 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, hFleetMDM.ID)
 		return err
 	})
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
+	require.NoError(t, err)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
