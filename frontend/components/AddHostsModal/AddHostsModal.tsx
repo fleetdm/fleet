@@ -59,7 +59,6 @@ const AddHostsModal = ({
   // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
   const shouldRenderDownloadInstallersContent =
     isSandboxMode && !isAnyTeamSelected;
-
   const renderModalContent = () => {
     if (isLoading) {
       return <Spinner />;

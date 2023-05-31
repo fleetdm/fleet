@@ -4,11 +4,13 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
+    contact_url: "https://fleetdm.com/company/contact",
   },
   server_settings: {
     server_url: "https://localhost:8080",
     live_query_disabled: false,
     enable_analytics: true,
+    deferred_save_host: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -27,13 +29,15 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   sso_settings: {
     entity_id: "",
-    idp_image_url: "",
+    issuer_uri: "",
     metadata: "",
     metadata_url: "",
     idp_name: "",
+    idp_image_url: "",
     enable_sso: false,
     enable_sso_idp_login: false,
     enable_jit_provisioning: false,
+    enable_jit_role_sync: false,
   },
   host_expiry_settings: {
     host_expiry_enabled: false,
@@ -95,6 +99,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
         enable_log_compression: false,
       },
     },
+    audit: {
+      plugin: "",
+      config: null,
+    },
   },
   update_interval: {
     osquery_detail: 3600000000000,
@@ -108,6 +116,43 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     disable_data_sync: false,
     periodicity: 3600000000000,
     recent_vulnerability_max_age: 2592000000000000,
+  },
+  sandbox_enabled: false,
+  features: {
+    enable_host_users: true,
+    enable_software_inventory: true,
+  },
+  fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
+  mdm: {
+    apple_bm_default_team: "Apples",
+    apple_bm_enabled_and_configured: true,
+    apple_bm_terms_expired: false,
+    enabled_and_configured: true,
+    macos_updates: {
+      minimum_version: "",
+      deadline: "",
+    },
+    macos_settings: {
+      custom_settings: null,
+      enable_disk_encryption: false,
+    },
+    macos_setup: {
+      bootstrap_package: "",
+      enable_end_user_authentication: false,
+      macos_setup_assistant: null,
+    },
+    macos_migration: {
+      enable: false,
+      mode: "",
+      webhook_url: "",
+    },
+    end_user_authentication: {
+      entity_id: "",
+      issuer_uri: "",
+      metadata: "",
+      metadata_url: "",
+      idp_name: "",
+    },
   },
 };
 
