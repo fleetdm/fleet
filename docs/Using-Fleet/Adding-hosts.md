@@ -292,7 +292,9 @@ Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in th
 Enter the Extension ID, custom URL and Policy for extensions using the data provided in the modal.
 
 Select "Force install". Select "Update URL" > "Installation URL (see above)"
-TODO WHAT DOES THIS DO? ^^^
+> For the Fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
+
+^^^ TODO Confirm that this is actually what is being done here. If not, where is that being done? 
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
