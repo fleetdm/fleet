@@ -50,6 +50,7 @@ columns:
       - linux
       - chromeos
   - name: email
+    type: string
     description: Email
     platforms:
       - chromeos
