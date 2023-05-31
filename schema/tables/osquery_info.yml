@@ -45,30 +45,6 @@ columns:
       - darwin
       - windows
       - linux
-  - name: version
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
-  - name: build_platform
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
-  - name: build_distro
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
-  - name: extensions
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
 
 examples: >-
   See the version of the currently running osquery.
