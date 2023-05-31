@@ -531,6 +531,39 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.Equal(t, uint(0), noTeamSummaryResp.Verifying)
 }
 
+func (s *integrationMDMTestSuite) TestPuppetPreassignProfiles() {
+	t := s.T()
+
+	// create a host enrolled in fleet
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+
+	// create a host that's not enrolled into MDM
+	nonMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID: ptr.String("not-mdm-enrolled"),
+		NodeKey:       ptr.String("not-mdm-enrolled"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// preassign an empty profile, fails
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "a", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
+
+	// preassign a valid profile to the MDM host
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "a", HostUUID: mdmHost.UUID, Profile: mobileconfigForTest("n1", "i1")}}, http.StatusNoContent)
+
+	// preassign another valid profile to the MDM host
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "b", HostUUID: mdmHost.UUID, Profile: mobileconfigForTest("n2", "i2"), Group: "g1"}}, http.StatusNoContent)
+
+	// preassign a valid profile to the non-MDM host, still works as the host is not validated in this call
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "c", HostUUID: nonMDMHost.UUID, Profile: mobileconfigForTest("n3", "i3"), Group: "g2"}}, http.StatusNoContent)
+
+	// TODO(mna): when matching is implemented, add test cases to check team creation and host assignment
+	_ = mdmDevice
+}
+
 func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestMDMClient) {
 	desktopToken := uuid.New().String()
 	mdmDevice := mdmtest.NewTestMDMClientDesktopManual(fleetServerURL, desktopToken)
