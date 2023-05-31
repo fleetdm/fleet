@@ -7,8 +7,10 @@
     * [Setup requirements](#setup-requirements)
     * [Beginning with fleetdm](#beginning-with-fleetdm)
 1. [Usage - Configuration options and additional functionality](#usage)
-1. [Limitations - OS compatibility, etc.](#limitations)
-1. [Development - Guide for contributing to the module](#development)
+    * [Defining profiles for a device](#defining-profiles-for-a-device)
+    * [Releasing a device from await configuration](#releasing-a-device-from-await-configuration)
+3. [Limitations - OS compatibility, etc.](#limitations)
+4. [Development - Guide for contributing to the module](#development)
 
 ## Description
 
@@ -37,13 +39,9 @@ fleetdm::host: https://example.com
 fleetdm::token: my_token 
 ```
 
-Note: for the token, we recommend using an [API-only user][1]
+Note: for the token, we recommend using an [API-only user][1], with a GitOps role.
 
 ### Beginning with fleetdm
-
-The very basic steps needed for a user to get the module up and running. This
-can include setup steps, if necessary, or it can be an example of the most basic
-use of the module.
 
 ## Usage
 
