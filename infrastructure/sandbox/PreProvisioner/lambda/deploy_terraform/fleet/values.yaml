@@ -150,8 +150,8 @@ mysql:
   # Only needed if creating secret.
   password: default
   passwordKey: mysql-password
-  maxOpenConns: 25
-  maxIdleConns: 25
+  maxOpenConns: 5
+  maxIdleConns: 5
   connMaxLifetime: 0
   tls:
     enabled: false
