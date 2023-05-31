@@ -4,6 +4,7 @@ There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on
 
 Deploying on AWS with Fleet’s reference architecture is an easy way to get a fully functional Fleet instance that can scale to your needs.
 
+> Updated May 2023 to reflect Fleet's current Terraform Module setup. 
 
 ## Prerequisites:
 
