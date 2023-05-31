@@ -531,11 +531,12 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.Equal(t, uint(0), noTeamSummaryResp.Verifying)
 }
 
-func (s *integrationMDMTestSuite) TestPuppetPreassignProfiles() {
+func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
+	ctx := context.Background()
 	t := s.T()
 
 	// create a host enrolled in fleet
-	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
 
 	// create a host that's not enrolled into MDM
@@ -549,19 +550,49 @@ func (s *integrationMDMTestSuite) TestPuppetPreassignProfiles() {
 	require.NoError(t, err)
 
 	// preassign an empty profile, fails
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "a", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
 
 	// preassign a valid profile to the MDM host
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "a", HostUUID: mdmHost.UUID, Profile: mobileconfigForTest("n1", "i1")}}, http.StatusNoContent)
+	prof1 := mobileconfigForTest("n1", "i1")
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof1}}, http.StatusNoContent)
 
 	// preassign another valid profile to the MDM host
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "b", HostUUID: mdmHost.UUID, Profile: mobileconfigForTest("n2", "i2"), Group: "g1"}}, http.StatusNoContent)
+	prof2 := mobileconfigForTest("n2", "i2")
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof2, Group: "g1"}}, http.StatusNoContent)
 
 	// preassign a valid profile to the non-MDM host, still works as the host is not validated in this call
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "c", HostUUID: nonMDMHost.UUID, Profile: mobileconfigForTest("n3", "i3"), Group: "g2"}}, http.StatusNoContent)
+	prof3 := mobileconfigForTest("n3", "i3")
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "non-mdm", HostUUID: nonMDMHost.UUID, Profile: prof3, Group: "g2"}}, http.StatusNoContent)
 
-	// TODO(mna): when matching is implemented, add test cases to check team creation and host assignment
-	_ = mdmDevice
+	// match with an invalid external host id, succeeds as it is the same as if
+	// there was no matching to do (no preassignment was done)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "no-such-id"}, http.StatusNoContent)
+
+	// match with the non-mdm host fails
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "non-mdm"}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host is not enrolled in Fleet MDM")
+
+	// match with the mdm host succeeds and creates a team based on the group labels
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm1"}, http.StatusNoContent)
+
+	// the host is now part of that team
+	mdm1Host, err := s.ds.Host(ctx, mdmHost.ID)
+	require.NoError(t, err)
+	require.NotNil(t, mdm1Host.TeamID)
+	tm1, err := s.ds.Team(ctx, *mdm1Host.TeamID)
+	require.NoError(t, err)
+	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\)$`, tm1.Name)
+
+	// and the team has the expected profiles
+	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	// order is guaranteed by profile name
+	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
+	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+
+	// TODO(mna): create existing teams to match against
 }
 
 func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestMDMClient) {
