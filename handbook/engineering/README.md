@@ -839,8 +839,8 @@ When a critical bug is identified, we will then follow the patch release process
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
 The metrics are: 
 * Number of bugs opened this week
-* total # bugs open 
-* bugs in each state (inbox, acknowledged, reproduced) 
+* Total # bugs open 
+* Bugs in each state (inbox, acknowledged, reproduced) 
 * Number of bugs closed this week
 
 Each week these are tracked and shared in the weekly update by Charlie Chance.

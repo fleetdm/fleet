@@ -59,6 +59,9 @@ type MDMAppleDeliveryStatus string
 //     the timestamps, e.g. time since created_at, if we added them to
 //     host_mdm_apple_profiles).
 //
+//   - verified: the MDM command was successfully applied, and Fleet has
+//     independently verified the status. This is a terminal state.
+//
 //   - verifying: the MDM command was successfully applied, but Fleet has not
 //     independently verified the status. This is an intermediate state,
 //     it may transition to failed, pending, or NULL.
@@ -82,6 +85,7 @@ type MDMAppleDeliveryStatus string
 //     Pending status.
 var (
 	MDMAppleDeliveryFailed    MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryVerified  MDMAppleDeliveryStatus = "verified"
 	MDMAppleDeliveryVerifying MDMAppleDeliveryStatus = "verifying"
 	MDMAppleDeliveryPending   MDMAppleDeliveryStatus = "pending"
 )

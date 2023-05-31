@@ -35,47 +35,19 @@
   [purpose='hero-container'] {
     background: linear-gradient(115.34deg, #FBFDFF 24.56%, #E8F1F7 48.6%, #FFFFFF 88.68%);
     overflow: hidden;
-    height: ;
   }
   [purpose='homepage-hero'] {
-
     padding-top: 40px;
     padding-left: 40px;
     padding-right: 40px;
+    padding-bottom: 40px;
     max-width: 1200px;
     max-height: 550px;
   }
-  [purpose='homepage-hero-images'] {
-    filter: drop-shadow(0px -8.73361px 29.9438px rgba(58, 220, 255, 0.1));
-    position: relative;
-  }
-  [purpose='top-hero-image'], [purpose='bottom-hero-image'] {
-    width: 410px;
+  [purpose='homepage-hero-image'] {
     img {
-      width: 100%;
-      height: auto;
+      max-height: 300px;
     }
-  }
-  [purpose='homepage-hero-images']::before {
-    content: ' ';
-    position: absolute;
-    height: 100%;
-    width: 167%;
-    right: -142px;
-    bottom: 40px;
-    z-index: -1;
-    background-image: url('/images/homepage-hero-background-750x647@2x.png');
-    opacity: 0.75;
-    background-position: center center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    overflow: visible;
-  }
-  [purpose='middle-hero-image'] {
-    img {
-      width: 47px;
-    }
-    backdrop-filter: blur(2.96438px);
   }
   [purpose='hero-ribbon'] {
     [purpose='ribbon-banner'] {
@@ -103,28 +75,6 @@
     }
     [purpose='button-row'] {
       margin-bottom: 40px;
-    }
-    [purpose='hero-quote'] {
-      margin-bottom: 40px;
-      text-align: left;
-      position: relative;
-      z-index: 10;
-      img {
-        height: 18px;
-        margin-right: 16px;
-      }
-      [purpose='quote'] {
-        max-width: 438px;
-        font-style: italic;
-        margin-bottom: 16px;
-        font-size: 14px;
-        line-height: 19.6px;
-      }
-      p {
-        font-size: 14px;
-        line-height: 20px;
-        margin-bottom: 0px;
-      }
     }
   }
   [purpose='hero-logos'] {
@@ -162,7 +112,7 @@
   }
   [purpose='homepage-text-block'] {
     margin-bottom: 100px;
-    max-width: 680px;
+    max-width: 758px;
   }
   [purpose='feature'] {
     margin-bottom: 100px;
@@ -348,7 +298,9 @@
     [purpose='homepage-hero'] {
       padding-left: 80px;
       padding-right: 80px;
-      padding-bottom: 10px;
+      padding-bottom: 80px;
+      padding-top: 80px;
+      max-width: 1300px;
     }
     [purpose='homepage-content'] {
       max-width: 1200px;
@@ -358,9 +310,6 @@
   }
 
   @media (max-width: 991px) {
-    [purpose='homepage-hero-images']::before {
-      background-image: none;
-    }
 
     [purpose='hero-text'] {
       h1 {
@@ -370,7 +319,7 @@
     [purpose='homepage-hero'] {
       padding-left: 60px;
       padding-right: 0px;
-      padding-bottom: 0px;
+      padding-bottom: 10px;
     }
     [purpose='hero-logos'] {
       img {
@@ -430,20 +379,19 @@
     [purpose='homepage-hero'] {
       padding-left: 40px;
       padding-right: 40px;
-      padding-bottom: 0px;
-      background-image: none;
       max-height: unset;
     }
-    [purpose='homepage-hero-images'] {
-      max-height: 480px;
+    [purpose='homepage-hero-image'] {
+      max-height: 280px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: start;
       width: 100%;
-      [purpose='top-hero-image'], [purpose='bottom-hero-image'] {
-        width: 100%;
-        max-width: 410px;
+      margin-bottom: -20px;
+      img {
+        max-width: 100%;
+        height: auto;
       }
     }
     [purpose='homepage-content'] {
@@ -581,7 +529,7 @@
 
   @media (max-width: 375px) {
 
-    [purpose='homepage-hero-images'] {
+    [purpose='homepage-hero-image'] {
       max-height: 360px;
     }
     [purpose='hero-text'] {
