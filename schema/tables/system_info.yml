@@ -15,7 +15,7 @@ columns:
       - darwin
       - windows
       - linux
-  - name: cpu_logical cores
+  - name: cpu_logical_cores
     platforms:
       - darwin
       - windows
