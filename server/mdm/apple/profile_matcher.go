@@ -2,6 +2,8 @@ package apple_mdm
 
 import (
 	"context"
+	"encoding/hex"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -122,10 +124,26 @@ func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdent
 	delete(profs, "host_uuid")
 
 	for k, v := range profs {
-	}
+		if strings.HasSuffix(k, "_group") || v == "" {
+			// only look for profiles' hex hashes, the group information will be
+			// retrieved only when a profile is found. Ignore empty values (e.g.
+			// empty profile).
+			continue
+		}
 
-	// TODO: find all profiles matching the host identifier
-	// TODO: cleanup all retrieved profiles?
+		// if the key is not the group, then it has to be a profile hash, ensure
+		// that it is a valid hex-encoded value.
+		if _, err := hex.DecodeString(k); err != nil {
+			// ignore unknown/invalid fields
+			continue
+		}
+
+		hostProfs.Profiles = append(hostProfs.Profiles, fleet.MDMApplePreassignProfile{
+			Profile:    []byte(v),
+			Group:      profs[k+"_group"],
+			HexMD5Hash: k,
+		})
+	}
 	return hostProfs, nil
 }
 

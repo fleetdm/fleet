@@ -742,7 +742,14 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO(mna): TBD the exact signature, must return the list of profiles for matching
 	profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
+	if err != nil {
+		return err
+	}
+	if len(profs.Profiles) == 0 || profs.HostUUID == "" {
+		return nil // nothing to do
+	}
+
+	// TODO(mna): match team, create if necessary, assign host
 	return nil
 }
