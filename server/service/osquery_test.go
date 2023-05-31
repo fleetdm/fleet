@@ -1417,6 +1417,80 @@ func TestDetailQueries(t *testing.T) {
 	assert.Zero(t, acc)
 }
 
+func TestMDMQueries(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		clock:    clock.NewMockClock(),
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
+
+	expectedMDMQueries := []struct {
+		name           string
+		discoveryTable string
+	}{
+		{"fleet_detail_query_mdm_config_profiles_darwin", "macos_profiles"},
+		{"fleet_detail_query_mdm_disk_encryption_key_darwin", "file_lines"},
+	}
+
+	mdmEnabled := true
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
+	}
+
+	host := fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+		NodeKey:  ptr.String("test_key"),
+		Hostname: "test_hostname",
+		UUID:     "test_uuid",
+		TeamID:   nil,
+	}
+	ctx := hostctx.NewContext(context.Background(), &host)
+
+	// MDM enabled, darwin
+	queries, discovery, err := svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.Contains(t, queries, q.name)
+		d, ok := discovery[q.name]
+		require.True(t, ok)
+		require.Contains(t, d, fmt.Sprintf("name = '%s'", q.discoveryTable))
+	}
+
+	// MDM disabled, darwin
+	mdmEnabled = false
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
+
+	// MDM enabled, not darwin
+	mdmEnabled = true
+	host.Platform = "windows"
+	ctx = hostctx.NewContext(context.Background(), &host)
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
+
+	// MDM disabled, not darwin
+	mdmEnabled = false
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
+}
+
 func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

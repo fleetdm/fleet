@@ -1527,6 +1527,78 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
+func (ds *Datastore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+	installedProfsByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(installedProfiles))
+	for _, p := range installedProfiles {
+		installedProfsByIdentifier[p.Identifier] = p
+	}
+
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	var expectedProfs []*fleet.MDMAppleConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader, &expectedProfs, `
+SELECT
+	name,
+	identifier,
+	updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
+	team_id = ?`, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "listing expected profiles for update host macOS profiles")
+	}
+
+	verifiedProfs := make([]*fleet.MDMAppleConfigProfile, 0, len(expectedProfs))
+	for _, ep := range expectedProfs {
+		ip, ok := installedProfsByIdentifier[ep.Identifier]
+		if !ok {
+			// TODO: expected profile is not installed on host, skip it for now
+			continue
+		}
+		if ep.UpdatedAt.After(ip.InstallDate) {
+			// TODO: host has an older version of expected profile installed, skip it for now
+			continue
+		}
+		if ep.Name != ip.DisplayName {
+			// TODO: host has a different name for expected profile, skip it for now
+			continue
+		}
+		verifiedProfs = append(verifiedProfs, ep)
+	}
+
+	if len(verifiedProfs) == 0 {
+		// nothing to update, return early
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	status = ?
+WHERE
+	host_uuid = ?
+	AND status = ?
+	AND operation_type = 'install'
+	AND (profile_name, profile_identifier) IN(%s)`
+
+	args := []interface{}{fleet.MDMAppleDeliveryVerified, host.UUID, fleet.MDMAppleDeliveryVerifying}
+	var inPart string
+	for _, vp := range verifiedProfs {
+		inPart += "(?, ?),"
+		args = append(args, vp.Name, vp.Identifier)
+	}
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(inPart, ","))
+
+	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host macOS profiles")
+	}
+
+	return nil
+}
+
 func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
 	sql := `
             SELECT
