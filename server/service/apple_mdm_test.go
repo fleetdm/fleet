@@ -35,6 +35,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type nopProfileMatcher struct{}
+
+func (nopProfileMatcher) PreassignProfile(ctx context.Context, pld fleet.MDMApplePreassignProfilePayload) error {
+	return nil
+}
+
+func (nopProfileMatcher) RetrieveProfiles(ctx context.Context, extHostID string) (fleet.MDMApplePreassignHostProfiles, error) {
+	return fleet.MDMApplePreassignHostProfiles{}, nil
+}
+
 func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
@@ -62,11 +72,12 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	)
 
 	opts := &TestServerOpts{
-		FleetConfig: &cfg,
-		MDMStorage:  mdmStorage,
-		DEPStorage:  depStorage,
-		MDMPusher:   pusher,
-		License:     license,
+		FleetConfig:    &cfg,
+		MDMStorage:     mdmStorage,
+		DEPStorage:     depStorage,
+		MDMPusher:      pusher,
+		License:        license,
+		ProfileMatcher: nopProfileMatcher{},
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -2524,6 +2535,56 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 
 			err = svc.DeleteMDMAppleSetupAssistant(ctx, tt.teamID)
 			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
+}
+
+func TestMDMApplePreassignEndpoints(t *testing.T) {
+	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
+		t.Helper()
+
+		if shouldFailWithAuth {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+
+	testCases := []struct {
+		name       string
+		user       *fleet.User
+		shouldFail bool
+	}{
+		{"no role", test.UserNoRoles, true},
+		{"global admin", test.UserAdmin, false},
+		{"global maintainer", test.UserMaintainer, true},
+		{"global observer", test.UserObserver, true},
+		{"global observer+", test.UserObserverPlus, true},
+		{"global gitops", test.UserGitOps, false},
+		{"team admin", test.UserTeamAdminTeam1, true},
+		{"team maintainer", test.UserTeamMaintainerTeam1, true},
+		{"team observer", test.UserTeamObserverTeam1, true},
+		{"team observer+", test.UserTeamObserverPlusTeam1, true},
+		{"team gitops", test.UserTeamGitOpsTeam1, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			err := svc.MDMApplePreassignProfile(ctx, fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: "test",
+				HostUUID:               "test",
+				Profile:                mobileconfigForTest("N1", "I1"),
+			})
+			checkAuthErr(t, err, tt.shouldFail)
+
+			err = svc.MDMAppleMatchPreassignment(ctx, "test")
+			checkAuthErr(t, err, tt.shouldFail)
 		})
 	}
 }

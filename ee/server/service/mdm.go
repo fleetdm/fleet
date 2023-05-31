@@ -7,10 +7,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -779,6 +782,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		}
 	}
 
+	// find a team with exactly that set of profiles
 	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
 	if err != nil {
 		return err
@@ -789,12 +793,39 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		targetTeamID = teamIDs[0]
 	} else {
 		// create a new team with this set of profiles
+		dedupeGroups := make(map[string]struct{}, len(groups))
+		for _, group := range groups {
+			dedupeGroups[group] = struct{}{}
+		}
+		groups = groups[:0]
+		for group := range dedupeGroups {
+			groups = append(groups, group)
+		}
+		sort.Strings(groups)
+
+		if len(groups) == 0 {
+			groups = []string{"default"}
+		}
+
+		// creating via the service call so that it properly assigns the agent
+		// options and creates audit activities, etc.
+		teamName := fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05"))
+		tm, err := svc.NewTeam(ctx, fleet.TeamPayload{Name: &teamName})
+		if err != nil {
+			return err
+		}
+
+		// TODO(mna): create profiles for that team
+
+		targetTeamID = tm.ID
 	}
 
-	// assign host to that team, which will trigger deployment of the profiles
+	// assign host to that team via the service call, which will trigger
+	// deployment of the profiles.
 	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
 		return err
 	}
+
 	// TODO(mna): should that create an audit activity?
 	return nil
 }
