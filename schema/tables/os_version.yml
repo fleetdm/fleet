@@ -23,3 +23,73 @@ columns:
   - name: mount_namespace_id
     platforms:
       - linux
+  - name: name
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: platform
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: platform_like
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: version
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: major
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: minor
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: build
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: patch
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: codename
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos
+  - name: arch
+    type: string
+    platforms:
+    - darwin
+    - linux
+    - windows
+    - chromeos

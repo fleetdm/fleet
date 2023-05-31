@@ -5,13 +5,12 @@ description: Uses the `chrome.enterprise.networkingAttributes` API to read infor
 columns:
   - name: mac
     type: text
-    description: MAC address
-  - name: address
-    type: text
-    description: specific address for the interface (IPv4 address)
+    description: MAC address (only available to extensions force-installed by enterprise policy)
   - name: ipv4
     type: text
+    description: IPv4 address (only available to extensions force-installed by enterprise policy)
   - name: ipv6
     type: text
+    description: IPv6 address (only available to extensions force-installed by enterprise policy)
 notes: >-
   - Requires that the fleetd extension is force-installed by enterprise policy

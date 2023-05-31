@@ -55,6 +55,68 @@ columns:
       - darwin
       - windows
       - linux
+  - name: hostname
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: computer_name
+    type: string
+    description: For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: hardware_serial
+    type: string
+    description: The device's serial number (For chromeos, this is only available if the extension was force-installed by an enterprise policy)
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: hardware_vendor
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: hardware_model
+    type: string
+    description: For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: cpu_brand
+    type: string
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: cpu_type
+    type: string
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+  - name: physical_memory
+    type: string
+    platforms:
+      - darwin
+      - windows
+      - linux
+      - chromeos
+
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.

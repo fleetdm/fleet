@@ -48,6 +48,7 @@ columns:
       - darwin
       - windows
       - linux
+      - chromeos
   - name: email
     platforms:
       - chromeos
@@ -60,3 +61,6 @@ columns:
   - name: pid_with_namespace
     platforms:
       - linux
+  - name: username
+    platforms:
+      - chromeos
