@@ -68,21 +68,19 @@ Fleet UI:
 Example output:
 
 ```
-+--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
-|                 ID                   |         TIME         | TYPE        |    STATUS    | HOSTNAME |                      RESULTS                      |
-+--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
-| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-04T15:29:00Z | ProfileList | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
-|                                      |                      |             |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
-|                                      |                      |             |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
-|                                      |                      |             |              |          | <plist version="1.0"> <dict>                      |
-|                                      |                      |             |              |          | <key>Command</key>     <dict>                     |
-|                                      |                      |             |              |          | <key>ManagedOnly</key>         <false/>           |
-|                                      |                      |             |              |          |         <key>RequestType</key>                    |
-|                                      |                      |             |              |          |    <string>ProfileList</string>                   |
-|                                      |                      |             |              |          | </dict>     <key>CommandUUID</key>                |
-|                                      |                      |             |              |          | <string>0001_ProfileList</string> </dict>         |
-|                                      |                      |             |              |          | </plist>                                          |
-+--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
++--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
+|                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                        RESULTS                        |
++--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
+| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | InstallProfile | Acknowledged | mos-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE      |
+|                                      |                      |                |              |                     | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"            |
+|                                      |                      |                |              |                     | "http://www.apple.com/DTDs/PropertyList-1.0.dtd">     |
+|                                      |                      |                |              |                     | <plist version="1.0"> <dict> 	<key>CommandUUID</key>   |
+|                                      |                      |                |              |                     | 	<string>333af7f8-b9a4-4f62-bfb2-f7488fbade21</string> |
+|                                      |                      |                |              |                     | 	<key>Status</key>                                     |
+|                                      |                      |                |              |                     | 	<string>Acknowledged</string> 	<key>UDID</key>         |
+|                                      |                      |                |              |                     | 	<string>3A529CD6-2154-55EA-9AB7-EB13A43D9F5E</string> |
+|                                      |                      |                |              |                     | </dict> </plist>                                      |
++--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
 ```
 
 ### Step 4: View the command's results
