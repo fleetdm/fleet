@@ -703,6 +703,7 @@ const HostDetailsPage = ({
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
+                  platform={host?.platform}
                 />
                 <LabelsCard
                   labels={host?.labels || []}
