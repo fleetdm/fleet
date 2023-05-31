@@ -274,7 +274,7 @@ To make a request or advocate for a request from a customer or community member,
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
 Then attend the next scheduled 🗣 Product Feature Requests meeting.
 
-All members of the Fleet organization are required to attend the 🗣 Product Feature Requests meeting. Requests will be
+All members of the Fleet organization are welcome to attend the 🗣 Product Feature Requests meeting. Requests will be
 weighed from top to bottom while prioritizing attendee requests. 
 
 This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
