@@ -107,7 +107,7 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]*fleet.Team, error) {
+func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
 	// as a special-case, should never be called without at least one hash but if
 	// so, never matches anything.
 	if len(hexMD5Hashes) == 0 {
@@ -143,6 +143,7 @@ HAVING
 	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute query")
 	}
+	return teamIDs, nil
 }
 
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {

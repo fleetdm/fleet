@@ -779,6 +779,22 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		}
 	}
 
-	// TODO(mna): match team, create if necessary, assign host
+	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
+	if err != nil {
+		return err
+	}
+
+	var targetTeamID uint
+	if len(teamIDs) > 0 {
+		targetTeamID = teamIDs[0]
+	} else {
+		// create a new team with this set of profiles
+	}
+
+	// assign host to that team, which will trigger deployment of the profiles
+	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
+		return err
+	}
+	// TODO(mna): should that create an audit activity?
 	return nil
 }
