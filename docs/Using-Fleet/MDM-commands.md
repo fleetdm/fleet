@@ -109,7 +109,7 @@ $ fleetctl get mdm-commands
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 ```
 
-The command ID can be used to view command results as documented in [Step 4 of the previous section](#step-4-view-the-commands-results). The possible status values are:
+The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). The possible status values are:
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
