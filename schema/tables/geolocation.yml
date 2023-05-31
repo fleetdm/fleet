@@ -6,9 +6,13 @@ description: Last reported geolocation
 columns:
   - name: ip
     type: text
+    description: IP address
   - name: city
     type: text
+    description: City
   - name: country
     type: text
+    description: Country
   - name: region
     type: text
+    description: Region
