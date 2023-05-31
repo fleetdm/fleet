@@ -65,6 +65,26 @@ Fleet UI:
 
 2. Look at the on-screen information. In the output you'll see the command required to see results. Be sure to copy this command. If you don't, it will be difficult to view command results later.
 
+Example output:
+
+```
++--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
+|                 ID                   |         TIME         | TYPE        |    STATUS    | HOSTNAME |                      RESULTS                      |
++--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
+| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-04T15:29:00Z | ProfileList | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
+|                                      |                      |             |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
+|                                      |                      |             |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|                                      |                      |             |              |          | <plist version="1.0"> <dict>                      |
+|                                      |                      |             |              |          | <key>Command</key>     <dict>                     |
+|                                      |                      |             |              |          | <key>ManagedOnly</key>         <false/>           |
+|                                      |                      |             |              |          |         <key>RequestType</key>                    |
+|                                      |                      |             |              |          |    <string>ProfileList</string>                   |
+|                                      |                      |             |              |          | </dict>     <key>CommandUUID</key>                |
+|                                      |                      |             |              |          | <string>0001_ProfileList</string> </dict>         |
+|                                      |                      |             |              |          | </plist>                                          |
++--------------------------------------+----------------------+-------------+--------------+----------+---------------------------------------------------+
+```
+
 ### Step 4: View the command's results
 
 1. Run the `fleetctl get mdm-command-results --id=<insert-command-id>`
@@ -77,6 +97,19 @@ You can view the list of recently executed commands using "fleetctl":
 
 1. Run `fleetctl get mdm-commands`
 2. View the list of recently executed commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
+
+Example output:
+
+```
+$ fleetctl get mdm-commands
++--------------------------------------+----------------------+--------------------------+--------------+------------------------+
+|                  ID                  |         TIME         |           TYPE           |    STATUS    |        HOSTNAME        |
++--------------------------------------+----------------------+--------------------------+--------------+------------------------+
+| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-12T18:19:10Z | InstalledApplicationList | Acknowledged | iMac-Pro.local         |
++--------------------------------------+----------------------+--------------------------+--------------+------------------------+
+| 87dc6325-8bc0-4fc8-9a2f-3901c535456e | 2023-04-12T18:15:01Z | InstallProfile           | Acknowledged | iMac-Pro.local         |
++--------------------------------------+----------------------+--------------------------+--------------+------------------------+
+```
 
 The command ID can be used to view command results as documented in [Step 4 of the previous section](#step-4-view-the-commands-results). The possible status values are:
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
