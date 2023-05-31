@@ -35,7 +35,7 @@ you'd like to deploy Fleet into, you could opt to use the `byo-vpc` module, supp
 #### Examples
 
 ##### Bring your own nothing
-```terraform
+```hcl
 module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 }
@@ -46,7 +46,7 @@ This configuration utilizes all the modules Fleet defines with the default confi
 3. ECS for compute
 
 ##### Bring your own VPC
-```terraform
+```hcl
 module "fleet_vpcless" {
   source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=main"
 
@@ -67,7 +67,7 @@ This configuration allows you to bring your own VPC, public & private subnets, a
 to configure the remainder of the infrastructure, like the Database and ECS.
 
 ##### Bring only Fleet
-```terraform
+```hcl
 module "fleet_ecs" {
   source      = "github.com/fleetdm/fleet//terraform/byo-vpc/byo-db/byo-ecs?ref=main"
   ecs_cluster = "my_ecs_cluster"
@@ -133,7 +133,7 @@ in order to create the database from a previous snapshot.
 
 We're going to deploy Fleet using the module system with a few configurations. First start off by creating `fleet.tf` or naming it whatever you like.
 
-```terraform
+```hcl
 module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 
@@ -147,7 +147,7 @@ Run `terraform get` to have terraform pull down the module. After this completes
 
 To fix this issue lets define some Route53 resources:
 
-```terraform
+```hcl
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
@@ -176,7 +176,7 @@ resource "aws_route53_record" "main" {
 ```
 
 Now we can edit the module declaration:
-```terraform
+```hcl
 module "fleet" {
   source          = "github.com/fleetdm/fleet//terraform?ref=main"
   certificate_arn = module.acm.acm_certificate_arn
@@ -188,7 +188,7 @@ module "fleet" {
 ```
 
 We're also going to pull in the auto-migration addon that will ensure Fleet migrations run:
-```terraform
+```hcl
 module "migrations" {
   source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=main"
   ecs_cluster              = module.fleet.byo-vpc.byo-db.byo-ecs.service.cluster
@@ -200,7 +200,7 @@ module "migrations" {
 ```
 
 All together this looks like:
-```terraform
+```hcl
 module "fleet" {
   source          = "github.com/fleetdm/fleet//terraform?ref=main"
   certificate_arn = module.acm.acm_certificate_arn
@@ -272,7 +272,7 @@ Let’s say we own `queryops.com` and have an ACM certificate issued to it. We w
 ### Modifying the Fleet configuration
 
 To modify Fleet, you can override any of the exposed keys in `fleet_config`. Here is an example:
-```terraform
+```hcl
 module "fleet" {
   source          = "github.com/fleetdm/fleet//terraform?ref=main"
   certificate_arn = module.acm.acm_certificate_arn
