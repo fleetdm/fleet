@@ -6,7 +6,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostDiskEncryptionTooltipMessage,
+  humanHostMemory,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
@@ -19,11 +23,6 @@ import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPack
 
 const baseClass = "host-summary";
 
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
-}
-
 interface IBootstrapPackageData {
   status?: BootstrapPackageStatus | "";
   details?: string;
@@ -32,7 +31,7 @@ interface IBootstrapPackageData {
 interface IHostSummaryProps {
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
-  diskEncryption?: IHostDiskEncryptionProps;
+  diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
@@ -52,7 +51,7 @@ interface IHostSummaryProps {
 const HostSummary = ({
   titleData,
   bootstrapPackageData,
-  diskEncryption,
+  diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
   isOnlyObserver,
@@ -66,6 +65,8 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
+  const { status, id, platform } = titleData;
+
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
 
@@ -79,8 +80,8 @@ const HostSummary = ({
         >
           <Button
             className={`
-              button
-              ${!isOnline ? "refetch-offline tooltip" : ""}
+            button
+            ${!isOnline ? "refetch-offline tooltip" : ""}
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
@@ -151,8 +152,33 @@ const HostSummary = ({
     </div>
   );
 
+  const renderDiskEncryptionSummary = () => {
+    // TODO: improve this typing, platforms!
+    if (!["darwin", "windows", "chromeos"].includes(platform)) {
+      return <></>;
+    }
+    const tooltipMessage = getHostDiskEncryptionTooltipMessage(
+      platform,
+      diskEncryptionEnabled
+    );
+    let statusText;
+    // TODO: confirm this is the right string to expect
+    if (platform === "chromeos") {
+      statusText = "Always on";
+    } else {
+      statusText = diskEncryptionEnabled ? "On" : "Off";
+    }
+    return (
+      <div className="info-flex__item info-flex__item--title">
+        <span className="info-flex__header">Disk encryption</span>
+        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+          {statusText}
+        </TooltipWrapper>
+      </div>
+    );
+  };
+
   const renderSummary = () => {
-    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -209,20 +235,8 @@ const HostSummary = ({
           </div>
         )}
 
-        {typeof diskEncryption?.enabled === "boolean" &&
-        diskEncryption?.tooltip ? (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Disk encryption</span>
-            <TooltipWrapper
-              tipContent={diskEncryption.tooltip}
-              position="bottom"
-            >
-              {diskEncryption.enabled ? "On" : "Off"}
-            </TooltipWrapper>
-          </div>
-        ) : (
-          <></>
-        )}
+        {renderDiskEncryptionSummary()}
+
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
