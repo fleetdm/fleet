@@ -13,6 +13,7 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 
 ## Current Limitations in ChromeOS
 - Scheduled queries are currently not available in ChromeOS
+- More tables will be added in https://github.com/fleetdm/fleet/issues/11037
 
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension).
