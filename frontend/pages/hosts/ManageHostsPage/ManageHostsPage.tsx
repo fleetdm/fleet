@@ -95,7 +95,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "../components/TransferHostModal";
 import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
@@ -1379,7 +1378,7 @@ const ManageHostsPage = ({
         onActionButtonClick: onTransferToTeamClick,
         buttonText: "Transfer",
         variant: "text-icon",
-        icon: "transfer",
+        iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
         indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
@@ -1438,14 +1437,14 @@ const ManageHostsPage = ({
         actionButton={{
           name: "edit columns",
           buttonText: "Edit columns",
-          icon: EditColumnsIcon,
+          iconSvg: "columns",
           variant: "text-icon",
           onActionButtonClick: toggleEditColumnsModal,
         }}
         primarySelectAction={{
           name: "delete host",
           buttonText: "Delete",
-          icon: "delete",
+          iconSvg: "trash",
           variant: "text-icon",
           onActionButtonClick: onDeleteHostsClick,
         }}

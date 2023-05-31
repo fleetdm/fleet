@@ -1,0 +1,22 @@
+name: geolocation
+evented: false
+platforms:
+  - chromeos
+description: Last reported geolocation
+columns:
+  - name: ip
+    type: text
+    required: false
+    description: IP address
+  - name: city
+    type: text
+    required: false
+    description: City
+  - name: country
+    type: text
+    required: false
+    description: Country
+  - name: region
+    type: text
+    required: false
+    description: Region

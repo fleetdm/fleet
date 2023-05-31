@@ -201,7 +201,7 @@ const ScheduleTable = ({
         primarySelectAction={{
           name: "remove scheduled query",
           buttonText: "Remove",
-          icon: "remove",
+          iconSvg: "ex",
           variant: "text-icon",
           onActionButtonClick: onRemoveScheduledQueryClick,
         }}

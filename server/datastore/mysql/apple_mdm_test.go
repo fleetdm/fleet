@@ -60,6 +60,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
+		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 	}
 
 	for _, c := range cases {
@@ -3969,4 +3970,74 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, *h.DEPAssignedToFleet)
 	})
+}
+
+func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
+	// test that the mysql md5 hash exactly matches the hash produced by Go in
+	// the preassign profiles logic (no corner cases with extra whitespace, etc.)
+	ctx := context.Background()
+
+	// sprintf placeholders for prefix, content and suffix
+	const base = `%s<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Inc//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+%s
+</plist>%s`
+
+	cases := []struct {
+		prefix, content, suffix string
+	}{
+		{"", "", ""},
+		{" ", "", ""},
+		{"", "", " "},
+		{"\t\n ", "", "\t\n "},
+		{"", `<dict>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>PayloadUUID</key>
+      <string>Ignored</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadIdentifier</key>
+      <string>Ignored</string>
+</dict>`, ""},
+		{" ", `<dict>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>PayloadUUID</key>
+      <string>Ignored</string>
+      <key>PayloadType</key>
+      <string>Configuration</string>
+      <key>PayloadIdentifier</key>
+      <string>Ignored</string>
+</dict>`, "\r\n"},
+	}
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("%q %q %q", c.prefix, c.content, c.suffix), func(t *testing.T) {
+			mc := mobileconfig.Mobileconfig(fmt.Sprintf(base, c.prefix, c.content, c.suffix))
+
+			prof, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+				Name:         fmt.Sprintf("profile-%d", i),
+				Identifier:   fmt.Sprintf("profile-%d", i),
+				TeamID:       nil,
+				Mobileconfig: mc,
+			})
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err := ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileID)
+				require.NoError(t, err)
+			})
+
+			goProf := fleet.MDMApplePreassignProfilePayload{Profile: mc}
+			goHash := goProf.HexMD5Hash()
+			require.NotEmpty(t, goHash)
+
+			var id uint
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &id, `SELECT profile_id FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
+			})
+			require.Equal(t, prof.ProfileID, id)
+		})
+	}
 }

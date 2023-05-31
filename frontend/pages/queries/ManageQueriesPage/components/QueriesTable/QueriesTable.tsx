@@ -268,7 +268,7 @@ const QueriesTable = ({
         primarySelectAction={{
           name: "delete query",
           buttonText: "Delete",
-          icon: "delete",
+          iconSvg: "trash",
           variant: "text-icon",
           onActionButtonClick: onDeleteQueryClick,
         }}
