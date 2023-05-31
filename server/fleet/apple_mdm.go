@@ -2,7 +2,7 @@ package fleet
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -438,7 +438,7 @@ type MDMApplePreassignProfilePayload struct {
 // the hashing algorithm used by the Mysql database for profiles (SHA2 would be
 // an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
 func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
-	sum := md5.Sum(p.Profile)
+	sum := md5.Sum(p.Profile) //nolint: gosec
 	return hex.EncodeToString(sum[:])
 }
 
