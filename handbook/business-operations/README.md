@@ -690,10 +690,13 @@ We like to open about milestones and announcements.
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
-- Each Friday, if there are any upcoming workiversaries in the next seven days, Mike McNeil posts about them in #help-classified and tags `@mikermcneil` to let them know.
-- Founders discuss during their 1:1, reviewing performance and the latest compensation benchmarks for this person's role and geography.
-- If a compensation change is decided, Mike or Zach posts to Slack in `#help-classified` with the change to compensation and effective date, if any.
-- CEO updates the respective payroll platform (Gusto or Pilot) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
+- On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
+- The Head of BizOps prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
+- During the 1:1 call, founders review performance and benchmarking for role and geography, and decide if there will be an adjustment.
+- Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
+- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
 
 
