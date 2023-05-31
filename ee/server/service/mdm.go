@@ -772,11 +772,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	}
 
 	// Collect the profiles' hashes and look for a team with exactly that set.
-	// Also collect the profiles' groups in case we need to create a new team.
-	hashes, groups := make([]string, 0, len(profs.Profiles)),
-		make([]string, 0, len(profs.Profiles))
+	// Also collect the profiles' groups in case we need to create a new team,
+	// and the list of raw profiles bytes.
+	hashes, groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
+		make([]string, 0, len(profs.Profiles)), make([][]byte, 0, len(profs.Profiles))
 	for _, prof := range profs.Profiles {
 		hashes = append(hashes, prof.HexMD5Hash)
+		rawProfiles = append(rawProfiles, prof.Profile)
 		if prof.Group != "" {
 			groups = append(groups, prof.Group)
 		}
@@ -815,7 +817,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 			return err
 		}
 
-		// TODO(mna): create profiles for that team
+		// create profiles for that team via the service call, so that uniqueness
+		// of profile identifier/name is verified, activity created, etc.
+		// NOTE: this will use the read replica to load the team, which was just
+		// created above, could lead to not found issues with slow replication.
+		if err := svc.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil, rawProfiles, false); err != nil {
+			return err
+		}
 
 		targetTeamID = tm.ID
 	}
