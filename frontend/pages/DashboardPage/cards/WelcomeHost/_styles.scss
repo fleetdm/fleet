@@ -108,7 +108,6 @@
 
     button {
       margin-right: $pad-small;
-      padding-left: $pad-small;
 
       &.refetch-spinner {
         color: $core-white;
@@ -116,14 +115,12 @@
         height: 38px;
 
         .icon {
-          transform: scale(0.5);
-          margin-right: $pad-xsmall;
+          margin-right: 6px;
         }
 
         &.spin {
           .icon {
             animation: spin 2s linear infinite;
-            transform: scale(2);
           }
         }
 

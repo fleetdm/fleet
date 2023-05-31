@@ -214,7 +214,7 @@ const WelcomeHost = ({
           <div className="info">
             <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
               {host.display_name}
-              <Icon name="arrow" />
+              <Icon name="arrow-internal-link" />
             </Link>
             <p>Your host is successfully connected to Fleet.</p>
           </div>
@@ -256,7 +256,7 @@ const WelcomeHost = ({
           {host.policies?.length > 3 && (
             <Link to={PATHS.HOST_POLICIES(host.id)} className="external-link">
               Go to Host details to see all policies
-              <Icon name="arrow" />
+              <Icon name="arrow-internal-link" />
             </Link>
           )}
         </div>
@@ -272,8 +272,7 @@ const WelcomeHost = ({
             onClick={onRefetchHost}
             disabled={showRefetchLoadingSpinner}
           >
-            <Icon name="refresh" color="core-fleet-white" size="large" />{" "}
-            Refetch
+            <Icon name="refresh" color="core-fleet-white" /> Refetch
           </Button>
           <span>
             Last updated{" "}

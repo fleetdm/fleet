@@ -174,10 +174,6 @@
         font-size: $x-small;
         height: 38px;
         margin-left: $pad-small;
-
-        .icon {
-          margin-right: 6px;
-        }
       }
 
       .refetch-offline {
@@ -195,7 +191,6 @@
 
         .icon {
           animation: spin 2s linear infinite;
-          margin-right: 6px;
         }
 
         @keyframes spin {

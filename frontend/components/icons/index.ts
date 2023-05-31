@@ -1,5 +1,6 @@
 import Alert from "./Alert";
 import Arrow from "./Arrow";
+import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
@@ -68,6 +69,7 @@ import FilePdf from "./FilePdf";
 export const ICON_MAP = {
   alert: Alert,
   arrow: Arrow,
+  "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
