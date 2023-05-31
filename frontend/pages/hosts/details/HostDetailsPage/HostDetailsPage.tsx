@@ -37,7 +37,7 @@ import BackLink from "components/BackLink";
 
 import {
   normalizeEmptyValues,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
   wrapFleetHelper,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -309,7 +309,7 @@ const HostDetailsPage = ({
         setUsersState(returnedHost.users || []);
         setHostDiskEncryption({
           enabled: returnedHost.disk_encryption_enabled,
-          tooltip: humanHostDiskEncryptionEnabled(
+          tooltip: getHostDiskEncryptionTooltipMessage(
             returnedHost.platform,
             returnedHost.disk_encryption_enabled
           ),

@@ -26,7 +26,7 @@ import InfoBanner from "components/InfoBanner";
 import {
   normalizeEmptyValues,
   wrapFleetHelper,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
 } from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -153,7 +153,7 @@ const DeviceUserPage = ({
         setHost(returnedHost.host);
         setHostDiskEncryption({
           enabled: returnedHost.host.disk_encryption_enabled,
-          tooltip: humanHostDiskEncryptionEnabled(
+          tooltip: getHostDiskEncryptionTooltipMessage(
             returnedHost.host.platform,
             returnedHost.host.disk_encryption_enabled
           ),

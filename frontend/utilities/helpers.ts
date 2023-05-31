@@ -661,7 +661,7 @@ const DISK_ENCRYPTION_MESSAGES = {
   },
 };
 
-export const humanHostDiskEncryptionEnabled = (
+export const getHostDiskEncryptionTooltipMessage = (
   platform?: string,
   isDiskEncrypted = false
 ): string => {
@@ -888,7 +888,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
