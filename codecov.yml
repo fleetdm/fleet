@@ -1,0 +1,14 @@
+coverage:
+  status:
+    project:
+      default: false
+      frontend:
+        informational: true
+        paths:
+          - "frontend/"
+      app:
+        paths:
+          - "!frontend/"
+    patch:
+      default:
+        informational: true
