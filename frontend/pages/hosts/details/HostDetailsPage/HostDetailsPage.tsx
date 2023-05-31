@@ -35,11 +35,7 @@ import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import {
-  normalizeEmptyValues,
-  getHostDiskEncryptionTooltipMessage,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -91,11 +87,6 @@ interface ISearchQueryData {
   sortDirection: string;
   pageSize: number;
   pageIndex: number;
-}
-
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
 }
 
 interface IHostDetailsSubNavItem {
@@ -163,10 +154,6 @@ const HostDetailsPage = ({
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
-  const [
-    hostDiskEncryption,
-    setHostDiskEncryption,
-  ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
@@ -307,13 +294,6 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
-        setHostDiskEncryption({
-          enabled: returnedHost.disk_encryption_enabled,
-          tooltip: getHostDiskEncryptionTooltipMessage(
-            returnedHost.platform,
-            returnedHost.disk_encryption_enabled
-          ),
-        });
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -685,7 +665,7 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           titleData={titleData}
-          diskEncryption={hostDiskEncryption}
+          diskEncryptionEnabled={host?.disk_encryption_enabled}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
