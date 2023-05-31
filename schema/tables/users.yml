@@ -62,5 +62,9 @@ columns:
     platforms:
       - linux
   - name: username
+    description: Username
     platforms:
+      - darwin
+      - windows
+      - linux
       - chromeos
