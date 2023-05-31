@@ -107,6 +107,44 @@ ORDER BY name`
 	return res, nil
 }
 
+func (ds *Datastore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]*fleet.Team, error) {
+	// as a special-case, should never be called without at least one hash but if
+	// so, never matches anything.
+	if len(hexMD5Hashes) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	p1.team_id
+FROM
+	mdm_apple_configuration_profiles p1
+WHERE
+	NOT EXISTS (
+		SELECT
+			1
+		FROM
+			mdm_apple_configuration_profiles p2
+		WHERE
+			p1.team_id = p2.team_id AND
+			HEX(p2.checksum) NOT IN (?)
+	)
+GROUP BY
+	p1.team_id
+HAVING
+	COUNT(*) = ?`
+
+	stmt, args, err := sqlx.In(stmt, hexMD5Hashes, len(hexMD5Hashes))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare query arguments")
+	}
+
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute query")
+	}
+}
+
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT

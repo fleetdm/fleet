@@ -443,7 +443,9 @@ type MDMApplePreassignProfilePayload struct {
 // an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
 func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
 	sum := md5.Sum(p.Profile) //nolint: gosec
-	return hex.EncodeToString(sum[:])
+
+	// mysql's HEX function returns uppercase
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
 }
 
 // MDMApplePreassignHostProfiles represents the set of profiles that were

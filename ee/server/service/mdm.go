@@ -750,6 +750,35 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return nil // nothing to do
 	}
 
+	// load the host and ensure it is enrolled in Fleet MDM
+	host, err := svc.ds.HostByIdentifier(ctx, profs.HostUUID)
+	if err != nil {
+		return err // will return a not found error if host does not exist
+	}
+
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil || !hostMDM.IsFleetEnrolled() {
+		if err == nil || fleet.IsNotFound(err) {
+			err = errors.New("host is not enrolled in Fleet MDM")
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     err.Error(),
+				InternalErr: err,
+			})
+		}
+		return err
+	}
+
+	// Collect the profiles' hashes and look for a team with exactly that set.
+	// Also collect the profiles' groups in case we need to create a new team.
+	hashes, groups := make([]string, 0, len(profs.Profiles)),
+		make([]string, 0, len(profs.Profiles))
+	for _, prof := range profs.Profiles {
+		hashes = append(hashes, prof.HexMD5Hash)
+		if prof.Group != "" {
+			groups = append(groups, prof.Group)
+		}
+	}
+
 	// TODO(mna): match team, create if necessary, assign host
 	return nil
 }

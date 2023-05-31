@@ -793,6 +793,13 @@ func (h *HostMDM) IsManualFleetEnrolled() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM, regardless of automatic or manual
+// enrollment method.
+func (h *HostMDM) IsFleetEnrolled() bool {
+	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
