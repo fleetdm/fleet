@@ -1,3 +1,4 @@
+import TooltipWrapper from "components/TooltipWrapper";
 import React from "react";
 
 import { secondsToHms } from "utilities/helpers";
@@ -10,7 +11,8 @@ interface IAgentOptionsProps {
 
 // TODO: confirm these values
 const CHROMEOS_AGENT_OPTIONS = ["10 secs", "10 secs", "10 secs"];
-
+const CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE =
+  "Chromebooks ignore Fleet’s agent options configuration. The options displayed below are the same for all Chromebooks.";
 const AgentOptions = ({
   osqueryData,
   wrapFleetHelper,
@@ -41,9 +43,20 @@ const AgentOptions = ({
       osqueryData.distributed_interval
     );
   }
+
   return (
     <div className="section osquery col-50">
-      <p className="section__header">Agent options</p>
+      {platform === "chromeos" ? (
+        <TooltipWrapper
+          tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
+          position="bottom"
+          className="section__header"
+        >
+          Agent options
+        </TooltipWrapper>
+      ) : (
+        <p className="section__header">Agent options</p>
+      )}
       <div className="info-grid">
         <div className="info-grid__block">
           <span className="info-grid__header">Config TLS refresh</span>
