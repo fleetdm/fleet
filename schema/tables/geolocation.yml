@@ -1,4 +1,5 @@
 name: geolocation
+evented: false
 platforms:
   - chromeos
 description: Last reported geolocation

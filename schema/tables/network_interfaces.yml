@@ -1,4 +1,5 @@
 name: network_interfaces
+evented: false
 platforms:
   - chromeos
 description: Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.
