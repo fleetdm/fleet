@@ -743,6 +743,6 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	}
 
 	// TODO(mna): TBD the exact signature, must return the list of profiles for matching
-	//profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
+	profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
 	return nil
 }

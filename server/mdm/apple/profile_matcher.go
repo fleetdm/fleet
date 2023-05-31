@@ -97,15 +97,36 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 
 // RetrieveProfiles retrieves the profiles preassigned to this host for
 // matching with a team and assignment.
-func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error {
+func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (fleet.MDMApplePreassignHostProfiles, error) {
+	var hostProfs fleet.MDMApplePreassignHostProfiles
+
 	// Note that we do not configure the Redis connection to read from a replica
 	// here as it may be called very soon after the PreassignProfile call and
 	// could miss some unreplicated profiles.
 	conn := redis.ConfigureDoer(p.pool, p.pool.Get())
 	defer conn.Close()
+
+	profs, err := redigo.StringMap(conn.Do("HGETALL", keyForExternalHostIdentifier(externalHostIdentifier)))
+	if err != nil {
+		return hostProfs, ctxerr.Wrap(ctx, err, "execute redis HGETALL")
+	}
+	if _, err := conn.Do("UNLINK", keyForExternalHostIdentifier(externalHostIdentifier)); err != nil {
+		return hostProfs, ctxerr.Wrap(ctx, err, "execute redis UNLINK")
+	}
+	_ = conn.Close() // release connection to the pool immediately as we're done with redis
+
+	if hostProfs.HostUUID = profs["host_uuid"]; hostProfs.HostUUID == "" {
+		// unknown host/no profiles to assign, not an error but nothing to do
+		return hostProfs, nil
+	}
+	delete(profs, "host_uuid")
+
+	for k, v := range profs {
+	}
+
 	// TODO: find all profiles matching the host identifier
 	// TODO: cleanup all retrieved profiles?
-	return nil
+	return hostProfs, nil
 }
 
 func keyForExternalHostIdentifier(externalHostIdentifier string) string {

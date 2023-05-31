@@ -446,6 +446,20 @@ func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
 	return hex.EncodeToString(sum[:])
 }
 
+// MDMApplePreassignHostProfiles represents the set of profiles that were
+// pre-assigned to a given host identified by its UUID.
+type MDMApplePreassignHostProfiles struct {
+	HostUUID string
+	Profiles []MDMApplePreassignProfile
+}
+
+// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
+type MDMApplePreassignProfile struct {
+	Profile    []byte
+	Group      string
+	HexMD5Hash string
+}
+
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
@@ -556,5 +570,5 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 // implementation is used in production.
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
