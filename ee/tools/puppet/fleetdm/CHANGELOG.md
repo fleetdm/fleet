@@ -7,5 +7,5 @@ All notable changes to this project will be documented in this file.
 **Features**
 
 - Ability to define profiles using the custom type `fleetdm::profile`.
-- Ability to release a device from await configuration using the custo function `fleetdm::release_device`.
+- Ability to release a device from await configuration using the custom function `fleetdm::release_device`.
 
