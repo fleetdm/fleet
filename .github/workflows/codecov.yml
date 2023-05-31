@@ -5,10 +5,10 @@ coverage:
         informational: true
       frontend:
         paths:
-          - frontend/**
+          - frontend
     patch:
       default:
         informational: true
       frontend:
         paths:
-          - frontend/**
+          - frontend
