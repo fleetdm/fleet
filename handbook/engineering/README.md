@@ -117,9 +117,14 @@ This would include the CTO + Engineering managers.
 
 ## Handling BUGs
 
+- [Which bugs should be on the sprint board](#which-bugs-should-be-on-the-sprint-board)
 - [Bugs on Product Roadmap Board](#bugs-on-product-roadmap-board)
 - [Unreleased Bugs](#unreleased-bugs)
-- [Which bugs should be on the sprint board](#which-bugs-should-be-on-the-sprint-board)
+
+### Which bugs should be on the sprint board
+ - Bugs that the team picked in the sprint kickoff
+ - Critical bugs
+ - Non Released bugs
 
 ### Bugs on Product Roadmap Board:
 EM will go daily over the bugs in INBOX column and address them as follows:
@@ -132,11 +137,6 @@ QA person will put this bug ticket in the RELEASE BOARD READY column and label i
 EM will take one of these two actions: 
  - Solve the bug before the release. (Preferable)
  - Revert the PR that caused this bug.
-
-### Which bugs should be on the sprint board
- - Bugs that the team pick in the sprint kickoff
- - Critical bugs
- - Non Released bugs
 
 ## Release process
 
