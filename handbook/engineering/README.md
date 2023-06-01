@@ -43,7 +43,7 @@ The following is the subset of proposed engineering meetings. Each group is free
      - What could we have done better?
      - What did we learn?
 - Scrum items:
-  - Objectives / Epics: We only use Stories to reflect our work items. Since ZenHub only allows Epics to have Tickets' hirarchy, when hirarchy is needed we use ZenHub's Epics. However, we consider them to be Scrum Stories. We label them with "Story" and treat them as such. (Think of them as Epically Awesome Stories :-) ) 
+  - Objectives / Epics: We only use Stories to reflect our work items. Since ZenHub only allows Epics to have Tickets' hirarchy, when hirarchy is needed we use ZenHub's Epics. However, we consider them to be Scrum Stories. We label them with "Story" and treat them as such. (Think of them as Epically Awesome Stories 😉 ) 
   - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the &lt;user&gt; I would like to &lt;have something done or changed&gt; so that I can &lt;benefit from it in this specific way&gt;. A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
   - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
 
