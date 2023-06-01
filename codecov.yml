@@ -4,6 +4,8 @@ coverage:
     patch: off
 
 flag_management:
+  default_rules:
+    carryforward: true
   individual_flags:
     - name: backend
       paths:
