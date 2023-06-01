@@ -1,7 +1,9 @@
 coverage:
   status:
     project: off
-    patch: off
+    patch:
+      default:
+        informational: true
 
 flag_management:
   default_rules:
