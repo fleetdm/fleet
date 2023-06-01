@@ -152,7 +152,7 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
-  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
+  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -313,7 +313,7 @@ const HostDetailsPage = ({
             { packs: [], schedule: [] }
           );
           setPacksState(packStatsByType.packs);
-          setScheduleState(packStatsByType.schedule);
+          setSchedule(packStatsByType.schedule);
         }
       },
       onError: (error) => handlePageError(error),
@@ -740,7 +740,8 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <ScheduleCard
-                scheduleState={scheduleState}
+                isChromeOSHost={host?.platform === "chrome"}
+                schedule={schedule}
                 isLoading={isLoadingHost}
               />
               {canViewPacks && (
