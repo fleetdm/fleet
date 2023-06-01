@@ -3,27 +3,26 @@ import React from "react";
 
 import { secondsToHms } from "utilities/helpers";
 
+const baseClass = "agent-options";
 interface IAgentOptionsProps {
   osqueryData: { [key: string]: any };
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
-  platform?: string;
+  isChromeOS?: boolean;
 }
 
-// TODO: confirm these values
-const CHROMEOS_AGENT_OPTIONS = ["10 secs", "10 secs", "10 secs"];
+const CHROMEOS_AGENT_OPTIONS = ["Not supported", "Not supported", "10 secs"];
 const CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE =
   "Chromebooks ignore Fleet’s agent options configuration. The options displayed below are the same for all Chromebooks.";
 const AgentOptions = ({
   osqueryData,
   wrapFleetHelper,
-  platform,
+  isChromeOS = false,
 }: IAgentOptionsProps): JSX.Element => {
   let configTLSRefresh;
   let loggerTLSPeriod;
   let distributedInterval;
 
-  // TODO: check this is the correct string to expect
-  if (platform === "chromeos") {
+  if (isChromeOS) {
     [
       configTLSRefresh,
       loggerTLSPeriod,
@@ -45,8 +44,8 @@ const AgentOptions = ({
   }
 
   return (
-    <div className="section osquery col-50">
-      {platform === "chromeos" ? (
+    <div className={`${baseClass} section osquery col-50`}>
+      {isChromeOS ? (
         <TooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
           position="bottom"
@@ -60,11 +59,15 @@ const AgentOptions = ({
       <div className="info-grid">
         <div className="info-grid__block">
           <span className="info-grid__header">Config TLS refresh</span>
-          <span className="info-grid__data">{configTLSRefresh}</span>
+          <span className={`info-grid__data ${isChromeOS ? "grey-text" : ""}`}>
+            {configTLSRefresh}
+          </span>
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Logger TLS period</span>
-          <span className="info-grid__data">{loggerTLSPeriod}</span>
+          <span className={`info-grid__data ${isChromeOS ? "grey-text" : ""}`}>
+            {loggerTLSPeriod}
+          </span>
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Distributed interval</span>

@@ -65,9 +65,7 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
-  // const { status, id, platform } = titleData;
-  const { status, id } = titleData;
-  const platform = "chrome";
+  const { status, id, platform } = titleData;
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
@@ -200,7 +198,7 @@ const HostSummary = ({
 
         {isPremiumTier && renderHostTeam()}
 
-        {titleData.platform === "darwin" &&
+        {platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
           hostMacSettings &&
@@ -222,7 +220,7 @@ const HostSummary = ({
           </HostSummaryIndicator>
         )}
 
-        {titleData.platform !== "chrome" && ( // TODO: confirm this is the correct string to expect
+        {platform !== "chrome" && (
           <div className="info-flex__item info-flex__item--title">
             <span className="info-flex__header">Disk space</span>
             <DiskSpaceGraph
@@ -230,7 +228,7 @@ const HostSummary = ({
               gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
               percentDiskSpaceAvailable={titleData.percent_disk_space_available}
               id={`disk-space-tooltip-${titleData.id}`}
-              platform={titleData.platform}
+              platform={platform}
               tooltipPosition="bottom"
             />
           </div>

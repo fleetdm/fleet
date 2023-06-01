@@ -703,7 +703,7 @@ const HostDetailsPage = ({
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
-                  platform={host?.platform}
+                  isChromeOS={host?.platform === "chrome"}
                 />
                 <LabelsCard
                   labels={host?.labels || []}
