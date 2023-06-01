@@ -296,9 +296,14 @@ Estimating bugs and outages can be helpful in getting on the same page about how
 
 ## Project boards
 
-[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
+Each team will have their own release board.
+[MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+[CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+[Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+[Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
+Product board is also serving as a Backlog for all teams.
+[Product](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
 
 ## Scaling gotchas
 
