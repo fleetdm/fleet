@@ -1,14 +1,20 @@
 coverage:
   status:
-    project:
-      default: false
-      frontend:
-        informational: true
-        paths:
-          - "frontend/"
-      app:
-        paths:
-          - "!frontend/"
-    patch:
-      default:
-        informational: true
+    project: off
+    patch: off
+
+flag_management:
+  individual_flags:
+    - name: backend
+      paths:
+        - server/
+      statuses:
+        - type: project
+          target: auto
+          threshold: 3%
+    - name: frontend
+      paths:
+        - frontend/
+      statuses:
+        - type: project
+          informational: true
