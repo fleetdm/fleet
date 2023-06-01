@@ -5,8 +5,12 @@ export type IOsqueryPlatform =
   | "Windows"
   | "linux"
   | "Linux"
+<<<<<<< HEAD
   | "chrome"
   | "ChromeOS";
+=======
+  | "chrome";
+>>>>>>> 02540d807 (Add platform)
 
 export type ISelectedPlatform =
   | "all"
