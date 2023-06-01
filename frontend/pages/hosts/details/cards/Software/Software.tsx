@@ -44,8 +44,8 @@ interface ISoftwareTableProps {
     order_direction?: "asc" | "desc";
   };
   routeTemplate?: string;
-  hostId: number;
   pathname: string;
+  pathPrefix: string;
 }
 
 interface IRowProps extends Row {
@@ -67,7 +67,7 @@ const SoftwareTable = ({
   router,
   queryParams,
   routeTemplate,
-  hostId,
+  pathPrefix,
   pathname,
 }: ISoftwareTableProps): JSX.Element => {
   const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
@@ -118,8 +118,9 @@ const SoftwareTable = ({
       ) {
         newQueryParams.page = 0;
       }
+
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        pathPrefix,
         routeTemplate,
         queryParams: newQueryParams,
       });
@@ -132,7 +133,7 @@ const SoftwareTable = ({
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        pathPrefix,
         routeTemplate,
         queryParams: {
           ...queryParams,
@@ -163,17 +164,16 @@ const SoftwareTable = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
-    router?.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
-        routeTemplate,
-        queryParams: {
-          ...queryParams,
-          page: 0,
-          vulnerable: isFilterVulnerable,
-        },
-      })
-    );
+    const nextPath = getNextLocationPath({
+      pathPrefix,
+      routeTemplate,
+      queryParams: {
+        ...queryParams,
+        page: 0,
+        vulnerable: isFilterVulnerable,
+      },
+    });
+    router?.replace(nextPath);
   };
 
   const handleRowSelect = (row: IRowProps) => {
