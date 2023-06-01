@@ -524,9 +524,9 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, include Zach in this final interview.)
    - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
    - Make sure that the agenda doc for the 30m final interview with CEO is in an outline format, located in the "Meeting notes" folder, and contains a discussion point about asking the candidate to verify that 2FA is enabled in their GitHub account.
-4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
+4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO and Head of Business Operations via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
-   - _Share_ this single document with the CEO via email.
+   - _Share_ this single document with the CEO and Head of Business Operations via email.
      - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
        >Why hire Jane Doe ("Train Conductor") - 2023-03-21
      - When the CEO receives this doc shared doc in his email with the compiled feedback about the candidate, he will understand that to mean that it is time for Fleet to make an offer to the candidate.
@@ -535,8 +535,8 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
-1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
-2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he notifies the Head of Business Operations to proceed with the offer.
+2. **Adjust compensation:** Head of Business Operations [re-benchmarks salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
    - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer offer that is about to be sent:
      -  Salary _(OTE actually offered)_
@@ -544,24 +544,24 @@ After meeting with the candidate for their final interview, the CEO uses the fol
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
      -  "Offer sent?" _(set this to `TRUE`)_
      - …and make sure the other status columns are set to `todo`.
-3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
+3. **Prepare the "exit scenarios" spreadsheet:** Head of Business Operations [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
    - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
-4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+4. **Prepare offer email:** Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
    - _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
-5. **Send offer:** Once both documents are complete, send the offer email:
+5. **Send offer:** Once both documents are complete, Head of Business Operations notifies CEO who then sends the offer email:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
+   - Cc: Zach Wasserman and Head of Business Operations, both included as a recipient but will not participate in the email thread until after the offer is accepted.
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
 
 
 #### Steps after an offer is accepted
 
-Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  The Head of Business Operations is then responsible for these steps:
 1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, then we are not done.  No offer is "accepted" until we've received a physical address.
    - _Review and update the team database_ to be sure everything is accurate, **one last time**.  Remember to read the column headers and precisely follow the instructions about how to format the data:
@@ -576,7 +576,7 @@ Once the new team member replies and accepts their offer in writing, either the 
        - **Physical address** _(The full street address of the location where work will typically be performed.)_
        - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
        - **"Offer accepted?"** _(Set this to `TRUE`)_
-   - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
+   - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This issue will keep track of the hiring tasks for the new team member.)
    - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
      ```
      \o/  It's official!
@@ -585,7 +585,7 @@ Once the new team member replies and accepts their offer in writing, either the 
      
      Thanks, and welcome to the team!
      
-     -Mike
+     -Joanne
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
