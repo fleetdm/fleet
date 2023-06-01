@@ -580,6 +580,9 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
+	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
@@ -657,6 +660,16 @@ type Service interface {
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
+
+	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
+	// request that will match the profiles to a team (or create one if needed),
+	// assign the host to that team and assign the profiles to the host.
+	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+
+	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
+	// team, creating one if none match, assigns the corresponding host to that
+	// team and assigns the matched team's profiles to the host.
+	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error

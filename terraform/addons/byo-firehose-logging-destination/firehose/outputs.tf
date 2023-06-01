@@ -6,6 +6,8 @@ output "fleet_extra_environment_variables" {
     FLEET_FIREHOSE_REGION              = var.region
     FLEET_OSQUERY_STATUS_LOG_PLUGIN    = "firehose"
     FLEET_OSQUERY_RESULT_LOG_PLUGIN    = "firehose"
+    FLEET_ACTIVITY_ENABLE_AUDIT_LOG    = length(var.firehose_audit_name) > 0 ? "true" : "false"
+    FLEET_ACTIVITY_AUDIT_LOG_PLUGIN    = "firehose" # only has an effect if ^ is true
   }
 }
 

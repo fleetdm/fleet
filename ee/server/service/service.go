@@ -27,6 +27,7 @@ type Service struct {
 	mdmPushCertTopic  string
 	ssoSessionStore   sso.SessionStore
 	depService        *apple_mdm.DEPService
+	profileMatcher    fleet.ProfileMatcher
 }
 
 func NewService(
@@ -40,6 +41,7 @@ func NewService(
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	mdmPushCertTopic string,
 	sso sso.SessionStore,
+	profileMatcher fleet.ProfileMatcher,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -58,6 +60,7 @@ func NewService(
 		mdmPushCertTopic:  mdmPushCertTopic,
 		ssoSessionStore:   sso,
 		depService:        apple_mdm.NewDEPService(ds, depStorage, logger),
+		profileMatcher:    profileMatcher,
 	}
 
 	// Override methods that can't be easily overriden via

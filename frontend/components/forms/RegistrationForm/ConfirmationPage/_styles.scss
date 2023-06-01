@@ -72,7 +72,7 @@
     word-wrap: break-word;
     font-family: "SourceCodePro", $monospace;
     vertical-align: bottom;
-    font-weight: 600;
+    font-weight: $bold;
   }
 
   &__import {

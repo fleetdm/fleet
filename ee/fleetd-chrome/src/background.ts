@@ -1,5 +1,9 @@
 import VirtualDatabase from "./db";
 
+// ENV Vars
+declare var FLEET_URL: string;
+declare var FLEET_ENROLL_SECRET: string;
+
 // TODO: Globals should probably be cleaned up into a class encapsulating state.
 let DATABASE: VirtualDatabase;
 
@@ -10,10 +14,11 @@ interface requestArgs {
 }
 const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
   const { fleet_url } = await chrome.storage.managed.get({
-    fleet_url: "https://fleet.loophole.site",
+    fleet_url: FLEET_URL,
   });
 
   const target = new URL(path, fleet_url);
+
   const options = {
     method: "POST",
     body: JSON.stringify(body),
@@ -70,7 +75,7 @@ const enroll = async () => {
   };
 
   const { enroll_secret } = await chrome.storage.managed.get({
-    enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ",
+    enroll_secret: FLEET_ENROLL_SECRET,
   });
 
   let host_identifier = host_details.system_info.hardware_serial;

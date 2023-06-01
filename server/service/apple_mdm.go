@@ -372,15 +372,16 @@ func (r listMDMAppleConfigProfilesResponse) error() error { return r.Err }
 
 func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMAppleConfigProfilesRequest)
-	res := listMDMAppleConfigProfilesResponse{}
 
 	cps, err := svc.ListMDMAppleConfigProfiles(ctx, req.TeamID)
 	if err != nil {
-		res.Err = err
-		return &res, err
+		return &listMDMAppleConfigProfilesResponse{Err: err}, nil
 	}
-	res.ConfigProfiles = cps
 
+	res := listMDMAppleConfigProfilesResponse{ConfigProfiles: cps}
+	if cps == nil {
+		res.ConfigProfiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
+	}
 	return &res, nil
 }
 
@@ -1547,6 +1548,70 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Preassign a profile to a host
+////////////////////////////////////////////////////////////////////////////////
+
+type preassignMDMAppleProfileRequest struct {
+	fleet.MDMApplePreassignProfilePayload
+}
+
+type preassignMDMAppleProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r preassignMDMAppleProfileResponse) error() error { return r.Err }
+
+func (r preassignMDMAppleProfileResponse) Status() int { return http.StatusNoContent }
+
+func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*preassignMDMAppleProfileRequest)
+	if err := svc.MDMApplePreassignProfile(ctx, req.MDMApplePreassignProfilePayload); err != nil {
+		return preassignMDMAppleProfileResponse{Err: err}, nil
+	}
+	return preassignMDMAppleProfileResponse{}, nil
+}
+
+func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Match a set of pre-assigned profiles with a team
+////////////////////////////////////////////////////////////////////////////////
+
+type matchMDMApplePreassignmentRequest struct {
+	ExternalHostIdentifier string `json:"external_host_identifier"`
+}
+
+type matchMDMApplePreassignmentResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r matchMDMApplePreassignmentResponse) error() error { return r.Err }
+
+func (r matchMDMApplePreassignmentResponse) Status() int { return http.StatusNoContent }
+
+func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*matchMDMApplePreassignmentRequest)
+	if err := svc.MDMAppleMatchPreassignment(ctx, req.ExternalHostIdentifier); err != nil {
+		return matchMDMApplePreassignmentResponse{Err: err}, nil
+	}
+	return matchMDMApplePreassignmentResponse{}, nil
+}
+
+func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Update MDM Apple Settings
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2181,7 +2246,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				if info.TeamID != 0 {
 					team, err := svc.ds.Team(r.Context, info.TeamID)
 					if err != nil {
-
 						return fmt.Errorf("fetch team to send AccountConfiguration: %w", err)
 					}
 					ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication

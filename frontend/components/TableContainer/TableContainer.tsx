@@ -8,6 +8,7 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -336,11 +337,8 @@ const TableContainer = ({
                 >
                   <>
                     {actionButton.buttonText}
-                    {actionButton.icon && (
-                      <img
-                        src={actionButton.icon}
-                        alt={`${actionButton.buttonText} icon`}
-                      />
+                    {actionButton.iconSvg && (
+                      <Icon name={actionButton.iconSvg} />
                     )}
                   </>
                 </Button>

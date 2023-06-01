@@ -570,6 +570,8 @@ type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
 
+type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
+
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
@@ -1463,6 +1465,9 @@ type DataStore struct {
 
 	ListMDMAppleDEPSerialsInHostIDsFunc        ListMDMAppleDEPSerialsInHostIDsFunc
 	ListMDMAppleDEPSerialsInHostIDsFuncInvoked bool
+
+	GetHostDEPAssignmentFunc        GetHostDEPAssignmentFunc
+	GetHostDEPAssignmentFuncInvoked bool
 
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
@@ -3497,6 +3502,13 @@ func (s *DataStore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs
 	s.ListMDMAppleDEPSerialsInHostIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleDEPSerialsInHostIDsFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {

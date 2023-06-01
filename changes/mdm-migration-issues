@@ -1,0 +1,3 @@
+* Fixed issues with the MDM migration flow that caused:
+ - Prompt not showing up if the device belongs to a team.
+ - Prompt showing up if the device is DEP capable, but manually enrolled into Fleet.

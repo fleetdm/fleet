@@ -3,12 +3,9 @@ import { kebabCase, noop } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
+import Icon from "components/Icon/Icon";
+import { IconNames } from "components/icons";
 import Button from "../../../buttons/Button";
-import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
-import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
-import CheckIcon from "../../../../../assets/images/icon-action-check-16x15@2x.png";
-import DisableIcon from "../../../../../assets/images/icon-action-disable-14x14@2x.png";
-import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {
@@ -18,7 +15,7 @@ export interface IActionButtonProps {
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
-  icon?: string;
+  iconSvg?: IconNames;
   iconPosition?: string;
   indicatePremiumFeature?: boolean;
 }
@@ -42,31 +39,12 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     targetIds = [],
     variant = "brand",
     hideButton,
-    icon,
+    iconSvg,
     iconPosition,
     indicatePremiumFeature,
   } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick || noop);
 
-  const iconLink = ((iconProp) => {
-    // check if using pre-defined short-hand otherwise otherwise return the prop
-    switch (iconProp) {
-      case "close":
-        return CloseIcon;
-      case "remove":
-        return CloseIcon;
-      case "delete":
-        return DeleteIcon;
-      case "check":
-        return CheckIcon;
-      case "disable":
-        return DisableIcon;
-      case "transfer":
-        return TransferIcon;
-      default:
-        return null;
-    }
-  })(icon);
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
   const isHidden = (
@@ -81,6 +59,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   if (isHidden(hideButton)) {
     return null;
   }
+
   return (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       {indicatePremiumFeature && (
@@ -92,13 +71,9 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         variant={variant}
       >
         <>
-          {iconPosition === "left" && iconLink && (
-            <img alt={`${name} icon`} src={iconLink} />
-          )}
+          {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
           {buttonText}
-          {iconPosition !== "left" && iconLink && (
-            <img alt={`${name} icon`} src={iconLink} />
-          )}
+          {iconPosition !== "left" && iconSvg && <Icon name={iconSvg} />}
         </>
       </Button>
     </div>

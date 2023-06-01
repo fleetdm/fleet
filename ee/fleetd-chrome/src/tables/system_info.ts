@@ -14,6 +14,20 @@ export default class TableSystemInfo extends Table {
     "physical_memory",
   ];
 
+  getComputerName(hostname: string, hwSerial: string): string {
+    const prefix = 'Chromebook'
+
+    if (!!hostname?.length) {
+      return hostname
+    }
+
+    if (!!hwSerial?.length) {
+      return `${prefix} ${hwSerial}`
+    }
+
+    return prefix
+  }
+
   async generate() {
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
     const uuid = await chrome.instanceID.getID();
@@ -27,42 +41,42 @@ export default class TableSystemInfo extends Table {
       console.warn("get hostname:", err);
     }
 
-    let hardware_serial = "";
+    let hwSerial = "";
     try {
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hardware_serial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
+      hwSerial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
     } catch (err) {
       console.warn("get serial number:", err);
     }
 
-    let hardware_vendor = "",
-      hardware_model = "";
+    let hwVendor = "",
+      hwModel = "";
     try {
       // This throws "Not allowed" error if
       // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
       // not configured to enabled for the device.
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      const platform_info = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
-      hardware_vendor = platform_info.manufacturer;
-      hardware_model = platform_info.model;
+      const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
+      hwVendor = platformInfo.manufacturer;
+      hwModel = platformInfo.model;
     } catch (err) {
       console.warn("get platform info:", err);
     }
 
-    let cpu_brand = "",
-      cpu_type = "";
+    let cpuBrand = "",
+      cpuType = "";
     try {
-      const cpu_info = await chrome.system.cpu.getInfo();
-      cpu_brand = cpu_info.modelName;
-      cpu_type = cpu_info.archName;
+      const cpuInfo = await chrome.system.cpu.getInfo();
+      cpuBrand = cpuInfo.modelName;
+      cpuType = cpuInfo.archName;
     } catch (err) {
       console.warn("get cpu info:", err);
     }
 
-    let physical_memory = "";
+    let physicalMemory = "";
     try {
-      const memory_info = await chrome.system.memory.getInfo();
-      physical_memory = memory_info.capacity.toString();
+      const memoryInfo = await chrome.system.memory.getInfo();
+      physicalMemory = memoryInfo.capacity.toString();
     } catch (err) {
       console.warn("get memory info:", err);
     }
@@ -71,13 +85,13 @@ export default class TableSystemInfo extends Table {
       {
         uuid,
         hostname,
-        computer_name: hostname ? hostname : `ChromeOS ${hardware_serial}`,
-        hardware_serial,
-        hardware_vendor,
-        hardware_model,
-        cpu_brand,
-        cpu_type,
-        physical_memory,
+        computer_name: this.getComputerName(hostname, hwSerial) ,
+        hardware_serial: hwSerial,
+        hardware_vendor: hwVendor,
+        hardware_model: hwModel,
+        cpu_brand: cpuBrand,
+        cpu_type: cpuType,
+        physical_memory: physicalMemory,
       },
     ];
   }
