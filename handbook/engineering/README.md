@@ -134,9 +134,9 @@ EM will take one of these two actions:
  - Revert the PR that caused this bug.
 
 ### Which bugs should be on the sprint board
-Bugs that the team pick in the sprint kickoff
-Critical bugs
-Non Released bugs
+ - Bugs that the team pick in the sprint kickoff
+ - Critical bugs
+ - Non Released bugs
 
 ## Release process
 
