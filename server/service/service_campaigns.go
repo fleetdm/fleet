@@ -2,10 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -172,26 +169,13 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
-
-				//////////////////////////////////////////////////////////////////////////////////////////////////////////
-				// Simulate 40k results from random hosts.
-				//////////////////////////////////////////////////////////////////////////////////////////////////////////
-				for i := 0; i < 40000; i++ {
-					res.Host.ID = uint(rand.Uint64())
-					res.Host.Hostname = base64.RawStdEncoding.EncodeToString([]byte(strconv.Itoa(rand.Int())))
-					res.Host.DisplayName = base64.RawStdEncoding.EncodeToString([]byte(strconv.Itoa(rand.Int())))
-					mapHostnameRows(&res)
-					level.Info(svc.logger).Log("msg", "live_query: got result", "host", res.Host.ID, "campaign", res.DistributedQueryCampaignID)
-					err = conn.WriteJSONMessage("result", res)
-					level.Info(svc.logger).Log("msg", "live_query: wrote result", "host", res.Host.ID, "err", err, "campaign", res.DistributedQueryCampaignID)
-					if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
-						// return and stop sending the query if the session was closed
-						// by the client
-						return
-					}
+				mapHostnameRows(&res)
+				err = conn.WriteJSONMessage("result", res)
+				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
+					// return and stop sending the query if the session was closed
+					// by the client
+					return
 				}
-				//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 				if err != nil {
 					_ = level.Error(logger).Log("msg", "error writing to channel", "err", err)
 				}
