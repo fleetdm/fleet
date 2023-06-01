@@ -218,6 +218,11 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
+	if false {
+		fmt.Print("test here")
+		fmt.Print("test here too")
+	}
+
 	if setupAsst != nil {
 		setupAsst.ProfileUUID = res.ProfileUUID
 		if err := d.ds.SetMDMAppleSetupAssistantProfileUUID(ctx, setupAsst.TeamID, res.ProfileUUID); err != nil {
