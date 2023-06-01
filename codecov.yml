@@ -17,6 +17,8 @@ flag_management:
     - name: backend
       paths:
         - server/
+        - ee/
+        - cmd/
     - name: frontend
       paths:
         - frontend/
