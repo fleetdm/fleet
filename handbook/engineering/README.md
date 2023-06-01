@@ -138,6 +138,25 @@ EM will take one of these two actions:
  - Solve the bug before the release. (Preferable)
  - Revert the PR that caused this bug.
 
+## Engineering Initiated Issues
+
+- [What are Engineering Initiated Issues](#what-are-engineering-initiated-issues)
+- [Process](#process)
+
+### What are Engineering Initiated Issues
+Engineers can have ideas how to add value to our customers.
+FleetDM would like to capture these ideas and encourage engineers to file them as issues.
+Any idea that stands the rules of LEAN development, which means it adds value to our customers is welcome.
+(Adding value could also be in an indirect way for example: shorten the dev time by doing something --> this in turn will bring more capacity which will add value to our customers)
+
+### Process
+ - Open a tichet (issue) and label it with: engineering-initiated, story, g-cx/g-mdm/g-infra/g-website, product. Make sure the ticket is in the Roadmap:Inbox column.
+ - ask your EM/PM to request that this issue will be discussed at the nearest Design-Review meetings.
+ - attend this meeting or ask your EM/PM to attend it to present the idea.
+ - If accepted, put the issue through the regular process (design --> estimation--> prioritization etc)
+ - We aspire to have 20% of each sprint allocated to Engineering Initiatives. In the Sprint Kick-Off try to include as much of these items as our situation allows.  
+
+
 ## Release process
 
 ### In this section
