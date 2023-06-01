@@ -1,24 +1,27 @@
 coverage:
   status:
     project: off
-    patch:
-      default:
-        informational: true
+    patch: off
 
 flag_management:
   default_rules:
     carryforward: true
+    statuses:
+      - type: project
+        target: auto
+        threshold: 3%
+      - type: patch
+        target: auto
+        threshold: 3%
   individual_flags:
     - name: backend
       paths:
         - server/
-      statuses:
-        - type: project
-          target: auto
-          threshold: 3%
     - name: frontend
       paths:
         - frontend/
       statuses:
         - type: project
+          informational: true
+        - type: patch
           informational: true
