@@ -7,7 +7,11 @@ import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
+<<<<<<< HEAD
   getSelectedPlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
+=======
+  getSelectedPlatforms: () => ("darwin" | "linux" | "windows" | "chrome")[];
+>>>>>>> 7dcd68424 (Update policies page, dependent on queries page merged first)
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
 }
@@ -19,17 +23,20 @@ const usePlatformSelector = (
   const [checkDarwin, setCheckDarwin] = useState(false);
   const [checkWindows, setCheckWindows] = useState(false);
   const [checkLinux, setCheckLinux] = useState(false);
+  const [checkChrome, setCheckChrome] = useState(false);
 
   const checksByPlatform: Record<string, boolean> = {
     darwin: checkDarwin,
     windows: checkWindows,
     linux: checkLinux,
+    chrome: checkChrome,
   };
 
   const settersByPlatform: Record<string, (val: boolean) => void> = {
     darwin: setCheckDarwin,
     windows: setCheckWindows,
     linux: setCheckLinux,
+    chrome: setCheckChrome,
   };
 
   const setSelectedPlatforms = (platformsToCheck: string[]) => {
@@ -46,7 +53,7 @@ const usePlatformSelector = (
 
   useEffect(() => {
     if (platformContext === "") {
-      setSelectedPlatforms(["darwin", "windows", "linux"]);
+      setSelectedPlatforms(["darwin", "windows", "linux", "chrome"]);
     }
     platformContext && setSelectedPlatforms(platformContext.split(","));
   }, [platformContext]);
@@ -58,12 +65,14 @@ const usePlatformSelector = (
         checkDarwin={checkDarwin}
         checkWindows={checkWindows}
         checkLinux={checkLinux}
+        checkChrome={checkChrome}
         setCheckDarwin={setCheckDarwin}
         setCheckWindows={setCheckWindows}
         setCheckLinux={setCheckLinux}
+        setCheckChrome={setCheckChrome}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux]);
+  }, [checkDarwin, checkWindows, checkLinux, checkChrome]);
 
   return {
     setSelectedPlatforms,
