@@ -9,14 +9,14 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
-      - '.github/workflows/test-go.yaml'
+      # - '.github/workflows/test-go.yaml'
       - 'server/authz/policy.rego'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
-      - '.github/workflows/test-go.yaml'
+      # - '.github/workflows/test-go.yaml'
       - 'server/authz/policy.rego'
   workflow_dispatch: # Manual
   schedule:
