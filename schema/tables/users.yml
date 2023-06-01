@@ -44,11 +44,6 @@ columns:
       - windows
       - linux
   - name: uuid
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
   - name: email
     required: false
     type: string
@@ -66,8 +61,3 @@ columns:
       - linux
   - name: username
     description: Username
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos

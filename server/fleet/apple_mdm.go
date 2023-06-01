@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"context"
+	"crypto/md5" // nolint: gosec
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -424,6 +426,26 @@ type MDMAppleFleetdConfig struct {
 	EnrollSecret string
 }
 
+// MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
+// preassigns profiles to hosts before generating corresponding teams for each
+// unique set of profiles and assigning hosts to those teams and profiles. For
+// example, puppet scripts use this.
+type MDMApplePreassignProfilePayload struct {
+	ExternalHostIdentifier string `json:"external_host_identifier"`
+	HostUUID               string `json:"host_uuid"`
+	Profile                []byte `json:"profile"`
+	Group                  string `json:"group"`
+}
+
+// HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
+// broken and we should consider moving to a better hash, but it needs to match
+// the hashing algorithm used by the Mysql database for profiles (SHA2 would be
+// an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
+func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
+	sum := md5.Sum(p.Profile) //nolint: gosec
+	return hex.EncodeToString(sum[:])
+}
+
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
@@ -527,4 +549,12 @@ type MDMAppleSetupAssistant struct {
 // AuthzType implements authz.AuthzTyper.
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
+}
+
+// ProfileMatcher defines the methods required to preassign and retrieve MDM
+// profiles for matching with teams and associating with hosts. A Redis-based
+// implementation is used in production.
+type ProfileMatcher interface {
+	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error
 }

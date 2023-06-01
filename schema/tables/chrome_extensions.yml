@@ -59,11 +59,6 @@ columns:
   - name: path
     type: string
     description: Defaults to '' on ChromeOS
-    platforms: 
-      - darwin
-      - windows
-      - linux
-      - chromeos
   - name: optional_permissions
     platforms: 
       - darwin
@@ -91,11 +86,6 @@ columns:
       - linux
   - name: state
     type: string
-    platforms: 
-      - darwin
-      - windows
-      - linux
-      - chromeos
   - name: install_time
     platforms: 
       - darwin
