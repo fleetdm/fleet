@@ -302,8 +302,8 @@ Each team will have their own release board.
 [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
 [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
-Product board is also serving as a Backlog for all teams.
-[Product](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+Roadmap board is also serving as a Backlog for all teams.
+[Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
 
 ## Scaling gotchas
 
