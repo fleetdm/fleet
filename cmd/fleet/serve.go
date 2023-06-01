@@ -602,6 +602,11 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
+				var profileMatcher fleet.ProfileMatcher
+				if appCfg.MDM.EnabledAndConfigured {
+					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
+				}
+
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -613,6 +618,7 @@ the way that the Fleet server works.
 					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					mdmPushCertTopic,
 					ssoSessionStore,
+					profileMatcher,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
