@@ -1,34 +1,33 @@
 .activity-item {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding-bottom: $pad-large;
+  display: grid; // Grid system is used to create variable dashed line lengths
+  grid-template-columns: 16px 16px 1fr;
+  grid-template-rows: 32px max-content;
 
   .avatar-wrapper {
-    position: relative;
+    grid-column-start: 1;
+    width: 32px;
+    height: 32px;
   }
 
-  &:before {
-    content: "";
-    position: relative;
-    height: 36px !important;
-    z-index: 0;
-    top: 35px;
-    left: 17px;
+  &__pre-dash {
+    grid-column-start: 1;
+    grid-row-start: 2;
+    grid-row-end: 3;
+  }
+
+  &__dash {
     border-left: 1px dashed $ui-fleet-black-10;
-    height: 100%;
-  }
-
-  &:last-child:before {
-    border-left: 0;
-  }
-
-  &__avatar-image {
-    z-index: 2;
+    grid-column-start: 2;
+    grid-row-start: 2;
+    grid-row-end: 3;
   }
 
   &__details {
+    grid-column-start: 3;
+    grid-row-start: 1;
+    grid-row-end: 3;
     padding-left: $pad-large;
+    padding-bottom: $pad-large;
 
     .premium-icon-tip {
       position: relative;
@@ -58,5 +57,14 @@
 
   &__show-query-icon {
     margin-left: $pad-xsmall;
+  }
+
+  &:last-child {
+    .activity-item__dash {
+      border-left: none;
+    }
+    .activity-item__details {
+      padding-bottom: $pad-xxlarge;
+    }
   }
 }
