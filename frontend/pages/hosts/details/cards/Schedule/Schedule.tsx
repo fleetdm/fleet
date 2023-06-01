@@ -30,7 +30,7 @@ const Schedule = ({
           header="Scheduled queries are not supported for this host"
           info={
             <>
-              Interested in collecting data from your Chromebooks?{" "}
+              <span>Interested in collecting data from your Chromebooks? </span>
               <CustomLink
                 url="https://www.fleetdm.com/contact"
                 text="Let us know"
