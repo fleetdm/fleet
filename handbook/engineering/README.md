@@ -10,8 +10,7 @@
 - [Eng Together](#eng-together)
 - [Release Retro](#release-retro)
 - [Group Weeklies](#group-weeklies)
-- [Standup](#standup)
-- [Product and Eng Weekly](#product-and-eng-weekly)
+- [Engineering Leadership Weekly](#engineering-leadership-weekly) 
 
 ### Goals
 
@@ -101,8 +100,9 @@ This would include anyone who wishes to participate.
 - Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
 
-### Engineering Leadership Weekly (Weekly ~ one hour)
+### Engineering Leadership Weekly 
 
+(Weekly ~ one hour)
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
