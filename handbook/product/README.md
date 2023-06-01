@@ -295,6 +295,8 @@ Fleet team members can view these statistics in the Google spreadsheet [Fleet
 usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
 available in Google Drive.
 
+Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleet team members.
+
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
