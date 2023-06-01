@@ -940,8 +940,8 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
 | `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-mdm`             | Luke Heath                                                           |
-| `#g-customer-experience` | Sharon Katz                                                      |
+| `#g-mdm`             | George Karr                                                          |
+| `#g-cx`              | Sharon Katz                                                          |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
 
