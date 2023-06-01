@@ -53,16 +53,6 @@ const MacSettingsIndicator = ({
       );
     }
 
-    const testagain = () => {
-      console.log("here test again");
-    };
-
-    if (false) {
-      console.log("testing");
-      console.log("this is another test");
-      testagain();
-    }
-
     // onclick without tooltip
     if (onClick) {
       return (
