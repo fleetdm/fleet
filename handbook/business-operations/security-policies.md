@@ -25,35 +25,35 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @mikermcneil | 2022-06-01     |
+| @zwass | 2023-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures:
+Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
 1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
-2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
+2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public. Unattended devices (even in private spaces) must be locked with the lid closed or through the OS screen lock mechanism.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-4. Teams must exclussively use legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. Teams must exclusively use legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC).  
 
-6. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), should not be shared.
+6. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC)!
 
-7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
+7. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
 
-8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly, and never allow unattended screen sharing.
 
-9. Only allow company-owned and managed computers to connect directly to Fleet autoupdater production environments.
+9. Device operating systems must be kept up to date. Fleet-managed macOS workstations will receive prompts for updates to be installed, and unmanaged devices are to be updated by the team member using them. Access may be revoked for devices not kept up to date.
 
-10. Enforce the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. Team members must not store sensitive data on external storage devices (USB sticks, external hard drives).
 
-11. Require device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
+11. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-12. Require team members must not store sensitive data on portable storage.
+12. Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
 
 ## Access control policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
