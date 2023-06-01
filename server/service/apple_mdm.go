@@ -563,6 +563,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
 	}
 
+	res.Verified = ps.Verified
 	res.Verifying = ps.Verifying
 	res.Failed = ps.Failed
 	res.Pending = ps.Pending
@@ -2396,7 +2397,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
-			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
+			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
 			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
@@ -2404,12 +2405,32 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
-			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
+			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
 			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeRemove,
 		})
 	}
 	return nil, nil
+}
+
+// mdmAppleDeliveryStatusFromCommandStatus converts a MDM command status to a
+// fleet.MDMAppleDeliveryStatus.
+//
+// NOTE: this mapping does not include all
+// possible delivery statuses (e.g., verified status is not included) is intended to
+// only be used in the context of CommandAndReportResults in the MDMAppleCheckinAndCommandService.
+// Extra care should be taken before using this function in other contexts.
+func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMAppleDeliveryStatus {
+	switch cmdStatus {
+	case fleet.MDMAppleStatusAcknowledged:
+		return &fleet.MDMAppleDeliveryVerifying
+	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+		return &fleet.MDMAppleDeliveryFailed
+	case fleet.MDMAppleStatusIdle, fleet.MDMAppleStatusNotNow:
+		return &fleet.MDMAppleDeliveryPending
+	default:
+		return nil
+	}
 }
 
 // ensureFleetdConfig ensures there's a fleetd configuration profile in

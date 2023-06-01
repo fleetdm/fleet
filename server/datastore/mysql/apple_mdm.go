@@ -185,12 +185,13 @@ SELECT
 FROM
 	host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') = '%s')`,
+	host_uuid = ? AND NOT (operation_type = '%s' AND (COALESCE(status, '%s') = '%s' OR COALESCE(status, '%s') = '%s'))`,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleDeliveryVerifying,
-	)
+		fleet.MDMAppleDeliveryPending,
+		fleet.MDMAppleDeliveryVerified)
 
 	var profiles []fleet.HostMDMAppleProfile
 	if err := sqlx.SelectContext(ctx, ds.reader, &profiles, stmt, hostUUID); err != nil {
@@ -1370,7 +1371,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   and a NULL status. Other statuses mean that the operation is already in
 	//   flight (pending), the operation has been completed but is still subject
 	//   to independent verification by Fleet (verifying), or has reached a terminal
-	//   state (failed). If the profile's content is edited, all relevant hosts will
+	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
 	//   be marked as status NULL so that it gets re-installed.
 	query := `
           SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name, ds.checksum
@@ -1416,7 +1417,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	//   - profiles that are in B but not in A, except those with operation type
 	//   "remove" and a terminal state (failed) or a state indicating
 	//   that the operation is in flight (pending) or the operation has been completed
-	//   but is still subject to independent verification by Fleet (verifying).
+	//   but is still subject to independent verification by Fleet (verifying)
+	//   or the operation has been completed and independenly verified by Fleet (verified).
 	//
 	// Any other case are profiles that are in both B and A, and as such are
 	// processed by the ListMDMAppleProfilesToInstall method (since they are in
@@ -1511,7 +1513,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 
 func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 	if profile.OperationType == fleet.MDMAppleOperationTypeRemove &&
-		profile.Status != nil && (*profile.Status == fleet.MDMAppleDeliveryVerifying || profile.IgnoreMDMClientError()) {
+		profile.Status != nil &&
+		(*profile.Status == fleet.MDMAppleDeliveryVerifying || *profile.Status == fleet.MDMAppleDeliveryVerified || profile.IgnoreMDMClientError()) {
 		_, err := ds.writer.ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ? AND command_uuid = ?
@@ -1685,6 +1688,47 @@ func subqueryHostsMacOSSetttingsStatusVerifying() (string, []interface{}) {
 	return sql, args
 }
 
+func subqueryHostsMacOSSetttingsStatusVerified() (string, []interface{}) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = ?
+                AND(hmap.profile_identifier != ?
+                    OR EXISTS (
+                        SELECT
+                            1 FROM host_disk_encryption_keys hdek
+                        WHERE
+                            h.id = hdek.host_id
+                            AND hdek.decryptable = 1))
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_apple_profiles hmap2
+                    WHERE
+                        h.uuid = hmap2.host_uuid
+                        AND (hmap2.status IS NULL
+                            OR hmap2.status != ?
+                            OR(hmap2.profile_identifier = ?
+                                AND hmap2.status = ?
+                                AND hmap2.operation_type = ?
+                                AND NOT EXISTS (
+                                    SELECT
+                                        1 FROM host_disk_encryption_keys hdek
+                                    WHERE
+                                        h.id = hdek.host_id
+                                        AND hdek.decryptable = 1))))`
+	args := []interface{}{
+		fleet.MDMAppleDeliveryVerified,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryVerified,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryVerified,
+		fleet.MDMAppleOperationTypeInstall,
+	}
+	return sql, args
+}
+
 func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
 	var args []interface{}
 	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
@@ -1693,6 +1737,8 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	args = append(args, subqueryPendingArgs...)
 	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMacOSSetttingsStatusVerifying()
 	args = append(args, subqueryVeryingingArgs...)
+	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMacOSSetttingsStatusVerified()
+	args = append(args, subqueryVerifiedArgs...)
 
 	sqlFmt := `
 SELECT
@@ -1707,7 +1753,11 @@ SELECT
     COUNT(
         CASE WHEN EXISTS (%s)
             THEN 1
-        END) AS verifying
+        END) AS verifying,
+	COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS verified
 FROM
     hosts h
 WHERE
@@ -1719,7 +1769,7 @@ WHERE
 		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, teamFilter)
+	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
 
 	var res fleet.MDMAppleConfigProfilesSummary
 	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, args...)
@@ -1775,6 +1825,24 @@ func subqueryDiskEncryptionVerifying() (string, []interface{}) {
 	return sql, args
 }
 
+func subqueryDiskEncryptionVerified() (string, []interface{}) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_apple_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hdek.decryptable = 1
+                AND hmap.profile_identifier = ?
+                AND hmap.status = ?
+                AND hmap.operation_type = ?`
+	args := []interface{}{
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryVerified,
+		fleet.MDMAppleOperationTypeInstall,
+	}
+	return sql, args
+}
+
 func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
 	sql := `
             SELECT
@@ -1784,11 +1852,12 @@ func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
                 AND(hdek.decryptable = 0
                     OR (hdek.host_id IS NULL AND hdek.decryptable IS NULL))
                 AND hmap.profile_identifier = ?
-                AND hmap.status = ?
+                AND (hmap.status = ? OR hmap.status = ?)
                 AND hmap.operation_type = ?`
 	args := []interface{}{
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
 		fleet.MDMAppleOperationTypeInstall,
 	}
 	return sql, args
@@ -1808,7 +1877,7 @@ func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
                 WHERE
                     h.uuid = hmap.host_uuid
                     AND hmap.profile_identifier = ?
-                    AND (hmap.status IS NOT NULL AND hmap.status = ?)
+                    AND (hmap.status IS NOT NULL AND (hmap.status = ? OR hmap.status = ?))
                     AND hmap.operation_type = ?
                     AND hdek.decryptable IS NULL
                     AND hdek.host_id IS NOT NULL`
@@ -1818,6 +1887,7 @@ func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
 		fleet.MDMAppleOperationTypeInstall,
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
 		fleet.MDMAppleOperationTypeInstall,
 	}
 	return sql, args
@@ -1854,6 +1924,10 @@ SELECT
     COUNT(
         CASE WHEN EXISTS (%s)
             THEN 1
+        END) AS verified,
+    COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
         END) AS verifying,
     COUNT(
         CASE WHEN EXISTS (%s)
@@ -1878,6 +1952,8 @@ WHERE
     %s`
 
 	var args []interface{}
+	subqueryVerified, subqueryVerifiedArgs := subqueryDiskEncryptionVerified()
+	args = append(args, subqueryVerifiedArgs...)
 	subqueryVerifying, subqueryVerifyingArgs := subqueryDiskEncryptionVerifying()
 	args = append(args, subqueryVerifyingArgs...)
 	subqueryActionRequired, subqueryActionRequiredArgs := subqueryDiskEncryptionActionRequired()
@@ -1895,7 +1971,7 @@ WHERE
 		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryVerifying, subqueryActionRequired, subqueryEnforcing, subqueryFailed, subqueryRemovingEnforcement, teamFilter)
+	stmt := fmt.Sprintf(sqlFmt, subqueryVerified, subqueryVerifying, subqueryActionRequired, subqueryEnforcing, subqueryFailed, subqueryRemovingEnforcement, teamFilter)
 
 	var res fleet.MDMAppleFileVaultSummary
 	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, args...)
