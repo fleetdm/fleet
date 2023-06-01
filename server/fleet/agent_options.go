@@ -492,15 +492,19 @@ type OsqueryCommandLineFlagsMacOS struct {
 // osqueryd --help or select * from osquery_flags, so they can't be generated
 // by the osquery-agent-options script.
 type OsqueryCommandLineFlagsHidden struct {
-	AlsoLogToStderr       bool   `json:"alsologtostderr"`
-	EventsStreamingPlugin string `json:"events_streaming_plugin"`
-	LogBufSecs            int32  `json:"logbufsecs"`
-	LogDir                string `json:"log_dir"`
-	MaxLogSize            int32  `json:"max_log_size"`
-	MinLogLevel           int32  `json:"minloglevel"`
-	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
-	AllowUnsafe           bool   `json:"allow_unsafe"`
-	TLSDump               bool   `json:"tls_dump"`
+	AlsoLogToStderr               bool   `json:"alsologtostderr"`
+	EventsStreamingPlugin         string `json:"events_streaming_plugin"`
+	LogBufSecs                    int32  `json:"logbufsecs"`
+	LogDir                        string `json:"log_dir"`
+	MaxLogSize                    int32  `json:"max_log_size"`
+	MinLogLevel                   int32  `json:"minloglevel"`
+	StopLoggingIfFullDisk         bool   `json:"stop_logging_if_full_disk"`
+	AllowUnsafe                   bool   `json:"allow_unsafe"`
+	TLSDump                       bool   `json:"tls_dump"`
+	AuditDebug                    bool   `json:"audit_debug"`
+	AuditFIMDebug                 bool   `json:"audit_fim_debug"`
+	AuditShowPartialFIMEvents     bool   `json:"audit_show_partial_fim_events"`
+	AuditShowUntrackedResWarnings bool   `json:"audit_show_untracked_res_warnings"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,

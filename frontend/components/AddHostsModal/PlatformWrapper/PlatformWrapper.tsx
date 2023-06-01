@@ -11,17 +11,17 @@ import { stringToClipboard } from "utilities/copy_text";
 import configAPI from "services/entities/config";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import CustomLink from "components/CustomLink/CustomLink";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
-
-import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IPlatformSubNav {
   name: string;
@@ -46,6 +46,10 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "deb",
   },
   {
+    name: "ChromeOS",
+    type: "chromeos",
+  },
+  {
     name: "Advanced",
     type: "advanced",
   },
@@ -56,6 +60,19 @@ interface IPlatformWrapperProps {
   onCancel: () => void;
 }
 
+const CHROME_OS_INFO = {
+  extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
+  url: "https://chrome.fleetdm.com/updates.xml",
+  policyForExtension: `{
+  "fleet_url": {
+    "Value": "https://dogfood.fleetdm.com"
+  },
+  "enroll_secret": {
+    "Value": "eeb2e8a7d132d9cbbdd0f024f9419f88"
+  }
+}`,
+};
+
 const baseClass = "platform-wrapper";
 
 const PlatformWrapper = ({
@@ -64,9 +81,11 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProps): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
   const {
     data: certificate,
@@ -196,14 +215,14 @@ const PlatformWrapper = ({
                   <br />
                 </>
               )}
-              <a
-                href="#downloadCertificate"
+              <Button
+                variant="text-icon"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
               >
                 Download
-                <img src={DownloadIcon} alt="download" />
-              </a>
+                <Icon name="download" color="core-fleet-blue" size="small" />
+              </Button>
             </p>
           ) : (
             <p className={`${baseClass}__certificate-error`}>
@@ -288,25 +307,122 @@ const PlatformWrapper = ({
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
-            {copyMessage[packageType] && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage[packageType]} `}</span>
-            )}
             <Button
               variant="unstyled"
               className={`${baseClass}__installer-copy-icon`}
               onClick={onCopyInstaller}
             >
-              <img src={CopyIcon} alt="copy" />
+              <Icon name="copy" />
             </Button>
+            {copyMessage[packageType] && (
+              <span
+                className={`${baseClass}__copy-message`}
+              >{`${copyMessage[packageType]} `}</span>
+            )}
           </span>
         </span>
       </>
     );
   };
 
+  const renderChromeOSLabel = (label: string, value: string) => {
+    const onCopyChromeOSLabel = (evt: React.MouseEvent) => {
+      evt.preventDefault();
+
+      stringToClipboard(value)
+        .then(() => setCopyMessage((prev) => ({ ...prev, [label]: "Copied!" })))
+        .catch(() =>
+          setCopyMessage((prev) => ({
+            ...prev,
+            [label]: "Copy failed",
+          }))
+        );
+
+      // Clear message after 1 second
+      setTimeout(
+        () => setCopyMessage((prev) => ({ ...prev, [label]: "" })),
+        1000
+      );
+
+      return false;
+    };
+
+    return (
+      <>
+        {label}
+        <span className="buttons">
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__chromeos-copy-icon`}
+            onClick={onCopyChromeOSLabel}
+          >
+            <Icon name="copy" />
+          </Button>
+          {copyMessage[label] && (
+            <span className={`${baseClass}__copy-message`}>Copied!</span>
+          )}
+        </span>
+      </>
+    );
+  };
+
   const renderTab = (packageType: string) => {
+    if (packageType === "chromeos") {
+      return (
+        <div className={baseClass}>
+          <div className={`${baseClass}__chromeos`}>
+            <div className={`${baseClass}__chromeos--add-extension`}>
+              <p className={`${baseClass}__chromeos--heading`}>
+                In Google Admin:
+              </p>
+              <p>
+                Add the extension for the relevant users & browsers using the
+                information below.
+              </p>
+              <InfoBanner className={`${baseClass}__chromeos--instructions`}>
+                For a step-by-step guide, see the documentation page for{" "}
+                <CustomLink
+                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension"
+                  text="adding hosts"
+                  newTab
+                  multiline
+                />
+              </InfoBanner>
+              <div className={`${baseClass}__chromeos--installer`}>
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
+                  name="Extension ID"
+                  label={renderChromeOSLabel(
+                    "Extension ID",
+                    CHROME_OS_INFO.extensionId
+                  )}
+                  value={CHROME_OS_INFO.extensionId}
+                />
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
+                  name="URL"
+                  label={renderChromeOSLabel("URL", CHROME_OS_INFO.url)}
+                  value={CHROME_OS_INFO.url}
+                />
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
+                  name="Policy for extension"
+                  label={renderChromeOSLabel(
+                    "Policy for extension",
+                    CHROME_OS_INFO.policyForExtension
+                  )}
+                  type="textarea"
+                  value={CHROME_OS_INFO.policyForExtension}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (packageType === "advanced") {
       return (
         <div className={baseClass}>
@@ -321,10 +437,23 @@ const PlatformWrapper = ({
                   packageType,
                   renderInstallerString(packageType)
                 )}
-                type={"textarea"}
+                type="textarea"
                 value={renderInstallerString(packageType)}
               />
-              <p>Distribute your package to add hosts to Fleet.</p>
+              <p className={`${baseClass}__advanced--instructions`}>
+                Distribute your package to add hosts to Fleet.
+              </p>
+              <InfoBanner className={`${baseClass}__chrome--instructions`}>
+                This works for macOS, Windows, and Linux hosts. To add
+                Chromebooks,{" "}
+                <Button
+                  variant="text-link"
+                  onClick={() => setSelectedTabIndex(4)}
+                >
+                  click here
+                </Button>
+                .
+              </InfoBanner>
             </div>
             <RevealButton
               className={baseClass}
@@ -344,13 +473,17 @@ const PlatformWrapper = ({
                     Osquery uses an enroll secret to authenticate with the Fleet
                     server.
                     <br />
-                    <a
-                      href="#downloadEnrollSecret"
+                    <Button
+                      variant="text-icon"
                       onClick={onDownloadEnrollSecret}
                     >
                       Download
-                      <img src={DownloadIcon} alt="download icon" />
-                    </a>
+                      <Icon
+                        name="download"
+                        color="core-fleet-blue"
+                        size="small"
+                      />
+                    </Button>
                   </p>
                 </div>
                 {renderFleetCertificateBlock("plain")}
@@ -368,10 +501,14 @@ const PlatformWrapper = ({
                         {fetchCertificateError}
                       </span>
                     ) : (
-                      <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
+                      <Button variant="text-icon" onClick={onDownloadFlagfile}>
                         Download
-                        <img src={DownloadIcon} alt="download icon" />
-                      </a>
+                        <Icon
+                          name="download"
+                          color="core-fleet-blue"
+                          size="small"
+                        />
+                      </Button>
                     )}
                   </p>
                 </div>
@@ -431,7 +568,10 @@ const PlatformWrapper = ({
   return (
     <div className={baseClass}>
       <TabsWrapper>
-        <Tabs>
+        <Tabs
+          onSelect={(index) => setSelectedTabIndex(index)}
+          selectedIndex={selectedTabIndex}
+        >
           <TabList>
             {platformSubNav.map((navItem) => {
               // Bolding text when the tab is active causes a layout shift

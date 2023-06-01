@@ -18,6 +18,9 @@
     - name: Zero-touch setup for macOS computers
       tier: Premium
       comingSoon: false
+    - name: Safely execute remote scripts
+      tier: Premium
+      comingSoon: true      
     - name: End-user macOS update reminders (via Nudge)
       tier: Premium
       comingSoon: false
@@ -50,9 +53,6 @@
     - name: Phone and video call support
       tier: Premium
       comingSoon: false    
-    - name: Platinum support
-      tier: Ultimate
-      comingSoon: false
 - categoryName: Inventory management
   features:
     - name: Secure REST API
@@ -90,9 +90,6 @@
     - name: Scope transparency
       tier: Free
       comingSoon: false
-    - name: Multiple teams
-      tier: Premium
-      comingSoon: false
 - categoryName: Security and compliance
   features:
     - name: Single sign on (SSO, SAML)
@@ -107,9 +104,12 @@
     - name: Role-based access control
       tier: Free
       comingSoon: false
-    - name: Audit log
-      tier: Premium
+    - name: Ship logs to Splunk, Snowflake, and more
+      tier: Free
       comingSoon: false
+    - name: Programable audit log
+      tier: Premium
+      comingSoon: true
     - name: Just-in-time (JIT) provisioning
       tier: Premium
       comingSoon: false
@@ -164,7 +164,7 @@
       comingSoon: false
 - categoryName: Deployment
   features:
-    - name: Self-managed
+    - name: Self-hosted
       tier: Free
       comingSoon: false
     - name: Deployment tools (Helm, Terraform)
@@ -173,15 +173,15 @@
     - name: Configure osquery startup flags remotely
       tier: Free
       comingSoon: false
-    - name: Autoupdate osquery agents
+    - name: Auto-update osquery agents
       tier: Free
       comingSoon: false
-    - name: Self-managed autoupdate registry
+    - name: Self-managed auto-update registry
       tier: Premium
       comingSoon: false
     - name: Manage osquery extensions remotely
       tier: Premium
       comingSoon: false
     - name: Managed Cloud
-      tier: Ultimate
+      tier: Premium
       comingSoon: false

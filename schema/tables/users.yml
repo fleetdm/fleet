@@ -1,4 +1,9 @@
 name: users
+platforms:
+  - darwin
+  - windows
+  - linux
+  - chromeos
 examples: >-
   List users that have interactive access via a shell that isn't false.
   
@@ -8,6 +13,43 @@ examples: >-
   
   ```
 columns:
+  - name: gid
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: uid_signed
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: gid_signed
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: description
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: directory
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: shell
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: uuid
+  - name: email
+    required: false
+    type: string
+    description: Email
+    platforms:
+      - chromeos
   - name: type
     platforms:
       - windows
@@ -17,3 +59,5 @@ columns:
   - name: pid_with_namespace
     platforms:
       - linux
+  - name: username
+    description: Username

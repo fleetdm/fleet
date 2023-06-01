@@ -1578,7 +1578,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			if res, ok := val.(fleet.DistributedQueryResult); ok {
 				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
-				assert.Equal(t, host, res.Host.Host)
+				assert.Equal(t, host.ID, res.Host.ID)
+				assert.Equal(t, host.Hostname, res.Host.Hostname)
+				assert.Equal(t, host.DisplayName(), res.Host.DisplayName)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -1677,7 +1679,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign waiting for listener")
+	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -1787,7 +1789,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign stopped")
+	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
 }
 

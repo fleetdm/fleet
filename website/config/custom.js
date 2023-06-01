@@ -159,8 +159,12 @@ module.exports.custom = {
     '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
 
+  },
+
+  fleetMdmGitopsGithubRepoDRIByPath: {
+    '/': ['lukeheath']
   },
 
   // The version of osquery to use when generating schema docs
