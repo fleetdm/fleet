@@ -11,11 +11,7 @@ flag_management:
   individual_flags:
     - name: backend
       paths:
-        - server/
-        - ee/
-        - cmd/
-        - orbit/
-        - pkg/
+        - '**.go'
     - name: frontend
       paths:
         - frontend/
