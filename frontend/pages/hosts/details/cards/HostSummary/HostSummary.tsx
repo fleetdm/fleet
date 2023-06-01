@@ -65,7 +65,9 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, id, platform } = titleData;
+  // const { status, id, platform } = titleData;
+  const { status, id } = titleData;
+  const platform = "chrome";
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
@@ -154,7 +156,7 @@ const HostSummary = ({
 
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
-    if (!["darwin", "windows", "chromeos"].includes(platform)) {
+    if (!["darwin", "windows", "chrome"].includes(platform)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
@@ -162,8 +164,7 @@ const HostSummary = ({
       diskEncryptionEnabled
     );
     let statusText;
-    // TODO: confirm this is the right string to expect
-    if (platform === "chromeos") {
+    if (platform === "chrome") {
       statusText = "Always on";
     } else {
       statusText = diskEncryptionEnabled ? "On" : "Off";

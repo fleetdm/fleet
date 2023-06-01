@@ -662,11 +662,10 @@ const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
 };
 
 export const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chromeos", // TODO: improve this type
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
   diskEncryptionEnabled = false
 ) => {
-  if (platform === "chromeos") {
-    // TODO: confirm that this is the right string to expect
+  if (platform === "chrome") {
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
