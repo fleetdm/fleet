@@ -49,11 +49,11 @@ The following is the subset of proposed engineering meetings. Each group is free
 
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
+Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -111,9 +111,9 @@ This would include the CTO + Engineering managers.
 
 #### Sample agenda
 
-- Fullstack engineer hiring
+- Engineer hiring
 - Engineering process discussion
-- Review Q2 OKRs
+- Review engineering KPIs
 
 ## Release process
 
@@ -142,10 +142,12 @@ To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
 
 1. **Go**
-* Check the [latest stable version of Go](https://go.dev/dl/).
 * Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L3-L4).
-* If the latest stable version of Go is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
-* Add the `~release blocker` label.
+* Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
+* If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
+* If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
+
+> In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
 2. **macadmins-extension**
 * Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
