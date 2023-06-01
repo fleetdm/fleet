@@ -115,7 +115,29 @@ This would include the CTO + Engineering managers.
 - Engineering process discussion
 - Review Q2 OKRs
 
+## Handling BUGs
+
+- [Bugs on Product Roadmap Board](#bugs-on-product-roadmap-board)
+- [Unreleased Bugs](#unreleased-bugs)
+
+### Bugs on Product Roadmap Board:
+EM will go daily over the bugs in INBOX column and address them as follows:
+ - If it’s a critical bug —> move it to the RELEASE BOARD to be handled this sprint (Even if need to swap with another task)
+ - If not critical, move to SPECIFIED so it will be estimated, or if not enough information work with PM/QA to complete the info.
+
+### Unreleased Bugs
+Bugs found in current sprint’s work and was not yet released:
+QA person will put this bug ticket in the RELEASE BOARD READY column and label it with “not-released”
+EM will take one of these two actions: 
+ - Solve the bug before the release. (Preferable)
+ - Revert the PR that caused this bug.
+
 ## Release process
+
+### In this section
+
+- [Release freeze period](#release-freeze-period)
+- [Release day](#release-day)
 
 This section outlines the release process at Fleet.
 
