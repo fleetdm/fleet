@@ -43,3 +43,20 @@
     }
   }
 }
+
+@media (max-width: 980px) {
+  .summary-tile {
+    &__tile {
+      text-align: center;
+
+      .children-wrapper {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+    }
+
+    &__tile-icon {
+      margin-right: 0;
+    }
+  }
+}
