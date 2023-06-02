@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
 
@@ -9,7 +9,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "fleet-checkbox";
 
 export interface ICheckboxProps {
-  children?: JSX.Element | Array<JSX.Element> | string;
+  children?: ReactNode;
   className?: string;
   disabled?: boolean;
   name?: string;

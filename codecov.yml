@@ -1,0 +1,24 @@
+coverage:
+  status:
+    project: false
+    patch: false
+
+flag_management:
+  default_rules:
+    carryforward: true
+    statuses:
+      - type: project
+        informational: true
+      - type: patch
+        informational: true
+  individual_flags:
+    - name: backend
+      paths:
+        - cmd/
+        - pkg/
+        - server/
+        - ee/
+        - orbit/
+    - name: frontend
+      paths:
+        - frontend/
