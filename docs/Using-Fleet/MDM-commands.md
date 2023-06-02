@@ -91,10 +91,10 @@ Example output:
 
 ## List recent commands
 
-You can view the list of recently executed commands using "fleetctl":
+You can view the list of the 1,000 latest commands using "fleetctl":
 
 1. Run `fleetctl get mdm-commands`
-2. View the list of recently executed commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
+2. View the list of latest commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
 
 Example output:
 
