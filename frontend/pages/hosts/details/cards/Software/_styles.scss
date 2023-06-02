@@ -51,7 +51,7 @@
           width: $col-xs;
         }
         .vulnerabilities__header {
-          min-width: 130px;
+          min-width: 120px;
         }
         .source__header {
           display: none;
@@ -67,7 +67,7 @@
           display: none;
         }
         .linkToFilteredHosts__header {
-          min-width: 115px;
+          width: 115px;
         }
         @media (min-width: $break-1400) {
           .version__header {
@@ -209,8 +209,14 @@
   }
 
   .data-table-block .data-table__table {
-    .installed_paths__header {
+    th {
       border-right: none;
+      border-left: 1px solid #e2e4ea;
+    }
+
+    .linkToFilteredHosts__header,
+    .name__header {
+      border-left: none;
     }
 
     @media (min-width: $break-990) {
