@@ -66,4 +66,4 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 
 Want to join the team?
 
-You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
+Reach out to Alex Mitchell on Linkedin.
