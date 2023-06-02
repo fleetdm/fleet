@@ -61,6 +61,7 @@ export default {
     `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
+  MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
   MDM_EULA: (token: string) =>
     `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,

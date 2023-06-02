@@ -629,6 +629,7 @@ const ActivityItem = ({
           </ReactTooltip>
         </p>
       </div>
+      <div className={`${baseClass}__dash`} />
     </div>
   );
 };
