@@ -41,7 +41,6 @@ const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
         Remotely encourage the installation of macOS updates on hosts assigned
         to this team.
       </p>
-      <h2 className={`${baseClass}__title`}>MacOS updates settings</h2>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__form-table-content`}>
           <div className={`${baseClass}__os-versions-card`}>
