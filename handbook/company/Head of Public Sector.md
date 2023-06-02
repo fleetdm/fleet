@@ -1,4 +1,4 @@
-# 🐋 Head of Public Market Sales
+# 🐋 Head of Public Sector
 
 ## Let's start with why we exist. 📡
 
