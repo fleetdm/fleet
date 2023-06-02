@@ -27,6 +27,7 @@
       border-top-right-radius: 6px;
       border-bottom-right-radius: 6px;
       border: 1px solid @core-fleet-black-25;
+      background: #FFF;
     }
     .input-group:focus-within {
       border: 1px solid @core-vibrant-blue;
@@ -287,15 +288,15 @@
       font-size: 16px;
     }
     [purpose='large-quote']::before, [purpose='quote']::before {
-      font-family: 'Nunito Sans';
-      display: inline;
-      position: absolute;
-      content: '“';
+      content: ' ';
+      background-image: url('/images/icon-quote-mark-22x18@2x.png');
+      background-size: 22px 18px;
+      display: block;
+      position: relative;
       top: 16px;
       left: -32px;
-      font-size: 64px;
-      padding-right: 8px;
-      color: @core-vibrant-blue;
+      width: 22px;
+      height: 18px;
     }
     [purpose='tip'] {
       margin: 16px 0 32px;

@@ -25,6 +25,7 @@ import {
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
@@ -32,8 +33,6 @@ import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
-import TrashIcon from "../../../../../../assets/images/icon-trash-14x14@2x.png";
 import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 const baseClass = "hosts-filter-block";
@@ -137,11 +136,11 @@ const HostsFilterBlock = ({
           />
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
-              <Button onClick={onClickEditLabel} variant={"text-icon"}>
-                <img src={PencilIcon} alt="Edit label" />
+              <Button onClick={onClickEditLabel} variant="small-icon">
+                <Icon name="pencil" size="small" />
               </Button>
-              <Button onClick={onClickDeleteLabel} variant={"text-icon"}>
-                <img src={TrashIcon} alt="Delete label" />
+              <Button onClick={onClickDeleteLabel} variant="small-icon">
+                <Icon name="trash" size="small" />
               </Button>
             </>
           )}

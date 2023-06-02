@@ -32,13 +32,23 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		// If the user exists, we want to update the user roles from the attributes received
 		// in the SAMLResponse.
 
-		// If JIT provisioning or role sync are disabled, then we don't attempt to change the
-		// role of the existing user.
-		if !config.SSOSettings.EnableJITProvisioning || !config.SSOSettings.EnableJITRoleSync {
+		// If JIT provisioning is disabled, then Fleet does not attempt to change
+		// the role of the existing user.
+		if !config.SSOSettings.EnableJITProvisioning {
 			return user, nil
 		}
 
-		newGlobalRole, newTeamsRoles, err := svc.userRolesFromSSOAttributes(ctx, auth)
+		// Load custom roles from SSO attributes.
+		ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
+		}
+		if !ssoRolesInfo.IsSet() {
+			// If role attributes were not set, then there's nothing to do here.
+			return user, nil
+		}
+
+		newGlobalRole, newTeamsRoles, err := svc.userRolesFromSSOAttributes(ctx, ssoRolesInfo)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "user roles from SSO attributes")
 		}
@@ -77,10 +87,23 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		displayName = auth.UserID()
 	}
 
-	// Retrieve (if set) user roles from SAML custom attributes.
-	globalRole, teamRoles, err := svc.userRolesFromSSOAttributes(ctx, auth)
+	var (
+		globalRole *string
+		teamRoles  []fleet.UserTeam
+	)
+	// Attempt to retrieve user roles from SAML custom attributes.
+	ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "user roles from SSO attributes")
+		return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
+	}
+	if ssoRolesInfo.IsSet() {
+		globalRole, teamRoles, err = svc.userRolesFromSSOAttributes(ctx, ssoRolesInfo)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "user roles from SSO attributes")
+		}
+	} else {
+		// If no roles are set in the SSO attributes, default to setting user as a global observer.
+		globalRole = ptr.String(fleet.RoleObserver)
 	}
 
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
@@ -129,18 +152,9 @@ func rolesChanged(oldGlobal *string, oldTeams []fleet.UserTeam, newGlobal *strin
 	return false
 }
 
-// userRolesFromSSOAttributes loads the global or team roles from custom SSO attributes.
-//
-// The returned `globalRole` and `teamRoles` are ready to be assigned to
-// `fleet.User` struct fields `GlobalRole` and `Teams` respectively.
-//
-// If the custom attributes are not found, then the default global observer ("observer", nil, nil) is returned.
-func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, auth fleet.Auth) (globalRole *string, teamsRoles []fleet.UserTeam, err error) {
-	ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
-	}
-
+// userRolesFromSSOAttributes returns `globalRole` and `teamRoles` ready to be assigned
+// to a `fleet.User` struct fields `GlobalRole` and `Teams` respectively.
+func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, ssoRolesInfo fleet.SSORolesInfo) (globalRole *string, teamsRoles []fleet.UserTeam, err error) {
 	for _, teamRole := range ssoRolesInfo.Teams {
 		team, err := svc.ds.Team(ctx, teamRole.ID)
 		if err != nil {

@@ -166,9 +166,9 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 
 	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
 	require.NoError(t, err)
-	require.Len(t, labels, 7)
+	require.Len(t, labels, 8)
 
 	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin))
 	require.NoError(t, err)
-	require.Len(t, labelsSummary, 7)
+	require.Len(t, labelsSummary, 8)
 }

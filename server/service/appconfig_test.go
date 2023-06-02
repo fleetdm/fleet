@@ -421,27 +421,6 @@ func TestJITProvisioning(t *testing.T) {
 		assert.Contains(t, invalid.Error(), "missing or invalid license")
 	})
 
-	config = fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:         true,
-			EnableJITRoleSync: true,
-			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
-				IDPName:     "onelogin",
-				MetadataURL: "http://isser.metadata.com",
-			},
-		},
-	}
-
-	t.Run("doesn't allow to enable JIT role sync without a premium license", func(t *testing.T) {
-		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
-		require.True(t, invalid.HasErrors())
-		assert.Contains(t, invalid.Error(), "enable_jit_role_sync")
-		assert.Contains(t, invalid.Error(), "missing or invalid license")
-	})
-
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -454,7 +433,6 @@ func TestJITProvisioning(t *testing.T) {
 
 		oldConfig.SSOSettings.EnableJITProvisioning = true
 		config.SSOSettings.EnableJITProvisioning = false
-		config.SSOSettings.EnableJITRoleSync = false
 		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
 		require.False(t, invalid.HasErrors())
 	})

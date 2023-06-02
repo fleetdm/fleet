@@ -40,3 +40,16 @@ Select "Force install". Select "Update URL" > "Installation URL (see above)"
 ### Service worker
 
 View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
+### Dev
+
+1. Create your .env file:
+```
+echo 'FLEET_URL="<some_url>"' >> .env
+echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
+```
+2. Build:
+```
+npm install && npm run build
+```
+3. The unpacked extension is in the `dist` dir.

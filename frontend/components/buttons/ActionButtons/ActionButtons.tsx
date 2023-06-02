@@ -4,13 +4,15 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
-import MoreIcon from "../../../../assets/images/icon-more-menu-3x13@2x.png";
+import Icon from "components/Icon/Icon";
+import { IconNames } from "components/icons";
 
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
   buttonVariant?: ButtonVariant;
   icon?: string;
+  iconSvg?: IconNames;
   hideAction?: boolean;
   onClick: () => void;
 }
@@ -61,11 +63,10 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <Button variant="text-icon" onClick={action.onClick}>
                   <>
                     {action.label}
-                    {action.icon ? (
+                    {action.icon && (
                       <img src={action.icon} alt={action.label} />
-                    ) : (
-                      <></>
                     )}
+                    {action.iconSvg && <Icon name={action.iconSvg} />}
                   </>
                 </Button>
               ))
@@ -79,12 +80,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             options={secondaryActions}
             variant="text-icon"
           >
-            More options{" "}
-            <img
-              className="more-options-icon"
-              src={MoreIcon}
-              alt="More options"
-            />
+            More options <Icon name="more" />
           </DropdownButton>
         </div>
       </div>

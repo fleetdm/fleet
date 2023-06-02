@@ -2,7 +2,9 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import Columns from "./Columns";
 import CriticalPolicy from "./CriticalPolicy";
+import Disable from "./Disable";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
@@ -16,6 +18,7 @@ import EmptySoftware from "./EmptySoftware";
 import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
+import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
 import Query from "./Query";
@@ -43,9 +46,10 @@ import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
 import Error from "./Error";
 
-import Clipboard from "./Clipboard";
+import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
@@ -64,7 +68,9 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  columns: Columns,
   "critical-policy": CriticalPolicy,
+  disable: Disable,
   "down-caret": DownCaret,
   ex: Ex,
   "empty-hosts": EmptyHosts,
@@ -81,11 +87,13 @@ export const ICON_MAP = {
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
   issue: Issue,
+  more: More,
   plus: Plus,
   query: Query,
-  clipboard: Clipboard,
+  copy: Copy,
   eye: Eye,
   pencil: Pencil,
+  transfer: Transfer,
   trash: TrashCan,
   success: Success,
   "success-partial": SuccessPartial,
