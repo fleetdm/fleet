@@ -185,12 +185,11 @@ SELECT
 FROM
 	host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND (COALESCE(status, '%s') = '%s' OR COALESCE(status, '%s') = '%s'))`,
+	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s')))`,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleDeliveryVerifying,
-		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleDeliveryVerified)
 
 	var profiles []fleet.HostMDMAppleProfile
