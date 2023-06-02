@@ -103,7 +103,6 @@ const generateTableHeaders = ({
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        console.log("cellProps.row.original", cellProps.row.original);
         return (
           <LinkCell
             classes="w400"
