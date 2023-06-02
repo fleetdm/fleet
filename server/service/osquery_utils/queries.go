@@ -114,7 +114,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_chrome": {
-		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Query:      `SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1`,
 		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
@@ -166,8 +166,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		Query: `
 	SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -178,7 +177,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["display_version"]
+			version := rows[0]["version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
@@ -330,6 +329,7 @@ FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
+
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
@@ -338,6 +338,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskSpace,
 	},
+
 	"kubequery_info": {
 		Query:      `SELECT * from kubernetes_info`,
 		IngestFunc: ingestKubequeryInfo,
@@ -464,6 +465,12 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
 	},
+	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
+	"chromeos_profile_user_info": {
+		Query:            `SELECT email FROM users`,
+		DirectIngestFunc: directIngestChromeProfiles,
+		Platforms:        []string{"chrome"},
+	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
@@ -487,8 +494,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -514,6 +520,23 @@ var extraDetailQueries = map[string]DetailQuery{
 		os_version os,
 		kernel_info k`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestOSUnixLike,
+	},
+	"os_chrome": {
+		Query: `
+	SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.platform,
+		os.version AS version,
+		os.version AS kernel_version
+	FROM
+		os_version os`,
+		Platforms:        []string{"chrome"},
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"orbit_info": {
@@ -907,7 +930,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Platform:      rows[0]["platform"],
 	}
 
-	version := rows[0]["display_version"]
+	version := rows[0]["version"]
 	if version == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
@@ -923,7 +946,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 }
 
 // directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
-// (e.g., darwin or linux operating systems)
+// (e.g., darwin, Linux or ChromeOS)
 func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
@@ -1172,7 +1195,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		software = append(software, s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
-		if installedPath != "" {
+		if installedPath != "" &&
+			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
+			// Thus, we explicitly ignore such value here.
+			strings.ToLower(installedPath) != "null" {
 			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 			sPaths[key] = struct{}{}
 		}

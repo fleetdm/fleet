@@ -1753,7 +1753,6 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			got, err := ds.SearchHosts(tt.args.ctx, tt.args.filter, tt.args.matchQuery, tt.args.omit...)
 			tt.wantErr(t, err)
 			resultHostIDs := make([]uint, len(got))
@@ -5753,6 +5752,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer.Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
 
+	_, err = ds.writer.Exec(`INSERT INTO host_dep_assignments (host_id) VALUES (?)`, host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -6426,6 +6428,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		// compare only the fields we care about
 		h.CreatedAt = returned.CreatedAt
 		h.UpdatedAt = returned.UpdatedAt
+		h.DEPAssignedToFleet = ptr.Bool(false)
 		assert.Equal(t, h, returned)
 	}
 
@@ -6436,15 +6439,16 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	createOrbitHost := func(tag string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			Platform:        tag,
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(tag),
-			NodeKey:         ptr.String(tag),
-			UUID:            tag,
-			Hostname:        tag + ".local",
+			Platform:           tag,
+			DetailUpdatedAt:    time.Now(),
+			LabelUpdatedAt:     time.Now(),
+			PolicyUpdatedAt:    time.Now(),
+			SeenTime:           time.Now(),
+			OsqueryHostID:      ptr.String(tag),
+			NodeKey:            ptr.String(tag),
+			UUID:               tag,
+			Hostname:           tag + ".local",
+			DEPAssignedToFleet: ptr.Bool(false),
 		})
 		require.NoError(t, err)
 

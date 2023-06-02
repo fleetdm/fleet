@@ -41,7 +41,8 @@
 
     .edit-link {
       cursor: pointer;
-      padding-left: 12px;
+      padding-left: $pad-small;
+      height: 18px;
     }
 
     .name-description {

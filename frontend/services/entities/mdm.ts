@@ -176,4 +176,12 @@ export default {
     const { MDM_EULA } = endpoints;
     return sendRequest("GET", MDM_EULA(token));
   },
+
+  updateEndUserAuthentication: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      enable_end_user_authentication: isEnabled,
+    });
+  },
 };

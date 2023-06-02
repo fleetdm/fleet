@@ -655,9 +655,6 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 			if p.SSOSettings.EnableJITProvisioning {
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 			}
-			if p.SSOSettings.EnableJITRoleSync {
-				invalid.Append("enable_jit_role_sync", ErrMissingLicense.Error())
-			}
 		}
 	}
 }

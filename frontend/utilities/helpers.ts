@@ -506,6 +506,9 @@ export const generateRole = (
     } else if (listOfRoles.every((role): boolean => role === "observer")) {
       // only team observers
       return "Observer";
+    } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
+      // only team observers plus
+      return "Observer+";
     }
 
     return "Various"; // no global role and multiple teams

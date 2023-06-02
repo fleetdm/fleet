@@ -40,6 +40,7 @@
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
+      - [Debugging tips](#debugging-tips)
 
 ## License key
 
@@ -323,7 +324,6 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -619,7 +619,6 @@ mdm:
   end_user_authentication:
     entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
     metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
 

@@ -10,6 +10,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   last_enrolled_at: "2022-01-02T12:00:00Z",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
+  refetch_critical_queries_until: null,
   hostname: "9b20fc72a247",
   display_name: "9b20fc72a247",
   display_text: "mock host 1",

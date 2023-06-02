@@ -46,7 +46,7 @@ jobs:
 
     env:
       RACE_ENABLED: false
-      GO_TEST_TIMEOUT: 10m
+      GO_TEST_TIMEOUT: 15m
 
     steps:
     - name: Install Go
@@ -103,6 +103,7 @@ jobs:
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
         files: coverage.txt
+        flags: backend
 
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()

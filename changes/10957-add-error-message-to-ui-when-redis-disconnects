@@ -1,0 +1,1 @@
+* Add error message to UI when Redis disconnects during a live query session.

@@ -177,10 +177,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
 	}
 
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.OrbitConfig{Notifications: notifs}, err
+	}
+
 	// set the host's orbit notifications
-	if host.IsOsqueryEnrolled() {
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+	if config.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
+		if host.NeedsDEPEnrollment() {
 			notifs.RenewEnrollmentProfile = true
+		}
+
+		if config.MDM.MacOSMigration.Enable &&
+			host.IsElegibleForDEPMigration() {
+			notifs.NeedsMDMMigration = true
 		}
 
 		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
@@ -232,10 +242,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// team ID is nil, get global flags and options
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
-	}
 	var opts fleet.AgentOptions
 	if config.AgentOptions != nil {
 		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
@@ -250,14 +256,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
-	}
-
-	if config.MDM.EnabledAndConfigured &&
-		config.MDM.MacOSMigration.Enable &&
-		host.IsOsqueryEnrolled() &&
-		host.MDMInfo.IsDEPCapable() &&
-		host.MDMInfo.IsEnrolledInThirdPartyMDM() {
-		notifs.NeedsMDMMigration = true
 	}
 
 	return fleet.OrbitConfig{

@@ -1,8 +1,12 @@
 import Alert from "./Alert";
+import Arrow from "./Arrow";
+import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import Columns from "./Columns";
 import CriticalPolicy from "./CriticalPolicy";
+import Disable from "./Disable";
 import DownCaret from "./DownCaret";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
@@ -16,6 +20,7 @@ import EmptySoftware from "./EmptySoftware";
 import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
+import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
 import Query from "./Query";
@@ -41,11 +46,13 @@ import Success from "./Success";
 import SuccessPartial from "./SuccessPartial";
 import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
+import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
 
-import Clipboard from "./Clipboard";
+import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
@@ -61,10 +68,14 @@ import FilePdf from "./FilePdf";
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   alert: Alert,
+  arrow: Arrow,
+  "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  columns: Columns,
   "critical-policy": CriticalPolicy,
+  disable: Disable,
   "down-caret": DownCaret,
   ex: Ex,
   "empty-hosts": EmptyHosts,
@@ -81,17 +92,20 @@ export const ICON_MAP = {
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
   issue: Issue,
+  more: More,
   plus: Plus,
   query: Query,
-  clipboard: Clipboard,
+  copy: Copy,
   eye: Eye,
   pencil: Pencil,
+  transfer: Transfer,
   trash: TrashCan,
   success: Success,
   "success-partial": SuccessPartial,
   pending: Pending,
   "pending-partial": PendingPartial,
   error: Error,
+  "error-outline": ErrorOutline,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,

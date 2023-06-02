@@ -30,7 +30,7 @@ import validUrl from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
-import { size } from "lodash";
+import { isEmpty, omit } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -69,8 +69,7 @@ const validateWebhookURL = (url: string) => {
     delete errors.url;
   }
 
-  const valid = !size(errors);
-  return { valid, errors };
+  return { valid: isEmpty(errors), errors };
 };
 
 const baseClass = "manage-automations-modal";
@@ -191,19 +190,23 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid: newValidUrl, errors: newErrors } = validateWebhookURL(
-      destinationUrl
-    );
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
+    const {
+      valid: validWebhookUrl,
+      errors: errorsWebhookUrl,
+    } = validateWebhookURL(destinationUrl);
+    if (!validWebhookUrl) {
+      setErrors((prevErrs) => ({ ...prevErrs, ...errorsWebhookUrl }));
+    } else {
+      setErrors((prevErrs) => omit(prevErrs, "url"));
+    }
 
     // Original config keys for software automation (webhook_settings, integrations)
     const configSoftwareAutomations: ISoftwareAutomations = {
       webhook_settings: {
         vulnerabilities_webhook: {
-          destination_url: destinationUrl,
+          destination_url: validWebhookUrl
+            ? destinationUrl
+            : currentDestinationUrl, // if new destination url is not valid, revert to current destination url
           enable_vulnerabilities_webhook: softwareVulnerabilityWebhookEnabled,
         },
       },
@@ -213,7 +216,7 @@ const ManageAutomationsModal = ({
       },
     };
 
-    const updateSoftwareAutomation = () => {
+    const readyForSubmission = (): boolean => {
       if (!softwareAutomationsEnabled) {
         // set enable_vulnerabilities_webhook
         // jira.enable_software_vulnerabilities
@@ -234,11 +237,11 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
-        return;
+        return true;
       }
       if (!integrationEnabled) {
-        if (!newValidUrl) {
-          return;
+        if (!isEmpty(errorsWebhookUrl)) {
+          return false;
         }
         // set enable_vulnerabilities_webhook to true
         // all jira.enable_software_vulnerabilities to false
@@ -262,7 +265,7 @@ const ManageAutomationsModal = ({
           }
         );
         configSoftwareAutomations.integrations.zendesk = disableAllZendesk;
-        return;
+        return true;
       }
       // set enable_vulnerabilities_webhook to false
       // all jira.enable_software_vulnerabilities to false
@@ -293,9 +296,12 @@ const ManageAutomationsModal = ({
         }
       );
       configSoftwareAutomations.integrations.zendesk = enableSelectedZendeskIntegrationOnly;
+      return true;
     };
 
-    updateSoftwareAutomation();
+    if (!readyForSubmission()) {
+      return;
+    }
     onCreateWebhookSubmit(configSoftwareAutomations);
     onReturnToApp();
   };

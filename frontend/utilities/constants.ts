@@ -184,9 +184,9 @@ interface IPlatformDropdownOptions {
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "all", path: paths.DASHBOARD },
+  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
   { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
   { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
-  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
 ];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
