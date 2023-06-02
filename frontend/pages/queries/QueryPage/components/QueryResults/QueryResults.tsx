@@ -77,14 +77,16 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: queryResults, errors } =
-    campaign || {};
+  const {
+    hosts_count: hostsCount,
+    query_results: queryResults,
+    errors: queryErrors,
+  } = campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<null | Column[]>(null);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -98,15 +100,6 @@ const QueryResults = ({
   useEffect(() => {
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
-
-  // set tableHeaders when initial results come in
-  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
-  // set these
-  useEffect(() => {
-    if (tableHeaders === null && !!queryResults?.length) {
-      setTableHeaders(generateResultsTableHeaders(queryResults));
-    }
-  }, [tableHeaders, queryResults]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -189,7 +182,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableHeaders}
+          columns={generateResultsTableHeaders(tableData || [])}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -210,8 +203,7 @@ const QueryResults = ({
 
   const renderResultsTab = () => {
     // TODO - clean up these conditions
-    const hasNoResultsYet =
-      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
+    const hasNoResultsYet = !isQueryFinished && !queryResults?.length;
     const finishedWithNoResults =
       isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
@@ -226,10 +218,10 @@ const QueryResults = ({
     return renderTable(queryResultsForTableRender, "results");
   };
 
-  const renderErrorsTab = () => renderTable(errors, "errors");
+  const renderErrorsTab = () => renderTable(queryErrors, "errors");
 
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
-    "errors-empty": !errors || errors?.length === 0,
+    "errors-empty": !queryErrors || queryErrors?.length === 0,
   });
 
   return (
@@ -246,10 +238,10 @@ const QueryResults = ({
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
-            <Tab disabled={!errors?.length}>
+            <Tab disabled={!queryErrors?.length}>
               <span>
-                {errors?.length > 0 && (
-                  <span className="count">{errors.length}</span>
+                {queryErrors?.length > 0 && (
+                  <span className="count">{queryErrors.length}</span>
                 )}
                 {NAV_TITLES.ERRORS}
               </span>
