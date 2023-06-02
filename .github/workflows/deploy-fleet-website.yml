@@ -2,13 +2,13 @@ name: Deploy Fleet website
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'website/**'
-      - 'docs/**'
-      - 'handbook/**'
-      - 'articles/**'
-      - 'schema/**'
+      - "website/**"
+      - "docs/**"
+      - "handbook/**"
+      - "articles/**"
+      - "schema/**"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -34,75 +34,74 @@ jobs:
         node-version: [14.x]
 
     steps:
-    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
-    # Configure our access credentials for the Heroku CLI
-    - uses: akhileshns/heroku-deploy@79ef2ae4ff9b897010907016b268fd0f88561820 # v3.6.8
-      with:
-        heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
-        heroku_app_name: "" # this has to be blank or it doesn't work
-        heroku_email: ${{secrets.HEROKU_EMAIL_FOR_BOT_USER}}
-        justlogin: true
-    - run: heroku auth:whoami
+      # Configure our access credentials for the Heroku CLI
+      - uses: akhileshns/heroku-deploy@79ef2ae4ff9b897010907016b268fd0f88561820 # v3.6.8
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
+          heroku_app_name: "" # this has to be blank or it doesn't work
+          heroku_email: ${{secrets.HEROKU_EMAIL_FOR_BOT_USER}}
+          justlogin: true
+      - run: heroku auth:whoami
 
-    # Set the Node.js version
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      # Set the Node.js version
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
+      # Install the right version of Go for the Golang child process that we are currently using for CSR signing
+      - name: Set up Go
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: 1.19
 
-    # Install the right version of Go for the Golang child process that we are currently using for CSR signing
-    - name: Set up Go
-      uses: actions/setup-go@v2.1.3
-      with:
-        go-version: 1.19
+      # Now start building!
+      # > …but first, get a little crazy for a sec and delete the top-level package.json file
+      # > i.e. the one used by the Fleet server.  This is because require() in node will go
+      # > hunting in ancestral directories for missing dependencies, and since some of the
+      # > bundled transpiler tasks sniff for package availability using require(), this trips
+      # > up when it encounters another Node universe in the parent directory.
+      - run: rm -rf package.json package-lock.json node_modules/
+      # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+      # > delete the top level .eslintrc file too.
+      - run: rm -f .eslintrc.js
+      # > And, as a change to the top-level fleetdm/fleet .gitignore on May 2, 2022 revealed,
+      # > we also need to delete the top level .gitignore file too, so that its rules don't
+      # > interfere with the committing and force-pushing we're doing as part of our deploy
+      # > script here.  For more info, see: https://github.com/fleetdm/fleet/pull/5549
+      - run: rm -f .gitignore
 
-    # Now start building!
-    # > …but first, get a little crazy for a sec and delete the top-level package.json file
-    # > i.e. the one used by the Fleet server.  This is because require() in node will go
-    # > hunting in ancestral directories for missing dependencies, and since some of the
-    # > bundled transpiler tasks sniff for package availability using require(), this trips
-    # > up when it encounters another Node universe in the parent directory.
-    - run: rm -rf package.json package-lock.json node_modules/
-    # > Turns out there's a similar issue with how eslint plugins are looked up, so we
-    # > delete the top level .eslintrc file too.
-    - run: rm -f .eslintrc.js
-    # > And, as a change to the top-level fleetdm/fleet .gitignore on May 2, 2022 revealed,
-    # > we also need to delete the top level .gitignore file too, so that its rules don't
-    # > interfere with the committing and force-pushing we're doing as part of our deploy
-    # > script here.  For more info, see: https://github.com/fleetdm/fleet/pull/5549
-    - run: rm -f .gitignore
+      # Download dependencies (including dev deps)
+      - run: cd website/ && npm install
 
-    # Download dependencies (including dev deps)
-    - run: cd website/ && npm install
+      # Run sanity checks
+      - run: cd website/ && npm test
 
-    # Run sanity checks
-    - run: cd website/ && npm test
+      # Compile browser assets & markdown content into generated collateral
+      - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
 
-    # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
+      # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
+      - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
 
-    # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
-    - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
+      # Commit newly-generated collateral locally so we can push them to Heroku below.
+      # (This commit will never be pushed to GitHub- only to Heroku.)
+      # > The local config flags make this work in GitHub's environment.
+      - run: git add website/.www
+      - run: git add website/.tools
+      - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
+      - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
 
-    # Commit newly-generated collateral locally so we can push them to Heroku below.
-    # (This commit will never be pushed to GitHub- only to Heroku.)
-    # > The local config flags make this work in GitHub's environment.
-    - run: git add website/.www
-    - run: git add website/.tools
-    - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
-    - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
+      # Configure the Heroku app we'll be deploying to
+      - run: heroku git:remote -a production-fleetdm-website
+      - run: git remote -v
 
-    # Configure the Heroku app we'll be deploying to
-    - run: heroku git:remote -a production-fleetdm-website
-    - run: git remote -v
-
-    # Deploy to Heroku (by pushing)
-    # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
-    - run: echo "Unshallowing local repository…"
-    - run: git fetch --prune --unshallow
-    - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    - run: git push heroku +${GITHUB_REF##*/}:master  # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
-    - name: 🌐 https://fleetdm.com
-      run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
+      # Deploy to Heroku (by pushing)
+      # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
+      - run: echo "Unshallowing local repository…"
+      - run: git fetch --prune --unshallow
+      - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
+      - run: git push heroku +${GITHUB_REF##*/}:master # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
+      - name: 🌐 https://fleetdm.com
+        run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'

@@ -3,7 +3,7 @@ name: goreleaser
 on:
   push:
     tags:
-      - 'fleet-*'
+      - "fleet-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -55,7 +55,7 @@ jobs:
           args: release --rm-dist -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
 
       - name: Get tag
         run: |

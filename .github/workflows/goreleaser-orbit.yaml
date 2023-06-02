@@ -2,8 +2,8 @@ name: GoReleaser Orbit
 
 on:
   push:
-   tags:
-     - 'orbit-*'
+    tags:
+      - "orbit-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -56,7 +56,7 @@ jobs:
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

@@ -3,11 +3,11 @@ name: Test Fleet website
 on:
   pull_request:
     paths:
-      - 'website/**'
-      - 'docs/**'
-      - 'handbook/**'
-      - 'schema/**'
-      - 'articles/**'
+      - "website/**"
+      - "docs/**"
+      - "handbook/**"
+      - "schema/**"
+      - "articles/**"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -31,30 +31,30 @@ jobs:
         node-version: [14.x]
 
     steps:
-    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
-    # Set the Node.js version
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      # Set the Node.js version
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    # Now start building!
-    # > …but first, get a little crazy for a sec and delete the top-level package.json file
-    # > i.e. the one used by the Fleet server.  This is because require() in node will go
-    # > hunting in ancestral directories for missing dependencies, and since some of the
-    # > bundled transpiler tasks sniff for package availability using require(), this trips
-    # > up when it encounters another Node universe in the parent directory.
-    - run: rm -rf package.json package-lock.json node_modules/
-    # > Turns out there's a similar issue with how eslint plugins are looked up, so we
-    # > delete the top level .eslintrc file too.
-    - run: rm -f .eslintrc.js
+      # Now start building!
+      # > …but first, get a little crazy for a sec and delete the top-level package.json file
+      # > i.e. the one used by the Fleet server.  This is because require() in node will go
+      # > hunting in ancestral directories for missing dependencies, and since some of the
+      # > bundled transpiler tasks sniff for package availability using require(), this trips
+      # > up when it encounters another Node universe in the parent directory.
+      - run: rm -rf package.json package-lock.json node_modules/
+      # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+      # > delete the top level .eslintrc file too.
+      - run: rm -f .eslintrc.js
 
-    # Get dependencies (including dev deps)
-    - run: cd website/ && npm install
+      # Get dependencies (including dev deps)
+      - run: cd website/ && npm install
 
-    # Run sanity checks
-    - run: cd website/ && npm test
+      # Run sanity checks
+      - run: cd website/ && npm test
 
-    # Compile assets
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
+      # Compile assets
+      - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
