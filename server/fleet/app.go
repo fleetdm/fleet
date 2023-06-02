@@ -67,6 +67,8 @@ type SSOSettings struct {
 	// EnableJITProvisioning allows user accounts to be created the first time
 	// users try to log in
 	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
+	// EnableJITRoleSync is deprecated.
+	//
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`

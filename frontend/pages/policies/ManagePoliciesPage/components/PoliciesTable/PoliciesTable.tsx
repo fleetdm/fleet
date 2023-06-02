@@ -165,7 +165,7 @@ const PoliciesTable = ({
           primarySelectAction={{
             name: "delete policy",
             buttonText: "Delete",
-            icon: "delete",
+            iconSvg: "trash",
             variant: "text-icon",
             onActionButtonClick: onDeletePolicyClick,
           }}
