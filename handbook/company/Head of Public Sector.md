@@ -1,4 +1,4 @@
-# 🐋 VP Public Market Sales
+# 🐋 Head of Public Market Sales
 
 ## Let's start with why we exist. 📡
 
@@ -18,7 +18,7 @@ tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com
 
 ## Your primary responsibilities 🔭
 
-As the VP of Public Sector at Fleet, you will get the chance to…
+As the Head of Public Sector at Fleet, you will get the chance to…
 
 - 🤝 Lead efforts selling Fleet to government entities, including federal, state and local agencies
 - 📈 Develop and implement strategies that grow the company's public sector business, meeting revenue targets and building strong relationships with customers
