@@ -15,47 +15,55 @@ describe("QuerySidePanel - component", () => {
       />
     );
 
-    const tableDropdownText = screen.getByText("Users");
+    const tableDropdownText = screen.getByDisplayValue(/users/i);
     expect(tableDropdownText).toBeInTheDocument();
   });
 
-  // it("renders platform compatibility", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+  it("renders platform compatibility", () => {
+    const { container } = render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
 
-  //   const tableDropdownText = screen.getByText("Users");
-  //   expect(tableDropdownText).toBeInTheDocument();
-  // });
+    const platformList = container.getElementsByClassName("platform-list-item");
+    const platformCompatibility = screen.getByTestId("compatibility");
 
-  // it("renders the correct number of columns", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+    expect(platformList.length).toBe(3);
+    expect(platformCompatibility).toHaveTextContent(/macos/i);
+    expect(platformCompatibility).toHaveTextContent(/windows/i);
+    expect(platformCompatibility).toHaveTextContent(/linux/i);
+  });
 
-  //   const tableDropdownText = screen.getByText("Users");
-  //   expect(tableDropdownText).toBeInTheDocument();
-  // });
-  // it("renders the correct column tooltip", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+  it("renders the correct number of columns", () => {
+    const { container } = render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
 
-  //   const tableDropdownText = screen.getByText("Users");
-  //   expect(tableDropdownText).toBeInTheDocument();
-  // });
+    const platformList = container.getElementsByClassName("column-list-item");
+    expect(platformList.length).toBe(12);
+  });
+
+  it.only("renders the platform specific column tooltip", () => {
+    render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
+
+    // TODO
+    const tooltip = screen.getByText(/on linux/i);
+    expect(tooltip).toBeInTheDocument();
+  });
+
   // it("render an example", () => {
   //   render(
   //     <QuerySidePanel
