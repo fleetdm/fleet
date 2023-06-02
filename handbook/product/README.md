@@ -73,9 +73,7 @@ What happens during emergency drafting?
 
 Many open source contributions that start as a small, seemingly innocuous pull request come with lots of additional [unplanned work](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) down the road: unforseen side effects, documentation, testing, potential breaking changes, database migrations, [and more](https://fleetdm.com/handbook/company/development-groups#defining-done).
 
-Thus, it is still important to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from:
-- Prior to merging any change, small or large, that would change the expected behavior of the product, [prioritized](#prioritizing-improvements) by the [appropriate product group's](https://fleetdm.com/handbook/company/development-groups#current-product-groups) Product Manager and [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) by the group's Product Designer prior to merging. 
-- All changes to the user interface should be [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) by the appropriate Product Designer.
+Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
 ## Prioritizing improvements
 Product Managers prioritize all potential product improvements worked on by contributors inside the company.
