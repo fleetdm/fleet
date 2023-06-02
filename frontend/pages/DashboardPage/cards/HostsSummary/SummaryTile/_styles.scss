@@ -25,6 +25,16 @@
     white-space: nowrap;
   }
 
+  &__not-supported {
+    // negate the default disabled button styling
+    opacity: 1;
+    filter: none;
+  }
+  &__not-supported-text {
+    font-size: $large;
+    color: $ui-fleet-black-50;
+  }
+
   &__description {
     white-space: nowrap;
 

@@ -503,6 +503,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
         isSandboxMode={isSandboxMode}
+        notSupported={selectedPlatform === "chrome"}
       />
     ),
   });
