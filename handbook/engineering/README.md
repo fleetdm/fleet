@@ -83,7 +83,7 @@ For each attendee:
 - What could have gone better this release cycle?
 - What should we remember next time?
 
-### Group Weeklies
+### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
 
@@ -965,5 +965,5 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#help-qa`               | Reed Haynes                                                      |
 | `#_pov-environments`     | Ben Edwards                                                      |
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🚀 Engineering">
