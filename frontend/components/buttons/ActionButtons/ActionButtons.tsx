@@ -63,9 +63,6 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <Button variant="text-icon" onClick={action.onClick}>
                   <>
                     {action.label}
-                    {action.icon && (
-                      <img src={action.icon} alt={action.label} />
-                    )}
                     {action.iconSvg && <Icon name={action.iconSvg} />}
                   </>
                 </Button>

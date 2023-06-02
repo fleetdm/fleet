@@ -4,66 +4,49 @@ package profiles
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/groob/plist"
 )
 
-type profileItem struct {
-	PayloadContent fleet.MDMAppleFleetdConfig
-	PayloadType    string
-}
-
-type profilePayload struct {
-	ProfileIdentifier string
-	ProfileItems      []profileItem
-}
-
-type profilesOutput struct {
-	ComputerLevel []profilePayload `plist:"_computerlevel"`
-}
-
-// GetFleetdConfig searches and parses a device level configuration profile
-// with Fleet's payload identifier.
+// GetFleetdConfig reads a system level setting set with Fleet's payload identifier.
 func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
-	p, err := getProfile(mobileconfig.FleetdConfigPayloadIdentifier)
-	if err != nil {
-		return nil, err
-	}
+	readFleetdConfigAppleScript := fmt.Sprintf(`
+           const config = $.NSUserDefaults.alloc.initWithSuiteName("%s");
+           const enrollSecret = config.objectForKey("EnrollSecret");
+           const fleetURL = config.objectForKey("FleetURL");
+           JSON.stringify({
+             EnrollSecret: ObjC.deepUnwrap(enrollSecret),
+             FleetURL: ObjC.deepUnwrap(fleetURL),
+           });
+         `, mobileconfig.FleetdConfigPayloadIdentifier)
 
-	return &p.ProfileItems[0].PayloadContent, nil
-}
-
-func getProfile(identifier string) (*profilePayload, error) {
-	outBuf, err := execProfileCmd()
+	outBuf, err := execScript(readFleetdConfigAppleScript)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
-	var profiles profilesOutput
-	if err := plist.Unmarshal(outBuf.Bytes(), &profiles); err != nil {
-		return nil, fmt.Errorf("get profile: %w", err)
+	var cfg fleet.MDMAppleFleetdConfig
+	if err = json.Unmarshal(outBuf.Bytes(), &cfg); err != nil {
+		return nil, fmt.Errorf("unmarshaling configuration: %w", err)
 	}
 
-	for _, profile := range profiles.ComputerLevel {
-		if profile.ProfileIdentifier == identifier {
-			return &profile, nil
-		}
+	if cfg.EnrollSecret == "" || cfg.FleetURL == "" {
+		return nil, ErrNotFound
 	}
 
-	return nil, ErrNotFound
+	return &cfg, err
 }
 
-// execProfileCmd is declared as a variable so it can be overwritten by tests.
-var execProfileCmd = func() (*bytes.Buffer, error) {
+// execScript is declared as a variable so it can be overwritten by tests.
+var execScript = func(script string) (*bytes.Buffer, error) {
 	var outBuf bytes.Buffer
-	cmd := exec.Command("/usr/bin/profiles", "list", "-o", "stdout-xml")
+	cmd := exec.Command("osascript", "-l", "JavaScript", "-e", script)
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
-
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
