@@ -71,7 +71,7 @@ Example output:
 +--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
 |                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                        RESULTS                        |
 +--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
-| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | InstallProfile | Acknowledged | mos-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE      |
+| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | RestartDevice  | Acknowledged | mos-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE      |
 |                                      |                      |                |              |                     | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"            |
 |                                      |                      |                |              |                     | "http://www.apple.com/DTDs/PropertyList-1.0.dtd">     |
 |                                      |                      |                |              |                     | <plist version="1.0"> <dict> 	<key>CommandUUID</key>   |
@@ -103,9 +103,9 @@ $ fleetctl get mdm-commands
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 |                  ID                  |         TIME         |           TYPE           |    STATUS    |        HOSTNAME        |
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-12T18:19:10Z | InstalledApplicationList | Acknowledged | iMac-Pro.local         |
+| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-12T18:19:10Z | RestartDevice            | Acknowledged | iMac-Pro.local         |
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-| 87dc6325-8bc0-4fc8-9a2f-3901c535456e | 2023-04-12T18:15:01Z | InstallProfile           | Acknowledged | iMac-Pro.local         |
+| 87dc6325-8bc0-4fc8-9a2f-3901c535456e | 2023-04-12T18:15:01Z | DeviceLock               | Acknowledged | iMac-Pro.local         |
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 ```
 
