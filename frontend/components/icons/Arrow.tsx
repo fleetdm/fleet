@@ -1,12 +1,11 @@
 import React from "react";
-
 import { COLORS, Colors } from "styles/var/colors";
 
-interface IErrorProps {
+interface IArrowProps {
   color?: Colors;
 }
 
-const Error = ({ color = "status-error" }: IErrorProps) => {
+const Arrow = ({ color = "core-fleet-blue" }: IArrowProps) => {
   return (
     <svg
       width="16"
@@ -18,11 +17,11 @@ const Error = ({ color = "status-error" }: IErrorProps) => {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8Zm0 3.25a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V4A.75.75 0 0 1 8 3.25ZM8 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+        d="M9.293 3.707a1 1 0 0 1 1.414-1.414l5 5a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414-1.414L12.586 9H1a1 1 0 0 1 0-2h11.586L9.293 3.707Z"
         fill={COLORS[color]}
       />
     </svg>
   );
 };
 
-export default Error;
+export default Arrow;

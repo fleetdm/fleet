@@ -12,11 +12,8 @@ import hostAPI from "services/entities/hosts";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import Icon from "components/Icon/Icon";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
-import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
-import IconDisabled from "../../../../../assets/images/icon-action-disable-red-16x16@2x.png";
-import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
-import IconError from "../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
 interface IWelcomeHostCardProps {
@@ -163,12 +160,8 @@ const WelcomeHost = ({
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
-          <p>
-            <img
-              alt="Disabled icon"
-              className="icon-disabled"
-              src={IconDisabled}
-            />
+          <p className="error-message">
+            <Icon name="disable" color="status-error" />
             Your device is not communicating with Fleet.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
@@ -193,11 +186,7 @@ const WelcomeHost = ({
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
           <p className="error-message">
-            <img
-              alt="Disabled icon"
-              className="icon-disabled"
-              src={IconDisabled}
-            />
+            <Icon name="disable" color="status-error" />
             No policies apply to your device.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
@@ -225,7 +214,7 @@ const WelcomeHost = ({
           <div className="info">
             <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
               {host.display_name}
-              <img alt="" src={LinkArrow} />
+              <Icon name="arrow-internal-link" />
             </Link>
             <p>Your host is successfully connected to Fleet.</p>
           </div>
@@ -245,11 +234,18 @@ const WelcomeHost = ({
                   onClick={() => handlePolicyModal(p.id)}
                 >
                   <div className="policy-block">
-                    <img
-                      alt={p.response}
-                      src={p.response === POLICY_PASS ? IconPassed : IconError}
+                    <Icon
+                      name={
+                        p.response === POLICY_PASS ? "success" : "error-outline"
+                      }
                     />
                     <span className="info">{p.name}</span>
+                    <Icon
+                      name="chevron"
+                      color="core-fleet-blue"
+                      direction="right"
+                      className="policy-arrow"
+                    />
                   </div>
                 </Button>
               );
@@ -258,9 +254,9 @@ const WelcomeHost = ({
             return null;
           })}
           {host.policies?.length > 3 && (
-            <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
+            <Link to={PATHS.HOST_POLICIES(host.id)} className="external-link">
               Go to Host details to see all policies
-              <img alt="" src={LinkArrow} />
+              <Icon name="arrow-internal-link" />
             </Link>
           )}
         </div>
@@ -276,7 +272,7 @@ const WelcomeHost = ({
             onClick={onRefetchHost}
             disabled={showRefetchLoadingSpinner}
           >
-            Refetch
+            <Icon name="refresh" color="core-fleet-white" /> Refetch
           </Button>
           <span>
             Last updated{" "}

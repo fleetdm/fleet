@@ -2,11 +2,11 @@ import React from "react";
 
 import { COLORS, Colors } from "styles/var/colors";
 
-interface IErrorProps {
+interface IErrorOutlineProps {
   color?: Colors;
 }
 
-const Error = ({ color = "status-error" }: IErrorProps) => {
+const ErrorOutline = ({ color = "status-error" }: IErrorOutlineProps) => {
   return (
     <svg
       width="16"
@@ -18,11 +18,11 @@ const Error = ({ color = "status-error" }: IErrorProps) => {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8Zm0 3.25a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V4A.75.75 0 0 1 8 3.25ZM8 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+        d="M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12Zm0 2A8 8 0 1 0 8 0a8 8 0 0 0 0 16ZM8 4a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
         fill={COLORS[color]}
       />
     </svg>
   );
 };
 
-export default Error;
+export default ErrorOutline;
