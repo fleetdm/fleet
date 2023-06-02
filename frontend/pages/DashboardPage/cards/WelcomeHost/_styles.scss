@@ -9,30 +9,31 @@
     margin-top: 4px;
   }
 
-  .icon-disabled {
-    width: 16px;
-    margin-right: 8px;
-    position: relative;
-    top: 3px;
-  }
-
   p.error-message {
     font-weight: $bold;
     margin: 1.5rem 0;
   }
 
+  p.error-message,
+  .policy-block {
+    .icon {
+      vertical-align: sub;
+      margin-right: $pad-small;
+    }
+  }
+
   .external-link {
     display: flex;
-    align-items: center;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
 
-    img {
-      height: 12px;
-      width: 12px;
+    .icon {
+      margin-left: $pad-small;
+      vertical-align: sub;
     }
+
     &:last-of-type {
       margin-top: $pad-large;
     }
@@ -66,11 +67,6 @@
     button {
       height: auto;
       width: 100%;
-      img {
-        transform: scale(0.58) rotate(-90deg);
-        position: relative;
-        top: 1px;
-      }
     }
 
     .children-wrapper {
@@ -79,19 +75,13 @@
 
     .policy-block {
       min-width: 100%;
+      height: 36px;
       border: 1px solid $ui-fleet-black-25;
       border-radius: 6px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: $regular;
-
-      img {
-        margin: 0 $pad-small;
-        transform: scale(0.5);
-        position: relative;
-        top: -1px;
-      }
 
       .info {
         line-height: 1;
@@ -102,11 +92,8 @@
         text-align: left;
       }
 
-      &::after {
-        content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
-        transform: scale(0.5) rotate(-90deg);
-        border-radius: 0px;
-        margin: 0 $pad-xsmall;
+      .icon {
+        padding-left: $pad-medium;
       }
     }
   }
@@ -127,26 +114,23 @@
         font-size: $x-small;
         height: 38px;
 
-        &::before {
-          display: inline-block;
-          position: relative;
-          padding: 5px 0 0 0; // centers spin
-          display: inline-block;
-          content: url(../assets/images/icon-refetch-white-12x12@2x.png);
-          transform: scale(0.5);
+        .icon {
+          margin-right: 6px;
         }
 
-        &.spin::before {
-          animation: spin 2s linear infinite;
+        &.spin {
+          .icon {
+            animation: spin 2s linear infinite;
+          }
         }
 
         @keyframes spin {
           0% {
-            transform: scale(0.5) rotate(0deg);
+            transform: rotate(0deg);
             transform-origin: center center;
           }
           100% {
-            transform: scale(0.5) rotate(360deg);
+            transform: rotate(360deg);
             transform-origin: center center;
           }
         }
