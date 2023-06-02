@@ -121,6 +121,10 @@ const DataTable = ({
     return tableData;
   }, [tableData]);
 
+  const initialSortBy = useMemo(() => {
+    return [{ id: sortHeader, desc: sortDirection === "desc" }];
+  }, [sortHeader, sortDirection]);
+
   const {
     headerGroups,
     rows,
@@ -149,9 +153,7 @@ const DataTable = ({
       columns,
       data,
       initialState: {
-        sortBy: useMemo(() => {
-          return [{ id: sortHeader, desc: sortDirection === "desc" }];
-        }, [sortHeader, sortDirection]),
+        sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,

@@ -208,9 +208,9 @@ const TableContainer = ({
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
-  const onResultsCountChange = (resultsCount: number) => {
+  const onResultsCountChange = useCallback((resultsCount: number) => {
     setClientFilterCount(resultsCount);
-  };
+  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -453,7 +453,9 @@ const TableContainer = ({
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
-                renderPagination={renderPagination}
+                renderPagination={
+                  isClientSidePagination ? undefined : renderPagination
+                }
                 setExportRows={setExportRows}
               />
             </div>
