@@ -1623,7 +1623,7 @@ func subqueryHostsMacOSSettingsStatusPending() (string, []interface{}) {
                 AND (hmap.status IS NULL
                     OR hmap.status = ?
                     OR(hmap.profile_identifier = ?
-                        AND hmap.status = ?
+                        AND hmap.status IN (?, ?)
                         AND hmap.operation_type = ?
                         AND NOT EXISTS (
                             SELECT
@@ -1641,6 +1641,7 @@ func subqueryHostsMacOSSettingsStatusPending() (string, []interface{}) {
 		fleet.MDMAppleDeliveryPending,
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
 		fleet.MDMAppleOperationTypeInstall,
 		fleet.MDMAppleDeliveryFailed,
 	}
@@ -1653,6 +1654,7 @@ func subqueryHostsMacOSSetttingsStatusVerifying() (string, []interface{}) {
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
+                AND hmap.operation_type = ?
                 AND hmap.status = ?
                 AND(hmap.profile_identifier != ?
                     OR EXISTS (
@@ -1664,26 +1666,36 @@ func subqueryHostsMacOSSetttingsStatusVerifying() (string, []interface{}) {
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_apple_profiles hmap2
-                    WHERE
-                        h.uuid = hmap2.host_uuid
-                        AND (hmap2.status IS NULL
-                            OR hmap2.status != ?
+                    WHERE (h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
+                        AND(hmap2.status IS NULL
+                            OR hmap2.status NOT IN(?, ?)
                             OR(hmap2.profile_identifier = ?
-                                AND hmap2.status = ?
-                                AND hmap2.operation_type = ?
+                                AND hmap2.status IN(?, ?)
                                 AND NOT EXISTS (
                                     SELECT
                                         1 FROM host_disk_encryption_keys hdek
                                     WHERE
                                         h.id = hdek.host_id
-                                        AND hdek.decryptable = 1))))`
+                                        AND hdek.decryptable = 1))))
+                    OR(h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
+                        AND(hmap2.status IS NULL
+                            OR hmap2.status NOT IN(?, ?))))`
+
 	args := []interface{}{
-		fleet.MDMAppleDeliveryVerifying,
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMAppleDeliveryVerifying,
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMAppleDeliveryVerifying,
 		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryVerifying,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
+		fleet.MDMAppleOperationTypeRemove,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
 	}
 	return sql, args
 }
@@ -1694,6 +1706,7 @@ func subqueryHostsMacOSSetttingsStatusVerified() (string, []interface{}) {
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
+                AND hmap.operation_type = ?
                 AND hmap.status = ?
                 AND(hmap.profile_identifier != ?
                     OR EXISTS (
@@ -1705,26 +1718,33 @@ func subqueryHostsMacOSSetttingsStatusVerified() (string, []interface{}) {
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_apple_profiles hmap2
-                    WHERE
-                        h.uuid = hmap2.host_uuid
+                    WHERE (h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
                         AND (hmap2.status IS NULL
                             OR hmap2.status != ?
                             OR(hmap2.profile_identifier = ?
                                 AND hmap2.status = ?
-                                AND hmap2.operation_type = ?
                                 AND NOT EXISTS (
                                     SELECT
                                         1 FROM host_disk_encryption_keys hdek
                                     WHERE
                                         h.id = hdek.host_id
-                                        AND hdek.decryptable = 1))))`
+                                        AND hdek.decryptable = 1))))
+                    OR(h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
+                        AND (hmap2.status IS NULL
+                            OR hmap2.status NOT IN(?, ?))))`
 	args := []interface{}{
-		fleet.MDMAppleDeliveryVerified,
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMAppleDeliveryVerified,
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMAppleDeliveryVerified,
 		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryVerified,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMAppleDeliveryVerified,
+		mobileconfig.FleetFileVaultPayloadIdentifier,
+		fleet.MDMAppleDeliveryVerified,
+		fleet.MDMAppleOperationTypeRemove,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleDeliveryVerified,
 	}
 	return sql, args
 }
