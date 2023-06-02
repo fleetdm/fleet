@@ -13,6 +13,7 @@ interface IHostSummaryProps {
   macCount: number;
   windowsCount: number;
   linuxCount: number;
+  chromeCount: number;
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   errorHosts: boolean;
@@ -24,6 +25,7 @@ const HostsSummary = ({
   macCount,
   windowsCount,
   linuxCount,
+  chromeCount,
   isLoadingHostsSummary,
   showHostsUI,
   errorHosts,
@@ -74,6 +76,20 @@ const HostsSummary = ({
     />
   );
 
+  const renderChromeCount = (teamId?: number) => (
+    <SummaryTile
+      iconName="chrome"
+      count={chromeCount}
+      isLoading={isLoadingHostsSummary}
+      showUI={showHostsUI}
+      title="Chromebooks"
+      // currently this is "test label"
+      // TODO - ask backend what the label for chrome hosts will be
+      path={PATHS.MANAGE_HOSTS_LABEL(14).concat(
+        teamId !== undefined ? `?team_id=${teamId}` : ""
+      )}
+    />
+  );
   const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":
@@ -82,12 +98,15 @@ const HostsSummary = ({
         return renderWindowsCount(teamId);
       case "linux":
         return renderLinuxCount(teamId);
+      case "chrome":
+        return renderChromeCount(teamId);
       default:
         return (
           <>
             {renderMacCount(teamId)}
             {renderWindowsCount(teamId)}
             {renderLinuxCount(teamId)}
+            {renderChromeCount(teamId)}
           </>
         );
     }

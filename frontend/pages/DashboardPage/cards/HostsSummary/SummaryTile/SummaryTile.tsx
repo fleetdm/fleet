@@ -19,7 +19,7 @@ interface ISummaryTileProps {
   tooltip?: string;
   isSandboxMode?: boolean;
   sandboxPremiumOnlyIcon?: boolean;
-  notSupported: boolean;
+  notSupported?: boolean;
 }
 
 const baseClass = "summary-tile";
@@ -34,7 +34,7 @@ const SummaryTile = ({
   tooltip,
   isSandboxMode = false,
   sandboxPremiumOnlyIcon = false,
-  notSupported,
+  notSupported = false,
 }: ISummaryTileProps): JSX.Element => {
   const numberWithCommas = (x: number): string => {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
