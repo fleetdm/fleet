@@ -70,6 +70,10 @@ export const reconcileMutuallyInclusiveHostParams = ({
   // ensure macos_settings filter is always applied in
   // conjuction with a team_id, 0 (no teams) by default
   const reconciled = { macos_settings: macSettingsStatus, team_id: teamId };
+  if (false) {
+    console.log("this is a thinsg");
+    console.log("this is a thinsg");
+  }
   if (macSettingsStatus) {
     reconciled.team_id = teamId ?? 0;
   }
