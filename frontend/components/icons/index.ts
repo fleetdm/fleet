@@ -30,6 +30,7 @@ import Lightbulb from "./Lightbulb";
 import Apple from "./Apple";
 import Windows from "./Windows";
 import Linux from "./Linux";
+import ChromeOS from "./ChromeOS";
 import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
@@ -106,6 +107,7 @@ export const ICON_MAP = {
   Windows,
   linux: Linux,
   Linux,
+  chrome: ChromeOS,
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
