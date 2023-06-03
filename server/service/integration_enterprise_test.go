@@ -1879,7 +1879,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1894,7 +1893,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// users can't be created if SSO is disabled
 	auth, body := s.LoginSSOUser("sso_user", "user123#")
@@ -1903,6 +1901,8 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+
+	// If enable_jit_provisioning is enabled Roles won't be updated for existing SSO users.
 
 	// enable JIT provisioning
 	acResp = appConfigResponse{}
@@ -1913,13 +1913,11 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": false
+			"enable_jit_provisioning": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// a new user is created and redirected accordingly
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
@@ -1943,13 +1941,14 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		return false
 	})
 
-	// Test that roles are not updated for an existing user because enable_jit_role_sync is false.
+	// Test that roles are not updated for an existing user when SSO attributes are not set.
 
 	// Change role to global admin first.
 	user.GlobalRole = ptr.String("admin")
 	err = s.ds.SaveUser(context.Background(), user)
 	require.NoError(t, err)
-	// Login should NOT change the role to the default (global observer).
+	// Login should NOT change the role to the default (global observer) because SSO attributes
+	// are not set for this user (see ../../tools/saml/users.php).
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
 	assert.Equal(t, "sso_user@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
@@ -1958,32 +1957,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
 	require.Equal(t, *user.GlobalRole, "admin")
-
-	// Test that roles are updated for an existing user because enable_jit_role_sync is true.
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"sso_settings": {
-			"enable_sso": true,
-			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			"idp_name": "SimpleSAML",
-			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true,
-			"enable_jit_role_sync": true
-		}
-	}`), http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
-	require.True(t, acResp.SSOSettings.EnableJITRoleSync)
-	// Login should change the role to the default role (global observer).
-	auth, body = s.LoginSSOUser("sso_user", "user123#")
-	assert.Equal(t, "sso_user@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
-	require.Contains(t, body, "Redirecting to Fleet at  ...")
-	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
-	require.NoError(t, err)
-	require.NotNil(t, user.GlobalRole)
-	require.Equal(t, *user.GlobalRole, "observer")
 
 	// A user with pre-configured roles can be created
 	// see `tools/saml/users.php` for details.
@@ -1997,6 +1970,26 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}},
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// Test that roles are updated for an existing user when SSO attributes are set.
+
+	// Change role to global maintainer first.
+	user3, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user3.Email)
+	user3.GlobalRole = ptr.String("maintainer")
+	err = s.ds.SaveUser(context.Background(), user3)
+	require.NoError(t, err)
+
+	// Login should change the role to the configured role in the SSO attributes (global admin).
+	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
+	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, user3.GlobalRole)
+	require.Equal(t, *user3.GlobalRole, "admin")
 
 	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
@@ -2014,7 +2007,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	})
 	require.NoError(t, err)
 
-	// A user with pre-configured roles can be created
+	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
 	auth, body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
 	assert.Equal(t, "sso_user_4_team_maintainer@example.com", auth.UserID())
@@ -2023,6 +2016,54 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 		Values: []fleet.SAMLAttributeValue{{
 			Value: "maintainer",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// A user with pre-configured roles can be created,
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
+	assert.Equal(t, "sso_user_5_team_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 5", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "admin",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// A user with pre-configured roles can be created,
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
+	assert.Equal(t, "sso_user_6_global_observer@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 6", auth.UserDisplayName())
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
+		}},
+	})
+	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "null",
 		}},
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
@@ -2615,11 +2656,16 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 	})
 	require.NoError(t, err)
 
+	createDeviceTokenForHost(t, ds, host.ID, token)
+
+	return host
+}
+
+func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
 	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
 		return err
 	})
-	return host
 }
 
 func (s *integrationEnterpriseTestSuite) TestListSoftware() {

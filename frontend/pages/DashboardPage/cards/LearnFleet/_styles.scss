@@ -2,4 +2,8 @@
   p {
     font-size: $x-small;
   }
+  .icon {
+    margin-left: $pad-xsmall;
+    vertical-align: sub;
+  }
 }

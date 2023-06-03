@@ -73,14 +73,14 @@ What happens during emergency drafting?
 
 Many open source contributions that start as a small, seemingly innocuous pull request come with lots of additional [unplanned work](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) down the road: unforseen side effects, documentation, testing, potential breaking changes, database migrations, [and more](https://fleetdm.com/handbook/company/development-groups#defining-done).
 
-Thus, it is still important to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from:
-- Prior to merging any change, small or large, that would change the expected behavior of the product, [prioritized](#prioritizing-improvements) by the [appropriate product group's](https://fleetdm.com/handbook/company/development-groups#current-product-groups) Product Manager and [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) by the group's Product Designer prior to merging. 
-- All changes to the user interface should be [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) by the appropriate Product Designer.
+Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
 ## Prioritizing improvements
 Product Managers prioritize all potential product improvements worked on by contributors inside the company.
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
+
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint.
 
 > Anyone can [suggest improvements](#intake).
 
@@ -250,11 +250,11 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 
 ## Intake
 
-You can quickly suggest a product idea by adding a bullet to the bottom of ["Product feature requests"](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit).
+You can quickly suggest a product idea by adding a bullet to the bottom of ["Feature Fest"](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit).
 
-Digestion of these new product ideas (requests) happens at the **🗣 Product Feature Requests** meeting.  This recurring meeting is located on the "Office hours" calendar.
+Digestion of these new product ideas (requests) happens at the **🗣 Feature Fest** meeting.  This recurring meeting is located on the "Office hours" calendar.
 
-At the **🗣 Product Feature Requests** meeting, the product team weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.  The DRI for this decision is the Head of Product.
+At the **🗣 Feature Fest** meeting, the product team weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.  The DRI for this decision is the Head of Product.
 
 - A _request is prioritized_ when the business decides it is an immediate priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
@@ -262,25 +262,29 @@ At the **🗣 Product Feature Requests** meeting, the product team weighs all re
 ### Why this way?
 
 - At Fleet, we use quarterly metrics to align the organization with measurable goals.  These goals fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and engineering capacity.   This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the wider Fleet community.
-- The 🗣 Product Feature Requests meeting is a recurring ritual to make sure that the team weighs all requests.
-- At Fleet, we tell the requestor whether their request is prioritized or put to the side within one business day from when the team weighs the request.
+- The 🗣️ Feature Fest meeting is a recurring ritual to make sure that the team weighs all requests.
+- If a feature is not prioritized in that meeting, then it is up to the requestor to bring the request back again another time.
+- Fleet only prioritizes changes that can go live in ≤6 weeks.  (That means becoming convinced that a request can shaped down such that a minimally valuable change can be designed, revised, built, and hand-tested in that timeframe.)
+- Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship.
+- Sometimes, the design or dev process reveals that a prioritized change needs to be canceled or significantly rethought.  In this case, the PM notifies the requestor.
+- You will be informed if your request is prioritized or put to the side within one business day from when the PM weighs your request.
 - Fleet always prioritizes bugs.
 
 ### Making a request
 
-To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product Feature Requests Google
-doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
-Then attend the next scheduled 🗣 Product Feature Requests meeting.
+To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣  Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
+Then attend the next scheduled 🎁🗣 Feature Fest meeting.
 
-All members of the Fleet organization are required to attend the 🗣 Product Feature Requests meeting. Requests will be
-weighed from top to bottom while prioritizing attendee requests. 
+Anyone in the company is invited to attend the 🎁🗣 Feature Fest meeting.  Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
 
-This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+Requests are weighed from top to bottom while prioritizing attendee requests.  This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-All 🗣 Product Feature Requests meetings are recorded and uploaded to Gong.
+All 🎁🗣 Feature Feat meetings are recorded and uploaded to Gong.
 
-### PFR cleanup 
-Each week the DRI for the 🗣 Product Feature Requests meeting resets the document to blank by doing the following:
+> Fleet aspires to make these discussions public on YouTube when possible.  Interested in that?  Please [let us know](https://fleetdm.com/contact)!
+
+### Preparing for the meeting
+Each week the DRI for the 🎁🗣 Feature Fest meeting resets the document to blank by doing the following:
 1. Create issues for accepted items
 2. Notify absent requesters of decisions
 3. Move that week's feature requests to the backup journal document
@@ -299,10 +303,10 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| 🗣 Product feature requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| 🗣️ Product feature requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
+| 🎁🗣 Feature fest  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🎁 Feature fest prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🎁🗣️ Feature fest event | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
-| Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
+| Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |

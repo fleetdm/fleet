@@ -540,6 +540,7 @@ func (h *Host) IsElegibleForDEPMigration() bool {
 // fleet but it's currently unenrolled.
 func (h *Host) NeedsDEPEnrollment() bool {
 	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+		!h.MDMInfo.IsManualFleetEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		h.IsDEPAssignedToFleet()
 }
@@ -816,6 +817,16 @@ func (h *HostMDM) IsDEPFleetEnrolled() bool {
 		return false
 	}
 	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
+// IsManualFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM manual enrollment.
+func (h *HostMDM) IsManualFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && !h.InstalledFromDep &&
 		h.Name == WellKnownMDMFleet
 }
 

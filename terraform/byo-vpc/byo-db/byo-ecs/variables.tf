@@ -13,7 +13,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    image                        = optional(string, "fleetdm/fleet:v4.31.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     extra_environment_variables  = optional(map(string), {})
@@ -91,7 +91,7 @@ variable "fleet_config" {
   default = {
     mem                          = 512
     cpu                          = 256
-    image                        = "fleetdm/fleet:v4.22.1"
+    image                        = "fleetdm/fleet:v4.31.1"
     family                       = "fleet"
     sidecars                     = []
     extra_environment_variables  = {}
