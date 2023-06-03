@@ -355,32 +355,24 @@
 
 
   @media (min-width: 1400px) {
-    // Over 1400px width, we'll add 160px padding
     [purpose='hero-background-image'] {
-      background-size: 1900px auto;
+      background-size: 100% auto;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
-
-    [purpose='homepage-hero'] {
-      max-width: 1080px;
-      height: 850px;
-    }
-
     [purpose='homepage-content'] {
       max-width: 1200px;
       padding-right: 60px;
       padding-left: 60px;
     }
+    [purpose='homepage-hero'] {
+      max-width: 1080px;
+      height: 950px;
+    }
   }
 
 
   @media (max-width: 1200px) {
-    // At 1200px we:
-    //  - Set the hero section's max-height to 726px
-    //  - reduce hero background image to 1600px width
-    //  - set the left and right padding to be 60px
-    //  -
 
     [purpose='hero-background-image'] {
       background-size: 1600px auto;
@@ -401,16 +393,7 @@
   }
 
   @media (max-width: 991px) {
-    // At 991px we:
-    //  - Set the hero section's height to 720px
-    //  - reduce hero background image to 1400px width
-    //  - set the left and right padding to be 60px
-    //  - switch to a single column layout
-    // [purpose='hero-text'] {
-    //   h1 {
-    //     font-size: 48px;
-    //   }
-    // }
+
     [purpose='hero-background-image'] {
       background-size: 1400px auto;
       background-position: center bottom;
@@ -420,10 +403,6 @@
       max-width: 100%;
       height: 720px;
     }
-    [purpose='homepage-content'] {
-      // max-width: 872px;
-    }
-
     [purpose='hero-logos'] {
       img {
         display: inline;
@@ -486,12 +465,6 @@
   }
 
   @media (max-width: 767px) {
-    // At 767px we:
-    //  - Set the hero section's max-height to 650px
-    //  - Reduce the hero text's top-margin to be 60px
-    //  - reduce hero background image to 1200px width
-    //  - set the left and right padding to be 60px
-    //  - reduce the height of the logos
 
     [purpose='hero-background-image'] {
       background-size: 1200px auto;
@@ -602,16 +575,6 @@
   }
 
   @media (max-width: 575px) {
-    // At 575px we:
-    //  - Set the hero section's max-height to 625px
-    //  - reduce hero background image to 960px width
-    //  - set the left and right padding to be 60px
-    //  - revert the height of the logos
-    //  - Switch the features to a column layout and center align them
-    // h1 {
-    //   font-size: 36px;
-    //   line-height: 54px;
-    // }
 
     [purpose='hero-background-image'] {
       background-size: 960px auto;
@@ -642,7 +605,6 @@
         font-size: 16px;
       }
     }
-
 
     [purpose='homepage-content'] {
       padding-right: 24px;
