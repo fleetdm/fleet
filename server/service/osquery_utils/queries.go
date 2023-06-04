@@ -1599,8 +1599,7 @@ func GetDetailQueries(
 		}
 	}
 
-	r, _ := DetailQueriesResult{results: generatedMap}.Aggregate().Unbox()
-	return r
+	return generatedMap
 }
 
 func splitCleanSemicolonSeparated(s string) []string {

@@ -679,6 +679,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		NewDetailQueriesResult(ctx, svc.config, appConfig, features).
 		Filter(criticalQueriesFilter(criticalQueriesOnly, criticalDetailQueries)).
 		Filter(hostPlatformFilter(host.Platform)).
+		Aggregate().
 		Map(appendKeyPrefix(hostDetailQueryPrefix)).
 		Unbox()
 	if err != nil {

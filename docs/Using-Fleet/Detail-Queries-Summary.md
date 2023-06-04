@@ -186,7 +186,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: darwin, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo
 
 - Query:
 
@@ -301,7 +301,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: darwin, arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop
+- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -412,9 +412,48 @@ SELECT
 FROM chrome_extensions
 ```
 
-## software_linux
+## software_linux_debian_packages
 
-- Platforms: arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, gentoo
+- Platforms: ubuntu, debian, kali, linuxmint, pop
+
+- Query:
+
+```sql
+SELECT
+		name AS name,
+		version AS version,
+		'Package (deb)' AS type,
+		'deb_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM deb_packages
+		WHERE status = 'install ok installed'
+```
+
+## software_linux_gentoo_packages
+
+- Platforms: gentoo
+
+- Query:
+
+```sql
+SELECT
+		package AS name,
+		version AS version,
+		'Package (Portage)' AS type,
+		'portage_packages' AS source,
+		'' AS release,
+		'' AS vendor,
+		'' AS arch,
+		'' AS installed_path
+		FROM portage_packages
+```
+
+## software_linux_other
+
+- Platforms: arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop
 
 - Query:
 
@@ -477,7 +516,16 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		'' AS arch,
 		path AS installed_path
 		FROM python_packages
- UNION SELECT
+```
+
+## software_linux_rpm_packages
+
+- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles
+
+- Query:
+
+```sql
+SELECT
 		name AS name,
 		version AS version,
 		'Package (RPM)' AS type,
@@ -486,27 +534,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		vendor AS vendor,
 		arch AS arch,
 		'' AS installed_path
-		FROM rpm_packages UNION 
-		SELECT
-		name AS name,
-		version AS version,
-		'Package (deb)' AS type,
-		'deb_packages' AS source,
-		'' AS release,
-		'' AS vendor,
-		'' AS arch,
-		'' AS installed_path
-		FROM deb_packages
-		WHERE status = 'install ok installed' UNION SELECT
-		package AS name,
-		version AS version,
-		'Package (Portage)' AS type,
-		'portage_packages' AS source,
-		'' AS release,
-		'' AS vendor,
-		'' AS arch,
-		'' AS installed_path
-		FROM portage_packages
+		FROM rpm_packages
 ```
 
 ## software_macos
