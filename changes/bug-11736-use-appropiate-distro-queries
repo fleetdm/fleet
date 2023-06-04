@@ -1,1 +1,2 @@
 - Use the proper package manager queries when ingesting software from Linux systems.
+- Add ability to group DetailQuery by GroupingKey.
