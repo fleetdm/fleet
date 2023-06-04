@@ -35,7 +35,7 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 
 ## disk_encryption_linux
 
-- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: amzn, arch, centos, debian, endeavouros, gentoo, kali, linux, linuxmint, manjaro, nixos, opensuse-leap, opensuse-tumbleweed, pop, rhel, sles, ubuntu, void
 
 - Query:
 
@@ -55,7 +55,7 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 
 ## disk_space_unix
 
-- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: amzn, arch, centos, darwin, debian, endeavouros, gentoo, kali, linux, linuxmint, manjaro, nixos, opensuse-leap, opensuse-tumbleweed, pop, rhel, sles, ubuntu, void
 
 - Query:
 
@@ -186,7 +186,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: darwin, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo
+- Platforms: amzn, arch, centos, darwin, debian, endeavouros, gentoo, kali, linux, linuxmint, manjaro, nixos, opensuse-leap, opensuse-tumbleweed, pop, rhel, sles, ubuntu, void
 
 - Query:
 
@@ -301,7 +301,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: amzn, arch, centos, darwin, debian, endeavouros, gentoo, kali, linux, linuxmint, manjaro, nixos, opensuse-leap, opensuse-tumbleweed, pop, rhel, sles, ubuntu, void
 
 - Query:
 
@@ -414,7 +414,7 @@ FROM chrome_extensions
 
 ## software_linux_debian_packages
 
-- Platforms: ubuntu, debian, kali, linuxmint, pop
+- Platforms: debian, kali, linuxmint, pop, ubuntu
 
 - Query:
 
@@ -453,7 +453,7 @@ SELECT
 
 ## software_linux_other
 
-- Platforms: arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop
+- Platforms: amzn, arch, centos, debian, endeavouros, gentoo, kali, linux, linuxmint, manjaro, nixos, opensuse-leap, opensuse-tumbleweed, pop, rhel, sles, ubuntu, void
 
 - Query:
 
@@ -520,7 +520,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 ## software_linux_rpm_packages
 
-- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles
+- Platforms: amzn, centos, opensuse-leap, opensuse-tumbleweed, rhel, sles
 
 - Query:
 
@@ -716,7 +716,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, darwin, windows
+- Platforms: darwin, linux, windows
 
 - Query:
 

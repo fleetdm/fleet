@@ -53,6 +53,7 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 
 	for _, q := range detailQueries {
 		fmt.Fprintf(&b, "## %s\n\n", q.name)
+		sort.Strings(q.detailQuery.Platforms)
 		platforms := strings.Join(q.detailQuery.Platforms, ", ")
 		if len(q.detailQuery.Platforms) == 0 {
 			platforms = "all"
