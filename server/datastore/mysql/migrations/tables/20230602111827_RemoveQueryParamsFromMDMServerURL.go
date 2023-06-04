@@ -65,39 +65,43 @@ func Up_20230602111827(tx *sql.Tx) error {
 	}
 
 	// delete all duplicated solutions
-	stmt, args, err := sqlx.In(`DELETE FROM mobile_device_management_solutions WHERE id IN (?)`, dupes)
-	if err != nil {
-		return fmt.Errorf("building SQL IN statement: %w", err)
-	}
-	_, err = txx.Exec(stmt, args...)
-	if err != nil {
-		return fmt.Errorf("deleting duplicated MDM solutions: %w", err)
+	if len(dupes) > 0 {
+		stmt, args, err := sqlx.In(`DELETE FROM mobile_device_management_solutions WHERE id IN (?)`, dupes)
+		if err != nil {
+			return fmt.Errorf("building SQL IN statement: %w", err)
+		}
+		_, err = txx.Exec(stmt, args...)
+		if err != nil {
+			return fmt.Errorf("deleting duplicated MDM solutions: %w", err)
+		}
 	}
 
 	// make sure all the new solutions have the right URL
-	inPart := ""
-	args = []interface{}{}
-	for serverURL, solution := range uniqs {
-		inPart += "(?, ?, ?),"
-		args = append(args, solution.ID, solution.Name, serverURL)
+	if len(uniqs) > 0 {
+		inPart := ""
+		args := []interface{}{}
+		for serverURL, solution := range uniqs {
+			inPart += "(?, ?, ?),"
+			args = append(args, solution.ID, solution.Name, serverURL)
 
-		// and the related host_mdm rows as well
-		_, err = txx.Exec(`UPDATE host_mdm SET server_url = ? WHERE mdm_id = ?`, serverURL, solution.ID)
-		if err != nil {
-			return fmt.Errorf("updating host_mdm entries with new server_url: %w", err)
+			// and the related host_mdm rows as well
+			_, err = txx.Exec(`UPDATE host_mdm SET server_url = ? WHERE mdm_id = ?`, serverURL, solution.ID)
+			if err != nil {
+				return fmt.Errorf("updating host_mdm entries with new server_url: %w", err)
+			}
 		}
-	}
-	stmt = `
+		stmt := `
 	INSERT INTO mobile_device_management_solutions (id, name, server_url)
           VALUES %s
           ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)
 	`
-	_, err = tx.Exec(
-		fmt.Sprintf(stmt, strings.TrimSuffix(inPart, ",")),
-		args...,
-	)
-	if err != nil {
-		return fmt.Errorf("updating mobile_device_management_solutions server_url: %w", err)
+		_, err = tx.Exec(
+			fmt.Sprintf(stmt, strings.TrimSuffix(inPart, ",")),
+			args...,
+		)
+		if err != nil {
+			return fmt.Errorf("updating mobile_device_management_solutions server_url: %w", err)
+		}
 	}
 
 	return nil
