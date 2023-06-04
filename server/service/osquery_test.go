@@ -38,6 +38,94 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAppendKeyPrefix(t *testing.T) {
+	detailQueries := make(map[string]osquery_utils.DetailQuery)
+	detailQueries["one"] = osquery_utils.DetailQuery{}
+	detailQueries["two"] = osquery_utils.DetailQuery{}
+
+	mapper := appendKeyPrefix("prefix_")
+	for k, v := range detailQueries {
+		rk, rv := mapper(k, v)
+		require.True(t, strings.HasPrefix(rk, "prefix_"))
+		require.Equal(t, rv, v)
+	}
+}
+
+func TestHostPlatformFilter(t *testing.T) {
+	testCases := []struct {
+		name           string
+		hostPlatform   string
+		queryPlatforms []string
+		filtered       bool
+	}{
+		{
+			name:     "Host platform empty",
+			filtered: true,
+		},
+		{
+			name:     "query platforms empty",
+			filtered: true,
+		},
+		{
+			name:           "host platform not contained in query platforms",
+			hostPlatform:   "linux",
+			queryPlatforms: []string{"windows"},
+			filtered:       false,
+		},
+		{
+			name:           "host platform contained in query platforms",
+			hostPlatform:   "linux",
+			queryPlatforms: []string{"windows", "linux"},
+			filtered:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		pred := hostPlatformFilter(tc.hostPlatform)
+		q := osquery_utils.DetailQuery{Platforms: tc.queryPlatforms}
+		require.Equal(t, tc.filtered, pred("", q), tc.name)
+	}
+}
+
+func TestCriticalQueriesFilter(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		criticalQueriesOnly   bool
+		criticalDetailQueries map[string]bool
+		detailQueries         map[string]osquery_utils.DetailQuery
+		kept                  bool
+	}{
+		{
+			name:                  "Critical queries flag is false",
+			criticalQueriesOnly:   false,
+			criticalDetailQueries: map[string]bool{"software": true},
+			detailQueries:         map[string]osquery_utils.DetailQuery{"software": {}, "os": {}},
+			kept:                  true,
+		},
+		{
+			name:                  "Critical queries flag is set but no matching critical detail queries",
+			criticalQueriesOnly:   true,
+			criticalDetailQueries: map[string]bool{"something": true},
+			detailQueries:         map[string]osquery_utils.DetailQuery{"software": {}},
+			kept:                  false,
+		},
+		{
+			name:                  "Critical queries flag is set and matching critical detail queries",
+			criticalQueriesOnly:   true,
+			criticalDetailQueries: map[string]bool{"software": true},
+			detailQueries:         map[string]osquery_utils.DetailQuery{"software": {}},
+			kept:                  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		pred := criticalQueriesFilter(tc.criticalQueriesOnly, tc.criticalDetailQueries)
+		for k, v := range tc.detailQueries {
+			require.Equal(t, tc.kept, pred(k, v), tc.name)
+		}
+	}
+}
+
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
@@ -195,8 +283,10 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
 	queries := make(map[string]osquery_utils.DetailQuery)
+	pred := hostPlatformFilter(platform)
+
 	for k, v := range allDetailQueries {
-		if v.RunsForPlatform(platform) {
+		if pred(k, v) {
 			queries[k] = v
 		}
 	}

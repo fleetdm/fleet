@@ -171,7 +171,10 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries, err := osquery_utils.NewDetailQueriesResult(ctx, svc.config, appConfig, features).Aggregate().Unbox()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
+	}
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -614,6 +617,37 @@ var criticalDetailQueries = map[string]bool{
 	"mdm": true,
 }
 
+// criticalQueriesFilter if criticalQueriesOnly is set, keep only the DetailQueries in criticalQueries
+func criticalQueriesFilter(criticalQueriesOnly bool, criticalQueries map[string]bool) func(k string, _ osquery_utils.DetailQuery) bool {
+	return func(k string, _ osquery_utils.DetailQuery) bool {
+		return !criticalQueriesOnly || criticalQueries[k]
+	}
+}
+
+// hostPlatformFilter filters by the host platform
+func hostPlatformFilter(hostPlatform string) func(k string, _ osquery_utils.DetailQuery) bool {
+	return func(_ string, v osquery_utils.DetailQuery) bool {
+		if len(v.Platforms) == 0 || len(hostPlatform) == 0 {
+			return true
+		}
+
+		for _, p := range v.Platforms {
+			if p == hostPlatform {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+// appendKeyPrefix appends the provided prefix to each DetailQuery result entry
+func appendKeyPrefix(prefix string) func(k string, v osquery_utils.DetailQuery) (string, osquery_utils.DetailQuery) {
+	return func(k string, v osquery_utils.DetailQuery) (string, osquery_utils.DetailQuery) {
+		return prefix + k, v
+	}
+}
+
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
@@ -641,21 +675,19 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
-	for name, query := range detailQueries {
-		if criticalQueriesOnly && !criticalDetailQueries[name] {
-			continue
-		}
+	detailQueries, err := osquery_utils.
+		NewDetailQueriesResult(ctx, svc.config, appConfig, features).
+		Filter(criticalQueriesFilter(criticalQueriesOnly, criticalDetailQueries)).
+		Filter(hostPlatformFilter(host.Platform)).
+		Map(appendKeyPrefix(hostDetailQueryPrefix)).
+		Unbox()
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting detail queries")
+	}
 
-		if query.RunsForPlatform(host.Platform) {
-			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
-			discoveryQuery := query.Discovery
-			if discoveryQuery == "" {
-				discoveryQuery = alwaysTrueQuery
-			}
-			discovery[queryName] = discoveryQuery
-		}
+	for name, query := range detailQueries {
+		queries[name] = query.Query
+		discovery[name] = query.GetDiscoryQueryOrDefault()
 	}
 
 	if features.AdditionalQueries == nil || criticalQueriesOnly {
@@ -1040,11 +1072,15 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries, err := osquery_utils.NewDetailQueriesResult(ctx, svc.config, appConfig, features).Aggregate().Unbox()
+	if err != nil {
+		return false, newOsqueryError("could not aggregate queries")
+	}
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
 	}
+
 	if query.DirectIngestFunc != nil {
 		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
 		if err != nil {
@@ -1179,7 +1215,10 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries, err := osquery_utils.NewDetailQueriesResult(ctx, svc.config, appConfig, features).Aggregate().Unbox()
+	if err != nil {
+		return newOsqueryError("could not aggregate queries")
+	}
 	query, ok := detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)

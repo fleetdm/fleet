@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -42,19 +43,130 @@ type DetailQuery struct {
 	// ingest the results. This is for ingestion that can be either sync or async.
 	// DirectIngestFunc must not be set if this is set.
 	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
+	// GroupingKey allows you to group multiple DetailQuery objects. This is useful when we want to
+	// conditionally ingest the same Fleet resource from different queries using the host platform
+	// as a filtering criteria (i.e. only run queries targetting the 'dep_packages' table on Debian
+	// hosts).
+	GroupingKey string
+	// MergeOrder when aggregating queries, sometimes we want certain queries at the top of the
+	// resulting Query (for example if any of the queries was a 'WITH' clause), this is
+	// used to speficy the order in which DetailQuery instances should be aggregated
+	MergeOrder int
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
-func (q *DetailQuery) RunsForPlatform(platform string) bool {
-	if len(q.Platforms) == 0 {
-		return true
+func (q DetailQuery) GetDiscoryQueryOrDefault() string {
+	if q.Discovery == "" {
+		return "SELECT 1"
 	}
-	for _, p := range q.Platforms {
-		if p == platform {
-			return true
+	return q.Discovery
+}
+
+type DetailQueriesResult struct {
+	results map[string]DetailQuery
+	err     error
+}
+
+// NewDetailQueriesResult wraps around GetDetailQueries and returns a DetailQueriesResult
+func NewDetailQueriesResult(
+	ctx context.Context,
+	fleetConfig config.FleetConfig,
+	appConfig *fleet.AppConfig,
+	features *fleet.Features,
+) DetailQueriesResult {
+	return DetailQueriesResult{
+		results: GetDetailQueries(ctx, fleetConfig, appConfig, features),
+	}
+}
+
+// Filter filters the boxed results using the pred function, if pred evaluates to true, then the
+// results are kept. This function returns a new DetailQueriesResult instance (no in-place mutations
+// are performed).
+func (dqr DetailQueriesResult) Filter(pred func(name string, query DetailQuery) bool) DetailQueriesResult {
+	if dqr.err != nil {
+		return dqr
+	}
+
+	results := make(map[string]DetailQuery)
+	for name, q := range dqr.results {
+		if pred(name, q) {
+			results[name] = q
 		}
 	}
-	return false
+	return DetailQueriesResult{results: results}
+}
+
+// Map applies 'f' to all results. This function returns a new DetailQueriesResult instance (no
+// in-place mutations are performed).
+func (dqr DetailQueriesResult) Map(f func(name string, query DetailQuery) (string, DetailQuery)) DetailQueriesResult {
+	if dqr.err != nil {
+		return dqr
+	}
+
+	results := make(map[string]DetailQuery)
+	for name, q := range dqr.results {
+		k, v := f(name, q)
+		results[k] = v
+	}
+	return DetailQueriesResult{results: results}
+}
+
+// Aggregate looks at GroupingKey and if set, aggregates all DetailQuery with the same GroupingKey into a single one by
+// joining together their Query props (using UNION). It is assumed that all DetailQuery in a group
+// have the same:
+//   - Discovery query
+//   - IngestFunc function
+//   - DirectIngestFunc function
+//   - DirectTaskIngestFunc  function
+func (dqr DetailQueriesResult) Aggregate() DetailQueriesResult {
+	if dqr.err != nil {
+		return dqr
+	}
+
+	groupings := make(map[string][]DetailQuery)
+	for k, v := range dqr.results {
+		grpK := k
+		if v.GroupingKey != "" {
+			grpK = v.GroupingKey
+		}
+		groupings[grpK] = append(groupings[grpK], v)
+	}
+
+	results := make(map[string]DetailQuery)
+	for k, grp := range groupings {
+		sort.Slice(grp, func(i, j int) bool {
+			return grp[i].MergeOrder < grp[j].MergeOrder
+		})
+
+		queries := make([]string, 0, len(grp))
+		var platforms []string
+
+		for _, q := range grp {
+			if q.Discovery != grp[0].Discovery {
+				return DetailQueriesResult{
+					results: dqr.results,
+					err:     fmt.Errorf("queries in grp: '%s' have different discovery queries", k),
+				}
+			}
+			queries = append(queries, q.Query)
+			platforms = append(platforms, q.Platforms...)
+		}
+
+		results[k] = DetailQuery{
+			Query:                strings.Join(queries, " UNION "),
+			Platforms:            platforms,
+			Discovery:            grp[0].Discovery,
+			IngestFunc:           grp[0].IngestFunc,
+			DirectIngestFunc:     grp[0].DirectIngestFunc,
+			DirectTaskIngestFunc: grp[0].DirectTaskIngestFunc,
+		}
+	}
+
+	return DetailQueriesResult{results: results}
+}
+
+func (dqr DetailQueriesResult) Unbox() (map[string]DetailQuery, error) {
+	return dqr.results, dqr.err
 }
 
 // networkInterfaceQuery is the query to use to ingest a host's "Primary IP" and "Primary MAC".
@@ -711,7 +823,8 @@ var scheduledQueryStats = DetailQuery{
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 }
 
-var softwareLinuxDebian = DetailQuery{
+var softwareLinuxDebianPackages = DetailQuery{
+	GroupingKey: "software_linux",
 	Query: `
 		SELECT
 		name AS name,
@@ -728,7 +841,8 @@ var softwareLinuxDebian = DetailQuery{
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var softwareLinuxRpm = DetailQuery{
+var softwareLinuxRpmPackages = DetailQuery{
+	GroupingKey: "software_linux",
 	Query: `SELECT
 		name AS name,
 		version AS version,
@@ -743,7 +857,8 @@ var softwareLinuxRpm = DetailQuery{
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var softwareLinuxGentoo = DetailQuery{
+var softwareLinuxGentooPackages = DetailQuery{
+	GroupingKey: "software_linux",
 	Query: `SELECT
 		package AS name,
 		version AS version,
@@ -758,7 +873,10 @@ var softwareLinuxGentoo = DetailQuery{
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var softwareLinux = DetailQuery{
+var softwareLinuxOther = DetailQuery{
+	// This should be at the top
+	MergeOrder:  -1,
+	GroupingKey: "software_linux",
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 		SELECT
 		name AS name,
@@ -813,7 +931,7 @@ var softwareLinux = DetailQuery{
 		'' AS vendor,
 		'' AS arch,
 		path AS installed_path
-		FROM python_packages;
+		FROM python_packages
 `),
 	Platforms:        fleet.AllLinuxOS(),
 	DirectIngestFunc: directIngestSoftware,
@@ -1432,10 +1550,10 @@ func GetDetailQueries(
 
 	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
-		generatedMap["software_linux_rpm"] = softwareLinuxRpm
-		generatedMap["software_linux_debian"] = softwareLinuxDebian
-		generatedMap["software_linux_gentoo"] = softwareLinuxGentoo
-		generatedMap["software_linux"] = softwareLinux
+		generatedMap["software_linux_rpm_packages"] = softwareLinuxRpmPackages
+		generatedMap["software_linux_debian_packages"] = softwareLinuxDebianPackages
+		generatedMap["software_linux_gentoo_packages"] = softwareLinuxGentooPackages
+		generatedMap["software_linux_other"] = softwareLinuxOther
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
 	}
@@ -1481,7 +1599,8 @@ func GetDetailQueries(
 		}
 	}
 
-	return generatedMap
+	r, _ := DetailQueriesResult{results: generatedMap}.Aggregate().Unbox()
+	return r
 }
 
 func splitCleanSemicolonSeparated(s string) []string {

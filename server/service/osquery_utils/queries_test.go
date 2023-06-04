@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +21,152 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 )
+
+func TestAggregate(t *testing.T) {
+	// If result contains an error we should short-circuit
+	sut := DetailQueriesResult{
+		results: map[string]DetailQuery{
+			"software_1": {GroupingKey: "software"},
+			"software_2": {GroupingKey: "software"},
+			"os":         {},
+		},
+		err: errors.New("some error"),
+	}
+
+	actual := sut.Aggregate()
+	require.Equal(t, sut.results, actual.results)
+
+	// If they have different Discovery queries we should raise an error
+	sut = DetailQueriesResult{
+		results: map[string]DetailQuery{
+			"software_1": {
+				GroupingKey: "software",
+				Discovery:   "SELECT 1 FROM table_1",
+			},
+			"software_2": {
+				GroupingKey: "software",
+				Discovery:   "SELECT 1 FROM table_2",
+			},
+			"os": {},
+		},
+	}
+
+	actual = sut.Aggregate()
+	require.Equal(t, sut.results, actual.results)
+	require.Error(t, actual.err)
+
+	// Platforms and queries are aggregated correctly
+	fakeIngestFunc := func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		return nil
+	}
+	fakeDirectIngestFunc := func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+		return nil
+	}
+	fakeDirectTaskIngestFunc := func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
+		return nil
+	}
+	sut = DetailQueriesResult{
+		results: map[string]DetailQuery{
+			"software_1": {
+				MergeOrder:           1,
+				GroupingKey:          "software",
+				Query:                "SELECT * FROM table_1",
+				Platforms:            []string{"linux_1"},
+				Discovery:            "SELECT 1 FROM table_1",
+				IngestFunc:           fakeIngestFunc,
+				DirectIngestFunc:     fakeDirectIngestFunc,
+				DirectTaskIngestFunc: fakeDirectTaskIngestFunc,
+			},
+			"software_2": {
+				MergeOrder:           0,
+				GroupingKey:          "software",
+				Query:                "SELECT * FROM table_2",
+				Platforms:            []string{"linux_2"},
+				Discovery:            "SELECT 1 FROM table_1",
+				IngestFunc:           fakeIngestFunc,
+				DirectIngestFunc:     fakeDirectIngestFunc,
+				DirectTaskIngestFunc: fakeDirectTaskIngestFunc,
+			},
+			"os": {
+				Query: "SELECT * FROM os",
+			},
+		},
+	}
+
+	actual = sut.Aggregate()
+	require.NoError(t, actual.err)
+
+	require.Equal(t, actual.results["software"].Query, "SELECT * FROM table_2 UNION SELECT * FROM table_1")
+	require.Equal(t, actual.results["software"].Discovery, "SELECT 1 FROM table_1")
+	require.ElementsMatch(t, actual.results["software"].Platforms, []string{"linux_1", "linux_2"})
+	require.NotNil(t, actual.results["software"].IngestFunc)
+	require.NotNil(t, actual.results["software"].DirectIngestFunc)
+	require.NotNil(t, actual.results["software"].DirectTaskIngestFunc)
+
+	require.Equal(t, actual.results["os"].Query, "SELECT * FROM os")
+	require.Empty(t, actual.results["os"].Discovery)
+	require.Empty(t, actual.results["os"].Platforms)
+	require.Nil(t, actual.results["os"].IngestFunc)
+	require.Nil(t, actual.results["os"].DirectIngestFunc)
+	require.Nil(t, actual.results["os"].DirectTaskIngestFunc)
+}
+
+func TestFilter(t *testing.T) {
+	// If result contains an error we should short-circuit
+	sut := DetailQueriesResult{
+		results: map[string]DetailQuery{
+			"software": {},
+			"os":       {},
+		},
+		err: errors.New("some error"),
+	}
+	actual := sut.Filter(func(_ string, _ DetailQuery) bool { return false })
+	require.Equal(t, sut.results, actual.results)
+
+	// Only elements for which pred evaluates to true are kept
+	pred := func(k string, v DetailQuery) bool {
+		return k == "software"
+	}
+	sut.err = nil
+	actual = sut.Filter(pred)
+	require.Equal(t, map[string]DetailQuery{
+		"software": {},
+	}, actual.results)
+}
+
+func TestMap(t *testing.T) {
+	// If result contains an error we should short-circuit
+	sut := DetailQueriesResult{
+		results: map[string]DetailQuery{
+			"software": {},
+			"os":       {},
+		},
+		err: errors.New("some error"),
+	}
+	actual := sut.Map(func(name string, query DetailQuery) (string, DetailQuery) { return "aa_" + name, query })
+	require.Equal(t, sut.results, actual.results)
+
+	// Applies f to all elements
+	sut.err = nil
+	mapper := func(name string, query DetailQuery) (string, DetailQuery) {
+		return "aa_" + name, DetailQuery{Platforms: []string{"linux"}}
+	}
+	actual = sut.Map(mapper)
+
+	require.Equal(t, len(sut.results), len(actual.results))
+	for k, v := range actual.results {
+		require.True(t, strings.HasPrefix(k, "aa_"))
+		require.Contains(t, v.Platforms, "linux")
+	}
+}
+
+func TestGetDiscoryQueryOrDefault(t *testing.T) {
+	q := DetailQuery{}
+	require.Equal(t, "SELECT 1", q.GetDiscoryQueryOrDefault())
+
+	q = DetailQuery{Discovery: "SELECT 1 FROM table"}
+	require.Equal(t, "SELECT 1 FROM table", q.GetDiscoryQueryOrDefault())
+}
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
@@ -236,33 +381,6 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 	assert.ElementsMatch(t, keys, expectedKeys)
 }
 
-func TestGetDetailQueriesAreSegmentedCorrectly(t *testing.T) {
-	ctx := context.Background()
-
-	config := config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}
-	features := fleet.Features{EnableSoftwareInventory: true}
-
-	queries := GetDetailQueries(ctx, config, nil, &features)
-	seen := make(map[string]struct{})
-
-	for key, platforms := range fleet.LinuxOS {
-		for _, plat := range platforms {
-			// All platforms should match this
-			soft, ok := queries["software_linux"]
-			require.True(t, ok)
-			require.True(t, soft.RunsForPlatform(plat))
-
-			softOnPlat, ok := queries[fmt.Sprintf("software_linux_%s", key)]
-			if ok {
-				seen[key] = struct{}{}
-				softOnPlat.RunsForPlatform(plat)
-			}
-		}
-	}
-
-	require.True(t, reflect.DeepEqual(seen, map[string]struct{}{"rpm": {}, "debian": {}, "gentoo": {}}))
-}
-
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)
 
@@ -307,7 +425,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats", "software_linux_rpm", "software_linux_debian", "software_linux_gentoo")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux_other", "software_windows", "software_chrome", "scheduled_query_stats", "software_linux_rpm_packages", "software_linux_debian_packages", "software_linux_gentoo_packages")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 }

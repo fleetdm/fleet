@@ -13,6 +13,16 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 SELECT serial_number, cycle_count, health FROM battery;
 ```
 
+## chromeos_profile_user_info
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT email FROM users
+```
+
 ## disk_encryption_darwin
 
 - Platforms: darwin
@@ -45,7 +55,7 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 
 ## disk_space_unix
 
-- Platforms: darwin, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro
+- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
 
 - Query:
 
@@ -291,7 +301,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: darwin, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: darwin, arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop
 
 - Query:
 
@@ -404,7 +414,7 @@ FROM chrome_extensions
 
 ## software_linux
 
-- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, arch, endeavouros, manjaro, gentoo, linux, void, nixos
+- Platforms: arch, endeavouros, manjaro, gentoo, linux, void, nixos, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles, ubuntu, debian, kali, linuxmint, pop, gentoo
 
 - Query:
 
@@ -466,17 +476,18 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		'' AS vendor,
 		'' AS arch,
 		path AS installed_path
-		FROM python_packages;
-```
-
-## software_linux_debian
-
-- Platforms: ubuntu, debian, kali, linuxmint, pop
-
-- Query:
-
-```sql
-SELECT
+		FROM python_packages
+ UNION SELECT
+		name AS name,
+		version AS version,
+		'Package (RPM)' AS type,
+		'rpm_packages' AS source,
+		release AS release,
+		vendor AS vendor,
+		arch AS arch,
+		'' AS installed_path
+		FROM rpm_packages UNION 
+		SELECT
 		name AS name,
 		version AS version,
 		'Package (deb)' AS type,
@@ -486,17 +497,7 @@ SELECT
 		'' AS arch,
 		'' AS installed_path
 		FROM deb_packages
-		WHERE status = 'install ok installed'
-```
-
-## software_linux_gentoo
-
-- Platforms: gentoo
-
-- Query:
-
-```sql
-SELECT
+		WHERE status = 'install ok installed' UNION SELECT
 		package AS name,
 		version AS version,
 		'Package (Portage)' AS type,
@@ -506,25 +507,6 @@ SELECT
 		'' AS arch,
 		'' AS installed_path
 		FROM portage_packages
-```
-
-## software_linux_rpm
-
-- Platforms: centos, rhel, amzn, opensuse-leap, opensuse-tumbleweed, sles
-
-- Query:
-
-```sql
-SELECT
-		name AS name,
-		version AS version,
-		'Package (RPM)' AS type,
-		'rpm_packages' AS source,
-		release AS release,
-		vendor AS vendor,
-		arch AS arch,
-		'' AS installed_path
-		FROM rpm_packages
 ```
 
 ## software_macos
