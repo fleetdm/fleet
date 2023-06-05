@@ -50,6 +50,7 @@ const tableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => {
       return (
         <MacSettingStatusCell
+          name={cellProps.row.original.name}
           status={cellProps.row.original.status}
           operationType={cellProps.row.original.operation_type}
         />

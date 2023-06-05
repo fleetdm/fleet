@@ -11,7 +11,7 @@ const baseClass = "mac-setting-status-cell";
 type ProfileDisplayOption = {
   statusText: string;
   iconName: IconNames;
-  tooltipText?: string;
+  tooltipText?: (isDiskEncryption: boolean) => string;
 } | null;
 
 type OperationTypeOption = Record<MdmProfileStatus, ProfileDisplayOption>;
@@ -22,20 +22,34 @@ type ProfileDisplayConfig = Record<
 
 const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {
-    pending: {
-      statusText: "Enforcing (pending)",
-      iconName: "pending-partial",
-      tooltipText: "Setting will be enforced when the host comes online.",
-    },
     verified: {
-      statusText: "Verifying",
+      statusText: "Verified",
       iconName: "success",
-      tooltipText: "Host applied the setting.",
+      tooltipText: (isDiskEncryption) =>
+        isDiskEncryption
+          ? "The host turned disk encryption on and " +
+            "sent their key to Fleet. Fleet verified with osquery."
+          : "The host installed the configuration profile. Fleet verified with osquery.",
     },
     verifying: {
       statusText: "Verifying",
       iconName: "success-partial",
-      tooltipText: "Host applied the setting.",
+      tooltipText: (isDiskEncryption) =>
+        isDiskEncryption
+          ? "The host acknowledged the MDM command to install disk encryption profile. Fleet is " +
+            "verifying with osquery and retrieving the disk encryption key. This may take up to one hour."
+          : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
+            "verifying with osquery.",
+    },
+    pending: {
+      statusText: "Enforcing (pending)",
+      iconName: "pending-partial",
+      tooltipText: (isDiskEncryption) =>
+        isDiskEncryption
+          ? "The host will receive the MDM command to install the disk encryption profile when the " +
+            "host comes online."
+          : "The host will receive the MDM command to install the configuration profile when the " +
+            "host comes online.",
     },
     failed: {
       statusText: "Failed",
@@ -47,13 +61,14 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     pending: {
       statusText: "Removing enforcement (pending)",
       iconName: "pending-partial",
-      tooltipText: "Enforcement will be removed when the host comes online.",
+      tooltipText: (isDiskEncryption) =>
+        isDiskEncryption
+          ? "The host will receive the MDM command to remove the disk encryption profile when the " +
+            "host comes online."
+          : "The host will receive the MDM command to remove the configuration profile when the host " +
+            "comes online.",
     },
-    verified: {
-      statusText: "Verifying",
-      iconName: "success",
-      tooltipText: "Host applied the setting.",
-    },
+    verified: null, // should not be reached
     verifying: null, // should not be reached
     failed: {
       statusText: "Failed",
@@ -64,14 +79,18 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
 };
 
 interface IMacSettingStatusCellProps {
+  name: string;
   status: MdmProfileStatus;
   operationType: MacMdmProfileOperationType;
 }
 const MacSettingStatusCell = ({
+  name,
   status,
   operationType,
 }: IMacSettingStatusCellProps): JSX.Element => {
   const options = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+
+  const isDiskEncryptionProfile = name === "Disk Encryption";
 
   if (options) {
     const { statusText, iconName, tooltipText } = options;
@@ -96,7 +115,9 @@ const MacSettingStatusCell = ({
               id={tooltipId}
               data-html
             >
-              <span className="tooltip__tooltip-text">{tooltipText}</span>
+              <span className="tooltip__tooltip-text">
+                {tooltipText(isDiskEncryptionProfile)}
+              </span>
             </ReactTooltip>
           </>
         ) : (
