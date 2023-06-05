@@ -112,6 +112,12 @@ export const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
+  verified: {
+    displayName: "Verified",
+    statusName: "success",
+    value: FileVaultProfileStatus.VERIFIED,
+    tooltip: "Disk encryption on and key stored in Fleet. Fleet has verified.",
+  },
   verifying: {
     displayName: "Verifying",
     statusName: "successPartial",

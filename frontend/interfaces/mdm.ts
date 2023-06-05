@@ -92,6 +92,7 @@ export interface IFileVaultSummaryResponse {
 }
 
 export enum FileVaultProfileStatus {
+  VERIFIED = "verified",
   VERIFYING = "verifying",
   ACTION_REQUIRED = "action_required",
   ENFORCING = "enforcing",

@@ -1039,3 +1039,65 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 }
+
+func TestDirectIngestHostMacOSProfiles(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	h := &fleet.Host{ID: 1}
+
+	var expectedProfiles []*fleet.HostMacOSProfile
+	ds.SetVerifiedHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+		require.Equal(t, h.ID, host.ID)
+		require.Len(t, installedProfiles, len(expectedProfiles))
+		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))
+		for _, ep := range expectedProfiles {
+			expectedByIdentifier[ep.Identifier] = ep
+		}
+		for _, ip := range installedProfiles {
+			ep, ok := expectedByIdentifier[ip.Identifier]
+			require.True(t, ok)
+			require.Equal(t, *ep, *ip)
+		}
+
+		return nil
+	}
+	expectedProfiles = []*fleet.HostMacOSProfile{
+		{
+			Identifier:  "com.example.test",
+			DisplayName: "Test Profile",
+			InstallDate: time.Now().Truncate(time.Second),
+		},
+	}
+	toRows := func(profs []*fleet.HostMacOSProfile) []map[string]string {
+		rows := make([]map[string]string, len(profs))
+		for i, p := range profs {
+			rows[i] = map[string]string{
+				"identifier":   p.Identifier,
+				"display_name": p.DisplayName,
+				"install_date": p.InstallDate.Format("2006-01-02 15:04:05 -0700"),
+			}
+		}
+		return rows
+	}
+
+	// expect no error: happy path
+	rows := toRows(expectedProfiles)
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect no error: identifer or display name is empty
+	expectedProfiles = append(expectedProfiles, &fleet.HostMacOSProfile{
+		Identifier:  "",
+		DisplayName: "",
+		InstallDate: time.Now().Truncate(time.Second),
+	})
+	rows = toRows(expectedProfiles)
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect no error: empty rows
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, []map[string]string{}))
+
+	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
+	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
+	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+}
