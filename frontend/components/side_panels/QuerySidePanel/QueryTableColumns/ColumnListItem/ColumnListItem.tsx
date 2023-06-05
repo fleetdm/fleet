@@ -56,8 +56,6 @@ const createTooltipHtml = (
     );
   }
 
-  console.log("platforms", column.platforms);
-
   if (column.platforms?.length === 1) {
     const platform = column.platforms[0];
     toolTipHtml.push(
