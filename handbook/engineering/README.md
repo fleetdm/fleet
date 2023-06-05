@@ -134,16 +134,16 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
 
-To create an engineering-initiated story, follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label and work with an EM or PM to progress the story through the drafting process. 
+Engineering-initiated stories follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process. 
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
 
 ### Creating an engineering-initiated story
 
-1. Create the user story. 
+1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
 2. Label it `~engineering-initiated` and the relevant product group. 
 3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
-4. Collaborate with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
+4. Schedule a time with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
 5. Iterate based on feedback. 
 6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
 
