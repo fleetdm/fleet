@@ -133,10 +133,11 @@ EM will go daily over the bugs in INBOX column and address them as follows:
 
 ### Unreleased Bugs
 Bugs found in current sprint’s work and was not yet released:
-QA person will put this bug ticket in the RELEASE BOARD READY column and label it with “not-released”
+QA person will create a new BUG issue and put it the RELEASE BOARD READY column and label it with “not-released”. If this was caused by a story the team did this sprint, QA person will set the new bug as BLOCKING the original Story as a "Dependency" and put the Story in the WAITING column.
 EM will take one of these two actions: 
  - Solve the bug before the release. (Preferable)
  - Revert the PR that caused this bug.
+
 
 ## Engineering Initiated Issues
 
