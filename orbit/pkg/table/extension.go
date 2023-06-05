@@ -41,6 +41,12 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
+// Global variables for osquery extension manager client and logger
+var (
+	serverClient *osquery.ExtensionManagerClient = nil
+	kolideLogger *Logger                         = nil
+)
+
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
 	return func(r *Runner) {
@@ -60,6 +66,9 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
+
+	// TBD: This could be improved to use opt.Debug to set the log level
+	kolideLogger = NewKolideLogger(false)
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
