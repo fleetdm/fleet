@@ -56,6 +56,8 @@ const createTooltipHtml = (
     );
   }
 
+  console.log("platforms", column.platforms);
+
   if (column.platforms?.length === 1) {
     const platform = column.platforms[0];
     toolTipHtml.push(
@@ -68,6 +70,15 @@ const createTooltipHtml = (
     const platform2 = PLATFORM_DISPLAY_NAMES[column.platforms[1]];
     toolTipHtml.push(
       `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform1} and ${platform2}.</span>`
+    );
+  }
+
+  if (column.platforms?.length === 3) {
+    const platform1 = PLATFORM_DISPLAY_NAMES[column.platforms[0]];
+    const platform2 = PLATFORM_DISPLAY_NAMES[column.platforms[1]];
+    const platform3 = PLATFORM_DISPLAY_NAMES[column.platforms[2]];
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform1}, ${platform2}, and ${platform3}.</span>`
     );
   }
 
