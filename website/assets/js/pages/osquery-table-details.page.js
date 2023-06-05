@@ -11,7 +11,7 @@ parasails.registerPage('osquery-table-details', {
       'darwin': 'macOS',
       'linux': 'Linux',
       'windows': 'Windows',
-      'chromeos': 'ChromeOS',
+      'chrome': 'ChromeOS',
       'all': 'All platforms'
     },
   },

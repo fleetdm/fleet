@@ -1,7 +1,7 @@
 name: network_interfaces
 evented: false
 platforms:
-  - chromeos
+  - chrome
 description: Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.
 columns:
   - name: mac

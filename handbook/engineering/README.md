@@ -49,11 +49,11 @@ The following is the subset of proposed engineering meetings. Each group is free
 
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
+Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -83,7 +83,7 @@ For each attendee:
 - What could have gone better this release cycle?
 - What should we remember next time?
 
-### Group Weeklies
+### Group weeklies
 
 A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
 
@@ -111,9 +111,9 @@ This would include the CTO + Engineering managers.
 
 #### Sample agenda
 
-- Fullstack engineer hiring
+- Engineer hiring
 - Engineering process discussion
-- Review Q2 OKRs
+- Review engineering KPIs
 
 ## Release process
 
@@ -123,20 +123,43 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-In order to make sure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`. 
 
-Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+Bugs are exempt from the release freeze period. 
 
-1. Regressions
-2. Security concerns
-3. Issues with features targeted for current release
+### Freeze day
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](https://fleetdm.com/handbook/product) and Engineering teams.
+To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in mergefreeze using the PR number. 
+
+#### Check dependencies
+
+Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
+
+1. **Go**: Latest minor release
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L3-L4).
+* Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
+* If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
+* If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
+
+> In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
+
+2. **macadmins-extension**: Latest release
+* Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L60).
+* If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
+* Add the `~release blocker` label.
+
+>**Note:** Some new versions of the macadmins-extension include updates that require code changes in Fleet. Make sure to note in the bug that the update should be checked for any changes, like new tables, that require code changes in Fleet.
+
+Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
+
+#### Create release QA issue
+
+Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [CX](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product groups.
 
 ### Release day
 
-Documentation on completing the release process can be found
-[here](https://fleetdm.com/docs/contributing/releasing-fleet).
+Documentation on completing the release process can be found [here](https://fleetdm.com/docs/contributing/releasing-fleet).
 
 ## Deploying to dogfood
 
@@ -886,15 +909,16 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
+| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Luke Heath |
-| Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
-| Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
-| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
+| Release ritual                | Every three weeks   | Go through [the process of releasing](https://fleetdm.com/docs/contributing/releasing-fleet) the next iteration of Fleet.              | Luke Heath |
+| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
+| Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
+| QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
 
 ## 24/7 on-call
 
@@ -934,11 +958,12 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
-| `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-mdm`             | Luke Heath                                                           |
+| `#help-engineering`      | Zach Wasserman                                                   |
+| `#g-mdm`                 | George Karr                                                      |
 | `#g-customer-experience` | Sharon Katz                                                      |
-| `#_pov-environments` | Ben Edwards                                                          |
-| `#help-qa`           | Reed Haynes                                                          |
+| `#g-infra`               | Luke Heath                                                       |
+| `#help-qa`               | Reed Haynes                                                      |
+| `#_pov-environments`     | Ben Edwards                                                      |
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🚀 Engineering">
