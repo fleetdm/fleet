@@ -42,6 +42,8 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
+import { createMockHostMacMdmProfile } from "__mocks__/hostMock";
+
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -658,6 +660,12 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const testProfiles = [
+    createMockHostMacMdmProfile(),
+    createMockHostMacMdmProfile(),
+    createMockHostMacMdmProfile(),
+  ];
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -693,8 +701,10 @@ const HostDetailsPage = ({
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMacSettings={host?.mdm.profiles ?? []}
-          mdmName={mdm?.name}
+          // hostMdmProfiles={host?.mdm.profiles ?? []}
+          hostMdmProfiles={testProfiles}
+          // mdmName={mdm?.name}
+          mdmName={"Fleet"}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
@@ -821,7 +831,8 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles ?? []}
+            // hostMacSettings={host?.mdm.profiles ?? []}
+            hostMacSettings={testProfiles}
             onClose={toggleMacSettingsModal}
           />
         )}
