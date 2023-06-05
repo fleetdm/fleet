@@ -960,6 +960,14 @@ type Datastore interface {
 	// Get the profile UUID and last update timestamp for the default setup
 	// assistant for a team or no team.
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+
+	// GetMatchingHostSerials receives a list of serial numbers and returns
+	// a map with all the matching serial numbers in the database.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+
+	// DeleteHostDEPAssignments deletes entries in host_dep_assignments for
+	// host with matching serials.
+	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 }
 
 const (

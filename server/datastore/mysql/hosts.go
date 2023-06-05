@@ -3936,3 +3936,33 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 
 	return counts, nil
 }
+
+func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	result := map[string]struct{}{}
+	if len(serials) == 0 {
+		return result, nil
+	}
+
+	var args []interface{}
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	stmt, args, err := sqlx.In("SELECT hardware_serial FROM hosts WHERE hardware_serial IN (?)", args)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
+	}
+	rows, err := ds.reader.QueryxContext(ctx, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "executing query for matching hosts")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var serial string
+		err := rows.Scan(&serial)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scanning row for matching hosts")
+		}
+		result[serial] = struct{}{}
+	}
+	return result, nil
+}
