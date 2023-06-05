@@ -1,12 +1,48 @@
 # Engineering
 
+## Scrum at Fleet
+
+Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
+
+### Sprint ceremonies
+
+Each sprint is marked by five essential ceremonies:
+
+1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing.
+3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints.
+4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks.
+5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
+
+### Scrum boards
+
+Each product group has a dedicated sprint board:
+[MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+[CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+[Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+[Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
+
+New tickets are estimated, specified, and prioritized on the roadmap:
+[Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+
+### Scrum items
+
+Our scrum boards are exclusively composed of three types of scrum items:
+
+1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term 'epic' may be seen. However, we treat these as regular user stories.
+
+2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier to estimate work units.
+
+3. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint. Bugs [may be estimated or left unestimated](https://fleetdm.com/handbook/engineering#do-we-estimate-released-bugs-and-outages), as determined by the product group's engineering manager.
+
+> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these three types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+
 ## Meetings
 
 ### In this section
 
 - [Goals](#goals)
 - [Principles](#principles)
-- [Scrum](#scrum)
 - [Eng Together](#eng-together)
 - [Release Retro](#release-retro)
 - [Group Weeklies](#group-weeklies)
@@ -25,27 +61,6 @@
 - Each individual must have a weekly or biweekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
-
-The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings and add any other meetings as they see fit.
-
-### Scrum
-- Fleet engineering teams practice scrum as an agile methodology.
-- Sprints are 3 weeks long to match our release cadence.
-- There are 5 “Scrum Ceremonies” performed during each sprint:
-  - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
-  - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
-    - Have Stakeholders know in advance the time it will take to achieve those items.
-    - Make it easier in the next planning meeting to know what the team can take for the next sprint.
-  - Sprint Demo - At the last Friday of the sprint all engineering teams and stakeholders meet to present their work. Engineers will get 3-10 minutes to present what was done / not done.
-  - Sprint Retrospective - At the last Friday of the sprint each team will meet with stakeholders and hold a discussion answering the 3 questions:
-     - What went well?
-     - What could we have done better?
-     - What did we learn?
-- Scrum items:
-  - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
-  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the &lt;user&gt; I would like to &lt;have something done or changed&gt; so that I can &lt;benefit from it in this specific way&gt;. A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
-  - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
 
 ### Eng Together
 
@@ -191,7 +206,7 @@ How to deploy a new release to dogfood:
 
 See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
 
-Fleet team members can can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
+Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
 ### Responsibilities
 
@@ -312,16 +327,6 @@ At Fleet, we consider an outage to be a situation where new features or previous
 - Occurences of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
 - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
 - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
-
-## Do we estimate released bugs and outages?
-
-Estimating bugs and outages can be helpful in getting on the same page about how much time we want to spend on a given piece of unplanned work, and how much the ∑ of unplanned work is affecting a team's throughput.
-
-## Project boards
-
-[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
-
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
 ## Scaling gotchas
 

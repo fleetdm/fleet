@@ -685,6 +685,10 @@ type Datastore interface {
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
+
+	// SetVerifiedHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
+	SetVerifiedHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -759,6 +763,11 @@ type Datastore interface {
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
+
+	// MatchMDMAppleConfigProfiles returns the list of team ids that have the
+	// exact set of configuration profiles as those specified by their
+	// hex-encoded md5 hashes.
+	MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error)
 
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile id.
