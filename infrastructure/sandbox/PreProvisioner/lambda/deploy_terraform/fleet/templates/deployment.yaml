@@ -60,7 +60,7 @@ spec:
             value: "{{ .Values.fleetName }}"
           - name: FLEET_LOGGING_TRACING_TYPE
             value: elasticapm
-          - name: FLEET_LOGGING_TRACING_TYPE
+          - name: FLEET_LOGGING_TRACING_ENABLED
             value: "true"
           - name: FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED
             value: "true"
