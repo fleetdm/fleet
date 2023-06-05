@@ -42,11 +42,11 @@ parasails.registerPage('pricing', {
       if(this.displaySecurityPricingMode){
         this.pricingTable.sort((a, b)=>{
           return this.securityModeCategoryOrder.indexOf(a.categoryName) - this.securityModeCategoryOrder.indexOf(b.categoryName);
-        })
+        });
       } else {
         this.pricingTable.sort((a, b)=>{
           return this.itModeCategoryOrder.indexOf(a.categoryName) - this.itModeCategoryOrder.indexOf(b.categoryName);
-        })
+        });
       }
     }
   },
