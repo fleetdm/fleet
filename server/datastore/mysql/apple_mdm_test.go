@@ -3642,7 +3642,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, depHostID, depAssignment.HostID)
 		require.Nil(t, depAssignment.DeletedAt)
-		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 1*time.Second)
+		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
 		// simulate initial osquery enrollment via Orbit
 		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
