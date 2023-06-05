@@ -10,7 +10,7 @@ import {
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
-import { ILabelSummary } from "interfaces/label";
+import { ILabelSpecResponse, ILabelSummary } from "interfaces/label";
 import {
   IMacadminAggregate,
   IMunkiIssuesAggregate,

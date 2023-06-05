@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useCallback } from "react";
 import PATHS from "router/paths";
 
+import labelsAPI from "services/entities/labels";
 import DataError from "components/DataError";
 import { ISelectedPlatform } from "interfaces/platform";
+import { useQuery } from "react-query";
+import { ILabelSpecResponse } from "interfaces/label";
+import Spinner from "components/Spinner";
 
 import SummaryTile from "./SummaryTile";
 
@@ -36,6 +40,15 @@ const HostsSummary = ({
   if (showHostsUI) {
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
+  // get the id for the label for chrome hosts - this will be unique to each Fleet instance
+  const { isLoading: loadingChromeLabelId, data: chromeLabelId } = useQuery<
+    ILabelSpecResponse,
+    Error,
+    number
+  >("chromeLabelId", () => labelsAPI.specByName("macos"), {
+    select: ({ specs }) => specs.id,
+  });
+  console.log("chromeLabelId :", chromeLabelId);
 
   const renderMacCount = (teamId?: number) => (
     <SummaryTile
@@ -76,20 +89,24 @@ const HostsSummary = ({
     />
   );
 
-  const renderChromeCount = (teamId?: number) => (
-    <SummaryTile
-      iconName="chrome"
-      count={chromeCount}
-      isLoading={isLoadingHostsSummary}
-      showUI={showHostsUI}
-      title="Chromebooks"
-      // currently this is "test label"
-      // TODO - ask backend what the label for chrome hosts will be
-      path={PATHS.MANAGE_HOSTS_LABEL(14).concat(
-        teamId !== undefined ? `?team_id=${teamId}` : ""
-      )}
-    />
-  );
+  const renderChromeCount = (teamId?: number) => {
+    if (!chromeLabelId) {
+      return <Spinner />;
+    }
+    return (
+      <SummaryTile
+        iconName="chrome"
+        count={chromeCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title="Chromebooks"
+        path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
   const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":

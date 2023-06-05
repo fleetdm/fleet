@@ -34,6 +34,9 @@ export default {
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
+  LABEL_SPEC_BY_NAME: (labelName: string) => {
+    return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
+  },
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
