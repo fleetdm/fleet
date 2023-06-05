@@ -2656,11 +2656,16 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 	})
 	require.NoError(t, err)
 
+	createDeviceTokenForHost(t, ds, host.ID, token)
+
+	return host
+}
+
+func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
 	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
 		return err
 	})
-	return host
 }
 
 func (s *integrationEnterpriseTestSuite) TestListSoftware() {

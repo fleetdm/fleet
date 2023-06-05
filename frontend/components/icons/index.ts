@@ -1,4 +1,6 @@
 import Alert from "./Alert";
+import Arrow from "./Arrow";
+import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
@@ -44,6 +46,7 @@ import Success from "./Success";
 import SuccessPartial from "./SuccessPartial";
 import Pending from "./Pending";
 import PendingPartial from "./PendingPartial";
+import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
 
 import Copy from "./Copy";
@@ -65,6 +68,8 @@ import FilePdf from "./FilePdf";
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   alert: Alert,
+  arrow: Arrow,
+  "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
@@ -100,6 +105,7 @@ export const ICON_MAP = {
   pending: Pending,
   "pending-partial": PendingPartial,
   error: Error,
+  "error-outline": ErrorOutline,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,

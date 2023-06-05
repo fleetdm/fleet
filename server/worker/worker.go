@@ -108,7 +108,7 @@ func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interfa
 // but we want to ensure a minimum delay before retries to give a chance to
 // e.g. transient network issues to resolve themselves.
 var delayPerRetry = []time.Duration{
-	1: 0, // i.e. for the first retry, do it ASAP (on the next cron run)
+	1: 0, // i.e. for the first retry, do it ASAP (on the next worker run)
 	2: 5 * time.Minute,
 	3: 10 * time.Minute,
 	4: 1 * time.Hour,

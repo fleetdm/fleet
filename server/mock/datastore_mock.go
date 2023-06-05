@@ -484,6 +484,8 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
+type SetVerifiedHostMacOSProfilesFunc func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error
+
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
@@ -1336,6 +1338,9 @@ type DataStore struct {
 
 	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
 	SetDiskEncryptionResetStatusFuncInvoked bool
+
+	SetVerifiedHostMacOSProfilesFunc        SetVerifiedHostMacOSProfilesFunc
+	SetVerifiedHostMacOSProfilesFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -3201,6 +3206,13 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	s.SetDiskEncryptionResetStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
+}
+
+func (s *DataStore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+	s.mu.Lock()
+	s.SetVerifiedHostMacOSProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVerifiedHostMacOSProfilesFunc(ctx, host, installedProfiles)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

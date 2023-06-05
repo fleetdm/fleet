@@ -3,7 +3,7 @@ platforms:
   - darwin
   - windows
   - linux
-  - chromeos
+  - chrome
 examples: >-
   List users that have interactive access via a shell that isn't false.
   
@@ -44,17 +44,12 @@ columns:
       - windows
       - linux
   - name: uuid
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos
   - name: email
     required: false
     type: string
     description: Email
     platforms:
-      - chromeos
+      - chrome
   - name: type
     platforms:
       - windows
@@ -66,8 +61,3 @@ columns:
       - linux
   - name: username
     description: Username
-    platforms:
-      - darwin
-      - windows
-      - linux
-      - chromeos

@@ -315,7 +315,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
 ```
-{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+{host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
 ## What can I do if Fleet is slow or unresponsive after enabling a feature?

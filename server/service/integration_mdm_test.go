@@ -107,6 +107,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
 	)
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	var depSchedule *schedule.Schedule
@@ -151,7 +152,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onProfileScheduleDone != nil {
 								defer s.onProfileScheduleDone()
 							}
-							return ReconcileProfiles(ctx, ds, apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+							return ReconcileProfiles(ctx, ds, mdmCommander, logger)
 						}),
 					)
 					return profileSchedule, nil
@@ -178,9 +179,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, kitlog.NewJSONLogger(os.Stdout)),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, kitlog.NewJSONLogger(os.Stdout)),
 	}
+	appleMDMJob := &worker.AppleMDM{
+		Datastore: s.ds,
+		Log:       kitlog.NewJSONLogger(os.Stdout),
+		Commander: mdmCommander,
+	}
 	workr := worker.NewWorker(s.ds, kitlog.NewJSONLogger(os.Stdout))
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob)
+	workr.Register(macosJob, appleMDMJob)
 	s.worker = workr
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -523,12 +529,14 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.Equal(t, uint(0), teamSummaryResp.Pending)
 	require.Equal(t, uint(0), teamSummaryResp.Failed)
 	require.Equal(t, uint(1), teamSummaryResp.Verifying)
+	require.Equal(t, uint(0), teamSummaryResp.Verified)
 
 	var noTeamSummaryResp getMDMAppleProfilesSummaryResponse
 	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &noTeamSummaryResp)
 	require.Equal(t, uint(0), noTeamSummaryResp.Pending)
 	require.Equal(t, uint(0), noTeamSummaryResp.Failed)
 	require.Equal(t, uint(0), noTeamSummaryResp.Verifying)
+	require.Equal(t, uint(0), noTeamSummaryResp.Verified)
 }
 
 func (s *integrationMDMTestSuite) TestPuppetPreassignProfiles() {
@@ -671,6 +679,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	mdmDevice.SerialNumber = devices[0].SerialNumber
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
 
 	// make sure the host gets a request to install fleetd
 	var fleetdCmd *micromdm.CommandPayload
@@ -1050,7 +1061,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 			HostUUID:          host.UUID,
 			CommandUUID:       hostCmdUUID,
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			Status:            &fleet.MDMAppleDeliveryVerifying,
+			Status:            &fleet.MDMAppleDeliveryVerified,
 			Checksum:          []byte("csum"),
 		},
 	})
@@ -1178,11 +1189,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	checkDecryptableKey(s.users["admin1@example.com"])
 
 	// get that host - it has an encryption key that is decryptable, so it
-	// should report "applied" disk encryption.
+	// should report "verified" disk encryption.
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionVerifying, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 
 	// maintainers are able to see the token
@@ -1610,6 +1621,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp := getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(0), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(0), fvsResp.ActionRequired)
 	require.Equal(t, uint(0), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1673,6 +1685,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(0), fvsResp.ActionRequired)
 	require.Equal(t, uint(0), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1683,6 +1696,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(0), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1695,6 +1709,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(2), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1705,6 +1720,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(2), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1724,6 +1740,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(2), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -1734,6 +1751,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
+
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(2), fvsResp.Enforcing)
 	require.Equal(t, uint(2), fvsResp.Failed)
@@ -1744,6 +1763,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(2), fvsResp.ActionRequired)
 	require.Equal(t, uint(2), fvsResp.Enforcing)
 	require.Equal(t, uint(2), fvsResp.Failed)
@@ -1767,6 +1787,18 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// verified status for host 1
+	require.NoError(t, s.ds.SetVerifiedHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, uint(2), fvsResp.Verifying)
+	require.Equal(t, uint(0), fvsResp.Verified)
 	require.Equal(t, uint(0), fvsResp.ActionRequired)
 	require.Equal(t, uint(0), fvsResp.Enforcing)
 	require.Equal(t, uint(0), fvsResp.Failed)
@@ -2598,10 +2630,37 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	// apply the pending profiles
 	triggerReconcileProfiles()
 
-	// final state
+	// all profiles now verifying
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+		},
+		h2: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+		},
+		h3: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+		},
+		h4: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
+		},
+	})
+
+	// h1 verified one of the profiles
+	require.NoError(t, s.ds.SetVerifiedHostMacOSProfiles(context.Background(), h1, []*fleet.HostMacOSProfile{
+		{Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
+	}))
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerified},
 			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},
 		},
@@ -3111,8 +3170,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// devices send their responses
 	enrollAndCheckBootstrapPackage := func(d *deviceWithResponse, bp *fleet.MDMAppleBootstrapPackage) {
-		err := d.device.Enroll()
+		err := d.device.Enroll() // queues DEP post-enrollment worker job
 		require.NoError(t, err)
+
+		// process worker jobs
+		s.runWorker()
+
 		cmd, err := d.device.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -4463,6 +4526,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
+	// Enroll generated the TokenUpdate request to Fleet and enqueued the
+	// Post-DEP enrollment job, it needs to be processed.
+	s.runWorker()
+
 	// ask for commands and verify that we get AccountConfiguration
 	var accCmd *micromdm.CommandPayload
 	cmd, err := mdmDevice.Idle()
@@ -4539,11 +4606,9 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	return &profile
 }
 
-func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
+func (s *integrationMDMTestSuite) TestMDMMigration() {
 	t := s.T()
 	ctx := context.Background()
-	token := "token_test_migration"
-	host := createHostAndDeviceToken(t, s.ds, token)
 
 	// enable migration
 	var acResp appConfigResponse
@@ -4551,99 +4616,156 @@ func (s *integrationMDMTestSuite) TestDesktopMDMMigration() {
 		"mdm": { "macos_migration": { "enable": true, "mode": "voluntary", "webhook_url": "https://example.com" } }
 	}`), http.StatusOK, &acResp)
 
-	getDesktopResp := fleetDesktopResponse{}
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-	require.NoError(t, res.Body.Close())
-	require.NoError(t, getDesktopResp.Err)
-	require.Zero(t, *getDesktopResp.FailingPolicies)
-	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
-	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
-	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
-	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+	checkMigrationResponses := func(host *fleet.Host, token string) {
+		getDesktopResp := fleetDesktopResponse{}
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
 
-	// simulate that the device is assigned to Fleet in ABM
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		switch r.URL.Path {
-		case "/session":
-			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-		case "/profile":
-			encoder := json.NewEncoder(w)
-			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
-		case "/server/devices", "/devices/sync":
-			encoder := json.NewEncoder(w)
-			err := encoder.Encode(godep.DeviceResponse{
-				Devices: []godep.Device{
-					{
-						SerialNumber: host.HardwareSerial,
-						Model:        "Mac Mini",
-						OS:           "osx",
-						OpType:       "added",
+		orbitConfigResp := orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// simulate that the device is assigned to Fleet in ABM
+		s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			switch r.URL.Path {
+			case "/session":
+				_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+			case "/profile":
+				encoder := json.NewEncoder(w)
+				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+				require.NoError(t, err)
+			case "/server/devices", "/devices/sync":
+				encoder := json.NewEncoder(w)
+				err := encoder.Encode(godep.DeviceResponse{
+					Devices: []godep.Device{
+						{
+							SerialNumber: host.HardwareSerial,
+							Model:        "Mac Mini",
+							OS:           "osx",
+							OpType:       "added",
+						},
 					},
-				},
-			})
-			require.NoError(t, err)
-		}
-	}))
-	ch := make(chan bool)
-	s.onDEPScheduleDone = func() { close(ch) }
-	_, err := s.depSchedule.Trigger()
+				})
+				require.NoError(t, err)
+			}
+		}))
+		ch := make(chan bool)
+		s.onDEPScheduleDone = func() { close(ch) }
+		_, err := s.depSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
+
+		// simulate that the device is enrolled in a third-party MDM and DEP capable
+		err = s.ds.SetOrUpdateMDMData(
+			ctx,
+			host.ID,
+			false,
+			true,
+			"https://simplemdm.com",
+			true,
+			fleet.WellKnownMDMSimpleMDM,
+		)
+		require.NoError(t, err)
+
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// simulate that the device needs to be enrolled in fleet, DEP capable
+		err = s.ds.SetOrUpdateMDMData(
+			ctx,
+			host.ID,
+			false,
+			false,
+			s.server.URL,
+			true,
+			fleet.WellKnownMDMFleet,
+		)
+		require.NoError(t, err)
+
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.True(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// simulate that the device is manually enrolled into fleet, but DEP capable
+		err = s.ds.SetOrUpdateMDMData(
+			ctx,
+			host.ID,
+			false,
+			true,
+			s.server.URL,
+			false,
+			fleet.WellKnownMDMFleet,
+		)
+		require.NoError(t, err)
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+	}
+
+	token := "token_test_migration"
+	host := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+	checkMigrationResponses(host, token)
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
-	<-ch
-
-	// simulate that the device is enrolled in a third-party MDM and DEP capable
-	err = s.ds.SetOrUpdateMDMData(
-		ctx,
-		host.ID,
-		false,
-		true,
-		"https://simplemdm.com",
-		true,
-		fleet.WellKnownMDMSimpleMDM,
-	)
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
-
-	getDesktopResp = fleetDesktopResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-	require.NoError(t, res.Body.Close())
-	require.NoError(t, getDesktopResp.Err)
-	require.Zero(t, *getDesktopResp.FailingPolicies)
-	require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
-	require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
-	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
-	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
-
-	// simulate that the device needs to be enrolled in fleet, DEP capable
-	err = s.ds.SetOrUpdateMDMData(
-		ctx,
-		host.ID,
-		false,
-		false,
-		s.server.URL,
-		true,
-		fleet.WellKnownMDMFleet,
-	)
-	require.NoError(t, err)
-
-	getDesktopResp = fleetDesktopResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-	require.NoError(t, res.Body.Close())
-	require.NoError(t, getDesktopResp.Err)
-	require.Zero(t, *getDesktopResp.FailingPolicies)
-	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
-	require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-	require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
-	require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
-	require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+	checkMigrationResponses(host, token)
 }
 
 func (s *integrationMDMTestSuite) runWorker() {

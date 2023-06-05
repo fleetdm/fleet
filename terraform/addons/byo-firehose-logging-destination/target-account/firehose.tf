@@ -30,10 +30,13 @@ data "aws_iam_policy_document" "firehose_policy" {
   statement {
     effect  = "Allow"
     actions = ["logs:PutLogEvents"]
-    resources = [
+    resources = concat([
       "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_results_name}:*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_status_name}:*"
-    ]
+      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_status_name}:*",
+      ],
+      var.firehose_status_name == "" ? [] : [
+        "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_audit_name}:*"
+    ])
   }
 
   statement {
@@ -89,6 +92,22 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
 
   s3_configuration {
     prefix     = var.status_prefix
+    role_arn   = aws_iam_role.firehose.arn
+    bucket_arn = aws_s3_bucket.destination.arn
+  }
+}
+
+resource "aws_kinesis_firehose_delivery_stream" "fleet_audit" {
+  count       = length(var.firehose_audit_name) > 0 ? 1 : 0
+  name        = var.firehose_audit_name
+  destination = "s3"
+
+  server_side_encryption {
+    key_arn = aws_kms_key.firehose.arn
+  }
+
+  s3_configuration {
+    prefix     = var.audit_prefix
     role_arn   = aws_iam_role.firehose.arn
     bucket_arn = aws_s3_bucket.destination.arn
   }
