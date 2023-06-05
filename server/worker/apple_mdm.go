@@ -116,7 +116,7 @@ func (a *AppleMDM) installEnrollmentPackages(ctx context.Context, hostUUID strin
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)
 
-	// GetMDMAppleBootstrapPackageMeta expectes team id 0 for no team
+	// GetMDMAppleBootstrapPackageMeta expects team id 0 for no team
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID

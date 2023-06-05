@@ -2228,8 +2228,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
 
-			// TODO(mna): double-check/validate that r.ID == m.Enrollment.UDID == host.UUID
-
 			var tmID *uint
 			if info.TeamID != 0 {
 				tmID = &info.TeamID
