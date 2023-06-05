@@ -20,8 +20,10 @@ Fleet maintains a GitHub Action for applying the latest configuration profiles i
 1. Overview:
     1. Create a `.github/workflows` directory in your repo if it does not already exist.
     2. Inside the `.github/workflows` directory, create a new file named `fleetctl-team.yml`
-    3. In the `fleetctl-team.yml`, add the [minimum recommended workflow](https://github.com/fleetdm/fleet/blob/main/.github/workflows/example-workflow.yaml): \
-``` \ 
+    3. In the `fleetctl-team.yml`, add the [minimum recommended workflow](https://github.com/fleetdm/fleet/blob/main/.github/workflows/example-workflow.yaml): 
+
+
+``` 
 name: Apply latest configuration profiles (example)
     on:
       push:
@@ -33,7 +35,7 @@ name: Apply latest configuration profiles (example)
 
     # This allows a subsequently queued workflow run to interrupt previous runs
     concurrency:
-      group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+      group: ${ github.workflow }-${ github.head_ref || github.run_id}
       cancel-in-progress: true
 
     defaults:
@@ -45,9 +47,9 @@ name: Apply latest configuration profiles (example)
       contents: read
 
     env:
-      FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
-      FLEET_URL: ${{ secrets.FLEET_URL }}
-      TOKEN_USED_BY_PROFILE: ${{ secrets.TOKEN_USED_BY_PROFILE }}
+      FLEET_API_TOKEN: ${ secrets.FLEET_API_TOKEN }
+      FLEET_URL: ${ secrets.FLEET_URL }
+      TOKEN_USED_BY_PROFILE: ${ secrets.TOKEN_USED_BY_PROFILE }
 
     jobs:
       apply-profiles:
@@ -72,30 +74,36 @@ name: Apply latest configuration profiles (example)
 2. Using the GitHub UI:
     1. On GitHub.com, navigate to the main page of the repository.
     2. Under your repository name, click **Actions**.  
-![Click Actions under your GitHub repository name](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet5-520x109@2x.png "Click Actions under your GitHub repository name")  
 
-    3. Create a new Action by either 
-       1. Following the link to _set up a workflow yourself_  
-![Get started with GitHub Actions, click "set up a workflow yourself"](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet3-834x134@2x.png "Click 'set up a workflow yourself'")  
-Or
+    ![Click Actions under your GitHub repository name](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet5-520x109@2x.png "Click Actions under your GitHub repository name")  
+
+    3. Create a new Action by either
+
+        1. Following the link to _set up a workflow yourself_ 
+
+        ![Get started with GitHub Actions, click "set up a workflow yourself"](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet3-834x134@2x.png "Click 'set up a workflow yourself'")
+      
+        **Or**
+
         2. Clicking the add new button.
-    7. Name your yaml file `fleetctl-team.yml`  
-![Name your yaml file.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet10-604x225@2x.png "Name your yaml file.")
+
+    7. Name your yaml file `fleetctl-team.yml`
+    ![Name your yaml file.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet10-604x225@2x.png "Name your yaml file.")
 
     8. Under _Marketplace_ in the right column, search for “Fleet.”  
-![Search for Fleet in the marketplace](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet6-416x314@2x.png "Search for Fleet in the marketplace")
+    ![Search for Fleet in the marketplace](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet6-416x314@2x.png "Search for Fleet in the marketplace")
 
     9. Click on _Apply latest configuration profiles via Fleet_ to expand the listing.  
-![Expland the marketplace listing.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet2-417x707@2x.png "Click on Apply latest configuration profiles via Fleet to expand the listing.")
+    ![Expland the marketplace listing.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet2-417x707@2x.png "Click on Apply latest configuration profiles via Fleet to expand the listing.")
 
     10. Click the copy icon  
-![Click the copy icon.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet7-417x159@2x.png "Click the copy icon")
+    ![Click the copy icon.](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet7-417x159@2x.png "Click the copy icon")
 
     11. Paste into your yaml file, and set the variables  
-![Paste into your yaml file, and set the variables](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet4-596x380@2x.png "Paste into your yaml file, and set the variables")
+    ![Paste into your yaml file, and set the variables](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet4-596x380@2x.png "Paste into your yaml file, and set the variables")
 
     12. Click **Commit changes…**  
-![Click Commit changes…](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet1-480x539@2x.png "Click Commit changes…")
+    ![Click Commit changes…](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet1-480x539@2x.png "Click Commit changes…")
 
 
 

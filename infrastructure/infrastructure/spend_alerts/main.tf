@@ -18,6 +18,7 @@ terraform {
 }
 
 provider "aws" {
+  region = "us-east-1"
   default_tags {
     tags = {
       environment = "spend-alerts"
@@ -37,9 +38,10 @@ locals {
 
 module "notify_slack" {
   source  = "terraform-aws-modules/notify-slack/aws"
-  version = "5.5.0"
+  version = "6.0.0"
 
-  sns_topic_name = local.prefix
+  sns_topic_name       = local.prefix
+  lambda_function_name = local.prefix
 
   slack_webhook_url = var.slack_webhook
   slack_channel     = "#g-infra"
@@ -53,7 +55,7 @@ output "slack_topic_arn" {
 resource "aws_cloudwatch_metric_alarm" "total_charge" {
   alarm_name                = "total_charge"
   alarm_description         = "total estimated charge"
-  comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
+  comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "1"
   threshold_metric_id       = "ad1"
   alarm_actions             = [module.notify_slack.slack_topic_arn]

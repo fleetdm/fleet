@@ -3,7 +3,7 @@ platforms:
   - darwin
   - windows
   - linux
-  - chromeos
+  - chrome
 examples: >-
   List users that have interactive access via a shell that isn't false.
   
@@ -49,7 +49,7 @@ columns:
     type: string
     description: Email
     platforms:
-      - chromeos
+      - chrome
   - name: type
     platforms:
       - windows

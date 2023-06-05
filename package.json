@@ -7,6 +7,7 @@
     "lint": "eslint frontend cypress --ext .js,.jsx,.ts,.tsx",
     "prettier:check": "prettier --check frontend/**/*.{jsx,js,tsx,ts} ./cypress/**/*.{js,ts}",
     "test": "jest --config ./frontend/test/jest.config.ts",
+    "test:ci": "jest --config ./frontend/test/jest.config.ts --ci --coverage",
     "e2e-browser": "cypress open",
     "e2e-browser:free": "yarn cypress open --config-file cypress/cypress-free.json",
     "e2e-browser:premium": "yarn cypress open --config-file cypress/cypress-premium.json",
