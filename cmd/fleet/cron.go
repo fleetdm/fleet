@@ -547,6 +547,7 @@ func newWorkerIntegrationsSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	depStorage *mysql.NanoDEPStorage,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -565,6 +566,8 @@ func newWorkerIntegrationsSchedule(
 	// integration is enabled, as that config can change live (and if it's not
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
+	// leave the url empty for now, will be filled when the lock is acquired with
+	// the up-to-date config.
 	jira := &worker.Jira{
 		Datastore:     ds,
 		Log:           logger,
@@ -575,8 +578,10 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
-	var depSvc *apple_mdm.DEPService
-	var depCli *godep.Client
+	var (
+		depSvc *apple_mdm.DEPService
+		depCli *godep.Client
+	)
 	// depStorage could be nil if mdm is not configured for fleet, in which case
 	// we leave depSvc and deCli nil and macos setup assistants jobs will be
 	// no-ops.
@@ -590,11 +595,12 @@ func newWorkerIntegrationsSchedule(
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	// leave the url empty for now, will be filled when the lock is acquired with
-	// the up-to-date config.
-	w.Register(jira)
-	w.Register(zendesk)
-	w.Register(macosSetupAsst)
+	appleMDM := &worker.AppleMDM{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
