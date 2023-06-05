@@ -775,7 +775,8 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	// Also collect the profiles' groups in case we need to create a new team,
 	// and the list of raw profiles bytes.
 	hashes, groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
-		make([]string, 0, len(profs.Profiles)), make([][]byte, 0, len(profs.Profiles))
+		make([]string, 0, len(profs.Profiles)),
+		make([][]byte, 0, len(profs.Profiles))
 	for _, prof := range profs.Profiles {
 		hashes = append(hashes, prof.HexMD5Hash)
 		rawProfiles = append(rawProfiles, prof.Profile)
@@ -792,7 +793,17 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	var targetTeamID uint
 	if len(teamIDs) > 0 {
+		// if the host is already in one of those valid teams, nothing to do.
+		if host.TeamID != nil {
+			for _, tmID := range teamIDs {
+				if *host.TeamID == tmID {
+					return nil
+				}
+			}
+		}
+		// else assign the host to the first valid team
 		targetTeamID = teamIDs[0]
+
 	} else {
 		// create a new team with this set of profiles
 		dedupeGroups := make(map[string]struct{}, len(groups))
@@ -834,6 +845,9 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err
 	}
 
-	// TODO(mna): should that create an audit activity?
+	// TODO(mna): should that create an audit activity? Note that the
+	// "edited_macos_profiles" and "team_created" activities will be created if
+	// the team was created, but I'm thinking "puppet-assign host" activity or
+	// something.
 	return nil
 }
