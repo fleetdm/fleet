@@ -2621,7 +2621,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	// apply the pending profiles
 	triggerReconcileProfiles()
 
-	// all profiles now verfiying
+	// all profiles now verifying
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryVerifying},

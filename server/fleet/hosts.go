@@ -1038,10 +1038,10 @@ type HostSoftwareInstalledPath struct {
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
 // table of the macadmins oquery extension
 type HostMacOSProfile struct {
-	// DisplayName is the display name of the profile
+	// DisplayName is the display name of the profile.
 	DisplayName string `json:"display_name" db:"display_name"`
-	// Identifier is the identifier of the profile
+	// Identifier is the identifier of the profile.
 	Identifier string `json:"identifier" db:"identifier"`
-	// InstallDate is the date the profile was installed
+	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
 }

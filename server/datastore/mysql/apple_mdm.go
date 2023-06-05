@@ -185,12 +185,13 @@ SELECT
 FROM
 	host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND (COALESCE(status, '%s') IN('%s', '%s')))`,
+	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryPending,
 		fleet.MDMAppleDeliveryVerifying,
-		fleet.MDMAppleDeliveryVerified)
+		fleet.MDMAppleDeliveryVerified,
+	)
 
 	var profiles []fleet.HostMDMAppleProfile
 	if err := sqlx.SelectContext(ctx, ds.reader, &profiles, stmt, hostUUID); err != nil {
@@ -1549,10 +1550,10 @@ FROM
 	mdm_apple_configuration_profiles
 WHERE
 	team_id = ?`, teamID); err != nil {
-		return ctxerr.Wrap(ctx, err, "listing expected profiles for update host macOS profiles")
+		return ctxerr.Wrap(ctx, err, "listing expected profiles to set verified host macOS profiles")
 	}
 
-	verifiedProfs := make([]*fleet.MDMAppleConfigProfile, 0, len(expectedProfs))
+	verifiedIdentifiers := make([]string, 0, len(expectedProfs))
 	for _, ep := range expectedProfs {
 		ip, ok := installedProfsByIdentifier[ep.Identifier]
 		if !ok {
@@ -1567,10 +1568,10 @@ WHERE
 			// TODO: host has a different name for expected profile, skip it for now
 			continue
 		}
-		verifiedProfs = append(verifiedProfs, ep)
+		verifiedIdentifiers = append(verifiedIdentifiers, ep.Identifier)
 	}
 
-	if len(verifiedProfs) == 0 {
+	if len(verifiedIdentifiers) == 0 {
 		// nothing to update, return early
 		return nil
 	}
@@ -1584,18 +1585,16 @@ WHERE
 	host_uuid = ?
 	AND status = ?
 	AND operation_type = 'install'
-	AND (profile_name, profile_identifier) IN(%s)`
+	AND profile_identifier IN(?)`
 
-	args := []interface{}{fleet.MDMAppleDeliveryVerified, host.UUID, fleet.MDMAppleDeliveryVerifying}
-	var inPart string
-	for _, vp := range verifiedProfs {
-		inPart += "(?, ?),"
-		args = append(args, vp.Name, vp.Identifier)
+	args := []interface{}{fleet.MDMAppleDeliveryVerified, host.UUID, fleet.MDMAppleDeliveryVerifying, verifiedIdentifiers}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set verified host macOS profiles")
 	}
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(inPart, ","))
 
 	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host macOS profiles")
+		return ctxerr.Wrap(ctx, err, "setting verified host macOS profiles")
 	}
 
 	return nil

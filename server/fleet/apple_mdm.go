@@ -368,7 +368,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 // profiles. Each host may be counted in only one of four mutually-exclusive categories:
 // Failed, Pending, Verifying, or Verified.
 type MDMAppleConfigProfilesSummary struct {
-	// Verified includes each host that where Fleet has verified the installation of all of the
+	// Verified includes each host where Fleet has verified the installation of all of the
 	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
 	// subject to verification for the host, the host is not counted as verified.
 	Verified uint `json:"verified" db:"verified"`
