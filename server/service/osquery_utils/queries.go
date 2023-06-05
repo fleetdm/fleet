@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1283,11 +1284,18 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		host.RefetchCriticalQueriesUntil = nil
 	}
 
+	serverURL, err := url.Parse(rows[0]["server_url"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing server_url")
+	}
+	// strip any query parameters from the URL
+	serverURL.RawQuery = ""
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
 		enrolled,
-		rows[0]["server_url"],
+		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
 	)

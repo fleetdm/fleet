@@ -13,6 +13,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -446,24 +447,101 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
-		require.False(t, enrolled)
-		require.False(t, installedFromDep)
-		require.Empty(t, serverURL)
-		return nil
-	}
-
 	var host fleet.Host
 
-	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	cases := []struct {
+		name       string
+		got        map[string]string
+		wantParams []any
+		wantErr    string
+	}{
 		{
-			"enrolled":           "false",
-			"installed_from_dep": "",
-			"server_url":         "",
+			"empty server URL",
+			map[string]string{
+				"enrolled":           "false",
+				"installed_from_dep": "",
+				"server_url":         "",
+			},
+			[]any{false, false, "", false, fleet.UnknownMDMName},
+			"",
 		},
-	})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		{
+			"with Fleet payload identifier",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://test.example.com",
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
+			"",
+		},
+		{
+			"with a query string on the server URL",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{false, true, "https://jamf.com/1/some/path", true, fleet.WellKnownMDMJamf},
+			"",
+		},
+		{
+			"with invalid installed_from_dep",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "invalid",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{},
+			"parsing installed_from_dep",
+		},
+		{
+			"with invalid enrolled",
+			map[string]string{
+				"enrolled":           "invalid",
+				"installed_from_dep": "false",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{},
+			"parsing enrolled",
+		},
+		{
+			"with invalid server_url",
+			map[string]string{
+				"enrolled":           "false",
+				"installed_from_dep": "false",
+				"server_url":         "ht tp://foo.com",
+			},
+			[]any{},
+			"parsing server_url",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+				require.Equal(t, isServer, c.wantParams[0])
+				require.Equal(t, enrolled, c.wantParams[1])
+				require.Equal(t, serverURL, c.wantParams[2])
+				require.Equal(t, installedFromDep, c.wantParams[3])
+				require.Equal(t, name, c.wantParams[4])
+				return nil
+			}
+
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+			} else {
+				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+				require.NoError(t, err)
+				ds.SetOrUpdateMDMDataFuncInvoked = false
+			}
+		})
+	}
+
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
