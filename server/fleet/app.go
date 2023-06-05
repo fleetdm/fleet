@@ -159,32 +159,32 @@ var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 
 // MacOSUpdates is part of AppConfig and defines the macOS update settings.
 type MacOSUpdates struct {
-	// MinimumVerssion is the required minimum operating system version.
-	MinimumVersion string `json:"minimum_version"`
+	// MinimumVersion is the required minimum operating system version.
+	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
 	// operating system version.
-	Deadline string `json:"deadline"`
+	Deadline optjson.String `json:"deadline"`
 }
 
 func (m MacOSUpdates) Validate() error {
 	// if no settings are provided it's okay to skip further validation
-	if m.MinimumVersion == "" && m.Deadline == "" {
+	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		return nil
 	}
 
-	if m.MinimumVersion != "" && m.Deadline == "" {
+	if m.MinimumVersion.Value != "" && m.Deadline.Value == "" {
 		return errors.New("deadline is required when minimum_version is provided")
 	}
 
-	if m.Deadline != "" && m.MinimumVersion == "" {
+	if m.Deadline.Value != "" && m.MinimumVersion.Value == "" {
 		return errors.New("minimum_version is required when deadline is provided")
 	}
 
-	if !versionStringRegex.MatchString(m.MinimumVersion) {
+	if !versionStringRegex.MatchString(m.MinimumVersion.Value) {
 		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
 	}
 
-	if _, err := time.Parse("2006-01-02", m.Deadline); err != nil {
+	if _, err := time.Parse("2006-01-02", m.Deadline.Value); err != nil {
 		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
 	}
 

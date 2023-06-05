@@ -143,7 +143,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -154,6 +154,14 @@ func TestApplyTeamSpecs(t *testing.T) {
 	enrolledSecretsCalled := make(map[uint][]*fleet.EnrollSecret)
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecretsCalled[*teamID] = secrets
+		return nil
+	}
+
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -189,8 +197,8 @@ spec:
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "12.3.1",
-			Deadline:       "2011-03-01",
+			MinimumVersion: optjson.SetString("12.3.1"),
+			Deadline:       optjson.SetString("2011-03-01"),
 		},
 	}
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
@@ -202,20 +210,30 @@ spec:
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
 
-	filename = writeTmpYml(t, `
+	mobileCfgPath := writeTmpMobileconfig(t, "N1")
+	filename = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
 spec:
   team:
     name: team1
-`)
+    mdm:
+      macos_settings:
+        custom_settings:
+          - %s
+`, mobileCfgPath))
 
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 	// agent options not provided, so left unchanged
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
-	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team1"].Config.MDM)
+	// macos updates options not provided, left unchanged
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
+	// macos custom settings provided
+	if assert.Len(t, teamsByName["team1"].Config.MDM.MacOSSettings.CustomSettings, 1) {
+		assert.Equal(t, mobileCfgPath, teamsByName["team1"].Config.MDM.MacOSSettings.CustomSettings[0])
+	}
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
@@ -237,8 +255,11 @@ spec:
 
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.10.10",
-			Deadline:       "1992-03-01",
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		MacOSSettings: fleet.MacOSSettings{ // macos settings still present, not cleared
+			CustomSettings: []string{mobileCfgPath},
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -255,11 +276,41 @@ spec:
   team:
     agent_options:
     name: team1
+    mdm:
+      macos_updates:
+      macos_settings:
 `)
 
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// agent options provided but empty, clears the value
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
+	// macos settings and updates still the same (not cleared) because only the
+	// top-level key is provided.
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
+	// enroll secret not cleared since not provided
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version:
+        deadline:
+      macos_settings:
+        custom_settings:
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// agent options still cleared
+	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
+	// macos settings and updates are now cleared.
+	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team1"].Config.MDM)
+	// enroll secret not cleared since not provided
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
@@ -333,8 +384,8 @@ spec:
 		AppleBMDefaultTeam:  "team1",
 		AppleBMTermsExpired: false,
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "12.1.1",
-			Deadline:       "2011-02-01",
+			MinimumVersion: optjson.SetString("12.1.1"),
+			Deadline:       optjson.SetString("2011-02-01"),
 		},
 	}
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -822,8 +873,8 @@ spec:
 			EnableDiskEncryption: false,
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.10.10",
-			Deadline:       "1992-03-01",
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
 		},
 	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)

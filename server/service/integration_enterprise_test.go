@@ -121,8 +121,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.15.0",
-			Deadline:       "2021-01-01",
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
@@ -1451,39 +1451,39 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2021-01-01",
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2021-01-01"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2025-10-01",
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2025-10-01"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
 
 	// sending a nil MacOSUpdate config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: nil}, http.StatusOK, &tmResp)
-	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
 	// sending an empty MacOSUpdate empties both fields
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{MacOSUpdates: &fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
-	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
 
 	// error checks:
@@ -1492,8 +1492,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2021-01-01T00:00:00Z",
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2021-01-01T00:00:00Z"),
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
@@ -1502,8 +1502,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0 (19A583)",
-				Deadline:       "2021-01-01T00:00:00Z",
+				MinimumVersion: optjson.SetString("10.15.0 (19A583)"),
+				Deadline:       optjson.SetString("2021-01-01T00:00:00Z"),
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
@@ -1512,7 +1512,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline: "2021-01-01T00:00:00Z",
+				Deadline: optjson.SetString("2021-01-01T00:00:00Z"),
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
@@ -1521,7 +1521,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0 (19A583)",
+				MinimumVersion: optjson.SetString("10.15.0 (19A583)"),
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
@@ -1804,8 +1804,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
@@ -1813,8 +1813,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// get the appconfig
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// update the deadline
 	acResp = appConfigResponse{}
@@ -1826,8 +1826,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// another edited macos min version activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
@@ -1849,8 +1849,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created with empty requirement
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
@@ -1865,8 +1865,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
-	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline.Value)
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
@@ -2570,7 +2570,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
+	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
@@ -2598,15 +2598,15 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
-				Deadline:       "1992-01-01",
-				MinimumVersion: "13.1.1",
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
 			},
 		},
 	}, http.StatusOK, &tmResp)
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "1992-01-01", MinimumVersion: "13.1.1"})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
@@ -2615,7 +2615,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")

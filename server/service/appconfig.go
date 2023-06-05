@@ -453,8 +453,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
-				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion,
-				Deadline:       appConfig.MDM.MacOSUpdates.Deadline,
+				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion.Value,
+				Deadline:       appConfig.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
@@ -563,9 +563,9 @@ func (svc *Service) validateMDM(
 	}
 
 	// MacOSUpdates
-	updatingVersion := mdm.MacOSUpdates.MinimumVersion != "" &&
+	updatingVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
-	updatingDeadline := mdm.MacOSUpdates.Deadline != "" &&
+	updatingDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
 
 	if updatingVersion || updatingDeadline {

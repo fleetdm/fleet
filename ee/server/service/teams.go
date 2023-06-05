@@ -187,8 +187,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			fleet.ActivityTypeEditedMacOSMinVersion{
 				TeamID:         &team.ID,
 				TeamName:       &team.Name,
-				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion,
-				Deadline:       team.Config.MDM.MacOSUpdates.Deadline,
+				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
