@@ -805,24 +805,10 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		targetTeamID = teamIDs[0]
 
 	} else {
-		// create a new team with this set of profiles
-		dedupeGroups := make(map[string]struct{}, len(groups))
-		for _, group := range groups {
-			dedupeGroups[group] = struct{}{}
-		}
-		groups = groups[:0]
-		for group := range dedupeGroups {
-			groups = append(groups, group)
-		}
-		sort.Strings(groups)
-
-		if len(groups) == 0 {
-			groups = []string{"default"}
-		}
-
-		// creating via the service call so that it properly assigns the agent
-		// options and creates audit activities, etc.
-		teamName := fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05"))
+		// Create a new team with this set of profiles. Creating via the service
+		// call so that it properly assigns the agent options and creates audit
+		// activities, etc.
+		teamName := teamNameFromPreassignGroups(groups)
 		tm, err := svc.NewTeam(ctx, fleet.TeamPayload{Name: &teamName})
 		if err != nil {
 			return err
@@ -845,4 +831,32 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err
 	}
 	return nil
+}
+
+// teamNameFromPreassignGroups returns the team name to use for a new team
+// created to match the set of profiles preassigned to a host. The team name is
+// derived from the "group" field provided with each request to pre-assign a
+// profile to a host (in fleet.MDMApplePreassignProfilePayload). That field is
+// optional, and empty groups are ignored. The current timestamp is appended to
+// the team's name to help avoid duplicates.
+func teamNameFromPreassignGroups(groups []string) string {
+	const defaultName = "default"
+
+	dedupeGroups := make(map[string]struct{}, len(groups))
+	for _, group := range groups {
+		if group != "" {
+			dedupeGroups[group] = struct{}{}
+		}
+	}
+	groups = groups[:0]
+	for group := range dedupeGroups {
+		groups = append(groups, group)
+	}
+	sort.Strings(groups)
+
+	if len(groups) == 0 {
+		groups = []string{defaultName}
+	}
+
+	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05"))
 }
