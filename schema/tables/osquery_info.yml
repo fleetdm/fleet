@@ -3,7 +3,7 @@ platforms:
   - darwin
   - windows
   - linux
-  - chromeos
+  - chrome
 columns:
   - name: pid
     platforms:

@@ -10,6 +10,7 @@ export default {
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
   CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
+  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/mac-setup/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
   CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,

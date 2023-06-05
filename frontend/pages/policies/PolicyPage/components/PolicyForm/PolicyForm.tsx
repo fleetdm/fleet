@@ -328,14 +328,13 @@ const PolicyForm = ({
               isFocused={isEditingName}
             />
             <Button
-              variant="small-icon"
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingName(true)}
             >
               <Icon
                 name="pencil"
                 className={`edit-icon ${isEditingName ? "hide" : ""}`}
-                size="small"
               />
             </Button>
           </div>
@@ -377,7 +376,6 @@ const PolicyForm = ({
               <Icon
                 name="pencil"
                 className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-                size="small"
               />
             </Button>
           </div>
@@ -409,14 +407,13 @@ const PolicyForm = ({
               isFocused={isEditingResolution}
             />
             <Button
-              variant="small-icon"
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
               <Icon
                 name="pencil"
                 className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
-                size="small"
               />
             </Button>
           </div>

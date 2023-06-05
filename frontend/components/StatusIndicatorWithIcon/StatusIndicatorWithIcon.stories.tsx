@@ -7,7 +7,7 @@ const meta: Meta<typeof StatusIndicatorWithIcon> = {
   component: StatusIndicatorWithIcon,
   args: {
     status: "success",
-    value: "100",
+    value: "Yes",
     tooltip: {
       tooltipText: "Tooltip text",
     },
