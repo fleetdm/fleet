@@ -46,8 +46,7 @@ Our scrum boards are exclusively composed of three types of scrum items:
 - [Eng Together](#eng-together)
 - [Release Retro](#release-retro)
 - [Group Weeklies](#group-weeklies)
-- [Standup](#standup)
-- [Product and Eng Weekly](#product-and-eng-weekly)
+- [Engineering Leadership Weekly](#engineering-leadership-weekly) 
 
 ### Goals
 
@@ -116,8 +115,9 @@ This would include anyone who wishes to participate.
 - Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
 
-### Engineering Leadership Weekly (Weekly ~ one hour)
+### Engineering Leadership Weekly 
 
+(Weekly ~ one hour)
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
@@ -130,7 +130,55 @@ This would include the CTO + Engineering managers.
 - Engineering process discussion
 - Review engineering KPIs
 
+## Handling BUGs
+
+- [Which bugs should be on the sprint board](#which-bugs-should-be-on-the-sprint-board)
+- [Bugs on Product Roadmap Board](#bugs-on-product-roadmap-board)
+- [Unreleased Bugs](#unreleased-bugs)
+
+### Which bugs should be on the sprint board
+ - Bugs that the team picked in the sprint kickoff
+ - Critical bugs
+ - Non Released bugs
+
+### Bugs on Product Roadmap Board:
+EM will go daily over the bugs in INBOX column and address them as follows:
+ - If it’s a critical bug —> move it to the RELEASE BOARD to be handled this sprint (Even if need to swap with another task)
+ - If not critical, move to SPECIFIED so it will be estimated, or if not enough information work with PM/QA to complete the info.
+
+### Unreleased Bugs
+Bugs found in current sprint’s work and was not yet released:
+QA person will create a new BUG issue and put it the RELEASE BOARD READY column and label it with “not-released”. If this was caused by a story the team did this sprint, QA person will set the new bug as BLOCKING the original Story as a "Dependency" and put the Story in the WAITING column.
+EM will take one of these two actions: 
+ - Solve the bug before the release. (Preferable)
+ - Revert the PR that caused this bug.
+
+
+## Engineering Initiated Issues
+
+- [What are Engineering Initiated Issues](#what-are-engineering-initiated-issues)
+- [Process](#process)
+
+### What are Engineering Initiated Issues
+Engineers can have ideas how to add value to our customers.
+FleetDM would like to capture these ideas and encourage engineers to file them as issues.
+Any idea that stands the rules of LEAN development, which means it adds value to our customers is welcome.
+(Adding value could also be in an indirect way for example: shorten the dev time by doing something --> this in turn will bring more capacity which will add value to our customers)
+
+### Process
+ - Open a tichet (issue) and label it with: engineering-initiated, story, g-cx/g-mdm/g-infra/g-website, product. Make sure the ticket is in the Roadmap:Inbox column.
+ - ask your EM/PM to request that this issue will be discussed at the nearest Design-Review meetings.
+ - attend this meeting or ask your EM/PM to attend it to present the idea.
+ - If accepted, put the issue through the regular process (design --> estimation--> prioritization etc)
+ - We aspire to have 20% of each sprint allocated to Engineering Initiatives. In the Sprint Kick-Off try to include as much of these items as our situation allows.  
+
+
 ## Release process
+
+### In this section
+
+- [Release freeze period](#release-freeze-period)
+- [Release day](#release-day)
 
 This section outlines the release process at Fleet.
 

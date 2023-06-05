@@ -435,7 +435,23 @@ type MDMApplePreassignProfilePayload struct {
 // an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
 func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
 	sum := md5.Sum(p.Profile) //nolint: gosec
-	return hex.EncodeToString(sum[:])
+
+	// mysql's HEX function returns uppercase
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
+}
+
+// MDMApplePreassignHostProfiles represents the set of profiles that were
+// pre-assigned to a given host identified by its UUID.
+type MDMApplePreassignHostProfiles struct {
+	HostUUID string
+	Profiles []MDMApplePreassignProfile
+}
+
+// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
+type MDMApplePreassignProfile struct {
+	Profile    []byte
+	Group      string
+	HexMD5Hash string
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
@@ -548,5 +564,5 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 // implementation is used in production.
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
