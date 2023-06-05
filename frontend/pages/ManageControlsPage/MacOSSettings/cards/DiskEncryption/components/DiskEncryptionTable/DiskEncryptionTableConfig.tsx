@@ -115,13 +115,15 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     statusName: "success",
     value: "verified",
     tooltip:
-      "Fleet verified that disk encryption is on and key stored in Fleet.",
+      "These hosts turned disk encryption on and sent their key to Fleet. Fleet verified with osquery.",
   },
   verifying: {
     displayName: "Verifying",
     statusName: "successPartial",
     value: "verifying",
-    tooltip: "Disk encryption on and key stored in Fleet. Fleet will verify.",
+    tooltip:
+      "These hosts acknowledged the MDM command to install disk encryption profile. " +
+      "Fleet is verifying with osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required (pending)",
@@ -138,7 +140,8 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     displayName: "Enforcing (pending)",
     statusName: "pendingPartial",
     value: "enforcing",
-    tooltip: "Setting will be enforced when the hosts come online.",
+    tooltip:
+      "These hosts will receive the MDM command to install the disk encryption profile when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
@@ -149,7 +152,8 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     displayName: "Removing enforcement (pending)",
     statusName: "pendingPartial",
     value: "removing_enforcement",
-    tooltip: "Enforcement will be removed when the hosts come online.",
+    tooltip:
+      "These hosts will receive the MDM command to remove the disk encryption profile when the hosts come online.",
   },
 };
 
