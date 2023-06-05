@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import PATHS from "router/paths";
 
 import labelsAPI from "services/entities/labels";
@@ -6,7 +6,6 @@ import DataError from "components/DataError";
 import { ISelectedPlatform } from "interfaces/platform";
 import { useQuery } from "react-query";
 import { ILabelSpecResponse } from "interfaces/label";
-import Spinner from "components/Spinner";
 
 import SummaryTile from "./SummaryTile";
 
@@ -48,7 +47,6 @@ const HostsSummary = ({
   >("chromeLabelId", () => labelsAPI.specByName("chrome"), {
     select: ({ specs }) => specs.id,
   });
-  console.log("chromeLabelId :", chromeLabelId);
 
   const renderMacCount = (teamId?: number) => (
     <SummaryTile
