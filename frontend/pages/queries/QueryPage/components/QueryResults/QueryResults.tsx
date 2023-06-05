@@ -87,6 +87,8 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
+  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -100,6 +102,21 @@ const QueryResults = ({
   useEffect(() => {
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
+
+  // set tableHeaders when initial results come in
+  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
+  // set these
+  useEffect(() => {
+    if (tableHeaders?.length === 0 && !!queryResults?.length) {
+      setTableHeaders(generateResultsTableHeaders(queryResults));
+    }
+  }, [tableHeaders, queryResults]);
+
+  useEffect(() => {
+    if (errorTableHeaders?.length === 0 && !!queryErrors?.length) {
+      setErrorTableHeaders(generateResultsTableHeaders(queryErrors));
+    }
+  }, [errorTableHeaders, queryErrors]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -182,7 +199,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={generateResultsTableHeaders(tableData || [])}
+          columns={tableType === "results" ? tableHeaders : errorTableHeaders}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
