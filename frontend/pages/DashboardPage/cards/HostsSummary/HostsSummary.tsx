@@ -41,11 +41,11 @@ const HostsSummary = ({
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
   // get the id for the label for chrome hosts - this will be unique to each Fleet instance
-  const { isLoading: loadingChromeLabelId, data: chromeLabelId } = useQuery<
+  const { isLoading: isLoadingChromeLabelId, data: chromeLabelId } = useQuery<
     ILabelSpecResponse,
     Error,
     number
-  >("chromeLabelId", () => labelsAPI.specByName("macos"), {
+  >("chromeLabelId", () => labelsAPI.specByName("chrome"), {
     select: ({ specs }) => specs.id,
   });
   console.log("chromeLabelId :", chromeLabelId);
@@ -90,8 +90,8 @@ const HostsSummary = ({
   );
 
   const renderChromeCount = (teamId?: number) => {
-    if (!chromeLabelId) {
-      return <Spinner />;
+    if (isLoadingChromeLabelId || chromeLabelId === undefined) {
+      return <></>;
     }
     return (
       <SummaryTile
