@@ -844,10 +844,5 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
 		return err
 	}
-
-	// TODO(mna): should that create an audit activity? Note that the
-	// "edited_macos_profiles" and "team_created" activities will be created if
-	// the team was created, but I'm thinking "puppet-assign host" activity or
-	// something.
 	return nil
 }
