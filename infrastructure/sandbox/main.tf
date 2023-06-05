@@ -194,6 +194,7 @@ module "pre-provisioner" {
   oidc_provider_arn = module.shared-infrastructure.oidc_provider_arn
   oidc_provider     = module.shared-infrastructure.oidc_provider
   ecr               = module.shared-infrastructure.ecr
+  license_key       = var.license_key
 }
 
 module "jit-provisioner" {
@@ -291,3 +292,4 @@ resource "aws_ecs_cluster" "main" {
 }
 
 variable "slack_webhook" {}
+variable "license_key" {}

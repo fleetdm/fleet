@@ -18,7 +18,7 @@
 
               <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
                 <p class="small">
-                  <strong class="pr-1" style="font-size: 18px; color: #192147">$5.00</strong>/month/device<br>(Billed annually at $60/device)
+                  <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/month/device<br>(Billed annually at $84/device)
                 </p>
               </div>
 
@@ -29,13 +29,13 @@
                 <strong>Order total</strong>
               </div>
               <div class="ml-auto">
-                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 5.00 * 12)) ? quotedPrice : formData.numberOfHosts * 5.00 * 12}}.00 /year</strong>
+                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 /year</strong>
               </div>
             </div>
             <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
               <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 100">Talk to an expert</ajax-button>
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="showQuotedPrice && numberOfHostsQuoted <= 100">Continue</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 1000">Talk to an expert</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="showQuotedPrice && numberOfHostsQuoted <= 1000">Continue</ajax-button>
             </div>
           </ajax-form>
         </div>

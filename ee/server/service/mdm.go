@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -23,6 +24,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	depclient "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -66,6 +68,20 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
+		var authErr *depclient.AuthError
+		if errors.As(err, &authErr) {
+			// authentication failure with 401 unauthorized means that the configured
+			// Apple BM certificate and/or token are invalid. Fail with a 400 Bad
+			// Request.
+			msg := err.Error()
+			if authErr.StatusCode == http.StatusUnauthorized {
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help."
+			}
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     msg,
+				InternalErr: err,
+			}, "apple GET /account request failed with authentication error")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
 	}
 
@@ -697,4 +713,36 @@ func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.M
 		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}
 	return prof, nil
+}
+
+func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.profileMatcher.PreassignProfile(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "preassign profile")
+	}
+	return nil
+}
+
+func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO(mna): TBD the exact signature, must return the list of profiles for matching
+	//profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
+	return nil
 }

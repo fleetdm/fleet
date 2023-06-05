@@ -7,13 +7,12 @@ import DropdownButton from "components/buttons/DropdownButton";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 
-import MoreIcon from "../../../../assets/images/icon-more-menu-3x13@2x.png";
-
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
   buttonVariant?: ButtonVariant;
-  icon?: IconNames;
+  icon?: string;
+  iconSvg?: IconNames;
   hideAction?: boolean;
   onClick: () => void;
 }
@@ -64,7 +63,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <Button variant="text-icon" onClick={action.onClick}>
                   <>
                     {action.label}
-                    {action.icon && <Icon name={action.icon} />}
+                    {action.iconSvg && <Icon name={action.iconSvg} />}
                   </>
                 </Button>
               ))
@@ -78,12 +77,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             options={secondaryActions}
             variant="text-icon"
           >
-            More options{" "}
-            <img
-              className="more-options-icon"
-              src={MoreIcon}
-              alt="More options"
-            />
+            More options <Icon name="more" />
           </DropdownButton>
         </div>
       </div>

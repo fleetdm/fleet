@@ -2066,13 +2066,26 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   ],
   "platforms": [
     {
-      "platform": "linux",
-      "hosts_count": 1204
+      "platform": "chrome",
+      "hosts_count": 1234
     },
     {
       "platform": "darwin",
-      "hosts_count": 1204
+      "hosts_count": 1234
+    },
+    {
+      "platform": "rhel",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "ubuntu",
+      "hosts_count": 12044
+    },
+    {
+      "platform": "windows",
+      "hosts_count": 12044
     }
+    
   ]
 }
 ```
