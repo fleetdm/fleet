@@ -823,7 +823,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles ?? []}
+            hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
         )}
