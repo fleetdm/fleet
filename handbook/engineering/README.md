@@ -17,13 +17,13 @@ Each sprint is marked by five essential ceremonies:
 ### Scrum boards
 
 Each product group has a dedicated sprint board:
-[MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
-[CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
-[Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
-[Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
+- [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+- [CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+- [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+- [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
 New tickets are estimated, specified, and prioritized on the roadmap:
-[Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+- [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
 
 ### Scrum items
 
@@ -43,10 +43,11 @@ Our scrum boards are exclusively composed of three types of scrum items:
 
 - [Goals](#goals)
 - [Principles](#principles)
-- [Eng Together](#eng-together)
-- [Release Retro](#release-retro)
-- [Group Weeklies](#group-weeklies)
-- [Engineering Leadership Weekly](#engineering-leadership-weekly) 
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Eng together](#eng-together)
+- [Group weeklies](#group-weeklies)
+- [Eng leadership weekly](#eng-leadership) 
+- [Eng product weekly](#eng-product-weekly)
 
 ### Goals
 
@@ -79,50 +80,29 @@ Everyone at the company is welcome to attend.  The subject matter is focused on 
 - Social
   - Structured and/or unstructured social activities
 
-### Release Retro
-
-Gather feedback from all participants in each release. Used to improve communication and processes. Held each release for 30 minutes.
-
-This meeting will likely need to be split in the future as the number of attendees increases.
-
-#### Participants
-
-This would include members of each group (+ quality).
-
-#### Sample agenda
-
-For each attendee:
-
-- What went well this release cycle?
-- What could have gone better this release cycle?
-- What should we remember next time?
-
 ### Group weeklies
 
-A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
-
-e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
-
-In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
+A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
 
 #### Participants
 
-This would include anyone who wishes to participate. 
+Anyone who wishes to participate. 
 
-#### Sample Agenda (MDM)
+#### Sample Agenda (Frontend weekly)
 
-- Anything at risk for the release?
-- Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
+- Review difficult frontend bugs
+- Write engineering-initiated stories
 
-### Engineering Leadership Weekly 
+### Eng leadership weekly 
 
-(Weekly ~ one hour)
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
 
-This would include the CTO + Engineering managers.
+- Engineering Managers
+- CTO
+- Director of Product Development
 
 #### Sample agenda
 
@@ -130,48 +110,44 @@ This would include the CTO + Engineering managers.
 - Engineering process discussion
 - Review engineering KPIs
 
-## Handling BUGs
+### Eng product weekly
 
-- [Which bugs should be on the sprint board](#which-bugs-should-be-on-the-sprint-board)
-- [Bugs on Product Roadmap Board](#bugs-on-product-roadmap-board)
-- [Unreleased Bugs](#unreleased-bugs)
+Engineering and product weekly sync to discuss process, roadmap, and scheduling. 
 
-### Which bugs should be on the sprint board
- - Bugs that the team picked in the sprint kickoff
- - Critical bugs
- - Non Released bugs
+#### Participants
 
-### Bugs on Product Roadmap Board:
-EM will go daily over the bugs in INBOX column and address them as follows:
- - If it’s a critical bug —> move it to the RELEASE BOARD to be handled this sprint (Even if need to swap with another task)
- - If not critical, move to SPECIFIED so it will be estimated, or if not enough information work with PM/QA to complete the info.
+- Head of Product
+- Product Managers (optional)
+- CTO
+- Director of Product Development
+- Engineering Managers (optional)
 
-### Unreleased Bugs
-Bugs found in current sprint’s work and was not yet released:
-QA person will create a new BUG issue and put it the RELEASE BOARD READY column and label it with “not-released”. If this was caused by a story the team did this sprint, QA person will set the new bug as BLOCKING the original Story as a "Dependency" and put the Story in the WAITING column.
-EM will take one of these two actions: 
- - Solve the bug before the release. (Preferable)
- - Revert the PR that caused this bug.
+#### Sample agenda
 
+- Product to engineering handoff process
+- Q4 product roadmap
+- Optimizing development processes
 
-## Engineering Initiated Issues
+## Engineering-initiated stories
 
-- [What are Engineering Initiated Issues](#what-are-engineering-initiated-issues)
-- [Process](#process)
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
-### What are Engineering Initiated Issues
-Engineers can have ideas how to add value to our customers.
-FleetDM would like to capture these ideas and encourage engineers to file them as issues.
-Any idea that stands the rules of LEAN development, which means it adds value to our customers is welcome.
-(Adding value could also be in an indirect way for example: shorten the dev time by doing something --> this in turn will bring more capacity which will add value to our customers)
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
 
-### Process
- - Open a tichet (issue) and label it with: engineering-initiated, story, g-cx/g-mdm/g-infra/g-website, product. Make sure the ticket is in the Roadmap:Inbox column.
- - ask your EM/PM to request that this issue will be discussed at the nearest Design-Review meetings.
- - attend this meeting or ask your EM/PM to attend it to present the idea.
- - If accepted, put the issue through the regular process (design --> estimation--> prioritization etc)
- - We aspire to have 20% of each sprint allocated to Engineering Initiatives. In the Sprint Kick-Off try to include as much of these items as our situation allows.  
+To create an engineering-initiated story, follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label and work with an EM or PM to progress the story through the drafting process. 
 
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+
+### Creating an engineering-initiated story
+
+1. Create the user story. 
+2. Label it `~engineering-initiated` and the relevant product group. 
+3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
+4. Collaborate with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
+5. Iterate based on feedback. 
+6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
+
+> We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
 ## Release process
 
