@@ -1106,8 +1106,17 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 
 		if campaign.CreatedAt.After(svc.clock.Now().Add(-1 * time.Minute)) {
 			// Give the client a minute to connect before considering the
-			// campaign orphaned
-			return newOsqueryError("campaign waiting for listener (please retry)")
+			// campaign orphaned.
+			//
+			// Live queries work in two stages (asynchronous):
+			// 	1. The campaign is created by a client. So the target devices checking in
+			// 	will start receiving the query corresponding to the campaign.
+			//	2. The client (UI/fleetctl) starts listenting for query results.
+			//
+			// This expected error can happen if:
+			//	A. A device checked in and sent results back in between steps (1) and (2).
+			// 	B. The client stopped listening in (2) and devices continue to send results back.
+			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
 		if campaign.Status != fleet.QueryComplete {
@@ -1122,7 +1131,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		}
 
 		// No need to record query completion in this case
-		return newOsqueryError("campaign stopped")
+		return newOsqueryError(fmt.Sprintf("campaignID=%d stopped", campaignID))
 	}
 
 	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)

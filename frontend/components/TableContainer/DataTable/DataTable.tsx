@@ -372,7 +372,7 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      icon,
+      iconSvg,
       iconPosition,
       indicatePremiumFeature,
     } = actionButtonProps;
@@ -387,7 +387,7 @@ const DataTable = ({
           variant={variant}
           hideButton={hideButton}
           indicatePremiumFeature={indicatePremiumFeature}
-          icon={icon}
+          iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
       </div>
@@ -408,7 +408,7 @@ const DataTable = ({
       onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
-      icon: primarySelectAction?.icon,
+      iconSvg: primarySelectAction?.iconSvg,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);

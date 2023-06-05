@@ -1,4 +1,51 @@
 name: osquery_info
+platforms:
+  - darwin
+  - windows
+  - linux
+  - chrome
+columns:
+  - name: pid
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: uuid
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: instance_id
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: config_hash
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: config_valid
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: start_time
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: watcher
+    platforms:
+      - darwin
+      - windows
+      - linux
+  - name: platform_mask
+    platforms:
+      - darwin
+      - windows
+      - linux
+
 examples: >-
   See the version of the currently running osquery.
   

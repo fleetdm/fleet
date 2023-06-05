@@ -1679,7 +1679,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign waiting for listener")
+	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -1789,7 +1789,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign stopped")
+	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
 }
 

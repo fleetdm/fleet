@@ -8,20 +8,11 @@ on:
   pull_request:
     paths:
       - assets/**
-      - cypress/**
-      - ee/**
       - frontend/**
-      - pkg/**
-      - server/**
-      - tools/**
-      - go.mod
-      - go.sum
       - package.json
       - yarn.lock
-      - docker-compose.yml
       - webpack.config.js
       - tsconfig.json
-      - .github/workflows/test.yml
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -64,8 +55,12 @@ jobs:
 
     - name: Run JS Tests
       run: |
-        make test-js
+        yarn test:ci
 
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      with:
+        flags: frontend
 
   lint-js:
     strategy:
