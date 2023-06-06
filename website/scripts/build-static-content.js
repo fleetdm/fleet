@@ -247,6 +247,10 @@ module.exports = {
               if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
               }
+              // Look for anything in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
+              if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              }
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
@@ -581,14 +585,21 @@ module.exports = {
 
                   let platformString = '<br> **Only available on ';// start building a string to add to the column's description
 
-                  if(column.platforms.length === 2) { // Because there are only three options for platform, we can safely assume that there will be at most 2 platforms, so we'll just handle this one of two ways
-                    // If there are two values in the platforms array, we'll add the capitalized version of each to the columns description
-                    platformString += column.platforms[0]+' and '+ column.platforms[1];
+                  if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
+                    throw new Error('Support for more than three platforms has not been implemented yet.');
+                  }
+
+                  if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
+                    // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
+                    platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
+                  } else if(column.platforms.length === 2) {
+                    // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
+                    platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
                   } else {
                     // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
                     platformString += column.platforms[0];
                   }
-                  platformString += ' devices.** ';
+                  platformString += '** ';
                   columnDescriptionForTable += platformString; // Add the platform string to the column's description.
                 }
                 tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';

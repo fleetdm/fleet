@@ -1,17 +1,53 @@
 # Engineering
 
+## Scrum at Fleet
+
+Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
+
+### Sprint ceremonies
+
+Each sprint is marked by five essential ceremonies:
+
+1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing.
+3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints.
+4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks.
+5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
+
+### Scrum boards
+
+Each product group has a dedicated sprint board:
+- [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+- [CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+- [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+- [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
+
+New tickets are estimated, specified, and prioritized on the roadmap:
+- [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+
+### Scrum items
+
+Our scrum boards are exclusively composed of three types of scrum items:
+
+1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term 'epic' may be seen. However, we treat these as regular user stories.
+
+2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier to estimate work units.
+
+3. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint. Bugs [may be estimated or left unestimated](https://fleetdm.com/handbook/engineering#do-we-estimate-released-bugs-and-outages), as determined by the product group's engineering manager.
+
+> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these three types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+
 ## Meetings
 
 ### In this section
 
 - [Goals](#goals)
 - [Principles](#principles)
-- [Scrum](#scrum)
-- [Eng Together](#eng-together)
-- [Release Retro](#release-retro)
-- [Group Weeklies](#group-weeklies)
-- [Standup](#standup)
-- [Product and Eng Weekly](#product-and-eng-weekly)
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Eng together](#eng-together)
+- [Group weeklies](#group-weeklies)
+- [Eng leadership weekly](#eng-leadership) 
+- [Eng product weekly](#eng-product-weekly)
 
 ### Goals
 
@@ -26,34 +62,13 @@
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
-The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings and add any other meetings as they see fit.
-
-### Scrum
-- Fleet engineering teams practice scrum as an agile methodology.
-- Sprints are 3 weeks long to match our release cadence.
-- There are 5 “Scrum Ceremonies” performed during each sprint:
-  - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
-  - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
-    - Have Stakeholders know in advance the time it will take to achieve those items.
-    - Make it easier in the next planning meeting to know what the team can take for the next sprint.
-  - Sprint Demo - At the last Friday of the sprint all engineering teams and stakeholders meet to present their work. Engineers will get 3-10 minutes to present what was done / not done.
-  - Sprint Retrospective - At the last Friday of the sprint each team will meet with stakeholders and hold a discussion answering the 3 questions:
-     - What went well?
-     - What could we have done better?
-     - What did we learn?
-- Scrum items:
-  - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
-  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the &lt;user&gt; I would like to &lt;have something done or changed&gt; so that I can &lt;benefit from it in this specific way&gt;. A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
-  - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
-
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
+Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -65,57 +80,81 @@ Everyone at the company is welcome to attend.  Subject matter is focused on engi
 - Social
   - Structured and/or unstructured social activities
 
-### Release Retro
+### Group weeklies
 
-Gather feedback from all participants in each release. Used to improve communication and processes. Held each release for 30 minutes.
-
-This meeting will likely need to be split in the future as the number of attendees increases.
+A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
 
 #### Participants
 
-This would include members of each group (+ quality).
+Anyone who wishes to participate. 
 
-#### Sample agenda
+#### Sample Agenda (Frontend weekly)
 
-For each attendee:
-
-- What went well this release cycle?
-- What could have gone better this release cycle?
-- What should we remember next time?
-
-### Group Weeklies
-
-A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
-
-e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
-
-In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
-
-#### Participants
-
-This would include anyone who wishes to participate. 
-
-#### Sample Agenda (MDM)
-
-- Anything at risk for the release?
-- Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
+- Review difficult frontend bugs
+- Write engineering-initiated stories
 
-### Engineering Leadership Weekly (Weekly ~ one hour)
+### Eng leadership weekly 
 
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
 
-This would include the CTO + Engineering managers.
+- Engineering Managers
+- CTO
+- Director of Product Development
 
 #### Sample agenda
 
-- Fullstack engineer hiring
+- Engineer hiring
 - Engineering process discussion
-- Review Q2 OKRs
+- Review engineering KPIs
+
+### Eng product weekly
+
+Engineering and product weekly sync to discuss process, roadmap, and scheduling. 
+
+#### Participants
+
+- Head of Product
+- Product Managers (optional)
+- CTO
+- Director of Product Development
+- Engineering Managers (optional)
+
+#### Sample agenda
+
+- Product to engineering handoff process
+- Q4 product roadmap
+- Optimizing development processes
+
+## Engineering-initiated stories
+
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
+
+Engineering-initiated stories follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process. 
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+
+### Creating an engineering-initiated story
+
+1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
+2. Label it `~engineering-initiated` and the relevant product group. 
+3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
+4. Schedule a time with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
+5. Iterate based on feedback. 
+6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
+
+> We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
 ## Release process
+
+### In this section
+
+- [Release freeze period](#release-freeze-period)
+- [Release day](#release-day)
 
 This section outlines the release process at Fleet.
 
@@ -123,20 +162,43 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-In order to make sure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`. 
 
-Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+Bugs are exempt from the release freeze period. 
 
-1. Regressions
-2. Security concerns
-3. Issues with features targeted for current release
+### Freeze day
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](https://fleetdm.com/handbook/product) and Engineering teams.
+To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in mergefreeze using the PR number. 
+
+#### Check dependencies
+
+Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
+
+1. **Go**: Latest minor release
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L3-L4).
+* Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
+* If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
+* If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
+
+> In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
+
+2. **macadmins-extension**: Latest release
+* Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L60).
+* If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
+* Add the `~release blocker` label.
+
+>**Note:** Some new versions of the macadmins-extension include updates that require code changes in Fleet. Make sure to note in the bug that the update should be checked for any changes, like new tables, that require code changes in Fleet.
+
+Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
+
+#### Create release QA issue
+
+Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [CX](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product groups.
 
 ### Release day
 
-Documentation on completing the release process can be found
-[here](https://fleetdm.com/docs/contributing/releasing-fleet).
+Documentation on completing the release process can be found [here](https://fleetdm.com/docs/contributing/releasing-fleet).
 
 ## Deploying to dogfood
 
@@ -168,7 +230,7 @@ How to deploy a new release to dogfood:
 
 See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
 
-Fleet team members can can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
+Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
 ### Responsibilities
 
@@ -289,16 +351,6 @@ At Fleet, we consider an outage to be a situation where new features or previous
 - Occurences of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
 - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
 - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
-
-## Do we estimate released bugs and outages?
-
-Estimating bugs and outages can be helpful in getting on the same page about how much time we want to spend on a given piece of unplanned work, and how much the ∑ of unplanned work is affecting a team's throughput.
-
-## Project boards
-
-[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
-
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
 ## Scaling gotchas
 
@@ -886,15 +938,16 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
+| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Luke Heath |
-| Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
-| Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
-| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
+| Release ritual                | Every three weeks   | Go through [the process of releasing](https://fleetdm.com/docs/contributing/releasing-fleet) the next iteration of Fleet.              | Luke Heath |
+| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
+| Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
+| QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
 
 ## 24/7 on-call
 
@@ -934,11 +987,12 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
-| `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-mdm`             | Luke Heath                                                           |
+| `#help-engineering`      | Zach Wasserman                                                   |
+| `#g-mdm`                 | George Karr                                                      |
 | `#g-customer-experience` | Sharon Katz                                                      |
-| `#_pov-environments` | Ben Edwards                                                          |
-| `#help-qa`           | Reed Haynes                                                          |
+| `#g-infra`               | Luke Heath                                                       |
+| `#help-qa`               | Reed Haynes                                                      |
+| `#_pov-environments`     | Ben Edwards                                                      |
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🚀 Engineering">

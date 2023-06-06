@@ -448,13 +448,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// if the macOS minimum version requirement changed, create the corresponding
 	// activity
-	if oldAppConfig.MDM.MacOSUpdates != appConfig.MDM.MacOSUpdates {
+	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
+		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
-				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion,
-				Deadline:       appConfig.MDM.MacOSUpdates.Deadline,
+				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion.Value,
+				Deadline:       appConfig.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
@@ -563,9 +564,9 @@ func (svc *Service) validateMDM(
 	}
 
 	// MacOSUpdates
-	updatingVersion := mdm.MacOSUpdates.MinimumVersion != "" &&
+	updatingVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
-	updatingDeadline := mdm.MacOSUpdates.Deadline != "" &&
+	updatingDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
 
 	if updatingVersion || updatingDeadline {
@@ -573,9 +574,9 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
 			return
 		}
-		if err := mdm.MacOSUpdates.Validate(); err != nil {
-			invalid.Append("macos_updates", err.Error())
-		}
+	}
+	if err := mdm.MacOSUpdates.Validate(); err != nil {
+		invalid.Append("macos_updates", err.Error())
 	}
 
 	// EndUserAuthentication

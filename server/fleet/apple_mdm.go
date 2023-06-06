@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"context"
+	"crypto/md5" // nolint: gosec
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -89,19 +91,6 @@ var (
 	MDMAppleDeliveryVerifying MDMAppleDeliveryStatus = "verifying"
 	MDMAppleDeliveryPending   MDMAppleDeliveryStatus = "pending"
 )
-
-func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
-	switch cmdStatus {
-	case MDMAppleStatusAcknowledged:
-		return &MDMAppleDeliveryVerifying
-	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
-		return &MDMAppleDeliveryFailed
-	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
-		return &MDMAppleDeliveryPending
-	default:
-		return nil
-	}
-}
 
 type MDMAppleOperationType string
 
@@ -376,12 +365,16 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 }
 
 // MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of three mutually-exclusive categories:
-// Failed, Pending, or Verifying.
+// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// Failed, Pending, Verifying, or Verified.
 type MDMAppleConfigProfilesSummary struct {
-	// Verifying includes each host that has successfully applied all of the profiles currently
-	// applicable to the host. If any of the profiles are pending or failed for the host, the host
-	// is not counted as verifying.
+	// Verified includes each host where Fleet has verified the installation of all of the
+	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
+	// subject to verification for the host, the host is not counted as verified.
+	Verified uint `json:"verified" db:"verified"`
+	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// profiles currently applicable to the host. If any of the profiles are pending or failed for
+	// the host, the host is not counted as verifying.
 	Verifying uint `json:"verifying" db:"verifying"`
 	// Pending includes each host that has not yet applied one or more of the profiles currently
 	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
@@ -392,9 +385,10 @@ type MDMAppleConfigProfilesSummary struct {
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
-// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
-// Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+// encryption profiles. Each host may be counted in only one of six mutually-exclusive categories:
+// Verified, Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
 type MDMAppleFileVaultSummary struct {
+	Verified            uint `json:"verified" db:"verified"`
 	Verifying           uint `json:"verifying" db:"verifying"`
 	ActionRequired      uint `json:"action_required" db:"action_required"`
 	Enforcing           uint `json:"enforcing" db:"enforcing"`
@@ -422,6 +416,42 @@ type MDMAppleBootstrapPackageSummary struct {
 type MDMAppleFleetdConfig struct {
 	FleetURL     string
 	EnrollSecret string
+}
+
+// MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
+// preassigns profiles to hosts before generating corresponding teams for each
+// unique set of profiles and assigning hosts to those teams and profiles. For
+// example, puppet scripts use this.
+type MDMApplePreassignProfilePayload struct {
+	ExternalHostIdentifier string `json:"external_host_identifier"`
+	HostUUID               string `json:"host_uuid"`
+	Profile                []byte `json:"profile"`
+	Group                  string `json:"group"`
+}
+
+// HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
+// broken and we should consider moving to a better hash, but it needs to match
+// the hashing algorithm used by the Mysql database for profiles (SHA2 would be
+// an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
+func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
+	sum := md5.Sum(p.Profile) //nolint: gosec
+
+	// mysql's HEX function returns uppercase
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
+}
+
+// MDMApplePreassignHostProfiles represents the set of profiles that were
+// pre-assigned to a given host identified by its UUID.
+type MDMApplePreassignHostProfiles struct {
+	HostUUID string
+	Profiles []MDMApplePreassignProfile
+}
+
+// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
+type MDMApplePreassignProfile struct {
+	Profile    []byte
+	Group      string
+	HexMD5Hash string
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
@@ -527,4 +557,12 @@ type MDMAppleSetupAssistant struct {
 // AuthzType implements authz.AuthzTyper.
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
+}
+
+// ProfileMatcher defines the methods required to preassign and retrieve MDM
+// profiles for matching with teams and associating with hosts. A Redis-based
+// implementation is used in production.
+type ProfileMatcher interface {
+	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }

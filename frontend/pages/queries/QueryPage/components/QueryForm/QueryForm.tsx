@@ -345,14 +345,13 @@ const QueryForm = ({
               isFocused={isEditingName}
             />
             <Button
-              variant="small-icon"
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingName(true)}
             >
               <Icon
                 name="pencil"
                 className={`edit-icon ${isEditingName ? "hide" : ""}`}
-                size="small"
               />
             </Button>
           </div>
@@ -381,14 +380,13 @@ const QueryForm = ({
               isFocused={isEditingDescription}
             />
             <Button
-              variant="small-icon"
+              variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
               <Icon
                 name="pencil"
                 className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-                size="small"
               />
             </Button>
           </div>

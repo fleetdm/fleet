@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -465,6 +466,12 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
 	},
+	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
+	"chromeos_profile_user_info": {
+		Query:            `SELECT email FROM users`,
+		DirectIngestFunc: directIngestChromeProfiles,
+		Platforms:        []string{"chrome"},
+	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
@@ -592,6 +599,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
+	},
+	"mdm_config_profiles_darwin": {
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery:        discoveryTable("macos_profiles"),
 	},
 }
 
@@ -1277,11 +1290,18 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		host.RefetchCriticalQueriesUntil = nil
 	}
 
+	serverURL, err := url.Parse(rows[0]["server_url"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing server_url")
+	}
+	// strip any query parameters from the URL
+	serverURL.RawQuery = ""
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
 		enrolled,
-		rows[0]["server_url"],
+		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
 	)
@@ -1393,6 +1413,40 @@ func directIngestDiskEncryptionKeyDarwin(
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
+func directIngestMacOSProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestMacOSProfiles",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	for _, row := range rows {
+		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostMacOSProfile{
+			DisplayName: row["display_name"],
+			Identifier:  row["identifier"],
+			InstallDate: installDate,
+		})
+	}
+
+	return ds.SetVerifiedHostMacOSProfiles(ctx, host, mapping)
 }
 
 //go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md

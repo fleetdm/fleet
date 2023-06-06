@@ -38,6 +38,8 @@ import BackLink from "components/BackLink";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
+import { createMockHostMacMdmProfile } from "__mocks__/hostMock";
+
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -673,7 +675,7 @@ const HostDetailsPage = ({
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMacSettings={host?.mdm.profiles ?? []}
+          hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -727,8 +729,8 @@ const HostDetailsPage = ({
                 router={router}
                 queryParams={queryParams}
                 routeTemplate={routeTemplate}
-                hostId={host?.id || 0}
                 pathname={pathname}
+                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
@@ -803,7 +805,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            hostMacSettings={host?.mdm.profiles ?? []}
+            hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
         )}

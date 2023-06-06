@@ -1,9 +1,14 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import TooltipWrapper from "components/TooltipWrapper";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
+import getHostStatusTooltipText from "pages/hosts/helpers";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import {
@@ -13,8 +18,6 @@ import {
 } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
-import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
-import getHostStatusTooltipText from "pages/hosts/helpers";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "./MacSettingsIndicator";
@@ -38,7 +41,7 @@ interface IHostSummaryProps {
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMacSettings?: IHostMacMdmProfile[];
+  hostMdmProfiles?: IHostMacMdmProfile[];
   mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
@@ -58,7 +61,7 @@ const HostSummary = ({
   toggleOSPolicyModal,
   toggleMacSettingsModal,
   toggleBootstrapPackageModal,
-  hostMacSettings,
+  hostMdmProfiles,
   mdmName,
   showRefetchSpinner,
   onRefetchHost,
@@ -88,6 +91,7 @@ const HostSummary = ({
             onClick={onRefetchHost}
             variant="text-icon"
           >
+            <Icon name="refresh" color="core-fleet-blue" size="small" />
             {showRefetchSpinner
               ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
@@ -201,11 +205,11 @@ const HostSummary = ({
         {platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings &&
-          hostMacSettings.length > 0 && ( //  2 - host has at least one setting (profile) enforced
+          hostMdmProfiles &&
+          hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="macOS settings">
               <MacSettingsIndicator
-                profiles={hostMacSettings}
+                profiles={hostMdmProfiles}
                 onClick={toggleMacSettingsModal}
               />
             </HostSummaryIndicator>

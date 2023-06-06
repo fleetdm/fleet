@@ -168,6 +168,19 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.MDMAppleDeliveryVerifying,
 		},
 		{
+			"installed profile, decryptable, verified",
+			ptr.Int(1),
+			&fleet.HostMDMAppleProfile{
+				HostUUID:      "abc",
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+				Status:        &fleet.MDMAppleDeliveryVerified,
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+			},
+			fleet.DiskEncryptionVerified,
+			"",
+			&fleet.MDMAppleDeliveryVerified,
+		},
+		{
 			"pending install, decryptable",
 			ptr.Int(1),
 			&fleet.HostMDMAppleProfile{

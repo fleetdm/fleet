@@ -1,0 +1,1 @@
+* Fixed a bug that would show MDM URLs for the same server as different servers if they contain query parameters.

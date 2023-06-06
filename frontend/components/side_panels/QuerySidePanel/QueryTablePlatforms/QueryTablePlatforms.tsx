@@ -26,7 +26,7 @@ interface IQueryTablePlatformsProps {
   platforms: IPlatformsWithFreebsd[];
 }
 
-const PLATFORM_ORDER = ["darwin", "windows", "linux"];
+const PLATFORM_ORDER = ["darwin", "windows", "linux", "chrome"];
 
 const baseClass = "query-table-platforms";
 
