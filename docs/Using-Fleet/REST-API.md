@@ -5370,7 +5370,7 @@ Deletes the query specified by name.
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
 | name | string     | path | **Required.** The name of the query. |
-| team_id | integer | body | The ID of the parent team of the query to be delete. If not submitted or left blank, then Fleet will search among queries in the global context |
+| team_id | integer | body | The ID of the parent team of the query to be deleted. If not submitted or left blank, then Fleet will search among queries in the global context |
 
 #### Example
 
