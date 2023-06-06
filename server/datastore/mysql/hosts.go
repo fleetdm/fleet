@@ -3964,5 +3964,10 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 		}
 		result[serial] = struct{}{}
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "scanning rows")
+	}
+
 	return result, nil
 }

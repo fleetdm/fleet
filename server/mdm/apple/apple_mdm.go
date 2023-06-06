@@ -407,7 +407,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			"profile_uuid", device.ProfileUUID,
 		)
 
-		switch device.OpType {
+		switch strings.ToLower(device.OpType) {
 		// The op_type field is only applicable with the SyncDevices API call,
 		// Empty op_type come from the first call to FetchDevices without a cursor,
 		// and we do want to assign profiles to them.

@@ -965,8 +965,8 @@ type Datastore interface {
 	// a map with all the matching serial numbers in the database.
 	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
 
-	// DeleteHostDEPAssignments deletes entries in host_dep_assignments for
-	// host with matching serials.
+	// DeleteHostDEPAssignments marks as deleted entries in
+	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 }
 
