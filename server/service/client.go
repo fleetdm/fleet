@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 // Client is used to consume Fleet APIs from Go code
@@ -223,28 +224,40 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 func (c *Client) CheckMDMEnabled() error {
-	appCfg, err := c.GetAppConfig()
-	if err != nil {
-		return err
-	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
-	return nil
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
 }
 
 func (c *Client) CheckPremiumMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if ac.License == nil || !ac.License.IsPremium() {
+			return errors.New("missing or invalid license")
+		}
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
+}
+
+func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) error {
 	appCfg, err := c.GetAppConfig()
 	if err != nil {
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden {
+			// do not return an error, user may not have permission to read app
+			// config (e.g. gitops) and those appconfig checks are just convenience
+			// to avoid the round-trip with potentially large payload to the server.
+			// Those will still be validated with the actual API call.
+			return nil
+		}
 		return err
 	}
-	if appCfg.License == nil || !appCfg.License.IsPremium() {
-		return errors.New("missing or invalid license")
-	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
-	return nil
+	return fn(appCfg)
 }
 
 // ApplyGroup applies the given spec group to Fleet.

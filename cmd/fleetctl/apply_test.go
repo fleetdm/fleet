@@ -913,6 +913,29 @@ spec:
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 
+	// macos setup assistant makes a call to check that MDM is enabled, and that
+	// call requires reading permissions on appconfig, which gitops doesn't have.
+	// That call should fail with Forbidden (403) and be ignored, as it is only
+	// to prevent a roundtrip to the API which also does that check (without
+	// requiring right access as it doesn't go through the service layer).
+	emptySetupAsst := writeTmpJSON(t, map[string]any{})
+	name = writeTmpYml(t, fmt.Sprintf(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      macos_setup:
+        macos_setup_assistant: %s
+`, emptySetupAsst))
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+		},
+	}, savedTeam.Config.MDM)
+
 	// Apply policies.
 	var appliedPolicySpecs []*fleet.PolicySpec
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
