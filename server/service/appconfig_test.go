@@ -778,7 +778,8 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -804,6 +805,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
 				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "foundEdit",
@@ -814,6 +816,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
 				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:          "ssoFree",
@@ -830,6 +833,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			expectedMDM: fleet.MDM{
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -848,7 +852,8 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup: fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 			},
 		}, {
 			name:        "ssoShortEntityID",

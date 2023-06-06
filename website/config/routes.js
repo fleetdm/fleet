@@ -379,7 +379,7 @@ module.exports.routes = {
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
+  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
@@ -423,7 +423,7 @@ module.exports.routes = {
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
+  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -157,8 +158,8 @@ func TestGetTeams(t *testing.T) {
 							},
 							MDM: fleet.TeamMDM{
 								MacOSUpdates: fleet.MacOSUpdates{
-									MinimumVersion: "12.3.1",
-									Deadline:       "2021-12-14",
+									MinimumVersion: optjson.SetString("12.3.1"),
+									Deadline:       optjson.SetString("2021-12-14"),
 								},
 							},
 						},
@@ -1638,8 +1639,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			},
 			MDM: fleet.TeamMDM{
 				MacOSUpdates: fleet.MacOSUpdates{
-					MinimumVersion: "12.3.1",
-					Deadline:       "2021-12-14",
+					MinimumVersion: optjson.SetString("12.3.1"),
+					Deadline:       optjson.SetString("2021-12-14"),
 				},
 			},
 		},

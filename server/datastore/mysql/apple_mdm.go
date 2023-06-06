@@ -672,11 +672,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil, nil
 	}
-	filteredDevices := filterMDMAppleDevices(devices, ds.logger)
-	if len(filteredDevices) < 1 {
-		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP filtered all devices, skipping", "len(devices)", len(devices))
-		return 0, nil, nil
-	}
 
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -705,7 +700,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		us, unionArgs := unionSelectDevices(filteredDevices)
+		us, unionArgs := unionSelectDevices(devices)
 		args = append(args, unionArgs...)
 
 		stmt := fmt.Sprintf(`
@@ -751,7 +746,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		// get new host ids
 		args = []interface{}{}
 		parts := []string{}
-		for _, d := range filteredDevices {
+		for _, d := range devices {
 			args = append(args, d.SerialNumber)
 			parts = append(parts, "?")
 		}
@@ -985,26 +980,6 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 	})
 }
 
-func filterMDMAppleDevices(devices []godep.Device, logger log.Logger) []godep.Device {
-	var filtered []godep.Device
-	for _, device := range devices {
-		// We currently only listen for an op_type of "added", the
-		// other op_types are ambiguous and it would be needless to
-		// ingest the device every single time we get an update.
-		if strings.ToLower(device.OpType) == "added" ||
-			// The op_type field is only applicable with the SyncDevices
-			// API call, Empty op_type come from the first call to
-			// FetchDevices without a cursor.
-			strings.ToLower(device.OpType) == "" {
-			level.Debug(logger).Log("msg", "filterMDMAppleDevices: adding device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
-			filtered = append(filtered, device)
-			continue
-		}
-		level.Debug(logger).Log("msg", "filterMDMAppleDevices: skipping device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
-	}
-	return filtered
-}
-
 func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
@@ -1029,6 +1004,30 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
 	}
 	return &res, nil
+}
+
+func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	var args []interface{}
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	stmt, args, err := sqlx.In(`
+          UPDATE host_dep_assignments
+          SET deleted_at = NOW()
+          WHERE host_id IN (
+            SELECT id FROM hosts WHERE hardware_serial IN (?)
+          )`, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement")
+	}
+	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting DEP assignment by serial")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {

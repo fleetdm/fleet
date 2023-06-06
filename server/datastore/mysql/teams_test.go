@@ -583,8 +583,8 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			Config: fleet.TeamConfig{
 				MDM: fleet.TeamMDM{
 					MacOSUpdates: fleet.MacOSUpdates{
-						MinimumVersion: "10.15.0",
-						Deadline:       "2025-10-01",
+						MinimumVersion: optjson.SetString("10.15.0"),
+						Deadline:       optjson.SetString("2025-10-01"),
 					},
 					MacOSSetup: fleet.MacOSSetup{
 						BootstrapPackage:    optjson.SetString("bootstrap"),
@@ -599,8 +599,8 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 
 		assert.Equal(t, &fleet.TeamMDM{
 			MacOSUpdates: fleet.MacOSUpdates{
-				MinimumVersion: "10.15.0",
-				Deadline:       "2025-10-01",
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2025-10-01"),
 			},
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:    optjson.SetString("bootstrap"),

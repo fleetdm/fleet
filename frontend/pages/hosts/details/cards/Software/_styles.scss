@@ -43,22 +43,26 @@
       text-align: center;
     }
     .data-table__table {
+      // Adds border to headers except for empty last header to view filtered hosts
       thead {
-        .name__header {
-          width: $col-md;
+        th {
+          border-right: none;
+          border-left: 1px solid $ui-fleet-black-10;
         }
+
+        .linkToFilteredHosts__header {
+          border-left: none;
+        }
+
         .version__header {
           width: $col-xs;
         }
         .vulnerabilities__header {
-          min-width: 130px;
+          width: 130px;
         }
         .source__header {
           display: none;
           width: 0px;
-        }
-        .hosts_count__header {
-          border-right: 0;
         }
         .last_opened_at__header {
           display: none;
@@ -67,7 +71,7 @@
           display: none;
         }
         .linkToFilteredHosts__header {
-          min-width: 115px;
+          width: 115px;
         }
         @media (min-width: $break-1400) {
           .version__header {
@@ -82,7 +86,22 @@
       }
 
       tbody {
-        .name__cell,
+        .name__cell {
+          // Long software names overflow the software card
+          max-width: 0;
+
+          .button--text-link {
+            width: 100%;
+            justify-content: left;
+
+            .children-wrapper {
+              overflow-x: clip; // Truncates the text but does not hide tooltip outside cell
+              white-space: nowrap;
+              display: block;
+              text-overflow: ellipsis;
+            }
+          }
+        }
         .version__cell {
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -209,10 +228,6 @@
   }
 
   .data-table-block .data-table__table {
-    .installed_paths__header {
-      border-right: none;
-    }
-
     @media (min-width: $break-990) {
       thead .version__header {
         width: $col-sm;
@@ -227,11 +242,8 @@
       tbody {
         .last_opened_at__cell {
           display: table-cell;
-        }
-        .linkToFilteredHosts__cell {
-          .view-all-hosts-link {
-            width: 120px;
-          }
+          width: 100px;
+          min-width: min-content;
         }
       }
     }
@@ -240,7 +252,7 @@
       thead {
         .installed_paths__header {
           display: table-cell;
-          width: $col-lg;
+          width: $col-md;
         }
       }
       tbody {
@@ -248,7 +260,7 @@
           display: table-cell;
 
           .text-cell {
-            width: $col-lg;
+            width: $col-md;
             text-overflow: initial;
             overflow: initial;
             white-space: initial;
