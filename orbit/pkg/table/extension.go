@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 )
 
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
@@ -136,7 +137,11 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions
-		cryptoinfotable.TablePlugin(kolideLogger), // table name is "kolide_cryptoinfo"
+		cryptoinfotable.TablePlugin(kolideLogger),                                            // table name is "kolide_cryptoinfo"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.JsonType),  // table name for "kolide_json"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.XmlType),   // table name for "kolide_xml"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.IniType),   // table name for "kolide_ini"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.PlistType), // table name for "kolide_plist"
 	}
 	return plugins
 }
