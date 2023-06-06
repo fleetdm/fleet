@@ -62,6 +62,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestMatchMDMAppleConfigProfiles", testMatchMDMAppleConfigProfiles},
+		{"TestResetMDMAppleNanoEnrollment", testResetMDMAppleNanoEnrollment},
 	}
 
 	for _, c := range cases {
@@ -1372,9 +1373,9 @@ func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 
 	_, err = ds.writer.Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -1382,6 +1383,7 @@ VALUES
 		host.UUID+".topic",
 		host.UUID+".magic",
 		host.UUID,
+		1,
 	)
 	require.NoError(t, err)
 
@@ -4323,4 +4325,36 @@ func testMatchMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.teamIDs, matches)
 		})
 	}
+}
+
+func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// try with a host that doesn't have a matching entry
+	// in nano_enrollments
+	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// add a matching entry
+	nanoEnroll(t, ds, host, false)
+
+	enrollment, err := ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, enrollment.TokenUpdateTally, 1)
+
+	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+
+	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Zero(t, enrollment.TokenUpdateTally)
 }
