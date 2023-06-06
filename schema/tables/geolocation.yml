@@ -1,7 +1,7 @@
 name: geolocation
 evented: false
 platforms:
-  - chromeos
+  - chrome
 description: Last reported geolocation
 columns:
   - name: ip

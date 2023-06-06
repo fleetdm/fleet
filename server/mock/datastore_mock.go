@@ -484,6 +484,8 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
+type SetVerifiedHostMacOSProfilesFunc func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error
+
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
@@ -525,6 +527,8 @@ type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*f
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
+
+type MatchMDMAppleConfigProfilesFunc func(ctx context.Context, hexMD5Hashes []string) ([]uint, error)
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
 
@@ -1337,6 +1341,9 @@ type DataStore struct {
 	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
 	SetDiskEncryptionResetStatusFuncInvoked bool
 
+	SetVerifiedHostMacOSProfilesFunc        SetVerifiedHostMacOSProfilesFunc
+	SetVerifiedHostMacOSProfilesFuncInvoked bool
+
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
@@ -1399,6 +1406,9 @@ type DataStore struct {
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
+
+	MatchMDMAppleConfigProfilesFunc        MatchMDMAppleConfigProfilesFunc
+	MatchMDMAppleConfigProfilesFuncInvoked bool
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
@@ -3203,6 +3213,13 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
 }
 
+func (s *DataStore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+	s.mu.Lock()
+	s.SetVerifiedHostMacOSProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVerifiedHostMacOSProfilesFunc(ctx, host, installedProfiles)
+}
+
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
@@ -3348,6 +3365,13 @@ func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error) {
+	s.mu.Lock()
+	s.MatchMDMAppleConfigProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MatchMDMAppleConfigProfilesFunc(ctx, hexMD5Hashes)
 }
 
 func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {

@@ -75,6 +75,12 @@ export default {
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
+  DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
+  },
+  DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
+  },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   SOFTWARE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/${id}`;
