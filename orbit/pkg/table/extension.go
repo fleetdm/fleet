@@ -15,6 +15,9 @@ import (
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
+
+	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 )
 
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
@@ -41,6 +44,12 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
+// Global variables for osquery extension manager client and logger
+var (
+	serverClient *osquery.ExtensionManagerClient
+	kolideLogger *Logger
+)
+
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
 	return func(r *Runner) {
@@ -60,6 +69,9 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
+
+	// TBD: This could be improved to use opt.Debug to set the log level
+	kolideLogger = NewKolideLogger(false)
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
@@ -123,6 +135,13 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+
+		// Kolide extensions
+		cryptoinfotable.TablePlugin(kolideLogger),                                            // table name is "kolide_cryptoinfo"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.XmlType),   // table name is "kolide_xml"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
+		dataflattentable.TablePlugin(serverClient, kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
 	}
 	return plugins
 }
