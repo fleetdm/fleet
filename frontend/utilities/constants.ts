@@ -143,8 +143,13 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  linux: "Linux",
+  macOS: "macOS",
   windows: "Windows",
+  Windows: "Windows",
+  linux: "Linux",
+  Linux: "Linux",
+  chrome: "ChromeOS",
+  ChromeOS: "ChromeOS",
 };
 
 // as returned by the TARGETS API; based on display_text

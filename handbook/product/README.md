@@ -51,8 +51,6 @@ Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
 ### Emergency drafting
 
-> TODO: extrapolate this content to 
-
 Emergency drafting is the revision of drafted changes currently being developed by
 the engineering team. Emergency drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 

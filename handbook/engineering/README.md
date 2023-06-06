@@ -17,13 +17,13 @@ Each sprint is marked by five essential ceremonies:
 ### Scrum boards
 
 Each product group has a dedicated sprint board:
-[MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
-[CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
-[Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
-[Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
+- [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+- [CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+- [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+- [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
 New tickets are estimated, specified, and prioritized on the roadmap:
-[Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+- [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
 
 ### Scrum items
 
@@ -43,11 +43,11 @@ Our scrum boards are exclusively composed of three types of scrum items:
 
 - [Goals](#goals)
 - [Principles](#principles)
-- [Eng Together](#eng-together)
-- [Release Retro](#release-retro)
-- [Group Weeklies](#group-weeklies)
-- [Standup](#standup)
-- [Product and Eng Weekly](#product-and-eng-weekly)
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Eng together](#eng-together)
+- [Group weeklies](#group-weeklies)
+- [Eng leadership weekly](#eng-leadership) 
+- [Eng product weekly](#eng-product-weekly)
 
 ### Goals
 
@@ -80,49 +80,29 @@ Everyone at the company is welcome to attend.  The subject matter is focused on 
 - Social
   - Structured and/or unstructured social activities
 
-### Release Retro
-
-Gather feedback from all participants in each release. Used to improve communication and processes. Held each release for 30 minutes.
-
-This meeting will likely need to be split in the future as the number of attendees increases.
-
-#### Participants
-
-This would include members of each group (+ quality).
-
-#### Sample agenda
-
-For each attendee:
-
-- What went well this release cycle?
-- What could have gone better this release cycle?
-- What should we remember next time?
-
 ### Group weeklies
 
-A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
-
-e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
-
-In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
+A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
 
 #### Participants
 
-This would include anyone who wishes to participate. 
+Anyone who wishes to participate. 
 
-#### Sample Agenda (MDM)
+#### Sample Agenda (Frontend weekly)
 
-- Anything at risk for the release?
-- Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
+- Review difficult frontend bugs
+- Write engineering-initiated stories
 
-### Engineering Leadership Weekly (Weekly ~ one hour)
+### Eng leadership weekly 
 
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
 
-This would include the CTO + Engineering managers.
+- Engineering Managers
+- CTO
+- Director of Product Development
 
 #### Sample agenda
 
@@ -130,7 +110,51 @@ This would include the CTO + Engineering managers.
 - Engineering process discussion
 - Review engineering KPIs
 
+### Eng product weekly
+
+Engineering and product weekly sync to discuss process, roadmap, and scheduling. 
+
+#### Participants
+
+- Head of Product
+- Product Managers (optional)
+- CTO
+- Director of Product Development
+- Engineering Managers (optional)
+
+#### Sample agenda
+
+- Product to engineering handoff process
+- Q4 product roadmap
+- Optimizing development processes
+
+## Engineering-initiated stories
+
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
+
+Engineering-initiated stories follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process. 
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+
+### Creating an engineering-initiated story
+
+1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
+2. Label it `~engineering-initiated` and the relevant product group. 
+3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
+4. Schedule a time with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
+5. Iterate based on feedback. 
+6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
+
+> We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
+
 ## Release process
+
+### In this section
+
+- [Release freeze period](#release-freeze-period)
+- [Release day](#release-day)
 
 This section outlines the release process at Fleet.
 
