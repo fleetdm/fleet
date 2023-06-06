@@ -43,7 +43,17 @@
       text-align: center;
     }
     .data-table__table {
+      // Adds border to headers except for empty last header to view filtered hosts
       thead {
+        th {
+          border-right: none;
+          border-left: 1px solid $ui-fleet-black-10;
+        }
+
+        .linkToFilteredHosts__header {
+          border-left: none;
+        }
+
         .version__header {
           width: $col-xs;
         }
@@ -53,9 +63,6 @@
         .source__header {
           display: none;
           width: 0px;
-        }
-        .hosts_count__header {
-          border-right: 0;
         }
         .last_opened_at__header {
           display: none;
@@ -88,7 +95,7 @@
             justify-content: left;
 
             .children-wrapper {
-              overflow: hidden;
+              overflow-x: clip; // Truncates the text but does not hide tooltip outside cell
               white-space: nowrap;
               display: block;
               text-overflow: ellipsis;
@@ -221,10 +228,6 @@
   }
 
   .data-table-block .data-table__table {
-    .installed_paths__header {
-      border-right: none;
-    }
-
     @media (min-width: $break-990) {
       thead .version__header {
         width: $col-sm;
