@@ -5,7 +5,8 @@ export type IOsqueryPlatform =
   | "Windows"
   | "linux"
   | "Linux"
-  | "chrome";
+  | "chrome"
+  | "ChromeOS";
 
 export type ISelectedPlatform =
   | "all"
@@ -19,12 +20,25 @@ export type IPlatformString =
   | "darwin"
   | "windows"
   | "linux"
+  | "chrome"
+  | "darwin,windows,linux,chrome"
   | "darwin,windows,linux"
+  | "darwin,linux,chrome"
+  | "darwin,windows,chrome"
+  | "windows,linux,chrome"
   | "darwin,windows"
   | "darwin,linux"
-  | "windows,linux";
+  | "darwin,chrome"
+  | "windows,linux"
+  | "windows,chrome"
+  | "linux,chrome";
 
-export const SUPPORTED_PLATFORMS = ["darwin", "windows", "linux"] as const;
+export const SUPPORTED_PLATFORMS = [
+  "darwin",
+  "windows",
+  "linux",
+  "chrome",
+] as const;
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
 export const MACADMINS_EXTENSION_TABLES: Record<string, IOsqueryPlatform[]> = {

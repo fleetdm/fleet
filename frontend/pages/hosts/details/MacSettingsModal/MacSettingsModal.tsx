@@ -8,7 +8,6 @@ import { generateTableData } from "./MacSettingsTable/MacSettingsTableConfig";
 
 interface IMacSettingsModalProps {
   hostMDMData?: Pick<IHostMdmData, "profiles" | "macos_settings">;
-  isDeviceUser?: boolean;
   onClose: () => void;
 }
 

@@ -56,12 +56,6 @@ const PLATFORM_FILTER_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Linux",
-    value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
-  },
-  {
-    disabled: false,
     label: "macOS",
     value: "darwin",
     helpText: "Queries that are compatible with macOS operating systems.",
@@ -71,6 +65,18 @@ const PLATFORM_FILTER_OPTIONS = [
     label: "Windows",
     value: "windows",
     helpText: "Queries that are compatible with Windows operating systems.",
+  },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+    helpText: "Queries that are compatible with Linux operating systems.",
+  },
+  {
+    disabled: false,
+    label: "ChromeOS",
+    value: "chrome",
+    helpText: "Queries that are compatible with Chromebooks.",
   },
 ];
 

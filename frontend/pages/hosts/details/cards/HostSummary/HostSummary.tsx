@@ -40,7 +40,7 @@ interface IHostSummaryProps {
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMacSettings?: IHostMacMdmProfile[];
+  hostMdmProfiles?: IHostMacMdmProfile[];
   mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
@@ -60,7 +60,7 @@ const HostSummary = ({
   toggleOSPolicyModal,
   toggleMacSettingsModal,
   toggleBootstrapPackageModal,
-  hostMacSettings,
+  hostMdmProfiles,
   mdmName,
   showRefetchSpinner,
   onRefetchHost,
@@ -155,6 +155,7 @@ const HostSummary = ({
 
   const renderSummary = () => {
     const { status, id } = titleData;
+
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -178,11 +179,11 @@ const HostSummary = ({
         {titleData.platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings &&
-          hostMacSettings.length > 0 && ( //  2 - host has at least one setting (profile) enforced
+          hostMdmProfiles &&
+          hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="macOS settings">
               <MacSettingsIndicator
-                profiles={hostMacSettings}
+                profiles={hostMdmProfiles}
                 onClick={toggleMacSettingsModal}
               />
             </HostSummaryIndicator>

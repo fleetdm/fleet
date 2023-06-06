@@ -70,7 +70,7 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export type MdmProfileStatus = "verifying" | "pending" | "failed";
+export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
 export type MacMdmProfileOperationType = "remove" | "install";
 
@@ -83,22 +83,13 @@ export interface IHostMacMdmProfile {
   detail: string;
 }
 
-export interface IFileVaultSummaryResponse {
-  verifying: number;
-  action_required: number;
-  enforcing: number;
-  failed: number;
-  removing_enforcement: number;
-}
-
-export enum FileVaultProfileStatus {
-  VERIFIED = "verified",
-  VERIFYING = "verifying",
-  ACTION_REQUIRED = "action_required",
-  ENFORCING = "enforcing",
-  FAILED = "failed",
-  REMOVING_ENFORCEMENT = "removing_enforcement",
-}
+export type FileVaultProfileStatus =
+  | "verified"
+  | "verifying"
+  | "action_required"
+  | "enforcing"
+  | "failed"
+  | "removing_enforcement";
 
 // // TODO: update when list profiles API returns identifier
 // export const FLEET_FILEVAULT_PROFILE_IDENTIFIER =

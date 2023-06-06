@@ -58,6 +58,10 @@ spec:
             value: "sandbox"
           - name: ELASTIC_APM_ENVIRONMENT
             value: "{{ .Values.fleetName }}"
+          - name: FLEET_LOGGING_TRACING_TYPE
+            value: elasticapm
+          - name: FLEET_LOGGING_TRACING_ENABLED
+            value: "true"
           - name: FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED
             value: "true"
           - name: FLEET_SESSION_DURATION

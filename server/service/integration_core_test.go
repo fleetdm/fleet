@@ -3185,6 +3185,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	var getResp getLabelSpecResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
 	assert.Equal(t, name, getResp.Spec.Name)
+	assert.NotEqual(t, 0, getResp.Spec.ID)
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
