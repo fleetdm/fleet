@@ -32,7 +32,6 @@ import Lightbulb from "./Lightbulb";
 import Apple from "./Apple";
 import Windows from "./Windows";
 import Linux from "./Linux";
-import ChromeOS from "./ChromeOS";
 import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
@@ -42,6 +41,7 @@ import Chrome from "./Chrome";
 import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
+import RedEncircledChrome from "./RedEncircledChrome";
 
 // Status Icons
 import Success from "./Success";
@@ -114,7 +114,6 @@ export const ICON_MAP = {
   Windows,
   linux: Linux,
   Linux,
-  chrome: ChromeOS,
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
@@ -124,6 +123,7 @@ export const ICON_MAP = {
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
+  "chrome-red": RedEncircledChrome,
   profile: Profile,
   download: Download,
   files: Files,

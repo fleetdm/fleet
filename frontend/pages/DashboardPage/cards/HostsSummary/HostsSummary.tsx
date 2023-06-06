@@ -93,7 +93,7 @@ const HostsSummary = ({
     }
     return (
       <SummaryTile
-        iconName="chrome"
+        iconName="chrome-red"
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
