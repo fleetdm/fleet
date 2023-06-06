@@ -253,7 +253,7 @@ Potential reasons for why a feature may be de-prioritized include:
   - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
 - The was designed but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
 
-Whenever a feature is de-prioritized, it only means that the feature has been _de-prioritized_ at that time. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
+Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 ### Why this way?
 
