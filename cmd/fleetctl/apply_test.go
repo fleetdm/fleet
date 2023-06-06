@@ -223,17 +223,24 @@ spec:
           - %s
 `, mobileCfgPath))
 
+	newMDMSettings = fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("12.3.1"),
+			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{mobileCfgPath},
+		},
+	}
+
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// enroll secret not provided, so left unchanged
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 	// agent options not provided, so left unchanged
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
-	// macos updates options not provided, left unchanged
+	// macos updates options not provided, left unchanged, and macos custom settings added
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
-	// macos custom settings provided
-	if assert.Len(t, teamsByName["team1"].Config.MDM.MacOSSettings.CustomSettings, 1) {
-		assert.Equal(t, mobileCfgPath, teamsByName["team1"].Config.MDM.MacOSSettings.CustomSettings[0])
-	}
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
@@ -258,7 +265,7 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
-		MacOSSettings: fleet.MacOSSettings{ // macos settings still present, not cleared
+		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
 			CustomSettings: []string{mobileCfgPath},
 		},
 	}
@@ -299,16 +306,41 @@ spec:
     mdm:
       macos_updates:
         minimum_version:
+`)
+
+	// fails: minimum_version provided empty, but deadline not provided
+	_, err := runAppNoChecks([]string{"apply", "-f", filename})
+	require.ErrorContains(t, err, "deadline is required when minimum_version is provided")
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version:
         deadline:
       macos_settings:
         custom_settings:
 `)
 
+	newMDMSettings = fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{},
+		},
+	}
+
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// agent options still cleared
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates are now cleared.
-	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team1"].Config.MDM)
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	// enroll secret not cleared since not provided
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
 }

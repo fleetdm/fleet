@@ -169,6 +169,13 @@ type MacOSUpdates struct {
 func (m MacOSUpdates) Validate() error {
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
+		// if one is set and empty, the other must be set and empty too, otherwise
+		// it's as if only one was provided.
+		if m.MinimumVersion.Set && !m.Deadline.Set {
+			return errors.New("deadline is required when minimum_version is provided")
+		} else if !m.MinimumVersion.Set && m.Deadline.Set {
+			return errors.New("minimum_version is required when deadline is provided")
+		}
 		return nil
 	}
 

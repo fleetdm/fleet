@@ -773,7 +773,9 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
-	team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	}
 
 	oldMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
