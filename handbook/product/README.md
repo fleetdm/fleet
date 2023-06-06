@@ -6,7 +6,6 @@ Changes begin as [ideas](#intake) or [code](#outside-contributions) that can be 
 
 > You can read what's coming in the next 3-6 weeks in Fleet's [⚗️ Drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-
 ## Product design
 
 The product team is responsible for product design tasks like drafting [changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
@@ -285,7 +284,7 @@ Requests are weighed by:
 - Whether the feature seems like it will fit into the [timeframes](#product-timeframes), given its complexity and the other work already accepted.
 
 ### Product timeframes
-TODO
+When a new feature is accepted, the product design team has <= 5 business days to complete the design. This will allow 
 
 ### Why this way?
 
@@ -322,14 +321,12 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| 🎁🗣 Feature fest  | Tri-weekly (Thursdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🎁🗣 Feature fest  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🎁 Feature fest prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🎁🗣️ Feature fest event | Mo Zhu |
-| 🗣 Product office hours  | Weekly (Tuesdays) | Ask questions to the product team | Mo Zhu |
+| 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
 | Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
-| ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |
-| ⚗️ Sprint release notes kickoff | Tri-weekly | Product provides recommended features to highlight for the current sprint to enable the Marketing team to start writing release notes | Mo Zhu |
 
 ## Slack channels
 
