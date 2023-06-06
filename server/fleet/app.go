@@ -301,22 +301,35 @@ type MDMEndUserAuthentication struct {
 	SSOProviderSettings
 }
 
-// AppConfig holds server configuration that can be changed via the API.
+// AppConfig holds global server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
 // the legacyConfig struct to list them.
+//
+// ///////////////////////////////////////////////////////////////
+// WARNING: If you add or change fields of this struct make sure
+// it's taken into account in the AppConfig Clone implementation!
+// ///////////////////////////////////////////////////////////////
 type AppConfig struct {
-	OrgInfo            OrgInfo            `json:"org_info"`
-	ServerSettings     ServerSettings     `json:"server_settings"`
-	SMTPSettings       SMTPSettings       `json:"smtp_settings"`
+	OrgInfo        OrgInfo        `json:"org_info"`
+	ServerSettings ServerSettings `json:"server_settings"`
+	// SMTPSettings holds the SMTP integration settings.
+	//
+	// This field is a pointer to avoid returning this information to non-global-admins.
+	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
 	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
 	// Features allows to globally enable or disable features
-	Features     Features         `json:"features"`
+	Features Features `json:"features"`
+	// AgentOptions holds osquery configuration.
+	//
+	// This field is a pointer to avoid returning this information to non-global-admins.
 	AgentOptions *json.RawMessage `json:"agent_options,omitempty"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest bool `json:"smtp_test,omitempty"`
-	// SSOSettings is single sign on settings
-	SSOSettings SSOSettings `json:"sso_settings"`
+	// SSOSettings is single sign on integration settings.
+	//
+	// This field is a pointer to avoid returning this information to non-global-admins.
+	SSOSettings *SSOSettings `json:"sso_settings,omitempty"`
 	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
 	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
@@ -335,15 +348,15 @@ type AppConfig struct {
 	// if any legacy settings were set in the raw JSON.
 	didUnmarshalLegacySettings []string
 
-	/////////////////////////////////////////////////////////////////
-	// WARNING: If you add to this struct make sure it's taken into
-	// account in the AppConfig Clone implementation!
-	/////////////////////////////////////////////////////////////////
+	// ///////////////////////////////////////////////////////////////
+	// WARNING: If you add or change fields of this struct make sure
+	// it's taken into account in the AppConfig Clone implementation!
+	// ///////////////////////////////////////////////////////////////
 }
 
 // Obfuscate overrides credentials with obfuscated characters.
 func (c *AppConfig) Obfuscate() {
-	if c.SMTPSettings.SMTPPassword != "" {
+	if c.SMTPSettings != nil && c.SMTPSettings.SMTPPassword != "" {
 		c.SMTPSettings.SMTPPassword = MaskedPassword
 	}
 	for _, jiraIntegration := range c.Integrations.Jira {
@@ -382,7 +395,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		copy(clone.ServerSettings.DebugHostIDs, c.ServerSettings.DebugHostIDs)
 	}
 
-	// SMTPSettings: nothing needs cloning
+	if c.SMTPSettings != nil {
+		var smtpSettings SMTPSettings
+		smtpSettings = *c.SMTPSettings
+		clone.SMTPSettings = &smtpSettings
+	}
+
 	// HostExpirySettings: nothing needs cloning
 
 	if c.Features.AdditionalQueries != nil {
@@ -396,7 +414,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.AgentOptions = &ao
 	}
 
-	// SSOSettings: nothing needs cloning
+	if c.SSOSettings != nil {
+		var ssoSettings SSOSettings
+		ssoSettings = *c.SSOSettings
+		clone.SSOSettings = &ssoSettings
+	}
+
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
 
@@ -541,15 +564,23 @@ type VulnerabilitiesWebhookSettings struct {
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
 
-	c.SMTPSettings.SMTPPort = 587
-	c.SMTPSettings.SMTPEnableStartTLS = true
-	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
-	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
-	c.SMTPSettings.SMTPVerifySSLCerts = true
-	c.SMTPSettings.SMTPEnableTLS = true
+	// Add default values for SMTPSettings.
+	var smtpSettings SMTPSettings
+	smtpSettings.SMTPEnabled = false
+	smtpSettings.SMTPPort = 587
+	smtpSettings.SMTPEnableStartTLS = true
+	smtpSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
+	smtpSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
+	smtpSettings.SMTPVerifySSLCerts = true
+	smtpSettings.SMTPEnableTLS = true
+	c.SMTPSettings = &smtpSettings
 
 	agentOptions := json.RawMessage(`{"config": {"options": {"pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
+
+	// Make sure an empty SSOSettings is set.
+	var ssoSettings SSOSettings
+	c.SSOSettings = &ssoSettings
 
 	c.Features.ApplyDefaultsForNewInstalls()
 

@@ -642,10 +642,15 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
+	var ssoSettings fleet.SSOSettings
+	if appConfig.SSOSettings != nil {
+		ssoSettings = *appConfig.SSOSettings
+	}
+
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		appConfig.SSOSettings.EntityID,
+		ssoSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
