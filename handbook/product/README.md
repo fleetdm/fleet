@@ -295,7 +295,7 @@ Whenever a feature is de-prioritized, it only means that the feature has been _d
 
 ### Why this way?
 
-Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship.
+Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship. Responsibility for keeping backlogs then belong to the stakeholder who is closest to the customer. 
 
 ### Intake Rituals
 Each week the DRI for the 🎁🗣 Feature Fest meeting resets the document to blank by doing the following:
