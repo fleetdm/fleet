@@ -45,4 +45,4 @@
 | Does Fleet possess an APEC PRP certification issued by a certification body (or Accountability Agent)? If not, is Fleet able to provide any evidence that the PRP requirements are being met as it relates to the Scoped Services provided to its customers? | Fleet has not undergone APEC PRP certification but has undergone an external security audit that included pen testing.  |
 
 <meta name="maintainedBy" value="dherder">
-<meta name="title" value="📃 Vendor Questionnaires">
+<meta name="title" value="📃 Vendor questionnaires">
