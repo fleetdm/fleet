@@ -31,10 +31,11 @@ describe("QuerySidePanel - component", () => {
     const platformList = container.getElementsByClassName("platform-list-item");
     const platformCompatibility = screen.getByTestId("compatibility");
 
-    expect(platformList.length).toBe(3);
+    expect(platformList.length).toBe(4);
     expect(platformCompatibility).toHaveTextContent(/macos/i);
     expect(platformCompatibility).toHaveTextContent(/windows/i);
     expect(platformCompatibility).toHaveTextContent(/linux/i);
+    expect(platformCompatibility).toHaveTextContent(/chromeos/i);
   });
 
   it("renders the correct number of columns", () => {
@@ -47,10 +48,10 @@ describe("QuerySidePanel - component", () => {
     );
 
     const platformList = container.getElementsByClassName("column-list-item");
-    expect(platformList.length).toBe(12);
+    expect(platformList.length).toBe(13);
   });
 
-  it.only("renders the platform specific column tooltip", () => {
+  it("renders the platform specific column tooltip", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
@@ -59,53 +60,62 @@ describe("QuerySidePanel - component", () => {
       />
     );
 
-    // TODO
-    const tooltip = screen.getByText(/on linux/i);
+    const tooltip = screen.getByText(/only available on windows/i);
     expect(tooltip).toBeInTheDocument();
   });
 
-  // it("render an example", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+  it("render an example", () => {
+    render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
 
-  //   const tableDropdownText = screen.getByText("Users");
-  //   expect(tableDropdownText).toBeInTheDocument();
-  // });
-  // it("render notes", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+    const exampleHeader = screen.getByText(
+      /List users that have interactive access via a shell that isn't false/i
+    );
+    const example = screen.getByText("Example");
 
-  //   const tableDropdownText = screen.getByText("Users");
-  //   expect(tableDropdownText).toBeInTheDocument();
-  // });
-  // it("renders a link to the source", () => {
-  //   render(
-  //     <QuerySidePanel
-  //       selectedOsqueryTable={createMockOsqueryTable()}
-  //       onOsqueryTableSelect={(tableName: string) => noop}
-  //       onClose={noop}
-  //     />
-  //   );
+    expect(exampleHeader).toBeInTheDocument();
+    expect(example).toBeInTheDocument();
+  });
+  it("render notes", () => {
+    render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable({
+          notes: "This table is being used for testing.",
+        })}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
 
-  //   const text = screen.getByText("Source");
-  //   const icon = screen.queryByTestId("Icon");
+    const notesHeader = screen.getByText(/Notes/i);
+    const notesText = screen.getByText(/This table is being used for testing/i);
 
-  //   expect(text).toBeInTheDocument();
-  //   expect(icon).toBeNull();
-  //   expect(text.closest("a")).toHaveAttribute(
-  //     "href",
-  //     "https://fleetdm.com/tables/users"
-  //   );
-  //   expect(text.closest("a")).not.toHaveAttribute("target", "_blank");
-  // });
+    expect(notesHeader).toBeInTheDocument();
+    expect(notesText).toBeInTheDocument();
+  });
+  it("renders a link to the source", () => {
+    render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={(tableName: string) => noop}
+        onClose={noop}
+      />
+    );
+
+    const text = screen.getByText("Source");
+    const icon = screen.queryByTestId("Icon");
+
+    expect(text).toBeInTheDocument();
+    expect(icon).toBeNull();
+    expect(text.closest("a")).toHaveAttribute(
+      "href",
+      "https://www.fleetdm.com/tables/users"
+    );
+    expect(text.closest("a")).toHaveAttribute("target", "_blank");
+  });
 });
