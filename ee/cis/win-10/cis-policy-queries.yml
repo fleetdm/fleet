@@ -2004,7 +2004,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Computer Browser'
   query: |
     SELECT 1 WHERE 
-        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
+        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' )
         OR 
         EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4 );
   purpose: Informational
@@ -2066,7 +2066,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\IIS Admin Service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND data == 4 );
   purpose: Informational
@@ -2088,7 +2088,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Infrared monitor service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND data == 4 );
   purpose: Informational
@@ -2149,7 +2149,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
   purpose: Informational
@@ -2172,7 +2172,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
   purpose: Informational
@@ -2214,7 +2214,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
