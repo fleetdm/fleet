@@ -183,8 +183,8 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 };
 
 interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS";
-  value: "all" | "windows" | "linux" | "darwin";
+  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
+  value: "all" | "windows" | "linux" | "darwin" | "chrome";
   path: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
@@ -192,6 +192,7 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
   { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
   { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
+  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
 ];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
