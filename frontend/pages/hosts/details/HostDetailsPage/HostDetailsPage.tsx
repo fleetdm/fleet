@@ -42,6 +42,8 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 
+import { createMockHostMacMdmProfile } from "__mocks__/hostMock";
+
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
@@ -693,7 +695,7 @@ const HostDetailsPage = ({
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMacSettings={host?.mdm.profiles ?? []}
+          hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
