@@ -1,14 +1,10 @@
 import React from "react";
 
-interface ITooltipInnerContentActionRequiredProps {
+const TooltipInnerContentActionRequired = (props: {
   isDeviceUser: boolean;
   profileName: string;
-}
-
-const TooltipInnerContentActionRequired = ({
-  isDeviceUser,
-  profileName,
-}: ITooltipInnerContentActionRequiredProps) => {
+}) => {
+  const { isDeviceUser, profileName } = props;
   const instructions = profileName ? (
     <>
       <b>{profileName}</b> instructions

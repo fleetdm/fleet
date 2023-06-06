@@ -1,17 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { FileVaultProfileStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-export interface IFileVaultSummaryResponse {
-  verified: number;
-  verifying: number;
-  action_required: number;
-  enforcing: number;
-  failed: number;
-  removing_enforcement: number;
-}
+export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
 
 export interface IEulaMetadataResponse {
   name: string;

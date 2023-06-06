@@ -155,7 +155,6 @@ const HostSummary = ({
 
   const renderSummary = () => {
     const { status, id } = titleData;
-    titleData.platform = "darwin";
 
     return (
       <div className="info-flex">
