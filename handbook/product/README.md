@@ -103,50 +103,6 @@ Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2
 ### Leftovers
 Improvements are prioritized prior to estimation.  But sometimes, estimations will affect the calculus of what to include in an upcoming release.  Improvements that do not not "fit" into the capacity of the next scheduled release are left at the very top of the "Estimated" column of the drafting board.  The Product Manager always either includes these "leftovers" in the _next_ release (3-6 weeks) or deprioritizes and closes them.
 
-
-<!-- 
-
-----
-TODO: Revisit.  I noticed on 2023-03-22 there are old references to no longer relevant product groups in here.  Rather than documenting incorrect things, I commented it out.  Some of this writing is not captured elsewhere though.  We should consider extrapolating a lot of this from eng and product handbooks into the "product groups" page, to avoid duplication and out of date content.  -mike
-----
-
-### Process
-
-1. **Intake:** Product has a "time til estimated" timeframe, which measures the time from when an idea is first received until it is written up as an estimated issue and the requestor is notified exactly which aspects are scheduled for release. How intake works, and the estimation timeframe, vary per group, but every group has an estimation timeframe.
-
-2. **Estimation:** The estimation process consists of drafting, API design, and either planning poker or a quick timebox decided by the group EM. When the Interface group relies on the Platform group for part of an issue, only the Interface group's work is estimated. It is up to the Interface PM to obtain estimated Platform issues for any needed work and thus make sure it is scheduled in the appropriate release. It is up to the Platform PM to get those specced (in consultation with Engineering), then up to the Engineering to estimate and communicate promptly if issues arise. We avoid having more estimated issues than capacity in the next release. If the team is fully allocated, no more issues will be estimated, or the PM will decide whether to swap anything out. Once estimated, an issue is scheduled for release. 
-
-3. **Development:** Development starts on the first day of the new release. Only estimated issues are scheduled for release.
-
-4. **Quality assurance (QA):** Everyone in each group is responsible for quality: engineers, PM, and the EM. The QA process varies per group and is set by the group's PM. For example, in the Interface group, every issue is QA'd (i.e. a per-change basis), as well as a holistic "smoke test" during the last few days of each release.
-
-5. **Release:** Release dates are time-based and happen even if all features are not complete (± a day or two sometimes, if there's an emergency. Either way, the next release cycle starts on time). If anything is not finished, or can only be finished with changes, the PM finds out immediately and notifies the requestor right away.
-
-### Timeframes
-
-These are effectively internal SLAs. We moved away from the term "SLA" to avoid potential confusion with future, contractual Service Level Agreements Fleet might sign with its customers.
-
-#### Prioritization
-
-≤Five business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
-
-#### Release
-
-≤Six weeks from when the initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
-
-Work that is prioritized by the group PM should be released in the six week timeframe (two releases). Work that is too large for this timeframe should be split up.
-
-#### Estimation
-
-≤Five business days from the initial request, an issue is created with a summary of the purpose, the goal, and the plan to achieve it. The level of detail in that plan is up to the PM of the product group. The issue also has an estimation, expressed in story points, which is either determined through planning poker or a "timebox."
-
-For the Interface group, "estimated" means UI wireframes and API design are completed, and the work to implement them has been estimated.
-
-#### Adjustment
-
-≤One business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies the original requestor of changes to the spec.
- -->
-
 ### Product design conventions
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
