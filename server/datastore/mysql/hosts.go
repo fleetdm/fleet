@@ -3951,22 +3951,13 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
 	}
-	rows, err := ds.reader.QueryxContext(ctx, stmt, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "executing query for matching hosts")
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var serial string
-		err := rows.Scan(&serial)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "scanning row for matching hosts")
-		}
-		result[serial] = struct{}{}
+	var matchingSerials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &matchingSerials, stmt, args...); err != nil {
+		return nil, err
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "scanning rows")
+	for _, serial := range matchingSerials {
+		result[serial] = struct{}{}
 	}
 
 	return result, nil
