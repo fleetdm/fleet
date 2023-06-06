@@ -10,6 +10,73 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func TestIsGlobalObserver(t *testing.T) {
+	testCases := []struct {
+		GlobalRole *string
+		Expected   bool
+	}{
+		{
+			GlobalRole: nil,
+		},
+		{
+			GlobalRole: ptr.String(RoleAdmin),
+		},
+		{
+			GlobalRole: ptr.String(RoleObserver),
+			Expected:   true,
+		},
+		{
+			GlobalRole: ptr.String(RoleObserverPlus),
+			Expected:   true,
+		},
+	}
+
+	for _, tC := range testCases {
+		sut := User{GlobalRole: tC.GlobalRole}
+		require.Equal(t, sut.IsGlobalObserver(), tC.Expected)
+	}
+}
+
+func TestTeamObserverMembership(t *testing.T) {
+	teams := []UserTeam{
+		{
+			Role: RoleAdmin,
+			Team: Team{
+				ID: 1,
+			},
+		},
+		{
+			Role: RoleGitOps,
+			Team: Team{
+				ID: 2,
+			},
+		},
+		{
+			Role: RoleObserver,
+			Team: Team{
+				ID: 3,
+			},
+		},
+		{
+			Role: RoleObserver,
+			Team: Team{
+				ID: 4,
+			},
+		},
+	}
+
+	sut := User{}
+	require.Empty(t, sut.TeamObserverMembership())
+
+	sut.Teams = teams
+
+	var result []uint
+	for k := range sut.TeamObserverMembership() {
+		result = append(result, k)
+	}
+	require.ElementsMatch(t, result, []uint{3, 4})
+}
+
 func TestValidatePassword(t *testing.T) {
 	passwordTests := []struct {
 		Password, Email      string
