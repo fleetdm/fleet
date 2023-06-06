@@ -448,7 +448,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// if the macOS minimum version requirement changed, create the corresponding
 	// activity
-	if oldAppConfig.MDM.MacOSUpdates != appConfig.MDM.MacOSUpdates {
+	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
+		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -573,9 +574,9 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
 			return
 		}
-		if err := mdm.MacOSUpdates.Validate(); err != nil {
-			invalid.Append("macos_updates", err.Error())
-		}
+	}
+	if err := mdm.MacOSUpdates.Validate(); err != nil {
+		invalid.Append("macos_updates", err.Error())
 	}
 
 	// EndUserAuthentication
