@@ -24,6 +24,8 @@ import (
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+
+	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 )
 
 func PlatformTables() []osquery.OsqueryPlugin {
@@ -55,5 +57,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+
+		// Kolide tables
+		pwpolicy.TablePlugin(serverClient, kolideLogger), // table name is "kolide_pwpolicy"
 	}
 }
