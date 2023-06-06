@@ -15,6 +15,8 @@ import (
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
+
+	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 )
 
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
@@ -132,6 +134,9 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+
+		// Kolide extensions
+		cryptoinfotable.TablePlugin(kolideLogger), // table name is "kolide_cryptoinfo"
 	}
 	return plugins
 }
