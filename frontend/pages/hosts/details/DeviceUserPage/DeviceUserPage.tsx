@@ -1,9 +1,9 @@
 import React, { useState, useContext, useCallback } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick } from "lodash";
+import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
@@ -28,6 +28,7 @@ import {
   wrapFleetHelper,
   humanHostDiskEncryptionEnabled,
 } from "utilities/helpers";
+import PATHS from "router/paths";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -47,6 +48,18 @@ import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageMod
 const baseClass = "device-user";
 
 interface IDeviceUserPageProps {
+  location: {
+    pathname: string;
+    query: {
+      vulnerable?: string;
+      page?: string;
+      query?: string;
+      order_key?: string;
+      order_direction?: "asc" | "desc";
+    };
+    search?: string;
+  };
+  router: InjectedRouter;
   params: Params;
 }
 
@@ -56,9 +69,12 @@ interface IHostDiskEncryptionProps {
 }
 
 const DeviceUserPage = ({
+  location,
+  router,
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
+  const queryParams = location.query;
   const { renderFlash } = useContext(NotificationContext);
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
@@ -347,6 +363,15 @@ const DeviceUserPage = ({
       host?.mdm.macos_settings?.disk_encryption === "action_required" &&
       host?.mdm.macos_settings?.action_required === "rotate_key";
 
+    const tabPaths = [
+      PATHS.DEVICE_USER_DETAILS(deviceAuthToken),
+      PATHS.DEVICE_USER_DETAILS_SOFTWARE(deviceAuthToken),
+      PATHS.DEVICE_USER_DETAILS_POLICIES(deviceAuthToken),
+    ];
+
+    const findSelectedTab = (pathname: string) =>
+      findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -394,7 +419,10 @@ const DeviceUserPage = ({
               deviceUser
             />
             <TabsWrapper>
-              <Tabs>
+              <Tabs
+                selectedIndex={findSelectedTab(location.pathname)}
+                onSelect={(i) => router.push(tabPaths[i])}
+              >
                 <TabList>
                   <Tab>Details</Tab>
                   <Tab>Software</Tab>
@@ -419,11 +447,15 @@ const DeviceUserPage = ({
                 </TabPanel>
                 <TabPanel>
                   <SoftwareCard
+                    router={router}
                     isLoading={isLoadingHost}
                     software={hostSoftware}
                     deviceUser
-                    hostId={host?.id || 0}
                     pathname={location.pathname}
+                    pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(
+                      deviceAuthToken
+                    )}
+                    queryParams={queryParams}
                   />
                 </TabPanel>
                 {isPremiumTier && (

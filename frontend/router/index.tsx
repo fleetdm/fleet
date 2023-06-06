@@ -231,7 +231,16 @@ const routes = (
           />
         </Route>
       </Route>
-      <Route path="/device/:device_auth_token" component={DeviceUserPage} />
+      <Route path="device">
+        <IndexRedirect to=":device_auth_token" />
+
+        <Route component={DeviceUserPage}>
+          <Route path=":device_auth_token" component={DeviceUserPage}>
+            <Route path="software" component={DeviceUserPage} />
+            <Route path="policies" component={DeviceUserPage} />
+          </Route>
+        </Route>
+      </Route>
     </Route>
     <Route path="/apionlyuser" component={ApiOnlyUser} />
     <Route path="/404" component={Fleet404} />
