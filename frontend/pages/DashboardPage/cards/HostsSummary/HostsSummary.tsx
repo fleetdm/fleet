@@ -44,7 +44,7 @@ const HostsSummary = ({
     ILabelSpecResponse,
     Error,
     number
-  >("chromeLabelId", () => labelsAPI.specByName("chromeos"), {
+  >("chromeLabelId", () => labelsAPI.specByName("chrome"), {
     select: ({ specs }) => specs.id,
   });
 
