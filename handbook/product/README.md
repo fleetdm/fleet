@@ -51,8 +51,6 @@ Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
 ### Emergency drafting
 
-> TODO: extrapolate this content to 
-
 Emergency drafting is the revision of drafted changes currently being developed by
 the engineering team. Emergency drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
@@ -80,7 +78,7 @@ Product Managers prioritize all potential product improvements worked on by cont
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint.
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [emergency drafting](#emergency-drafting). 
 
 > Anyone can [suggest improvements](#intake).
 
