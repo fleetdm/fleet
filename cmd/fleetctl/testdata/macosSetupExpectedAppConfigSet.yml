@@ -30,8 +30,8 @@ spec:
       enable_end_user_authentication: false
       macos_setup_assistant: %s
     macos_updates:
-      deadline: ""
-      minimum_version: ""
+      deadline: null
+      minimum_version: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""

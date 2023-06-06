@@ -8,8 +8,8 @@ spec:
       enable_software_inventory: true
     mdm:
       macos_updates:
-        minimum_version: ""
-        deadline: ""
+        minimum_version: null
+        deadline: null
       macos_settings:
         custom_settings:
         enable_disk_encryption: false
