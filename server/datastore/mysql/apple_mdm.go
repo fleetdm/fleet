@@ -2533,3 +2533,15 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	}
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
+
+func (ds *Datastore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
+	// it's okay if we didn't update any rows, `nano_enrollments` entries
+	// are created on `TokenUpdate`, and this function is called on
+	// `Authenticate` to make sure we start on a clean state if a host is
+	// re-enrolling.
+	_, err := ds.writer.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating nano_enrollments")
+	}
+	return nil
+}

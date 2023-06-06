@@ -753,6 +753,31 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		<-ch
 	}
 
+	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
+		// run the worker to process the DEP enroll request
+		s.runWorker()
+
+		var fleetdCmd *micromdm.CommandPayload
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
+				cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
+				strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+				fleetdCmd = cmd
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		if shouldReceive {
+			require.NotNil(t, fleetdCmd)
+			require.NotNil(t, fleetdCmd.Command)
+		} else {
+			require.Nil(t, fleetdCmd)
+		}
+	}
+
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -825,24 +850,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-
 	// make sure the host gets a request to install fleetd
-	var fleetdCmd *micromdm.CommandPayload
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
-			cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-			strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
-			fleetdCmd = cmd
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	require.NotNil(t, fleetdCmd)
-	require.NotNil(t, fleetdCmd.Command)
+	checkPostEnrollmentCommands(mdmDevice, true)
 
 	// only one shows up as pending
 	listHostsRes = listHostsResponse{}
@@ -913,6 +922,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	_, err = s.ds.GetHostDEPAssignment(ctx, addedHostID)
 	require.NoError(t, err)
+
+	// send a TokenUpdate command, it shouldn't re-send the post-enrollment commands
+	err = mdmDevice.TokenUpdate()
+	require.NoError(t, err)
+	checkPostEnrollmentCommands(mdmDevice, false)
+
+	// enroll the device again, it should get the post-enrollment commands
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	checkPostEnrollmentCommands(mdmDevice, true)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {

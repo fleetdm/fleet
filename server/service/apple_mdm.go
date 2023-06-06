@@ -2192,11 +2192,14 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	host.UDID = m.UDID
 	host.Model = m.Model
 	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
+	}
+	if err := svc.ds.ResetMDMAppleNanoEnrollment(r.Context, host.UDID); err != nil {
+		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
 	}
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,
