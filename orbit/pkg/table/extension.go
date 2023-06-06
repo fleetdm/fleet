@@ -45,8 +45,8 @@ type Opt func(*Runner)
 
 // Global variables for osquery extension manager client and logger
 var (
-	serverClient *osquery.ExtensionManagerClient = nil
-	kolideLogger *Logger                         = nil
+	serverClient *osquery.ExtensionManagerClient
+	kolideLogger *Logger
 )
 
 // WithExtension registers the given Extension on the Runner.
