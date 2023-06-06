@@ -50,3 +50,17 @@
     gap: $pad-medium; // 16px between buttons
   }
 }
+
+// more flexible styling for empty tables within tabs
+.react-tabs {
+  .empty-table {
+    &__container {
+      align-self: center;
+      justify-content: center;
+      margin: 0;
+      margin-bottom: 20px;
+      min-height: 155px;
+      max-width: none;
+    }
+  }
+}
