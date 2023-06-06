@@ -1,8 +1,6 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
