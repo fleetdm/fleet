@@ -44,14 +44,11 @@
     }
     .data-table__table {
       thead {
-        .name__header {
-          width: $col-md;
-        }
         .version__header {
           width: $col-xs;
         }
         .vulnerabilities__header {
-          min-width: 120px;
+          width: 130px;
         }
         .source__header {
           display: none;
@@ -82,7 +79,22 @@
       }
 
       tbody {
-        .name__cell,
+        .name__cell {
+          // Long software names overflow the software card
+          max-width: 0;
+
+          .button--text-link {
+            width: 100%;
+            justify-content: left;
+
+            .children-wrapper {
+              overflow: hidden;
+              white-space: nowrap;
+              display: block;
+              text-overflow: ellipsis;
+            }
+          }
+        }
         .version__cell {
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -209,14 +221,8 @@
   }
 
   .data-table-block .data-table__table {
-    th {
+    .installed_paths__header {
       border-right: none;
-      border-left: 1px solid #e2e4ea;
-    }
-
-    .linkToFilteredHosts__header,
-    .name__header {
-      border-left: none;
     }
 
     @media (min-width: $break-990) {
@@ -233,11 +239,8 @@
       tbody {
         .last_opened_at__cell {
           display: table-cell;
-        }
-        .linkToFilteredHosts__cell {
-          .view-all-hosts-link {
-            width: 120px;
-          }
+          width: 100px;
+          min-width: min-content;
         }
       }
     }
@@ -246,7 +249,7 @@
       thead {
         .installed_paths__header {
           display: table-cell;
-          width: $col-lg;
+          width: $col-md;
         }
       }
       tbody {
@@ -254,7 +257,7 @@
           display: table-cell;
 
           .text-cell {
-            width: $col-lg;
+            width: $col-md;
             text-overflow: initial;
             overflow: initial;
             white-space: initial;
