@@ -50,7 +50,7 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 	return responseBody.AppleCSR, err
 }
 
-func (c *Client) GetBootstrapPackageMetadata(teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
@@ -110,7 +110,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
 	isFirstTime := false
-	oldMeta, err := c.GetBootstrapPackageMetadata(teamID)
+	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
 		if !errors.Is(err, notFoundErr{}) {

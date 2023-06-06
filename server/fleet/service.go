@@ -699,7 +699,7 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
-	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*MDMAppleBootstrapPackage, error)
 
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
 
