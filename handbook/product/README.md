@@ -274,26 +274,28 @@ At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all r
 - A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
 
-If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again another time.
+If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 Requests are weighed by:
 - The completeness of the request (see [making a request](#making-a-request)
 - How urgent the need is for the customer
 - How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
 - How well the request fits within Fleet's product vision and roadmap
-- Whether the feature seems like it will fit into the [timeframes](#product-timeframes), given its complexity and the other work already accepted.
+- Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
-### Product timeframes
-When a new feature is accepted, the product design team has <= 5 business days to complete the design. This will allow 
+### After the feature is accepted
+> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision. 
+
+Potential reasons for why a feature may be de-prioritized include:
+- The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity. 
+  - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
+- The was designed but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
+
+Whenever a feature is de-prioritized, it only means that the feature has been _de-prioritized_ at that time. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 ### Why this way?
 
-- At Fleet, we use quarterly metrics to align the organization with measurable goals.  These goals fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and engineering capacity.   This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the wider Fleet community.
-- Fleet only prioritizes changes that can go live in ≤6 weeks.  (That means becoming convinced that a request can shaped down such that a minimally valuable change can be designed, revised, built, and hand-tested in that timeframe.)
-- Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship.
-- Sometimes, the design or dev process reveals that a prioritized change needs to be canceled or significantly rethought.  In this case, the PM notifies the requestor.
-- You will be informed if your request is prioritized or put to the side within one business day from when the PM weighs your request.
-- Fleet always prioritizes bugs.
+Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship.
 
 ### Intake Rituals
 Each week the DRI for the 🎁🗣 Feature Fest meeting resets the document to blank by doing the following:
