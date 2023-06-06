@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
@@ -24,7 +24,7 @@ import generateResultsTableHeaders from "./QueryResultsTableConfig";
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
-  onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
@@ -89,6 +89,12 @@ const QueryResults = ({
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
+
+  // immediately reset results
+  const onRunAgain = useCallback(() => {
+    setQueryResultsForTableRender([]);
+    onRunQuery();
+  }, [onRunQuery]);
 
   const debounceQueryResults = useDebouncedCallback(
     setQueryResultsForTableRender,
@@ -246,7 +252,7 @@ const QueryResults = ({
         targetsTotalCount={targetsTotalCount}
         isQueryFinished={isQueryFinished}
         onClickDone={onQueryDone}
-        onClickRunAgain={onRunQuery}
+        onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
       <TabsWrapper>
