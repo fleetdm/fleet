@@ -73,7 +73,7 @@ Many open source contributions that start as a small, seemingly innocuous pull r
 Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
 ## Prioritizing improvements
-Product Managers prioritize all potential product improvements worked on by contributors inside the company.
+Product Managers prioritize all potential product improvements worked on by contributors inside the company. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
@@ -99,9 +99,6 @@ Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-wa
 
 ### Sprint numbering
 Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.
-
-### Leftovers
-Improvements are prioritized prior to estimation.  But sometimes, estimations will affect the calculus of what to include in an upcoming release.  Improvements that do not not "fit" into the capacity of the next scheduled release are left at the very top of the "Estimated" column of the drafting board.  The Product Manager always either includes these "leftovers" in the _next_ release (3-6 weeks) or deprioritizes and closes them.
 
 ### Product design conventions
 
@@ -203,6 +200,9 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 ## Intake
 
 - [Making a request](#making-a-request)
+- [How features are evaluated](#how-features-are-evaluated)
+- [After the feature is accepted](#after-the-feature-is-accepted)
+- [Why this way?](#why-this-way)
 
 To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the [regular 🎁🗣 Feature Fest meeting](#rituals). Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
 
