@@ -63,6 +63,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestMatchMDMAppleConfigProfiles", testMatchMDMAppleConfigProfiles},
 		{"TestResetMDMAppleNanoEnrollment", testResetMDMAppleNanoEnrollment},
+		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 	}
 
 	for _, c := range cases {
@@ -439,20 +440,21 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 
 	// mock results incoming from depsync.Syncer
 	depDevices := []godep.Device{
-		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // ingested; new serial, macOS, "added" op type
-		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // not ingested; duplicate serial
-		{SerialNumber: hosts[0].HardwareSerial, Model: "MacBook Pro", OS: "OSX", OpType: "added"}, // not ingested; existing serial
-		{SerialNumber: "ijk", Model: "MacBook Pro", OS: "", OpType: "added"},                      // ingested; empty OS
-		{SerialNumber: "tuv", Model: "MacBook Pro", OS: "OSX", OpType: "modified"},                // not ingested; op type "modified"
-		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "updated"},                 // not ingested; op type "updated"
-		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "deleted"},                 // not ingested; op type "deleted"
-		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // ingested; new serial, macOS, "added" op type
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                      // ingested; new serial, macOS, "added" op type
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                      // not ingested; duplicate serial
+		{SerialNumber: hosts[0].HardwareSerial, Model: "MacBook Pro", OS: "OSX", OpType: "added"},    // not ingested; existing serial
+		{SerialNumber: "ijk", Model: "MacBook Pro", OS: "", OpType: "added"},                         // ingested; empty OS
+		{SerialNumber: "tuv", Model: "MacBook Pro", OS: "OSX", OpType: "modified"},                   // ingested; op type "modified", but new serial
+		{SerialNumber: hosts[1].HardwareSerial, Model: "MacBook Pro", OS: "OSX", OpType: "modified"}, // not ingested; op type "modified", existing serial
+		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "updated"},                    // not ingested; op type "updated"
+		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "deleted"},                    // not ingested; op type "deleted"
+		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                      // ingested; new serial, macOS, "added" op type
 	}
-	wantSerials = append(wantSerials, "abc", "xyz", "ijk")
+	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	n, tmID, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
-	require.Equal(t, int64(3), n) // 3 new hosts ("abc", "xyz", "ijk")
+	require.EqualValues(t, 4, n) // 4 new hosts ("abc", "xyz", "ijk", "tuv")
 	require.Nil(t, tmID)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, len(wantSerials))
@@ -4357,4 +4359,49 @@ func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
 	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Zero(t, enrollment.TokenUpdateTally)
+}
+
+func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	cases := []struct {
+		name string
+		in   []string
+		want []string
+		err  string
+	}{
+		{"no serials provided", []string{}, []string{"foo", "bar", "baz"}, ""},
+		{"no matching serials", []string{"oof", "rab"}, []string{"foo", "bar", "baz"}, ""},
+		{"partial matches", []string{"foo", "rab"}, []string{"bar", "baz"}, ""},
+		{"all matching", []string{"foo", "bar", "baz"}, []string{}, ""},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			devices := []godep.Device{
+				{SerialNumber: "foo"},
+				{SerialNumber: "bar"},
+				{SerialNumber: "baz"},
+			}
+			_, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices)
+			require.NoError(t, err)
+
+			err = ds.DeleteHostDEPAssignments(ctx, tt.in)
+			if tt.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.err)
+			}
+			var got []string
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(
+					ctx, q, &got,
+					`SELECT hardware_serial FROM hosts h
+                                         JOIN host_dep_assignments hda ON hda.host_id = h.id
+                                         WHERE hda.deleted_at IS NULL`,
+				)
+			})
+			require.ElementsMatch(t, tt.want, got)
+		})
+	}
 }

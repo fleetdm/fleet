@@ -10,7 +10,11 @@ describe("Mac setting status cell", () => {
     const operationType: MacMdmProfileOperationType = "install";
 
     render(
-      <MacSettingStatusCell status={status} operationType={operationType} />
+      <MacSettingStatusCell
+        profileName="Test Profile"
+        status={status}
+        operationType={operationType}
+      />
     );
 
     expect(screen.getByText("Verifying")).toBeInTheDocument();
@@ -23,13 +27,17 @@ describe("Mac setting status cell", () => {
     const customRender = createCustomRenderer();
 
     const { user } = customRender(
-      <MacSettingStatusCell status={status} operationType={operationType} />
+      <MacSettingStatusCell
+        profileName="Test Profile"
+        status={status}
+        operationType={operationType}
+      />
     );
 
     const statusText = screen.getByText("Verifying");
 
     await user.hover(statusText);
 
-    expect(screen.getByText("Host applied the setting.")).toBeInTheDocument();
+    expect(screen.getByText(/verifying/)).toBeInTheDocument();
   });
 });

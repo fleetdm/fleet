@@ -5,7 +5,10 @@ import { uniqueId } from "lodash";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { MacMdmProfileOperationType } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  MacMdmProfileOperationType,
+} from "interfaces/mdm";
 
 import { MacSettingsTableStatusValue } from "../MacSettingsTableConfig";
 import TooltipContent, {
@@ -36,17 +39,36 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     pending: {
       statusText: "Enforcing (pending)",
       iconName: "pending-partial",
-      tooltip: "Setting will be enforced when the host comes online.", // TODO: this doesn't work for disk encryption or the device page generally
+      tooltip: (innerProps) =>
+        innerProps.isDiskEncryptionProfile
+          ? "The host will receive the MDM command to install the disk encryption profile when the " +
+            "host comes online."
+          : "The host will receive the MDM command to install the configuration profile when the " +
+            "host comes online.",
     },
     action_required: {
       statusText: "Action required (pending)",
       iconName: "pending-partial",
       tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
+    verified: {
+      statusText: "Verified",
+      iconName: "success",
+      tooltip: (innerProps) =>
+        innerProps.isDiskEncryptionProfile
+          ? "The host turned disk encryption on and " +
+            "sent their key to Fleet. Fleet verified with osquery."
+          : "The host installed the configuration profile. Fleet verified with osquery.",
+    },
     verifying: {
       statusText: "Verifying",
       iconName: "success-partial",
-      tooltip: "Host applied the setting.",
+      tooltip: (innerProps) =>
+        innerProps.isDiskEncryptionProfile
+          ? "The host acknowledged the MDM command to install disk encryption profile. Fleet is " +
+            "verifying with osquery and retrieving the disk encryption key. This may take up to one hour."
+          : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
+            "verifying with osquery.",
     },
     failed: {
       statusText: "Failed",
@@ -58,9 +80,15 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     pending: {
       statusText: "Removing enforcement (pending)",
       iconName: "pending-partial",
-      tooltip: "Enforcement will be removed when the host comes online.",
+      tooltip: (innerProps) =>
+        innerProps.isDiskEncryptionProfile
+          ? "The host will receive the MDM command to remove the disk encryption profile when the " +
+            "host comes online."
+          : "The host will receive the MDM command to remove the configuration profile when the host " +
+            "comes online.",
     },
     action_required: null, // should not be reached
+    verified: null, // should not be reached
     verifying: null, // should not be reached
     failed: {
       statusText: "Failed",
@@ -73,7 +101,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
 interface IMacSettingStatusCellProps {
   status: MacSettingsTableStatusValue;
   operationType: MacMdmProfileOperationType;
-  profileName?: string;
+  profileName: string;
 }
 
 const MacSettingStatusCell = ({
@@ -81,14 +109,17 @@ const MacSettingStatusCell = ({
   operationType,
   profileName = "",
 }: IMacSettingStatusCellProps): JSX.Element => {
-  const options = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
-  // TODO: confirm this approach
+  const diplayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+
   const isDeviceUser = window.location.pathname
     .toLowerCase()
     .includes("/device/");
 
-  if (options) {
-    const { statusText, iconName, tooltip } = options;
+  const isDiskEncryptionProfile =
+    profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
+
+  if (diplayOption) {
+    const { statusText, iconName, tooltip } = diplayOption;
     const tooltipId = uniqueId();
     return (
       <span className={baseClass}>
@@ -111,10 +142,19 @@ const MacSettingStatusCell = ({
               data-html
             >
               <span className="tooltip__tooltip-text">
-                <TooltipContent
-                  innerContent={tooltip}
-                  innerProps={{ isDeviceUser, profileName }}
-                />
+                {status !== "action_required" ? (
+                  <TooltipContent
+                    innerContent={tooltip}
+                    innerProps={{
+                      isDiskEncryptionProfile,
+                    }}
+                  />
+                ) : (
+                  <TooltipContent
+                    innerContent={tooltip}
+                    innerProps={{ isDeviceUser, profileName }}
+                  />
+                )}
               </span>
             </ReactTooltip>
           </>
