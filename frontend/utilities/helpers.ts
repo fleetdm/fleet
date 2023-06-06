@@ -669,7 +669,6 @@ export const getHostDiskEncryptionTooltipMessage = (
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
-  // is this logic necessary? preserved from previous implementation
   if (!["windows", "darwin"].includes(platform)) {
     return "Disk encryption is enabled.";
   }
