@@ -143,8 +143,13 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  linux: "Linux",
+  macOS: "macOS",
   windows: "Windows",
+  Windows: "Windows",
+  linux: "Linux",
+  Linux: "Linux",
+  chrome: "ChromeOS",
+  ChromeOS: "ChromeOS",
 };
 
 // as returned by the TARGETS API; based on display_text
@@ -178,8 +183,8 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 };
 
 interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS";
-  value: "all" | "windows" | "linux" | "darwin";
+  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
+  value: "all" | "windows" | "linux" | "darwin" | "chrome";
   path: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
@@ -187,6 +192,7 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
   { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
   { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
+  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
 ];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
@@ -194,6 +200,7 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
+  chrome: "ChromeOS",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =

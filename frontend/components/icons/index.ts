@@ -35,11 +35,13 @@ import Linux from "./Linux";
 import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
+import Chrome from "./Chrome";
 
 // Encircled
 import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
+import RedEncircledChrome from "./RedEncircledChrome";
 
 // Status Icons
 import Success from "./Success";
@@ -115,10 +117,13 @@ export const ICON_MAP = {
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
+  chrome: Chrome,
+  ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
+  "chrome-red": RedEncircledChrome,
   profile: Profile,
   download: Download,
   files: Files,
