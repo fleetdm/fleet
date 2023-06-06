@@ -184,7 +184,6 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-
 ## Breaking changes
 
 For product changes that cause breaking API or configuration changes or major impact for users (or even just the _impression_ of major impact!), the company plans migration thoughtfully.  That means the product department and E-group:
@@ -223,6 +222,8 @@ To help the product team, other pieces of information can be optionally included
 - How does this change fit into the requester's overall usage of Fleet?
 - What other potential changes to the product have you considered?
 
+To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
+
 ### How feature requests are evaluated
 Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
 
@@ -240,7 +241,12 @@ Requests are weighed by:
 - Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
 ### After the feature is accepted
-> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision. 
+- After the 🎁🗣 Feature Fest meeting, the Head of Product resets the agenda to blank by doing the following:
+  - Create issues for accepted items
+  - Notify absent requesters of decisions
+  - Move that week's feature requests to the backup journal document
+
+> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
 
 Potential reasons for why a feature may be de-prioritized include:
 - The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity. 
@@ -252,12 +258,6 @@ Whenever a feature is de-prioritized, it only means that the feature has been _d
 ### Why this way?
 
 Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship. Responsibility for keeping backlogs then belong to the stakeholder who is closest to the customer. 
-
-### Intake Rituals
-Each week the DRI for the 🎁🗣 Feature Fest meeting resets the document to blank by doing the following:
-1. Create issues for accepted items
-2. Notify absent requesters of decisions
-3. Move that week's feature requests to the backup journal document
 
 ### Misc.
 - All 🎁🗣 Feature Fest meetings are recorded and uploaded to Gong.
@@ -279,10 +279,16 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| 🎁🗣 Feature fest  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| 🎁 Feature fest prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🎁🗣️ Feature fest event | Mo Zhu |
-| 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
-| Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
+| Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the the board with each group PM and designer and de-prioritized all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| Design sprint review (MDM) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the the board with each group PM and designer and de-prioritized all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| 🎁 Feature fest prep | Sprintly (Thursday) | the Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
+| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
+| Design sprint kickoff (CX) | Sprintly (Friday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM and designer | Mo Zhu |
+| Design sprint kickoff (MDM) | Sprintly (Friday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM and designer | Mo Zhu |
+| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
+| | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the sprint backlog with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for that release notes. | Mo Zhu |
+| Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 
