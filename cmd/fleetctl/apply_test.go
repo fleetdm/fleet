@@ -855,6 +855,9 @@ spec:
 		savedTeam = team
 		return team, nil
 	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return savedTeam, nil
+	}
 	var teamEnrollSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil || *teamID != 123 {
@@ -868,6 +871,15 @@ spec:
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
 		return nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return nil, &notFoundError{}
+	}
+	ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+		return asst, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
 	}
 
 	mobileConfig := mobileconfigForTest("foo", "bar")
@@ -930,6 +942,9 @@ spec:
         macos_setup_assistant: %s
 `, emptySetupAsst))
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+	require.True(t, ds.NewJobFuncInvoked)
 	assert.Equal(t, fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),

@@ -426,7 +426,8 @@ func (c *Client) ApplyGroup(
 
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
-		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
+		teamIDsByName, err := c.ApplyTeams(specs.Teams, opts)
+		if err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
 
@@ -438,23 +439,15 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
-			// TODO: we need to chat an define on a better way to do this, maybe make
-			// the endpoints support both id/name? have separate endpoints? Or make
-			// the apply team spec endpoint return team ids?
-			tms, err := c.ListTeams("")
-			if err != nil {
-				return err
-			}
-
-			for _, tm := range tms {
-				if bp, ok := tmBootstrapPackages[tm.Name]; ok {
-					if err := c.EnsureBootstrapPackage(bp, tm.ID); err != nil {
-						return fmt.Errorf("uploading bootstrap package for team %q: %w", tm.Name, err)
+			for tmName, tmID := range teamIDsByName {
+				if bp, ok := tmBootstrapPackages[tmName]; ok {
+					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
+						return fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 					}
 				}
-				if b, ok := tmMacSetupAssistants[tm.Name]; ok {
-					if err := c.uploadMacOSSetupAssistant(b, &tm.ID, tmMacSetup[tm.Name].MacOSSetupAssistant.Value); err != nil {
-						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tm.Name, err)
+				if b, ok := tmMacSetupAssistants[tmName]; ok {
+					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
 			}
