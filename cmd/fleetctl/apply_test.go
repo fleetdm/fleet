@@ -797,7 +797,6 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 
-	// Apply global config.
 	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Fleet",
@@ -817,33 +816,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		currentAppConfig = config
 		return nil
 	}
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  features:
-    enable_host_users: true
-    enable_software_inventory: true
-  agent_options:
-    config:
-      decorators:
-        load:
-        - SELECT uuid AS host_uuid FROM system_info;
-        - SELECT hostname AS hostname FROM system_info;
-      options:
-        disable_distributed: false
-        distributed_interval: 10
-        distributed_plugin: tls
-        distributed_tls_max_attempts: 3
-        logger_tls_endpoint: /api/osquery/log
-        logger_tls_period: 10
-        pack_delimiter: /
-    overrides: {}
-`)
-	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
-	// Apply team config.
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
@@ -882,11 +855,110 @@ spec:
 		return job, nil
 	}
 
+	// Apply global config.
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+`)
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+
 	mobileConfig := mobileconfigForTest("foo", "bar")
 	mobileConfigPath := filepath.Join(t.TempDir(), "foo.mobileconfig")
 	err = os.WriteFile(mobileConfigPath, mobileConfig, 0o644)
 	require.NoError(t, err)
 
+	emptySetupAsst := writeTmpJSON(t, map[string]any{})
+
+	// Apply global config with custom setting and macos setup assistant.
+	name = writeTmpYml(t, fmt.Sprintf(`---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: 10.10.10
+      deadline: 2020-02-02
+    macos_settings:
+      custom_settings:
+      - %s
+    macos_setup:
+      macos_setup_assistant: %s
+`, mobileConfigPath, emptySetupAsst))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// features left untouched, not provided
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+	assert.Equal(t, fleet.MDM{
+		EnabledAndConfigured: true,
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.10.10",
+			Deadline:       "2020-02-02",
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{mobileConfigPath},
+		},
+	}, currentAppConfig.MDM)
+
+	// start a server to return the bootstrap package
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, err := os.ReadFile(filepath.Join("testdata", "signed.pkg"))
+		require.NoError(t, err)
+		fmt.Fprint(w, b)
+	}))
+	defer srv.Close()
+
+	// Apply global config with bootstrap package
+	bootstrapURL := srv.URL + "/signed.pkg"
+	name = writeTmpYml(t, fmt.Sprintf(`---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      bootstrap_package: %s
+`, bootstrapURL))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// features left untouched, not provided
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+	// MDM settings left untouched except for the bootstrap package
+	assert.Equal(t, fleet.MDM{
+		EnabledAndConfigured: true,
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			BootstrapPackage:    optjson.SetString(bootstrapURL),
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.10.10",
+			Deadline:       "2020-02-02",
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{mobileConfigPath},
+		},
+	}, currentAppConfig.MDM)
+
+	// Apply team config.
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
@@ -930,7 +1002,6 @@ spec:
 	// That call should fail with Forbidden (403) and be ignored, as it is only
 	// to prevent a roundtrip to the API which also does that check (without
 	// requiring right access as it doesn't go through the service layer).
-	emptySetupAsst := writeTmpJSON(t, map[string]any{})
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
