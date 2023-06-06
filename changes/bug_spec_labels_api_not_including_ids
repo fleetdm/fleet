@@ -1,0 +1,1 @@
+- GET /api/v1/fleet/spec/labels/{name} endpoint should include the label id

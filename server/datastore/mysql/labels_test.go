@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -708,7 +709,10 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	for _, s := range expectedSpecs {
 		spec, err := ds.GetLabelSpec(context.Background(), s.Name)
 		require.Nil(t, err)
-		assert.Equal(t, s, spec)
+
+		require.True(t, cmp.Equal(s, spec, cmp.FilterPath(func(p cmp.Path) bool {
+			return p.String() == "ID"
+		}, cmp.Ignore())))
 	}
 }
 
