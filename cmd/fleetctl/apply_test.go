@@ -913,8 +913,8 @@ spec:
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.10.10",
-			Deadline:       "2020-02-02",
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
@@ -922,12 +922,7 @@ spec:
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, err := os.ReadFile(filepath.Join("testdata", "signed.pkg"))
-		require.NoError(t, err)
-		fmt.Fprint(w, b)
-	}))
-	defer srv.Close()
+	srv, _ := serveMDMBootstrapPackage(t, "../../server/service/testdata/bootstrap-packages/signed.pkg", "signed.pkg")
 
 	// Apply global config with bootstrap package
 	bootstrapURL := srv.URL + "/signed.pkg"
@@ -950,8 +945,8 @@ spec:
 			BootstrapPackage:    optjson.SetString(bootstrapURL),
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.10.10",
-			Deadline:       "2020-02-02",
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("2020-02-02"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
@@ -1775,23 +1770,10 @@ spec:
 
 		for _, c := range cases {
 			t.Run(c.pkgName, func(t *testing.T) {
-				pkgBytes, err := os.ReadFile(filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName))
-				require.NoError(t, err)
-
-				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Length", strconv.Itoa(len(pkgBytes)))
-					w.Header().Set("Content-Type", "application/octet-stream")
-					w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, c.pkgName))
-					if n, err := w.Write(pkgBytes); err != nil {
-						require.NoError(t, err)
-						require.Equal(t, len(pkgBytes), n)
-					}
-				}))
-				defer srv.Close()
-
+				srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
 				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
-					require.Equal(t, len(bp.Bytes), len(pkgBytes))
+					require.Equal(t, len(bp.Bytes), pkgLen)
 					return nil
 				}
 				ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {

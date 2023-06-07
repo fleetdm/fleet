@@ -54,7 +54,12 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	var err error
+	if forUpdate {
+		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")
+	} else {
+		err = c.authenticatedRequest(request, verb, path, &responseBody)
+	}
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
