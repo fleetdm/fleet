@@ -817,13 +817,13 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 
+	savedTeam := &fleet.Team{ID: 123}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Team1" {
-			return &fleet.Team{ID: 123}, nil
+			return savedTeam, nil
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
@@ -853,6 +853,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
+	}
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, &notFoundError{}
+	}
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		return nil
 	}
 
 	// Apply global config.
@@ -992,11 +998,7 @@ spec:
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 
-	// macos setup assistant makes a call to check that MDM is enabled, and that
-	// call requires reading permissions on appconfig, which gitops doesn't have.
-	// That call should fail with Forbidden (403) and be ignored, as it is only
-	// to prevent a roundtrip to the API which also does that check (without
-	// requiring right access as it doesn't go through the service layer).
+	// add macos setup assistant to team
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
@@ -1011,9 +1013,46 @@ spec:
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
+	// all left untouched, only setup assistant added
 	assert.Equal(t, fleet.TeamMDM{
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings:       []string{mobileConfigPath},
+			EnableDiskEncryption: false,
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+		},
+	}, savedTeam.Config.MDM)
+
+	// add bootstrap package to team
+	name = writeTmpYml(t, fmt.Sprintf(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      macos_setup:
+        bootstrap_package: %s
+`, bootstrapURL))
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// all left untouched, only bootstrap package added
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings:       []string{mobileConfigPath},
+			EnableDiskEncryption: false,
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			BootstrapPackage:    optjson.SetString(bootstrapURL),
 		},
 	}, savedTeam.Config.MDM)
 
