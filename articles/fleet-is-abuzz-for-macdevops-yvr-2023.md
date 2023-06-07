@@ -2,11 +2,11 @@
 
 [![MacDevOps:YVR June 21-22, 2023](../website/assets/images/articles/fleet-is-abuzz-for-macdevops-yvr-2023@2x.png)](https://mdoyvr.com/)
 
-_Pun Warning: If puns give you the heebie-jeebies, we apologize. MacDevOps:YVR has bee 🐝 theme this year, and we frankly couldn't help ourselves. That's all._
+_Pun Warning: If puns give you the heebie-jeebies, we apologize. MacDevOps:YVR has a bee 🐝 theme this year, and we frankly couldn't help ourselves. That's all._
 
 The MacDevOps:YVR Conference (MDOYVR) is humming back to life in the hive of downtown Vancouver, British Columbia, Canada, June 21-22, 2023. This unique, hive-minded event spans two days, specifically tailored for Mac Admins eager to infuse DevOps into their honeycomb of services. MDOYVR is the place where 100 Mac worker bees - admins, security engineers, and developers - swarm together to share the nectar of knowledge, emphasizing the sweetness of open-source software. Fleet Device Management is buzzing with excitement to sponsor MDOYVR, as well as the pre-conference mixer. Fleet is also hosting a honey of a pre-conference workshop. Tune in to catch what's creating all the buzz.
 
-This conference hosts a killer swarm of speakers, including the brightest drones from Google, Facebook, Dropbox, Square, Airbnb, and Uber. Expect to hear talks on topics such as:
+This conference hosts a killer swarm of speakers, including the brightest drones from Meta, Airbnb, Disney, Block, and more. Expect to hear talks on topics such as:
 
 * How to infuse DevOps in a Mac hive
 * Top nectar for managing Mac devices in the cloud
@@ -19,7 +19,7 @@ The conference also sweetens the pot with a few pre-conference workshops and net
 
 ## Pre-conference workshop
 
-As the busy bees we are, finding time to explore open-source software like Fleet can be a stinging challenge. Join us for our pre-conference workshop with Fleet, where we'll walk you through setting up your very own Fleet hive while we wax on about Fleet's GitOps-driven workflow and see that the future of MDM is indeed open-source. Join our swarm Tuesday, June 20, 2023, at 1 pm at Simon Frasier University's downtown campus. Apiary space is limited, and MDOYVR conference attendance is required to attend the workshop—fly through to the end to find out how to attend.
+As the busy bees we are, finding time to explore open-source software like Fleet can be a stinging challenge. Join us for our pre-conference workshop with Fleet, where we'll walk you through setting up your very own Fleet hive while we wax on about Fleet's GitOps-driven workflow and see that the future of MDM is indeed open-source. Join our swarm Tuesday, June 20, 2023, at 1 pm at Simon Fraser University's downtown campus. Apiary space is limited, and MDOYVR conference attendance is required to attend the workshop—fly through to the end to find out how to attend.
 
 
 ## Pre-conference social hour
