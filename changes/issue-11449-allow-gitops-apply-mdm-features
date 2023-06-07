@@ -1,0 +1,1 @@
+* Fixed an issue preventing a user with the `gitops` role to apply some MDM settings via `fleetctl apply` (the `macos_setup_assistant` and `bootstrap_package` settings)
