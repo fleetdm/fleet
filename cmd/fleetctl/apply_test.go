@@ -797,7 +797,6 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 
-	// Apply global config.
 	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Fleet",
@@ -817,6 +816,52 @@ func TestApplyAsGitOps(t *testing.T) {
 		currentAppConfig = config
 		return nil
 	}
+
+	savedTeam := &fleet.Team{ID: 123}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Team1" {
+			return savedTeam, nil
+		}
+		return nil, errors.New("unexpected team name!")
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return savedTeam, nil
+	}
+	var teamEnrollSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		if teamID == nil || *teamID != 123 {
+			return fmt.Errorf("unexpected data: %+v", teamID)
+		}
+		teamEnrollSecrets = secrets
+		return nil
+	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
+		return nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return nil, &notFoundError{}
+	}
+	ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
+		return asst, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, &notFoundError{}
+	}
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		return nil
+	}
+
+	// Apply global config.
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -843,38 +888,78 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 
-	// Apply team config.
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == "Team1" {
-			return &fleet.Team{ID: 123}, nil
-		}
-		return nil, errors.New("unexpected team name!")
-	}
-	var savedTeam *fleet.Team
-	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		savedTeam = team
-		return team, nil
-	}
-	var teamEnrollSecrets []*fleet.EnrollSecret
-	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		if teamID == nil || *teamID != 123 {
-			return fmt.Errorf("unexpected data: %+v", teamID)
-		}
-		teamEnrollSecrets = secrets
-		return nil
-	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
-		return nil
-	}
-
 	mobileConfig := mobileconfigForTest("foo", "bar")
 	mobileConfigPath := filepath.Join(t.TempDir(), "foo.mobileconfig")
 	err = os.WriteFile(mobileConfigPath, mobileConfig, 0o644)
 	require.NoError(t, err)
 
+	emptySetupAsst := writeTmpJSON(t, map[string]any{})
+
+	// Apply global config with custom setting and macos setup assistant.
+	name = writeTmpYml(t, fmt.Sprintf(`---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: 10.10.10
+      deadline: 2020-02-02
+    macos_settings:
+      custom_settings:
+      - %s
+    macos_setup:
+      macos_setup_assistant: %s
+`, mobileConfigPath, emptySetupAsst))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// features left untouched, not provided
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+	assert.Equal(t, fleet.MDM{
+		EnabledAndConfigured: true,
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("2020-02-02"),
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{mobileConfigPath},
+		},
+	}, currentAppConfig.MDM)
+
+	// start a server to return the bootstrap package
+	srv, _ := serveMDMBootstrapPackage(t, "../../server/service/testdata/bootstrap-packages/signed.pkg", "signed.pkg")
+
+	// Apply global config with bootstrap package
+	bootstrapURL := srv.URL + "/signed.pkg"
+	name = writeTmpYml(t, fmt.Sprintf(`---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      bootstrap_package: %s
+`, bootstrapURL))
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// features left untouched, not provided
+	assert.True(t, currentAppConfig.Features.EnableHostUsers)
+	// MDM settings left untouched except for the bootstrap package
+	assert.Equal(t, fleet.MDM{
+		EnabledAndConfigured: true,
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			BootstrapPackage:    optjson.SetString(bootstrapURL),
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("2020-02-02"),
+		},
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings: []string{mobileConfigPath},
+		},
+	}, currentAppConfig.MDM)
+
+	// Apply team config.
 	name = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
 kind: team
@@ -912,6 +997,64 @@ spec:
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+
+	// add macos setup assistant to team
+	name = writeTmpYml(t, fmt.Sprintf(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      macos_setup:
+        macos_setup_assistant: %s
+`, emptySetupAsst))
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+	require.True(t, ds.NewJobFuncInvoked)
+	// all left untouched, only setup assistant added
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings:       []string{mobileConfigPath},
+			EnableDiskEncryption: false,
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+		},
+	}, savedTeam.Config.MDM)
+
+	// add bootstrap package to team
+	name = writeTmpYml(t, fmt.Sprintf(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Team1
+    mdm:
+      macos_setup:
+        bootstrap_package: %s
+`, bootstrapURL))
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	// all left untouched, only bootstrap package added
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSettings: fleet.MacOSSettings{
+			CustomSettings:       []string{mobileConfigPath},
+			EnableDiskEncryption: false,
+		},
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			BootstrapPackage:    optjson.SetString(bootstrapURL),
+		},
+	}, savedTeam.Config.MDM)
 
 	// Apply policies.
 	var appliedPolicySpecs []*fleet.PolicySpec
@@ -1666,23 +1809,10 @@ spec:
 
 		for _, c := range cases {
 			t.Run(c.pkgName, func(t *testing.T) {
-				pkgBytes, err := os.ReadFile(filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName))
-				require.NoError(t, err)
-
-				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Length", strconv.Itoa(len(pkgBytes)))
-					w.Header().Set("Content-Type", "application/octet-stream")
-					w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, c.pkgName))
-					if n, err := w.Write(pkgBytes); err != nil {
-						require.NoError(t, err)
-						require.Equal(t, len(pkgBytes), n)
-					}
-				}))
-				defer srv.Close()
-
+				srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
 				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
-					require.Equal(t, len(bp.Bytes), len(pkgBytes))
+					require.Equal(t, len(bp.Bytes), pkgLen)
 					return nil
 				}
 				ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
