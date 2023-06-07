@@ -1160,6 +1160,8 @@ func TestApplyMacosSetup(t *testing.T) {
 			OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
 			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
+			SMTPSettings:   &fleet.SMTPSettings{},
+			SSOSettings:    &fleet.SSOSettings{},
 		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

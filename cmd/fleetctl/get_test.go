@@ -553,6 +553,8 @@ func TestGetConfig(t *testing.T) {
 		return &fleet.AppConfig{
 			Features:              fleet.Features{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
+			SMTPSettings:          &fleet.SMTPSettings{},
+			SSOSettings:           &fleet.SSOSettings{},
 		}, nil
 	}
 
