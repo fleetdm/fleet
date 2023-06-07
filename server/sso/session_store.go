@@ -13,6 +13,18 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+type sessionNotFoundError struct{}
+
+var _ fleet.NotFoundError = (*sessionNotFoundError)(nil)
+
+func (s sessionNotFoundError) Error() string {
+	return "session not found"
+}
+
+func (s sessionNotFoundError) IsNotFound() bool {
+	return true
+}
+
 // Session stores state for the lifetime of a single sign on session
 type Session struct {
 	// OriginalURL is the resource being accessed when login request was triggered
@@ -71,7 +83,7 @@ func (s *store) get(requestID string) (*Session, error) {
 	val, err := redigo.String(conn.Do("GET", requestID))
 	if err != nil {
 		if err == redigo.ErrNil {
-			return nil, ErrSessionNotFound
+			return nil, sessionNotFoundError{}
 		}
 		return nil, err
 	}
@@ -84,8 +96,6 @@ func (s *store) get(requestID string) (*Session, error) {
 	}
 	return &sess, nil
 }
-
-var ErrSessionNotFound = errors.New("session not found")
 
 func (s *store) expire(requestID string) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
