@@ -1,0 +1,1 @@
+* Fixed the table formatting for the output of `fleetctl get mdm-command-results`.
