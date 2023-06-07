@@ -83,7 +83,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit/upload MDM macOS setup assistant\*                                                                                                    |          |            | ✅         | ✅    | ✅      |
 | View metadata of MDM macOS bootstrap packages\*                                                                                            |          |            | ✅         | ✅    |         |
 | Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
-| Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    |         |
+| Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
 
 \* Applies only to Fleet Premium
 
@@ -144,7 +144,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit/upload MDM macOS setup assistant                                                                                            |               |                | ✅              | ✅         | ✅          |
 | View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
-| Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         |             |
+| Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
