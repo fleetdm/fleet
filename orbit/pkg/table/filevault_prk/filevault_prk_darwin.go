@@ -5,10 +5,10 @@ package filevault_prk
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
-	"os/exec"
+	"os"
 	"strings"
-	"time"
 
 	"github.com/osquery/osquery-go/plugin/table"
 )
@@ -24,18 +24,11 @@ func Columns() []table.ColumnDefinition {
 //
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(
-		ctx,
-		"bash", "-c",
-		`base64 -i /var/db/FileVaultPRK.dat`,
-	)
-
-	out, err := cmd.Output()
+	encryptedKey, err := os.ReadFile("/var/db/FileVaultPRK.dat")
 	if err != nil {
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
+	encoded := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	return []map[string]string{{"base64_encrypted": strings.TrimSpace(string(out))}}, nil
+	return []map[string]string{{"base64_encrypted": strings.TrimSpace(encoded)}}, nil
 }
