@@ -5173,11 +5173,13 @@ Returns a list of global queries or team queries.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
-    "interval": 3600,
-    "snapshot": true,
-    "removed": true,
+    "frequency": 3600,
     "platform": null,
-    "version": null,
+    "min_osquery_version": null,
+    "automations": {
+        "logging": "differential",
+        "ignore_removal": true
+    },
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5210,11 +5212,13 @@ Returns a list of global queries or team queries.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "team_id": null,
-    "interval": 3600,
-    "snapshot": true,
-    "removed": true,
+    "frequency": 3600,
     "platform": null,
-    "version": null,
+    "min_osquery_version": null,
+    "automations": {
+        "logging": "differential",
+        "ignore_removal": true
+    },
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
@@ -5242,18 +5246,19 @@ Creates a global query or team query.
 
 #### Parameters
 
-| Name             | Type    | In   | Description                                                                                                                                            |
-| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name             | string  | body | **Required**. The name of the query.                                                                                                                   |
-| query            | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
-| description      | string  | body | The query's description.                                                                                                                               |
-| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id          | integer | body | The parent team to which the new query should be added. If not submitted or blank, the query will be global.                                           |
-| interval         | integer | body | The amount of time, in seconds, the query waits before running.                                                    |
-| snapshot         | boolean | body | Whether the queries logs show everything in its current state.                                                     |
-| removed          | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
-| platform         | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
-| version          | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+| Name                            | Type    | In   | Description                                                                                                                                            |
+| ------------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name                            | string  | body | **Required**. The name of the query.                                                                                                                   |
+| query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
+| description                     | string  | body | The query's description.                                                                                                                               |
+| observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| team_id                         | integer | body | The parent team to which the new query should be added. If not submitted or blank, the query will be global.                                           |
+| frequency                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. Empty value runs on all platforms. Default is `null`.                            |
+| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. Default is `null`, meaning all osqueryd versions are acceptable.                                                                          |
+| automations                     | object  | body | The set of automation options.                                                                     |
+| automations.logging             | boolean | body | Whether the query's logs show everything in its current state. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
+| automations.ignore_removals     | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.snapshot` is `"differential"`.                 |
 
 #### Example
 
@@ -5265,7 +5270,13 @@ Creates a global query or team query.
 {
   "description": "This is a new query.",
   "name": "new_query",
-  "query": "SELECT * FROM osquery_info"
+  "query": "SELECT * FROM osquery_info",
+  "frequency": 3600 // Once per hour,
+  "platform": "macos,windows,linux",
+  "min_osquery_version": null,
+  "automations": {
+    "logging": "snapshot",
+  }
 }
 ```
 
@@ -5282,11 +5293,13 @@ Creates a global query or team query.
     "name": "new_query",
     "description": "This is a new query.",
     "team_id": null,
-    "interval": 3600,
-    "snapshot": true,
-    "removed": true,
+    "frequency": 3600,
     "platform": null,
-    "version": null,
+    "min_osquery_version": null,
+    "automations": {
+        "logging": "differential",
+        "ignore_removal": true
+    },
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
@@ -5306,18 +5319,19 @@ Modifies the query specified by ID.
 
 #### Parameters
 
-| Name             | Type    | In   | Description                                                                                                                                            |
-| ---------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| id               | integer | path | **Required.** The ID of the query.                                                                                                                     |
-| name             | string  | body | The name of the query.                                                                                                                                 |
-| query            | string  | body | The query in SQL syntax.                                                                                                                               |
-| description      | string  | body | The query's description.                                                                                                                               |
-| observer_can_run | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| interval         | integer | body | The amount of time, in seconds, the query waits before running.                                                    |
-| snapshot         | boolean | body | Whether the queries logs show everything in its current state.                                                     |
-| removed          | boolean | body | Whether "removed" actions should be logged. Default is `null`.                                                                   |
-| platform         | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. Default is `null`. |
-| version          | string  | body | The minimum required osqueryd version installed on a host. Default is `null`.                                                    |
+| Name                        | Type    | In   | Description                                                                                                                                            |
+| --------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id                          | integer | path | **Required.** The ID of the query.                                                                                                                     |
+| name                        | string  | body | The name of the query.                                                                                                                                 |
+| query                       | string  | body | The query in SQL syntax.                                                                                                                               |
+| description                 | string  | body | The query's description.                                                                                                                               |
+| observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
+| frequency                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. Empty value runs on all platforms. Default is `null`.                            |
+| min_osquery_version         | string  | body | The minimum required osqueryd version installed on a host. Default is `null`, meaning all osqueryd versions are acceptable.                                                                          |
+| automations                 | object  | body | The set of automation options.                                                                     |
+| automations.logging         | boolean | body | Whether the query's logs show everything in its current state. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
+| automations.ignore_removals | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.snapshot` is `"differential"`.                 |
 
 #### Example
 
@@ -5327,7 +5341,13 @@ Modifies the query specified by ID.
 
 ```json
 {
-  "name": "new_title_for_my_query"
+  "name": "new_title_for_my_query",
+  "frequency": 3600 // Once per hour,
+  "platform": "macos,windows,linux",
+  "min_osquery_version": null,
+  "automations": {
+    "logging": "snapshot",
+  }
 }
 ```
 
@@ -5344,11 +5364,13 @@ Modifies the query specified by ID.
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
     "team_id": null,
-    "interval": 3600,
-    "snapshot": true,
-    "removed": true,
+    "frequency": 3600,
     "platform": null,
-    "version": null,
+    "min_osquery_version": null,
+    "automations": {
+        "logging": "differential",
+        "ignore_removal": true
+    },
     "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
@@ -5525,7 +5547,7 @@ load balancer timeout.
 ## Schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
 - [Add query to schedule (deprecated)](#add-query-to-schedule)
@@ -5539,7 +5561,7 @@ These API routes let you control your scheduled queries.
 ### Get schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
 
@@ -5613,7 +5635,7 @@ None.
 ### Add query to schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
 
