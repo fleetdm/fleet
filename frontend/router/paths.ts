@@ -17,6 +17,7 @@ export default {
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
+  DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,

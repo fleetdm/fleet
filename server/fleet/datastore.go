@@ -838,6 +838,11 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// ResetMDMAppleNanoEnrollment resets the
+	// `nano_enrollments.token_update_tally` if a matching row for the host
+	// exists.
+	ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error
+
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
 	// specified team (or no team if teamID is nil).
@@ -960,6 +965,14 @@ type Datastore interface {
 	// Get the profile UUID and last update timestamp for the default setup
 	// assistant for a team or no team.
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+
+	// GetMatchingHostSerials receives a list of serial numbers and returns
+	// a map with all the matching serial numbers in the database.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+
+	// DeleteHostDEPAssignments marks as deleted entries in
+	// host_dep_assignments for host with matching serials.
+	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 }
 
 const (

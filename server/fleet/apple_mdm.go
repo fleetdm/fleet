@@ -475,7 +475,7 @@ type MDMAppleSetupPayload struct {
 
 // AuthzType implements authz.AuthzTyper.
 func (p MDMAppleSetupPayload) AuthzType() string {
-	return "mdm_apple_settings" // TODO: add mdm_apple_setup to rego?
+	return "mdm_apple_settings"
 }
 
 // HostDEPAssignment represents a row in the host_dep_assignments table

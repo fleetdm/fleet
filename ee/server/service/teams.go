@@ -117,8 +117,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates != *payload.MDM.MacOSUpdates
-			team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set {
+				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			}
 		}
 
 		if payload.MDM.MacOSSettings != nil {
@@ -187,8 +190,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			fleet.ActivityTypeEditedMacOSMinVersion{
 				TeamID:         &team.ID,
 				TeamName:       &team.Name,
-				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion,
-				Deadline:       team.Config.MDM.MacOSUpdates.Deadline,
+				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
@@ -575,20 +578,20 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	return nil
 }
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
 	if len(specs) == 0 {
 		setAuthCheckedOnPreAuthErr(ctx)
 		// Nothing to do.
-		return nil
+		return map[string]uint{}, nil
 	}
 
 	if err := svc.checkAuthorizationForTeams(ctx, specs); err != nil {
-		return err
+		return nil, err
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	appConfig.Obfuscate()
 
@@ -609,11 +612,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			// OK
 		case ctxerr.Cause(err) == sql.ErrNoRows:
 			if spec.Name == "" {
-				return fleet.NewInvalidArgumentError("name", "name may not be empty")
+				return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
 			}
 			create = true
 		default:
-			return err
+			return nil, err
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
@@ -623,21 +626,21 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 				}
 				if !applyOpts.Force {
-					return ctxerr.Wrap(ctx, err, "validate agent options")
+					return nil, ctxerr.Wrap(ctx, err, "validate agent options")
 				}
 			}
 		}
 		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
 
 		if create {
 			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "creating team from spec")
+				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
 			details = append(details, fleet.TeamActivityDetail{
 				ID:   team.ID,
@@ -647,7 +650,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts.DryRun); err != nil {
-			return ctxerr.Wrap(ctx, err, "editing team from spec")
+			return nil, ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
 		details = append(details, fleet.TeamActivityDetail{
@@ -657,10 +660,15 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	}
 
 	if applyOpts.DryRun {
-		return nil
+		return nil, nil
 	}
 
+	idsByName := make(map[string]uint, len(details))
 	if len(details) > 0 {
+		for _, tm := range details {
+			idsByName[tm.Name] = tm.ID
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -668,10 +676,10 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				Teams: details,
 			},
 		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for team spec")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team spec")
 		}
 	}
-	return nil
+	return idsByName, nil
 }
 
 func (svc *Service) createTeamFromSpec(
@@ -773,7 +781,9 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
-	team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	}
 
 	oldMacOSDiskEncryption := team.Config.MDM.MacOSSettings.EnableDiskEncryption
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
