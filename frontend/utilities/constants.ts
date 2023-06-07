@@ -161,6 +161,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "MS Windows": "Windows",
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
+  chrome: "ChromeOS",
 };
 
 export const PLATFORM_LABEL_DISPLAY_ORDER = [
@@ -180,6 +181,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "MS Windows": "platform",
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
+  chrome: "platform",
 };
 
 interface IPlatformDropdownOptions {
