@@ -675,20 +675,15 @@ Fleeties do not have to wait for QA to reproduce the bug. If you're confident it
 ### Release testing
 When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-qa channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
+In the #help-qa channel, product may decide whether the bug is a critical or release-blocking. When a critical bug is found, product is responsible for following the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process) below. When a release-blocking bug is found, product is responsible for communicating any delays to company stakeholders. 
 
-Release blockers include:
-1. Release-blocking bugs (defined below)
-2. Critical bugs (defined below)
-3. New functionality that impacts previous stable functionality
-4. Incomplete features as defined or implied in the specs
-
-Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
+Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard [bug process](https://fleetdm.com/docs/contributing/releasing-fleet#bug-process). 
 
 ### Release-blocking bugs
 A release-blocking bug is identified by the `~release blocker` label. It becomes a release-blocking bug if:
+* New functionality that impacts previous stable functionality
+* Incomplete features as defined or implied in the specs
 * It does not meet the criteria of a critical bug
-* It significantly impacts user experience
 * We will delay the release to ensure a fix if necessary
 
 ### Critical bugs
@@ -698,6 +693,7 @@ A critical bug is a bug with the `~critical bug` label. A critical bug is define
 * Causes irreversible damage, such as data loss
 * Introduces a security vulnerability
 
+#### Critical bug notification process
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
 Raising an alarm means pinging @here in the #help-product channel with the filed bug.
 
