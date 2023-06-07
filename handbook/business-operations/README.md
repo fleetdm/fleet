@@ -767,7 +767,7 @@ Here are a few different entry points for a tour of Fleet's security policies an
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
 ### Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application Security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
