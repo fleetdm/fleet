@@ -635,18 +635,21 @@ For unreleased bugs in an active sprint, no bug report issue is created. Instead
 
 ### Bug process
 
+All bugs in Fleet are tracked on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub. 
+
 #### Bug States
 The lifecycle stages of a bug at Fleet are: 
 1. Inbox 
 2. Reproduced 
-3. In engineering process
-4. Awaiting QA
+3. In product drafting (as needed)
+4. In engineering
+5. Awaiting QA
 
-The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and board memberships. 
+The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and boards. 
 
 See [Bug states and filters](#bug-states-and-filters) at the end of this document for descriptions of these states and links to each GitHub filter.
 
-#### Inbox
+### Inbox
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
@@ -660,7 +663,7 @@ QA has weekly check-in with product to go over the inbox items. QA is responsibl
 
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
 
-#### Reproduced
+### Reproduced
 When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
 
 #### After reproduced
@@ -669,20 +672,26 @@ After it's in a release formally, the bug should be treated like any other piece
 #### Fast track for Fleeties
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
-#### Release testing
-When a release is in testing, QA should use the the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
+### Release testing
+When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
 In the #help-qa channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
 
 Release blockers include:
-1. Critical bugs (defined below)
+1. Release-blocking bugs (defined below)
 2. New functionality that impacts previous stable functionality
 3. Incomplete features as defined or implied in the specs
 
 Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
 
-#### Critical bugs
-A critical bug is defined as behavior that: 
+### Release-blocking bugs
+A release-blocking bug is identified by the `~release blocker` label. It becomes a release-blocking bug if:
+* It does not meet the criteria of a critical bug
+* It significantly impacts user experience
+* We will delay the release to ensure a fix if necessary
+
+### Critical bugs
+A critical bug is a bug with the `~critical` label. A critical bug is defined as behavior that: 
 * Blocks the normal use a workflow
 * Prevents upgrades to Fleet
 * Causes irreversible damage, such as data loss
@@ -702,7 +711,7 @@ If a quick fix workaround exists, that should be communicated as well for those 
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases).
 
-#### Measurement
+### Measurement
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
 The metrics are: 
 * Number of bugs opened this week
@@ -712,7 +721,7 @@ The metrics are:
 
 Each week these are tracked and shared in the weekly update by Charlie Chance.
 
-#### Orphans
+### Orphans
 Occasionally, bugs may get lost if, for example, a label is misapplied. Miscategorized issues may slip through the filters and languish in a grey zone. The “orphan” and “reproduced orphan” states exist to catch these issues. 
 Every week, the head of product is responsible for reviewing these two states to identify any that are not properly categorized in the process.
 
@@ -726,8 +735,18 @@ If using the standard bug report, the bug is labeled “bug” and “reproduce.
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering. 
 
-Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, #mdm, #compliance), add the "product" label, and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
+Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
+#### In product drafting (as needed)
+If a bug requires input from product, the `:product` label is added and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label, moves the back to the "Inbox" on the bugs board, and assigns it to the appropriate EM.
+
+#### In engineering
+A bug is in engineering after it has been reproduced and assigned to an EM. The EM will determine if it meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) or a [release blocking bug](https://fleetdm.com/handbook/engineering#release-blocking-bugs). If so, the `:release` label is added, along with `~relaser blocker` or `~critical bug`, and it is moved to the "Current release' column of the bugs board. If the bug does not meet the criteria, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release: label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint. 
+
+Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized into the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
+
+#### Awaiting QA 
+Bugs are verified by QA as part of the sprint board process. If the bug is fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
 #### Orphans 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
 
@@ -743,7 +762,7 @@ This filter returns all "bug" issues closed after the specified date. Simply rep
 ### Definitions
 
 In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
-In the above process, any reference to "QA" refers to: Reed Haynes, QA Engineer.
+In the above process, any reference to "QA" refers to: Reed Haynes, Product Quality Specialist
 
 ## Rituals
 
@@ -753,7 +772,7 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
+| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                          | Luke Heath |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
@@ -775,7 +794,7 @@ First responders:
 
 Escalations (in order):
 
-- Zay Hanlon
+- Luke Heath
 - Zach Wasserman (Fleet app)
 - Eric Shaw (fleetdm.com)
 - Mike McNeil
