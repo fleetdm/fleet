@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 interface IDiskSpaceGraphProps {
   baseClass: string;
@@ -71,7 +72,7 @@ const DiskSpaceGraph = ({
           type="dark"
           effect="solid"
           id={`tooltip-${id}`}
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
         >
           <span
             className={`${baseClass}__tooltip-text`}

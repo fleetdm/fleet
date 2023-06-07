@@ -519,6 +519,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 }
 
 func TestHostDetailQueries(t *testing.T) {
+	ctx := context.Background()
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -553,23 +554,26 @@ func TestHostDetailQueries(t *testing.T) {
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
-	queries, discovery, err := svc.detailQueriesForHost(context.Background(), &host)
+	// detail_updated_at is now, so nothing gets returned by default
+	queries, discovery, err := svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
 	assert.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 
 	// With refetch requested detail queries should be returned
 	host.RefetchRequested = true
-	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
-	assert.NotEmpty(t, queries)
+	// +2: additional queries: bim, foobar
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	host.RefetchRequested = false
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
+	// all queries returned now that detail udpated at is in the past
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
 	// +2: additional queries: bim, foobar
 	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
@@ -581,6 +585,31 @@ func TestHostDetailQueries(t *testing.T) {
 	}
 	assert.Equal(t, "bam", queries[hostAdditionalQueryPrefix+"bim"])
 	assert.Equal(t, "select foo", queries[hostAdditionalQueryPrefix+"foobar"])
+
+	host.DetailUpdatedAt = mockClock.Now()
+
+	// detail_updated_at is now, so nothing gets returned
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	assert.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
+
+	// setting refetch_critical_queries_until in the past still returns nothing
+	host.RefetchCriticalQueriesUntil = ptr.Time(mockClock.Now().Add(-1 * time.Minute))
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	assert.Empty(t, queries)
+	verifyDiscovery(t, queries, discovery)
+
+	// setting refetch_critical_queries_until in the future returns only the critical queries
+	host.RefetchCriticalQueriesUntil = ptr.Time(mockClock.Now().Add(1 * time.Minute))
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	require.Equal(t, len(criticalDetailQueries), len(queries), distQueriesMapKeys(queries))
+	for name := range criticalDetailQueries {
+		assert.Contains(t, queries, hostDetailQueryPrefix+name)
+	}
+	verifyDiscovery(t, queries, discovery)
 }
 
 func TestQueriesAndHostFeatures(t *testing.T) {
@@ -1291,11 +1320,15 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 		if hostID != 1 {
-			return errors.New("not found")
+			return nil, errors.New("not found")
 		}
 		gotSoftware = software
+		return nil, nil
+	}
+
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 		return nil
 	}
 
@@ -1382,6 +1415,80 @@ func TestDetailQueries(t *testing.T) {
 	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
+}
+
+func TestMDMQueries(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		clock:    clock.NewMockClock(),
+		logger:   log.NewNopLogger(),
+		config:   config.TestConfig(),
+		ds:       ds,
+		jitterMu: new(sync.Mutex),
+		jitterH:  make(map[time.Duration]*jitterHashTable),
+	}
+
+	expectedMDMQueries := []struct {
+		name           string
+		discoveryTable string
+	}{
+		{"fleet_detail_query_mdm_config_profiles_darwin", "macos_profiles"},
+		{"fleet_detail_query_mdm_disk_encryption_key_darwin", "file_lines"},
+	}
+
+	mdmEnabled := true
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
+	}
+
+	host := fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+		NodeKey:  ptr.String("test_key"),
+		Hostname: "test_hostname",
+		UUID:     "test_uuid",
+		TeamID:   nil,
+	}
+	ctx := hostctx.NewContext(context.Background(), &host)
+
+	// MDM enabled, darwin
+	queries, discovery, err := svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.Contains(t, queries, q.name)
+		d, ok := discovery[q.name]
+		require.True(t, ok)
+		require.Contains(t, d, fmt.Sprintf("name = '%s'", q.discoveryTable))
+	}
+
+	// MDM disabled, darwin
+	mdmEnabled = false
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
+
+	// MDM enabled, not darwin
+	mdmEnabled = true
+	host.Platform = "windows"
+	ctx = hostctx.NewContext(context.Background(), &host)
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
+
+	// MDM disabled, not darwin
+	mdmEnabled = false
+	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
+	require.NoError(t, err)
+	for _, q := range expectedMDMQueries {
+		require.NotContains(t, queries, q.name)
+		require.NotContains(t, discovery, q.name)
+	}
 }
 
 func TestNewDistributedQueryCampaign(t *testing.T) {
@@ -1545,7 +1652,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			if res, ok := val.(fleet.DistributedQueryResult); ok {
 				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
-				assert.Equal(t, host, res.Host.Host)
+				assert.Equal(t, host.ID, res.Host.ID)
+				assert.Equal(t, host.Hostname, res.Host.Hostname)
+				assert.Equal(t, host.DisplayName(), res.Host.DisplayName)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -1644,7 +1753,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign waiting for listener")
+	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -1754,7 +1863,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "campaign stopped")
+	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
 }
 

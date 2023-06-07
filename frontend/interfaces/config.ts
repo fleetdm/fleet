@@ -96,18 +96,39 @@ export interface ILicense {
   organization: string;
 }
 
+interface IEndUserAuthentication {
+  entity_id: string;
+  idp_name: string;
+  issuer_uri: string;
+  metadata: string;
+  metadata_url: string;
+}
+
+export interface IMacOsMigrationSettings {
+  enable: boolean;
+  mode: "voluntary" | "forced";
+  webhook_url: string;
+}
+
 export interface IMdmConfig {
   enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
+  end_user_authentication: IEndUserAuthentication;
   macos_updates: {
     minimum_version: string;
     deadline: string;
   };
   macos_settings: {
-    custom_settings: null; // TODO: type?
+    custom_settings: null;
     enable_disk_encryption: boolean;
   };
+  macos_setup: {
+    bootstrap_package: string | null;
+    enable_end_user_authentication: boolean;
+    macos_setup_assistant: string | null;
+  };
+  macos_migration: IMacOsMigrationSettings;
 }
 
 export interface IDeviceGlobalConfig {

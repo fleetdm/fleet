@@ -21,14 +21,18 @@ func Test_getFromSES(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:    "should return properly formatted SMTP from for use in SES",
-			args:    args{e: fleet.Email{Config: &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://foobar.fleetdm.com"}}}},
+			name: "should return properly formatted SMTP from for use in SES",
+			args: args{e: fleet.Email{
+				ServerURL: "https://foobar.fleetdm.com",
+			}},
 			want:    "From: do-not-reply@foobar.fleetdm.com\r\n",
 			wantErr: assert.NoError,
 		},
 		{
-			name:    "should error when we fail to parse fleet server url",
-			args:    args{e: fleet.Email{Config: &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "not-a-url"}}}},
+			name: "should error when we fail to parse fleet server url",
+			args: args{e: fleet.Email{
+				ServerURL: "not-a-url",
+			}},
 			want:    "",
 			wantErr: assert.Error,
 		},
@@ -76,9 +80,9 @@ func Test_sesSender_SendEmail(t *testing.T) {
 				sourceArn: "foo",
 			},
 			args: args{e: fleet.Email{
-				Subject: "Hello from Fleet!",
-				To:      []string{"foouser@fleetdm.com"},
-				Config:  &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://foobar.fleetdm.com"}},
+				Subject:   "Hello from Fleet!",
+				To:        []string{"foouser@fleetdm.com"},
+				ServerURL: "https://foobar.fleetdm.com",
 				Mailer: &SMTPTestMailer{
 					BaseURL: "https://localhost:8080",
 				},
@@ -94,7 +98,6 @@ func Test_sesSender_SendEmail(t *testing.T) {
 			args: args{e: fleet.Email{
 				Subject: "Hello from Fleet!",
 				To:      []string{"foouser@fleetdm.com"},
-				Config:  nil,
 				Mailer: &SMTPTestMailer{
 					BaseURL: "https://localhost:8080",
 				},
@@ -108,9 +111,9 @@ func Test_sesSender_SendEmail(t *testing.T) {
 				sourceArn: "foo",
 			},
 			args: args{e: fleet.Email{
-				Subject: "Hello from Fleet!",
-				To:      []string{"foouser@fleetdm.com"},
-				Config:  &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://foobar.fleetdm.com"}},
+				Subject:   "Hello from Fleet!",
+				To:        []string{"foouser@fleetdm.com"},
+				ServerURL: "https://foobar.fleetdm.com",
 				Mailer: &SMTPTestMailer{
 					BaseURL: "https://localhost:8080",
 				},
@@ -124,9 +127,9 @@ func Test_sesSender_SendEmail(t *testing.T) {
 				sourceArn: "foo",
 			},
 			args: args{e: fleet.Email{
-				Subject: "Hello from Fleet!",
-				To:      []string{"foouser@fleetdm.com"},
-				Config:  &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://foobar.fleetdm.com"}},
+				Subject:   "Hello from Fleet!",
+				To:        []string{"foouser@fleetdm.com"},
+				ServerURL: "https://foobar.fleetdm.com",
 				Mailer: &SMTPTestMailer{
 					BaseURL: "https://localhost:8080",
 				},

@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
-	"github.com/go-kit/kit/log/level"
 	"html/template"
 	"net/http"
 	"time"
+
+	"github.com/go-kit/kit/log/level"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -777,10 +778,16 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		return err
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	changeEmail := fleet.Email{
-		Subject: "Confirm Fleet Email Change",
-		To:      []string{email},
-		Config:  config,
+		Subject:      "Confirm Fleet Email Change",
+		To:           []string{email},
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
@@ -1021,10 +1028,16 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	resetEmail := fleet.Email{
-		Subject: "Reset Your Fleet Password",
-		To:      []string{user.Email},
-		Config:  config,
+		Subject:      "Reset Your Fleet Password",
+		To:           []string{user.Email},
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.PasswordResetMailer{
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),

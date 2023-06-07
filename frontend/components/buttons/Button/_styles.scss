@@ -196,7 +196,10 @@ $base-class: "button";
     }
   }
 
-  &--text-icon {
+  // &--icon, &--small-icon used for no text and svg icons
+  &--text-icon,
+  &--icon,
+  &--small-icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -223,7 +226,25 @@ $base-class: "button";
     &:focus {
       color: $core-vibrant-blue-over;
     }
+
+    // globally styled gap between text and icon
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
+
+  &--icon {
+    svg {
+      padding: $pad-icon;
+    }
+  }
+
+  &--small-icon {
+    svg {
+      padding: $pad-small;
+    }
+  }
+
   &--small-text-icon {
     @include button-variant(transparent);
     margin-left: $pad-medium;
@@ -278,7 +299,6 @@ $base-class: "button";
     color: $core-vibrant-red;
     border: 0;
     box-sizing: border-box;
-    padding: 0;
 
     &:hover,
     &:focus {

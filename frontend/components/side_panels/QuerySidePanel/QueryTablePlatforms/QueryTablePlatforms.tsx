@@ -26,7 +26,7 @@ interface IQueryTablePlatformsProps {
   platforms: IPlatformsWithFreebsd[];
 }
 
-const PLATFORM_ORDER = ["darwin", "windows", "linux"];
+const PLATFORM_ORDER = ["darwin", "windows", "linux", "chrome"];
 
 const baseClass = "query-table-platforms";
 
@@ -44,7 +44,7 @@ const QueryTablePlatforms = ({ platforms }: IQueryTablePlatformsProps) => {
     });
 
   return (
-    <div className={baseClass}>
+    <div className={baseClass} data-testid="compatibility">
       <h3>Compatible with</h3>
       <ul className={`${baseClass}__platform-list`}>{platformListItems}</ul>
     </div>

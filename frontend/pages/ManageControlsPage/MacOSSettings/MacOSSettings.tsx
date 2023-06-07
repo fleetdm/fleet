@@ -1,14 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { useQuery } from "react-query";
-import {
-  IMdmProfile,
-  IMdmProfilesResponse,
-  ProfileSummaryResponse,
-} from "interfaces/mdm";
+import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
@@ -40,6 +36,7 @@ const MacOSSettings = ({
   const {
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
+    isLoading: isLoadingAggregateProfileStatus,
   } = useQuery<ProfileSummaryResponse>(
     ["aggregateProfileStatuses", teamId],
     () => mdmAPI.getAggregateProfileStatuses(teamId),
@@ -62,12 +59,11 @@ const MacOSSettings = ({
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      {aggregateProfileStatusData && (
-        <AggregateMacSettingsIndicators
-          teamId={teamId}
-          aggregateProfileStatusData={aggregateProfileStatusData}
-        />
-      )}
+      <AggregateMacSettingsIndicators
+        isLoading={isLoadingAggregateProfileStatus}
+        teamId={teamId}
+        aggregateProfileStatusData={aggregateProfileStatusData}
+      />
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS.map((navItem) => ({

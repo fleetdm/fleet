@@ -50,7 +50,6 @@ func TestLiveQueryWithContext(t *testing.T) {
 				time.Sleep(1 * time.Second)
 				mt, message, _ := ws.ReadMessage()
 				if string(message) == `{"type":"auth","data":{"token":"1234"}}` {
-
 					return
 				}
 				if string(message) == `{"type":"select_campaign","data":{"campaign_id":99}}` {
@@ -64,10 +63,10 @@ func TestLiveQueryWithContext(t *testing.T) {
 					Type: "result",
 					Data: fleet.DistributedQueryResult{
 						DistributedQueryCampaignID: 99,
-						Host: fleet.HostResponseForHostCheap(&fleet.Host{
+						Host: fleet.ResultHostData{
 							ID:       23,
 							Hostname: "somehostaaa",
-						}),
+						},
 						Rows: []map[string]string{
 							{
 								"col1": "aaa",

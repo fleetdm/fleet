@@ -36,26 +36,6 @@
     }
   }
 
-  // policy status
-  &--yes:before {
-    padding-right: 10px;
-    content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
-    transform: translate(-4px, -6px) scale(0.5);
-  }
-  &--no:before {
-    padding-right: 8px;
-    content: url(../assets/images/icon-action-fail-16x16@2x.png);
-    transform: translate(-4px, -6px) scale(0.5);
-  }
-  &--indeterminate {
-    color: $ui-fleet-black-50;
-    &:before {
-      height: 0;
-      width: 0;
-      margin: 0;
-    }
-  }
-
   // user status
   &--active {
     &:before {

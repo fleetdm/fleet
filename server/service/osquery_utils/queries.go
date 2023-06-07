@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -114,7 +115,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_chrome": {
-		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Query:      `SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1`,
 		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
@@ -166,8 +167,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		Query: `
 	SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -178,7 +178,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["display_version"]
+			version := rows[0]["version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
@@ -330,6 +330,7 @@ FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
+
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
@@ -338,6 +339,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskSpace,
 	},
+
 	"kubequery_info": {
 		Query:      `SELECT * from kubernetes_info`,
 		IngestFunc: ingestKubequeryInfo,
@@ -464,6 +466,12 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
 	},
+	// On ChromeOS, the `users` table returns only the user signed into the primary chrome profile.
+	"chromeos_profile_user_info": {
+		Query:            `SELECT email FROM users`,
+		DirectIngestFunc: directIngestChromeProfiles,
+		Platforms:        []string{"chrome"},
+	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
@@ -487,8 +495,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -514,6 +521,23 @@ var extraDetailQueries = map[string]DetailQuery{
 		os_version os,
 		kernel_info k`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestOSUnixLike,
+	},
+	"os_chrome": {
+		Query: `
+	SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.platform,
+		os.version AS version,
+		os.version AS kernel_version
+	FROM
+		os_version os`,
+		Platforms:        []string{"chrome"},
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"orbit_info": {
@@ -576,6 +600,12 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
 	},
+	"mdm_config_profiles_darwin": {
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery:        discoveryTable("macos_profiles"),
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -612,7 +642,8 @@ SELECT
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   'apps' AS source,
-  last_opened_time AS last_opened_at
+  last_opened_time AS last_opened_at,
+  path AS installed_path
 FROM apps
 UNION
 SELECT
@@ -621,7 +652,8 @@ SELECT
   'Package (Python)' AS type,
   '' AS bundle_identifier,
   'python_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -630,7 +662,8 @@ SELECT
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   'chrome_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -639,7 +672,8 @@ SELECT
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   'firefox_addons' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -648,7 +682,8 @@ SELECT
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   'safari_extensions' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -657,7 +692,8 @@ SELECT
   'Package (Atom)' AS type,
   '' AS bundle_identifier,
   'atom_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -666,7 +702,8 @@ SELECT
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
-  0 AS last_opened_at
+  0 AS last_opened_at,
+  path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
@@ -690,7 +727,8 @@ SELECT
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM deb_packages
 WHERE status = 'install ok installed'
 UNION
@@ -701,7 +739,8 @@ SELECT
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  '' AS installed_path
 FROM portage_packages
 UNION
 SELECT
@@ -711,7 +750,8 @@ SELECT
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
-  arch AS arch
+  arch AS arch,
+  '' AS installed_path
 FROM rpm_packages
 UNION
 SELECT
@@ -721,7 +761,8 @@ SELECT
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM npm_packages
 UNION
 SELECT
@@ -731,7 +772,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -741,7 +783,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -751,7 +794,8 @@ SELECT
   'atom_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -761,7 +805,8 @@ SELECT
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
-  '' AS arch
+  '' AS arch,
+  path AS installed_path
 FROM python_packages;
 `),
 	Platforms:        fleet.HostLinuxOSs,
@@ -775,7 +820,8 @@ SELECT
   version AS version,
   'Program (Windows)' AS type,
   'programs' AS source,
-  publisher AS vendor
+  publisher AS vendor,
+  install_location AS installed_path
 FROM programs
 UNION
 SELECT
@@ -783,7 +829,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM python_packages
 UNION
 SELECT
@@ -791,7 +838,8 @@ SELECT
   version AS version,
   'Browser plugin (IE)' AS type,
   'ie_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM ie_extensions
 UNION
 SELECT
@@ -799,7 +847,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -807,7 +856,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -815,7 +865,8 @@ SELECT
   version AS version,
   'Package (Chocolatey)' AS type,
   'chocolatey_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chocolatey_packages
 UNION
 SELECT
@@ -823,7 +874,8 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
@@ -836,7 +888,8 @@ var softwareChrome = DetailQuery{
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
-  '' AS vendor
+  '' AS vendor,
+  path AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
@@ -884,7 +937,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Platform:      rows[0]["platform"],
 	}
 
-	version := rows[0]["display_version"]
+	version := rows[0]["version"]
 	if version == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
@@ -900,7 +953,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 }
 
 // directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
-// (e.g., darwin or linux operating systems)
+// (e.g., darwin, Linux or ChromeOS)
 func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
@@ -1085,6 +1138,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
+	sPaths := map[string]struct{}{}
+
 	for _, row := range rows {
 		name := row["name"]
 		version := row["version"]
@@ -1145,10 +1200,24 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			s.LastOpenedAt = &lastOpenedAt
 		}
 		software = append(software, s)
+
+		installedPath := strings.TrimSpace(row["installed_path"])
+		if installedPath != "" &&
+			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
+			// Thus, we explicitly ignore such value here.
+			strings.ToLower(installedPath) != "null" {
+			key := fmt.Sprintf("%s%s%s", installedPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			sPaths[key] = struct{}{}
+		}
 	}
 
-	if err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
+	}
+
+	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 
 	return nil
@@ -1214,13 +1283,27 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	mdmSolutionName := deduceMDMNameMacOS(rows[0])
+	if !enrolled && installedFromDep && mdmSolutionName != fleet.WellKnownMDMFleet && host.RefetchCriticalQueriesUntil != nil {
+		// the host was unenrolled from a non-Fleet DEP MDM solution, and the
+		// refetch critical queries timestamp was set, so clear it.
+		host.RefetchCriticalQueriesUntil = nil
+	}
+
+	serverURL, err := url.Parse(rows[0]["server_url"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing server_url")
+	}
+	// strip any query parameters from the URL
+	serverURL.RawQuery = ""
+
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		false,
 		enrolled,
-		rows[0]["server_url"],
+		serverURL.String(),
 		installedFromDep,
-		deduceMDMNameMacOS(rows[0]),
+		mdmSolutionName,
 	)
 }
 
@@ -1330,6 +1413,40 @@ func directIngestDiskEncryptionKeyDarwin(
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
+func directIngestMacOSProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestMacOSProfiles",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	mapping := make([]*fleet.HostMacOSProfile, 0, len(rows))
+	for _, row := range rows {
+		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostMacOSProfile{
+			DisplayName: row["display_name"],
+			Identifier:  row["identifier"],
+			InstallDate: installDate,
+		})
+	}
+
+	return ds.SetVerifiedHostMacOSProfiles(ctx, host, mapping)
 }
 
 //go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md

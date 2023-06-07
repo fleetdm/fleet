@@ -37,6 +37,13 @@ h3 {
   line-height: 1.2;
 }
 
+p {
+  // Desired default line-height for text is 1.5x the font size for paragrah text.
+  // This allows for a comfortable reading experience by adding space between
+  // multiline paragraphs.
+  line-height: 1.5;
+}
+
 h1 {
   font-size: $large;
   font-weight: $regular;
@@ -100,7 +107,7 @@ input {
 
 // syntax highlighting for pretty-printed JSON
 pre {
-  padding: 15px;
+  padding: $pad-large;
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;

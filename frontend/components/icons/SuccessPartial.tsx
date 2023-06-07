@@ -1,18 +1,17 @@
 import React from "react";
+import { COLORS, Colors } from "styles/var/colors";
 
-const SuccessPartial = () => {
+interface ICheckProps {
+  color?: Colors;
+}
+
+const SuccessPartial = ({ color = "status-success" }: ICheckProps) => {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <ellipse cx="9" cy="9" rx="8" ry="8" stroke="#3DB67B" strokeWidth="2" />
+    <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="7" stroke={COLORS[color]} strokeWidth="2" />
       <path
-        d="M6 10L8 12L12 6"
-        stroke="#3DB67B"
+        d="m5 9 2 2 4-6"
+        stroke={COLORS[color]}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -1,4 +1,9 @@
 name: os_version
+platforms:
+  - darwin
+  - linux
+  - windows
+  - chrome
 examples: >-
   See the OS version as well as the CPU architecture in use (X86 vs ARM for
   example)

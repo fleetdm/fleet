@@ -22,17 +22,6 @@
     }
   }
 
-  // These styles are here to make the sticky header and nav work correctly
-  // with the sandbox mode expiry message.
-  &.sandbox-mode {
-    h1 {
-      &::before {
-        height: 0;
-        top: 0;
-      }
-    }
-  }
-
   .component__tabs-wrapper {
     top: $pad-xxlarge; // for sticky
     z-index: 3;

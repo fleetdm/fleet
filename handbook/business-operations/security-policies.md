@@ -265,6 +265,7 @@ External disclosure of critical data is strictly prohibited without an approved 
 * Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
+* Production customer data
 
 
 **Confidential** and proprietary data represents company secrets and is of significant value to the company.
@@ -279,6 +280,7 @@ Disclosure requires the signing of NDA and management approval.
 * Employee/HR data
 * News and public announcements (pre-announcement)
 * Patents (pre-filing)
+* Production metadata (server logs, non-secret configurations, etc.)
 * Non-production security data, including
     - Non-prod secrets, passwords, access keys, certificates, etc.
     - Non-prod security audit logs, events, and incident data
@@ -308,7 +310,7 @@ Requirements for data handling, such as the need for encryption and the duration
 | Data             | Labeling or Tagging | Segregated Storage | Endpoint Storage | Encrypt At Rest | Encrypt In Transit | Encrypt In Use | Controlled Access | Monitoring | Destruction at Disposal | Retention Period | Backup Recovery |
 |------------------|---------------------|--------------------|------------------|-----------------|--------------------|----------------|-------------------|------------|------------------------|------------------|-----------------|
 | **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | seven years for audit trails; Varies for customer-owned data† | Required   |
-| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | seven years for official documentation; Others vary based on business need | Required   |
+| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | Seven years for official documentation; Others vary based on business need | Required   |
 | **Internal**     | Required            | N/R                | Allowed          | N/R             | N/R                | N/R            | All employees and contractors (read); Data owners and authorized individuals (write) | N/R | N/R | Varies based on business need | Optional   |
 | **Public**       | N/R                 | N/R                | Allowed          | N/R             | N/R                | N/R            | Everyone (read); Data owners and authorized individuals (write) | N/R     | N/R     | Varies based on business need | Optional   |
 
@@ -318,6 +320,13 @@ N/R = Not Required
 
 Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply business requirements.
 
+#### Customer data deletion
+
+This process is followed when offboarding a customer and deleting all of the production customer data.
+
+1. `terraform destroy` the infrastructure for the customer. This triggers immediate deletion of the RDS database and all automated snapshots, along with immediate deletion of the ElastiCache Redis instance. Secrets are marked for deletion with a 7 day recovery window. Cloudwatch (server) logs are automatically deleted after the retention window expires.
+2. Manually delete any manual database snapshots. The engineer should verify that there are no manual snapshots remaining for this customer.
+3. Commit a removal of all the Terraform files for the customer.
 
 ## Encryption policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_

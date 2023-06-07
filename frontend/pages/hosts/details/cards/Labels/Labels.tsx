@@ -2,6 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
+import { enforceFleetSentenceCasing } from "utilities/strings/stringUtils";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
@@ -17,7 +18,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
           variant="label"
           className="list__button"
         >
-          {label.name}
+          {enforceFleetSentenceCasing(label.name)}
         </Button>
       </li>
     );

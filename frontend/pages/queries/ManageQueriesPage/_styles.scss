@@ -69,7 +69,7 @@
 
       .Select-menu-outer {
         width: 364px;
-        max-height: 310px;
+        max-height: 380px;
 
         .Select-menu {
           max-height: none;
@@ -183,6 +183,11 @@
           }
         }
       }
+    }
+
+    .query-icon {
+      position: relative;
+      top: 2px;
     }
   }
 }
