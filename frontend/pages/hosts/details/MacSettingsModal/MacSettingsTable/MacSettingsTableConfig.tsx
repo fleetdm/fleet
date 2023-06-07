@@ -102,6 +102,7 @@ export const generateTableData = (
   if (!profiles) {
     return rows;
   }
+  rows = profiles;
 
   if (macos_settings?.disk_encryption === "action_required") {
     rows = profiles.map((p) => {
@@ -114,6 +115,7 @@ export const generateTableData = (
       return p;
     });
   }
+
   return rows;
 };
 

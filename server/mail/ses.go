@@ -23,12 +23,9 @@ type sesSender struct {
 }
 
 func getFromSES(e fleet.Email) (string, error) {
-	if e.Config == nil {
-		return "", errors.New("app config is nil")
-	}
-	serverURL, err := url.Parse(e.Config.ServerSettings.ServerURL)
+	serverURL, err := url.Parse(e.ServerURL)
 	if err != nil || len(serverURL.Host) == 0 {
-		return "", fmt.Errorf("failed to parse server url %s err: %w", e.Config.ServerSettings.ServerURL, err)
+		return "", fmt.Errorf("failed to parse server url %s err: %w", e.ServerURL, err)
 	}
 	return fmt.Sprintf("From: %s\r\n", fmt.Sprintf("do-not-reply@%s", serverURL.Host)), nil
 }
@@ -87,7 +84,6 @@ func (s *sesSender) sendMail(e fleet.Email, msg []byte) error {
 		RawMessage:   &ses.RawMessage{Data: msg},
 		SourceArn:    &s.sourceArn,
 	})
-
 	if err != nil {
 		return err
 	}
