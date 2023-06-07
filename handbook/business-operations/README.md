@@ -835,7 +835,7 @@ The steps for doing this are highlighted in this loom, TODO.
   - Headcount at end of the previous quarter.
   - Starting ARR for the previous quarter.
   - Total new ARR for the previous quarter.
-  - "Upsell ARR" (ARR from expansions only), downgrade ARR and churn ARR (if any) for the previous quarter.
+  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason. Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.
   - Ending ARR for the previous quarter.
   - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
   - Total amount of Fleet customers at the end of the previous quarter.
