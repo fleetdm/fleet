@@ -1433,7 +1433,7 @@ func TestMDMQueries(t *testing.T) {
 		discoveryTable string
 	}{
 		{"fleet_detail_query_mdm_config_profiles_darwin", "macos_profiles"},
-		{"fleet_detail_query_mdm_disk_encryption_key_darwin", "file_lines"},
+		{"fleet_detail_query_mdm_disk_encryption_key_darwin", "filevault_prk"},
 	}
 
 	mdmEnabled := true
