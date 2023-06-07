@@ -128,12 +128,11 @@
         </div>
       </div>
     </div>
-    <p style="color: #515774;" class="d-block d-sm-none mb-0 w-100">* Coming soon</p>
-    <%// Features table %>
+    <%// IT-focused features table %>
     <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="!displaySecurityPricingMode">
       <h2 class="text-center pb-3 mb-4">Compare plans</h2>
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop features tables %>
+        <%// Desktop IT-focused features tables %>
         <div class="d-none d-sm-block">
           <% for(let category of pricingTable) {%>
             <table purpose="pricing-categories-table" class="table">
@@ -173,7 +172,7 @@
           <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile features tables %>
+        <%// Mobile IT-focused features tables %>
         <% for(let category of pricingTable) {%>
           <div purpose="mobile-feature-table-section" class="d-block d-sm-none">
             <h4><%- category.categoryName %></h4>
@@ -199,10 +198,11 @@
           <p style="color: #515774;" class="d-block d-sm-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
+    <%// Security-focused features table %>
     <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else>
       <h2 class="text-center pb-3 mb-4">Compare plans</h2>
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop features tables %>
+        <%// Desktop security-focused features tables %>
         <div class="d-none d-sm-block">
           <% for(let category of pricingTableForSecurity) {%>
             <table purpose="pricing-categories-table" class="table">
@@ -242,7 +242,7 @@
           <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile features tables %>
+        <%// Mobile security-focused features tables %>
         <% for(let category of pricingTableForSecurity) {%>
           <div purpose="mobile-feature-table-section" class="d-block d-sm-none">
             <h4><%- category.categoryName %></h4>
