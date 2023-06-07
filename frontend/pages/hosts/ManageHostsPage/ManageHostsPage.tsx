@@ -501,6 +501,8 @@ const ManageHostsPage = ({
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
 
+    const isDeselectingLabel = slug?.slice(7) === selectedLabel?.id.toString();
+
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
     let newQueryParams = queryParams;
@@ -514,7 +516,9 @@ const ManageHostsPage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: `${MANAGE_HOSTS}/${slug}`,
+        pathPrefix: isDeselectingLabel
+          ? MANAGE_HOSTS
+          : `${MANAGE_HOSTS}/${slug}`,
         queryParams: newQueryParams,
       })
     );
