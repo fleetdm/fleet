@@ -595,10 +595,10 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
+		Query:            fmt.Sprintf(`SELECT base64_encrypted as filevault_key, COALESCE((%s), 0) as encrypted FROM filevault_prk`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
-		Discovery:        discoveryTable("file_lines"),
+		Discovery:        discoveryTable("filevault_prk"),
 	},
 	"mdm_config_profiles_darwin": {
 		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
