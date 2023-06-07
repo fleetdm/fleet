@@ -94,7 +94,6 @@ const LabelFilterSelect = ({
   ]);
 
   const handleChange = (option: ILabel | IEmptyOption | null) => {
-    console.log("option", option);
     if (option === null) return;
     if ("type" in option) {
       setShouldOpenMenu(false);
