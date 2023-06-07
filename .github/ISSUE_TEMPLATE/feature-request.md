@@ -2,7 +2,7 @@
 name: 💡  Feature request
 about: Propose a new feature or enhancement in Fleet.
 title: ''
-labels: 'idea,:product,#cx'
+labels: 'idea,#cx'
 assignees: ''
 
 ---

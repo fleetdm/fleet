@@ -679,8 +679,9 @@ In the #help-qa channel, product may decide whether the bug is a release blocker
 
 Release blockers include:
 1. Release-blocking bugs (defined below)
-2. New functionality that impacts previous stable functionality
-3. Incomplete features as defined or implied in the specs
+2. Critical bugs (defined below)
+3. New functionality that impacts previous stable functionality
+4. Incomplete features as defined or implied in the specs
 
 Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
 
@@ -691,7 +692,7 @@ A release-blocking bug is identified by the `~release blocker` label. It becomes
 * We will delay the release to ensure a fix if necessary
 
 ### Critical bugs
-A critical bug is a bug with the `~critical` label. A critical bug is defined as behavior that: 
+A critical bug is a bug with the `~critical bug` label. A critical bug is defined as behavior that: 
 * Blocks the normal use a workflow
 * Prevents upgrades to Fleet
 * Causes irreversible damage, such as data loss
@@ -741,12 +742,13 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx
 If a bug requires input from product, the `:product` label is added and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label, moves the back to the "Inbox" on the bugs board, and assigns it to the appropriate EM.
 
 #### In engineering
-A bug is in engineering after it has been reproduced and assigned to an EM. The EM will determine if it meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) or a [release blocking bug](https://fleetdm.com/handbook/engineering#release-blocking-bugs). If so, the `:release` label is added, along with `~relaser blocker` or `~critical bug`, and it is moved to the "Current release' column of the bugs board. If the bug does not meet the criteria, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release: label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint. 
+A bug is in engineering after it has been reproduced and assigned to an EM. The EM will determine if it meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) or a [release blocking bug](https://fleetdm.com/handbook/engineering#release-blocking-bugs). If so, the `:release` label is added, along with `~relaser blocker` or `~critical bug`, and it is moved to the "Current release' column of the bugs board. If the bug does not meet the criteria, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint. 
 
-Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized into the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
+Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
 
 #### Awaiting QA 
-Bugs are verified by QA as part of the sprint board process. If the bug is fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
+Bugs are verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
+
 #### Orphans 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
 
