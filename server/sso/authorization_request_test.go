@@ -88,7 +88,7 @@ func (s *mockStore) create(requestID, originalURL, metadata string, lifetimeSecs
 
 func (s *mockStore) get(requestID string) (*Session, error) {
 	if s.session == nil {
-		return nil, sessionNotFoundError
+		return nil, errSessionNotFound
 	}
 	return s.session, nil
 }

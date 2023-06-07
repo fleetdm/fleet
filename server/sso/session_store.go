@@ -13,7 +13,7 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-var sessionNotFoundError = fleet.NewAuthRequiredError("session not found")
+var errSessionNotFound = fleet.NewAuthRequiredError("session not found")
 
 // Session stores state for the lifetime of a single sign on session
 type Session struct {
@@ -73,7 +73,7 @@ func (s *store) get(requestID string) (*Session, error) {
 	val, err := redigo.String(conn.Do("GET", requestID))
 	if err != nil {
 		if err == redigo.ErrNil {
-			return nil, sessionNotFoundError
+			return nil, errSessionNotFound
 		}
 		return nil, err
 	}
