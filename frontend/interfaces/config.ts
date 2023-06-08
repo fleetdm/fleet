@@ -126,15 +126,9 @@ export interface IMdmConfig {
     enable_disk_encryption: boolean;
   };
   macos_setup: {
-<<<<<<< HEAD
     bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
-=======
-    bootstrap_package: string;
-    enable_end_user_authentication: boolean;
-    macos_setup_assistant: any;
->>>>>>> 3b0d30a85 (AddHostModal integration tests 5 of 5 passing)
   };
   macos_migration: IMacOsMigrationSettings;
 }
