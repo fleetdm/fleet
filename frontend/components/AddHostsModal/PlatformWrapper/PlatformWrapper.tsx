@@ -58,7 +58,7 @@ interface IPlatformWrapperProps {
   certificate: any;
   isFetchingCertificate: boolean;
   fetchCertificateError: any;
-  config: IConfig;
+  config: IConfig | null;
 }
 
 const CHROME_OS_INFO = {
