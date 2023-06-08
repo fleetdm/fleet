@@ -168,14 +168,16 @@ Bugs are exempt from the release freeze period.
 
 ### Freeze day
 
-To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in mergefreeze using the PR number. 
+To begin the freeze, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in Merge Freeze using the PR number. 
+
+> Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
 
 #### Check dependencies
 
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
 
 1. **Go**: Latest minor release
-* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L3-L4).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-binaries.yaml#L30).
 * Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
 * If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
 * If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
@@ -184,7 +186,7 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 2. **macadmins-extension**: Latest release
 * Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
-* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L60).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
 * If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
 * Add the `~release blocker` label.
 
