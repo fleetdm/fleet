@@ -24,7 +24,7 @@
       <div class="d-flex flex-column handbook-content">
 
         <div purpose="breadcrumbs" class="d-flex m-0 align-items-center breadcrumbs">
-          <div class="d-flex" v-if="breadcrumbs.length > 1">
+          <div class="d-flex flex-row align-items-center" v-if="breadcrumbs.length > 1">
             <a :href="'/' + breadcrumbs[0]" class="pr-3">
               {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
             </a>
