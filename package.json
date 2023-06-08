@@ -18,12 +18,12 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@types/dompurify": "^3.0.2",
+    "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.12",
     "axios": "1.2.3",
     "core-js": "3.25.1",
     "date-fns": "2.28.0",
-    "dompurify": "^3.0.3",
+    "dompurify": "3.0.3",
     "es6-object-assign": "1.1.0",
     "es6-promise": "4.2.8",
     "express": "4.17.3",
