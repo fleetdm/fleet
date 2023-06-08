@@ -181,7 +181,7 @@ module.exports.custom = {
   // slackWebhookUrlForContactForm: '…',
 
   // GitHub bot:
-  // githubAccessToken: '…',
+  githubAccessToken: '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',
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
