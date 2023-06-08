@@ -752,7 +752,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil
@@ -761,7 +761,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// modify a team with an empty config
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil

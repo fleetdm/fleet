@@ -553,7 +553,7 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 		if s == nil {
 			continue
 		}
-		if !teamMemberships[*s.TeamID] || isGlobalObs || obsMembership[*s.TeamID] {
+		if isGlobalObs || vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || obsMembership[*s.TeamID]) {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
