@@ -991,7 +991,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 
 		for _, team := range listResp.Teams {
 			for _, secret := range team.Secrets {
-				require.Equal(t, "***", secret.Secret)
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
 			}
 		}
 
@@ -1002,7 +1002,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 
 			require.NoError(t, getResp.Err)
 			for _, secret := range getResp.Team.Secrets {
-				require.Equal(t, "***", secret.Secret)
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
 			}
 
 			var secResp teamEnrollSecretsResponse
@@ -1011,7 +1011,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			require.Len(t, secResp.Secrets, 1)
 			require.NoError(t, secResp.Err)
 			for _, secret := range secResp.Secrets {
-				require.Equal(t, "***", secret.Secret)
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
 			}
 		}
 	}
@@ -1035,14 +1035,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 				// team_obs has RoleObserver in Team 1, and an RoleAdmin in Team 2
 				// so it should be able to see the secrets in Team 1
 				if u.ID == team_obs.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[0].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
 				}
 
 				// team_obs_plus should not be able to see any Team Secret
 				if u.ID == team_obs_plus.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[1].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
 				}
 			}
 		}
@@ -1057,13 +1057,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			// so it should be able to see the secrets in Team 1
 			for _, secret := range getResp.Team.Secrets {
 				if u.ID == team_obs.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[0].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
 				}
 
 				if u.ID == team_obs_plus.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[1].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
 				}
 			}
 
@@ -1074,13 +1074,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			require.NoError(t, secResp.Err)
 			for _, secret := range secResp.Secrets {
 				if u.ID == team_obs.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[0].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
 				}
 
 				if u.ID == team_obs_plus.ID {
-					require.Equal(t, "***" == secret.Secret, team.ID == teams[1].ID)
-					require.Equal(t, "***" != secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
 				}
 			}
 		}

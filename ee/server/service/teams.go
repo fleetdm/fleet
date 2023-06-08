@@ -32,7 +32,7 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	for _, t := range teams {
 		if t != nil && (isGlobalObs || obsMembership[t.ID]) {
 			for _, s := range t.Secrets {
-				s.Secret = "***"
+				s.Secret = fleet.MaskedPassword
 			}
 		}
 	}
@@ -392,9 +392,11 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 		return nil, err
 	}
 
-	err = obfuscateSecrets(vc.User, teams)
+	if err = obfuscateSecrets(vc.User, teams); err != nil {
+		return nil, err
+	}
 
-	return teams, err
+	return teams, nil
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
@@ -507,9 +509,11 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return nil, err
 	}
 
-	err = obfuscateSecrets(vc.User, []*fleet.Team{team})
+	if err = obfuscateSecrets(vc.User, []*fleet.Team{team}); err != nil {
+		return nil, err
+	}
 
-	return team, err
+	return team, nil
 }
 
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
@@ -532,11 +536,11 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 
 	for _, s := range secrets {
 		if s != nil && (isGlobalObs || teamObs[*s.TeamID]) {
-			s.Secret = "***"
+			s.Secret = fleet.MaskedPassword
 		}
 	}
 
-	return secrets, err
+	return secrets, nil
 }
 
 func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
