@@ -42,7 +42,7 @@ func (u *User) IsGlobalObserver() bool {
 
 // TeamMembership returns a map whose keys are the TeamIDs of the teams for which pred evaluates to true
 func (u *User) TeamMembership(pred func(UserTeam) bool) map[uint]bool {
-	result := make(map[uint]bool, len(u.Teams))
+	result := make(map[uint]bool)
 	for _, t := range u.Teams {
 		if pred(t) {
 			result[t.ID] = true
