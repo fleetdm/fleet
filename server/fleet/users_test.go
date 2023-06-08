@@ -37,7 +37,7 @@ func TestIsGlobalObserver(t *testing.T) {
 	}
 }
 
-func TestTeamObserverMembership(t *testing.T) {
+func TestTeamMembership(t *testing.T) {
 	teams := []UserTeam{
 		{
 			Role: RoleAdmin,
@@ -66,15 +66,29 @@ func TestTeamObserverMembership(t *testing.T) {
 	}
 
 	sut := User{}
-	require.Empty(t, sut.TeamObserverMembership())
+	require.Empty(t, sut.TeamMembership(func(ut UserTeam) bool {
+		return true
+	}))
 
 	sut.Teams = teams
 
 	var result []uint
-	for k := range sut.TeamObserverMembership() {
+	pred := func(ut UserTeam) bool {
+		return ut.Role == RoleGitOps || ut.Role == RoleObserver
+	}
+	for k := range sut.TeamMembership(pred) {
 		result = append(result, k)
 	}
-	require.ElementsMatch(t, result, []uint{3, 4})
+	require.ElementsMatch(t, result, []uint{2, 3, 4})
+
+	result = make([]uint, 0, len(teams))
+	pred = func(ut UserTeam) bool {
+		return true
+	}
+	for k := range sut.TeamMembership(pred) {
+		result = append(result, k)
+	}
+	require.ElementsMatch(t, result, []uint{1, 2, 3, 4})
 }
 
 func TestValidatePassword(t *testing.T) {

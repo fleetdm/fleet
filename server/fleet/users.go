@@ -40,12 +40,12 @@ func (u *User) IsGlobalObserver() bool {
 	return *u.GlobalRole == RoleObserver || *u.GlobalRole == RoleObserverPlus
 }
 
-// TeamObserverMembership returns a map whose keys are the TeamIDs of the teams on which the current
+// TeamMembership returns a map whose keys are the TeamIDs of the teams for which pred evaluates to true
 // user is an Observer or Observer+
-func (u *User) TeamObserverMembership() map[uint]bool {
+func (u *User) TeamMembership(pred func(UserTeam) bool) map[uint]bool {
 	result := make(map[uint]bool, len(u.Teams))
 	for _, t := range u.Teams {
-		if t.Role == RoleObserver || t.Role == RoleObserverPlus {
+		if pred(t) {
 			result[t.ID] = true
 		}
 	}

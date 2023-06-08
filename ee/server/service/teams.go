@@ -27,10 +27,21 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	}
 
 	isGlobalObs := user.IsGlobalObserver()
-	obsMembership := user.TeamObserverMembership()
+
+	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return true
+	})
+	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	})
 
 	for _, t := range teams {
-		if t != nil && (isGlobalObs || obsMembership[t.ID]) {
+		if t == nil {
+			continue
+		}
+
+		// User does not belong to the team or is a global/team observer/observer+
+		if !teamMemberships[t.ID] || isGlobalObs || obsMembership[t.ID] {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}
@@ -532,10 +543,18 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	isGlobalObs := vc.User.IsGlobalObserver()
-	teamObs := vc.User.TeamObserverMembership()
+	teamMemberships := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return true
+	})
+	obsMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	})
 
 	for _, s := range secrets {
-		if s != nil && (isGlobalObs || teamObs[*s.TeamID]) {
+		if s == nil {
+			continue
+		}
+		if !teamMemberships[*s.TeamID] || isGlobalObs || obsMembership[*s.TeamID] {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
