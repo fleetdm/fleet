@@ -7,10 +7,13 @@ param (
     [int]$SampleIntervalInSecs = 10 #default to 10 secs
 )
 
+Write-Host "PID to profile is $TargetPID."
+
 # Path for the CSV and chart file
-$csvFilePath = "process_profile_$TargetPID.csv"
-$chartFilePathCPU = "process_profile_cpu_$TargetPID.png"
-$chartFilePathMemory = "process_profile_memory_$TargetPID.png"
+$currentDirectory = Get-Location
+$csvFilePath = $currentDirectory.Path + "\process_profile_$TargetPID.csv"
+$chartFilePathCPU = $currentDirectory.Path + "\process_profile_cpu_$TargetPID.png"
+$chartFilePathMemory = $currentDirectory.Path + "\process_profile_memory_$TargetPID.png"
 
 # Initialize an empty array for storing data
 $data = @()
@@ -56,6 +59,7 @@ $chartMemory.Series.Add($memSeries)
 $startTime = Get-Date
 $cpuCores = (Get-WMIObject Win32_ComputerSystem).NumberOfLogicalProcessors
 
+Write-Host "Press any key to stop the data collection and generate profile charts."
 while($true) {
     if([System.Console]::KeyAvailable) {
         Write-Host "Key Pressed. Stopping script..."
