@@ -25,7 +25,7 @@ const TooltipWrapper = ({
     ? `${baseClass}__tip-text delayed-tip`
     : `${baseClass}__tip-text`;
 
-  const sanitized = DOMPurify.sanitize(tipContent);
+  const sanitizedTipContent = DOMPurify.sanitize(tipContent);
 
   return (
     <div className={classname} data-position={position}>
@@ -35,7 +35,7 @@ const TooltipWrapper = ({
       </div>
       <div
         className={tipClass}
-        dangerouslySetInnerHTML={{ __html: sanitized }}
+        dangerouslySetInnerHTML={{ __html: sanitizedTipContent }}
       />
     </div>
   );
