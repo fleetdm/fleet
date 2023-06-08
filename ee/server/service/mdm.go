@@ -818,7 +818,25 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		// call so that it properly assigns the agent options and creates audit
 		// activities, etc.
 		teamName := teamNameFromPreassignGroups(groups)
-		tm, err := svc.NewTeam(ctx, fleet.TeamPayload{Name: &teamName})
+		payload := fleet.TeamPayload{Name: &teamName}
+		tm, err := svc.NewTeam(ctx, payload)
+		if err != nil {
+			return err
+		}
+
+		// teams created by the match endpoint have disk encryption
+		// enabled by default.
+		// TODO: maybe make this configurable?
+		payload.MDM = &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{
+				EnableDiskEncryption: true,
+			},
+		}
+
+		// TODO: seems like we don't support enabling disk encryption
+		// on team creation?
+		// see https://github.com/fleetdm/fleet/issues/12220
+		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
 		if err != nil {
 			return err
 		}

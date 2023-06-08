@@ -23,9 +23,9 @@ module Puppet::Util
       post(
         '/api/latest/fleet/mdm/apple/profiles/preassign',
         {
-          'external_node_identifier' => Puppet[:node_name_value],
+          'external_host_identifier' => Puppet[:node_name_value],
           'host_uuid' => uuid,
-          'profile' => profile_xml,
+          'profile' => Base64.encode64(profile_xml),
           'group' => group,
         },
       )
@@ -34,14 +34,14 @@ module Puppet::Util
     # Matches the set of profiles preassigned to the host (via the sibling
     # `preassign_profile` method) with a team.
     #
-    # It uses `Puppet[:node_name_value]` as the `external_node_identifier`,
+    # It uses `Puppet[:node_name_value]` as the `external_host_identifier`,
     # which is unique per Puppet host.
     #
     # @return [Hash] The response status code, headers, and body.
     def match_profiles
       post('/api/latest/fleet/mdm/apple/profiles/match',
   {
-    'external_node_identifier' => Puppet[:node_name_value],
+    'external_host_identifier' => Puppet[:node_name_value],
   })
     end
 
