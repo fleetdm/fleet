@@ -86,6 +86,10 @@
       }
 
       tbody {
+        .component__tooltip-wrapper {
+          min-width: 210px;
+        }
+
         .name__cell {
           // Long software names overflow the software card
           max-width: 0;

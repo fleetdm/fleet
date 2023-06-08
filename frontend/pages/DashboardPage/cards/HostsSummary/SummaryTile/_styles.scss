@@ -38,6 +38,8 @@
   &__description {
     white-space: nowrap;
 
+    // Work around to get tooltip to show
+    // TODO: Revise when revisiting react-table react-tooltip implementation
     .component__tooltip-wrapper__tip-text {
       width: 200px;
       white-space: initial;
