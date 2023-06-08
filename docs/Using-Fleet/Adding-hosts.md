@@ -291,7 +291,9 @@ Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in th
 
 Enter the "Extension ID," "Installation URL," and "Policy for extensions" using the data provided in the modal.
 
-Select "Force install". Select "Update URL" > "Installation URL (see above)"
+Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
+
+> The fleetd Chrome extension must be force installed in order to have full functionality. 
 > For the Fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ^^^ TODO Confirm that this is actually what is being done here. If not, where is that being done? 
