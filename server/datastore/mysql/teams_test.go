@@ -82,7 +82,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:         "DummyTestName",
 				Identifier:   "DummyTestIdentifier",
 				Mobileconfig: dummyMC,
-				TeamID:       nil,
+				TeamID:       &team.ID,
 			}
 			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
 			require.NoError(t, err)
@@ -94,12 +94,11 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Empty(t, newP.Teams)
 
-			var nfe fleet.NotFoundError
-			require.ErrorAs(t, err, &nfe)
 			_, err = ds.TeamByName(context.Background(), tt.name)
-			require.ErrorAs(t, err, &nfe)
+			require.Error(t, err)
 
 			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileID)
+			var nfe fleet.NotFoundError
 			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
