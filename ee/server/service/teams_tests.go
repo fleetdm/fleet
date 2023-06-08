@@ -43,7 +43,7 @@ func TestObfuscateSecrets(t *testing.T) {
 
 		for _, team := range teams {
 			for _, s := range team.Secrets {
-				require.NotEqual(t, "***", s.Secret)
+				require.NotEqual(t, fleet.MaskedPassword, s.Secret)
 			}
 		}
 	})
@@ -59,7 +59,7 @@ func TestObfuscateSecrets(t *testing.T) {
 
 			for _, team := range teams {
 				for _, s := range team.Secrets {
-					require.Equal(t, "***", s.Secret)
+					require.Equal(t, fleet.MaskedPassword, s.Secret)
 				}
 			}
 		}
@@ -85,7 +85,7 @@ func TestObfuscateSecrets(t *testing.T) {
 
 		for i, team := range teams {
 			for _, s := range team.Secrets {
-				require.Equal(t, "***" == s.Secret, i == 1 || i == 3)
+				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 1 || i == 3)
 			}
 		}
 	})
