@@ -598,6 +598,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// order is guaranteed by profile name
 	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	// filevault is enabled by default
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
