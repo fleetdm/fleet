@@ -182,17 +182,13 @@
   }
 
   .Select-menu-outer {
-    max-height: none;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
     z-index: 6;
+    overflow: hidden;
     border: 0;
     margin: 1px 0 0;
     padding: $pad-small;
     animation: fade-in 150ms ease-out;
-
-    .Select-menu {
-      max-height: none;
-    }
   }
 
   .Select-noresults {
