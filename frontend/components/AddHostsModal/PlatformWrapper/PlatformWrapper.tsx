@@ -63,7 +63,7 @@ interface IPlatformWrapperProps {
 
 const CHROME_OS_INFO = {
   extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
-  url: "https://chrome.fleetdm.com/updates.xml",
+  installationUrl: "https://chrome.fleetdm.com/updates.xml",
   policyForExtension: `{
   "fleet_url": {
     "Value": "https://dogfood.fleetdm.com"
@@ -393,9 +393,9 @@ const PlatformWrapper = ({
                 <InputField
                   disabled
                   inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
-                  name="URL"
-                  label={renderChromeOSLabel("URL", CHROME_OS_INFO.url)}
-                  value={CHROME_OS_INFO.url}
+                  name="Installation URL"
+                  label={renderChromeOSLabel("Installation URL", CHROME_OS_INFO.installationUrl)}
+                  value={CHROME_OS_INFO.installationUrl}
                 />
                 <InputField
                   disabled
