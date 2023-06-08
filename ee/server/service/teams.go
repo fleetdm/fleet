@@ -39,9 +39,8 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 		if t == nil {
 			continue
 		}
-
 		// User does not belong to the team or is a global/team observer/observer+
-		if !teamMemberships[t.ID] || isGlobalObs || obsMembership[t.ID] {
+		if isGlobalObs || user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID]) {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}

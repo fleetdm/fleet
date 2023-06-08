@@ -75,6 +75,10 @@ func TestObfuscateSecrets(t *testing.T) {
 				Role: fleet.RoleObserver,
 			},
 			{
+				Team: *teams[2],
+				Role: fleet.RoleAdmin,
+			},
+			{
 				Team: *teams[3],
 				Role: fleet.RoleObserverPlus,
 			},
@@ -85,7 +89,7 @@ func TestObfuscateSecrets(t *testing.T) {
 
 		for i, team := range teams {
 			for _, s := range team.Secrets {
-				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 1 || i == 3)
+				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 0 || i == 1 || i == 3)
 			}
 		}
 	})
