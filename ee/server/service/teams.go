@@ -21,6 +21,24 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
+	if user == nil {
+		return &authz.Forbidden{}
+	}
+
+	isGlobalObs := user.IsGlobalObserver()
+	obsMembership := user.TeamObserverMembership()
+
+	for _, t := range teams {
+		if t != nil && (isGlobalObs || obsMembership[t.ID]) {
+			for _, s := range t.Secrets {
+				s.Secret = "***"
+			}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -369,7 +387,14 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListTeams(ctx, filter, opt)
+	teams, err := svc.ds.ListTeams(ctx, filter, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	err = obfuscateSecrets(vc.User, teams)
+
+	return teams, err
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
@@ -472,7 +497,19 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	return svc.ds.Team(ctx, teamID)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	team, err := svc.ds.Team(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = obfuscateSecrets(vc.User, []*fleet.Team{team})
+
+	return team, err
 }
 
 func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
@@ -480,7 +517,26 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 		return nil, err
 	}
 
-	return svc.ds.TeamEnrollSecrets(ctx, teamID)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	secrets, err := svc.ds.TeamEnrollSecrets(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	isGlobalObs := vc.User.IsGlobalObserver()
+	teamObs := vc.User.TeamObserverMembership()
+
+	for _, s := range secrets {
+		if s != nil && (isGlobalObs || teamObs[*s.TeamID]) {
+			s.Secret = "***"
+		}
+	}
+
+	return secrets, err
 }
 
 func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {

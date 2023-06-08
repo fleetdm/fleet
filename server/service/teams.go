@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -49,42 +48,6 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	return nil, fleet.ErrMissingLicense
 }
 
-func obfuscateSecrets(user *fleet.User, teams []fleet.Team) error {
-	if user == nil {
-		return &authz.Forbidden{}
-	}
-
-	isGlobalObs := user.IsGlobalObserver()
-	obsMembership := user.TeamObserverMembership()
-
-	for _, t := range teams {
-		if isGlobalObs || obsMembership[t.ID] {
-			for _, s := range t.Secrets {
-				s.Secret = "***"
-			}
-		}
-	}
-	return nil
-}
-
-func (r listTeamsResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		encodeError(ctx, r.Err, w)
-		return
-	}
-
-	if err := obfuscateSecrets(authz.UserFromContext(ctx), r.Teams); err != nil {
-		encodeError(ctx, err, w)
-		return
-	}
-
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, err, w)
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Get Team
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,27 +78,6 @@ func (svc *Service) GetTeam(ctx context.Context, tid uint) (*fleet.Team, error) 
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
-}
-
-func (r getTeamResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		encodeError(ctx, r.Err, w)
-		return
-	}
-
-	if r.Team != nil {
-		wrapper := []fleet.Team{*r.Team}
-		if err := obfuscateSecrets(authz.UserFromContext(ctx), wrapper); err != nil {
-			encodeError(ctx, err, w)
-			return
-		}
-	}
-
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, err, w)
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -445,33 +387,6 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
-}
-
-func (r teamEnrollSecretsResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		encodeError(ctx, r.Err, w)
-		return
-	}
-
-	user := authz.UserFromContext(ctx)
-	if user == nil {
-		encodeError(ctx, &authz.Forbidden{}, w)
-		return
-	}
-
-	isGlobalObs := user.IsGlobalObserver()
-	teamObs := user.TeamObserverMembership()
-	for _, s := range r.Secrets {
-		if s != nil && (isGlobalObs || teamObs[*s.TeamID]) {
-			s.Secret = "***"
-		}
-	}
-
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, err, w)
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
