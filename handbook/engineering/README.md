@@ -2,6 +2,10 @@
 
 ## Scrum at Fleet
 
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Scrum boards](#scrum-boards)
+- [Scrum items](#scrum-items)
+
 Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
 ### Sprint ceremonies
@@ -38,8 +42,6 @@ Our scrum boards are exclusively composed of three types of scrum items:
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these three types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
 ## Meetings
-
-### In this section
 
 - [Goals](#goals)
 - [Principles](#principles)
@@ -130,6 +132,8 @@ Engineering and product weekly sync to discuss process, roadmap, and scheduling.
 
 ## Engineering-initiated stories
 
+- [Creating an engineering-initiated story](#creating-an-engineering-initiated-story) 
+
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
@@ -150,8 +154,6 @@ Engineering-initiated stories follow the [user story drafting process](https://f
 > We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
 ## Release process
-
-### In this section
 
 - [Release freeze period](#release-freeze-period)
 - [Release day](#release-day)
@@ -175,7 +177,7 @@ To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
 
 1. **Go**: Latest minor release
-* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L3-L4).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-binaries.yaml#L30).
 * Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
 * If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
 * If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
@@ -218,12 +220,11 @@ How to deploy a new release to dogfood:
 
 ## Oncall rotation
 
-### In this section
-
 - [The rotation](#the-rotation)
 - [Responsibilities](#responsibilities)
 - [Clearing the plate](#clearing-the-plate)
 - [How to reach the oncall engineer](#how-to-reach-the-oncall-engineer)
+- [Escalations](#escalations)
 - [Handoff](#handoff)
 
 ### The rotation
@@ -234,7 +235,12 @@ Fleet team members can also subscribe to the [shared calendar](https://calendar.
 
 ### Responsibilities
 
-#### 1. Second-line response
+- [Second-line response](#second-line-response)
+- [PR reviews](#pr-reviews)
+- [Customer success meetings](#customer-success-meetings)
+- [Improve documentation](#improve-documentation)
+
+#### Second-line response
 
 The oncall engineer is a second-line responder to questions raised by customers and community members.
 
@@ -244,21 +250,21 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
-#### 2. PR reviews
+#### PR reviews
 
 Pull requests may be routed through the oncall engineer for review.
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. ([Kathy](https://github.com/ksatter))will review all PRs to the Fleet documentation, and she will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
+For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. ([Kathy](https://github.com/ksatter)) will review all PRs to the Fleet documentation, and she will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
 
 In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
 
-#### 3. Customer success meetings
+#### Customer success meetings
 
 The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-experience Slack channel requesting invitations to upcoming meetings.
 
 This has a dual purpose of providing more context for how our customers use Fleet. The engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
-#### 4. Improve documentation
+#### Improve documentation
 
 The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
 
@@ -326,23 +332,27 @@ At Fleet, we take customer incidents very seriously. After working with customer
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
+- [Postmortem document](#postmortem-document)
+- [Postmortem meeting](#postmortem-meeting)
+- [Postmortem action items](#postmortem-action-items)
+
 ### Postmortem document
 
-Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate with some initial data to enable a productive conversation. 
+Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation. 
 
 ### Postmortem meeting
 
-Invite all stake holders, typically the team involved and QA representatives.
+Invite all stakeholders, typically the team involved and QA representatives.
 
 Follow the document topic by topic. Keep the goal in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
 
-Distinguish between the root-cause of the bug, which by that time was solved and released, and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
+Distinguish between the root cause of the bug, which by that time was solved and released, and the root cause of why this issue reached our customers. These could be different issues. (e.g. the root cause of the bug was a coding issue, but the root causes (plural) of the event may be that the test plan did not cover a specific scenario, a lack of testing, and a lack of metrics to identify the issue quickly).
 
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
 ### Postmortem action items
 
-Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM and/or engineering manager.
+Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM/EM.
 
 ## Outages
 
@@ -356,7 +366,7 @@ At Fleet, we consider an outage to be a situation where new features or previous
 
 Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. However, there are some specific gotchas to be aware of when implementing new features. Visit our [scaling Fleet page](https://fleetdm.com/handbook/engineering/scaling-fleet) for tips on scaling Fleet as efficiently and effectively as possible. 
 
-### Version support
+## Version support
 
 To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
 
@@ -368,7 +378,7 @@ Premium version supported for bug fixes: **Latest version only**
 
 Premium support for support/troubleshooting: **All versions**
 
-### Reviewing PRs from the community
+## Reviewing PRs from the community
 
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
@@ -396,7 +406,7 @@ For PRs that will not be merged:
 - Thank the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
 
-#### Merging community PRs
+### Merging community PRs
 
 When merging a pull request from a community contributor:
 
@@ -406,202 +416,11 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
-## Updating docs and FAQ
-
-When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
-
-Our goal is to answer every question with a link to the docs and/or result in a documentation update.
-
-> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Kathy Satterlee, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
-
-### In this section
-
-- [Tracking](#tracking)
-- [How to request a review for Markdown changes to the docs](#how-to-request-a-review-for-markdown-changes-to-the-docs)
-- [Markdown](#markdown)
-- [Adding links](#adding-links)
-- [Linking to a location on GitHub](#linking-to-a-location-on-github)
-- [How to fix a broken link](#how-to-fix-a-broken-link)
-- [Page order](#page-order)
-- [Adding an image](#adding-an-image)
-- [Adding a mermaid diagram](#adding-a-mermaid-diagram)
-
-### Tracking
-
-When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
-
-- proposed change to the documentation.
-- documentation link that was sent as a response.
-- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
-
-### How to request a review for Markdown changes to the docs
-
-When creating a pull request for Markdown changes in the docs, request a review from Kathy Satterlee, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
-
-### Markdown
-
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
-
-When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
-
-#### Linebreaks and newlines
-
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
-
-For example, if you were adding this section to the docs:
-
-```
-line one
-line two
-```
-
-The Markdown would render on the Fleet website as
-
-line one
-line two
-
-To make sure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
-
-```
-line one
-
-line two
-```
-
-The Markdown will render correctly as
-
-line one
-
-line two
-
-#### Ordered lists
-
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item.
-
-For example, this list:
-
-```
-1. Item one
-
-Paragraph about item one
-
-2. Item two
-```
-
-On the Fleet website, this ordered list would be rendered as
-
-1. Item one
-
-Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-This ordered list will render correctly as
-
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-
-### Adding links
-
-You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically be transformed into the appropriate URL for `fleetdm.com/docs`.
-
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
-When directly linking to a specific section, always format the spaces within a section name to use a hyphen instead of an underscore. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
-
-### Linking to a location on GitHub
-
-When adding a link to a location on GitHub outside of `/docs`, be sure to use the canonical form of the URL.
-
-Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
-
-### How to fix a broken link
-
-For instances when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`.
-
-An example of a link that lives outside of `/docs` is:
-
-```
-../../tools/app/prometheus
-```
-
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form (a version of the link that will always point to the same version of the file) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the Markdown file.
-
-> Note that the instructions above also apply to adding links in the Fleet handbook.
-
-### Page order
-
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
-
-We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
-
-When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
-
-### Adding an image
-
-Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
-
-When adding images to the Fleet documentation, follow these guidelines:
-
-- UI screenshots should be a 4:3 aspect ratio (1280x960). This is an optimal size for the container width of the docs and ensures that content in screenshots is as clear as possible to view in the docs (and especially on mobile devices).
-- You can set up a custom preset in the Google Chrome device toolbar (in Developer Tools) to quickly adjust your browser to the correct size for taking a screenshot.
-- Keep the images as simple as possible to maintain. Screenshots can get out of date quickly as UIs change.
-- Exclude unnecessary images. Images should be used to help emphasize information in the docs, not replace it.
-- Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
-- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure it is easily readable at all widths.
-
-Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)`
-The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
-
-> Note that the instructions above also apply to adding images in the Fleet handbook.
-
-### Adding a mermaid diagram
-
-The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
-
-To add a mermaid diagram to the docs, you need to add a code block and specify that it is written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
-
-For example, the following code block is a mermaid diagram that has **not** been specified as a mermaid code block:
-
-```
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-
-Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
-
-```mermaid
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-
-If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
-
-```mermaid
-graph TD;
-    A--D
-```
-
 ## Quality
+
+- [Human-oriented QA](#human-oriented-qa)
+- [Finding bugs](#finding-bugs)
+- [Outages](#outages)
 
 ### Human-oriented QA
 
@@ -631,62 +450,94 @@ To start a preview without starting the simulated hosts, use the `--no-hosts` fl
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
 
-For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups.md#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
+For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
-### Bug process
+## Bug process
 
-All bugs in Fleet are tracked on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub. 
+- [Bug states](#bug-states)
+- [Finding bugs](#finding-bugs)
+- [Outages](#outages)
+- [All bugs](#all-bugs)
 
-#### Bug States
+All bugs in Fleet are tracked by QA on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub. 
+
+### Bug states
 The lifecycle stages of a bug at Fleet are: 
-1. Inbox 
-2. Reproduced 
-3. In product drafting (as needed)
-4. In engineering
-5. Awaiting QA
+1. [Inbox](#inbox)
+2. [Reproduced](#reproduced)
+3. [In product drafting (as needed)](#in-product-drafting-as-needed)
+4. [In engineering](#in-engineering)
+5. [Awaiting QA](#awaiting-qa)
 
 The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and boards. 
 
 See [Bug states and filters](#bug-states-and-filters) at the end of this document for descriptions of these states and links to each GitHub filter.
 
-### Inbox
+#### Inbox 
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
 
 For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
 
-Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state. If QA or the engineering manager feels the bug report may be expected behavior, or if clarity is required on the intended behavior, it is assigned to the group's product manager. 
+Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state. If QA or the engineering manager feels the bug report may be expected behavior, or if clarity is required on the intended behavior, it is assigned to the group's product manager. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
 
-#### Weekly bug review
+##### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
 
-### Reproduced
-When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
+#### Reproduced
+QA has reproduced the issue successfully. It should now be transferred to engineering. 
 
-#### After reproduced
-After it's in a release formally, the bug should be treated like any other piece of work per the standard engineering process.
+Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
-#### Fast track for Fleeties
+##### Fast track for Fleeties
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
-### Release testing
+#### In product drafting (as needed)
+If a bug requires input from product, the `:product` label is added and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label, moves the back to the "Inbox" on the bugs board, and assigns it to the appropriate EM.
+
+#### In engineering
+A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process).
+
+If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
+
+Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
+
+#### Awaiting QA 
+Bugs are verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
+
+### All bugs
+
+- [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+- [See on ZenHub](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board).
+
+#### Bugs opened this week
+
+This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+label%3Abug+created%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
+
+#### Bugs closed this week
+
+This filter returns all "bug" issues closed after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+is%3Aclosed+label%3Abug+closed%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
+
+## Release testing
+
+- [Release blockers](#release-blockers)
+- [Critical bugs](#critical-bugs)
+
 When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-qa channel, product may decide whether the bug is a critical or release-blocking. When a critical bug is found, product is responsible for following the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process) below. When a release-blocking bug is found, product is responsible for communicating any delays to company stakeholders. 
+When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process) below. 
 
-Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard [bug process](https://fleetdm.com/docs/contributing/releasing-fleet#bug-process). 
+All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://fleetdm.com/docs/contributing/releasing-fleet#bug-process). 
 
-### Release-blocking bugs
-A release-blocking bug is identified by the `~release blocker` label. It becomes a release-blocking bug if:
-* New functionality that impacts previous stable functionality
-* Incomplete features as defined or implied in the specs
-* It does not meet the criteria of a critical bug
-* We will delay the release to ensure a fix if necessary
+### Release blockers
+
+Product may add the `~release blocker` label to user stories to indicate that the story must be completed to publish the next version of Fleet. Bugs are never labeled as release blockers. 
 
 ### Critical bugs
+
 A critical bug is a bug with the `~critical bug` label. A critical bug is defined as behavior that: 
 * Blocks the normal use a workflow
 * Prevents upgrades to Fleet
@@ -694,6 +545,7 @@ A critical bug is a bug with the `~critical bug` label. A critical bug is define
 * Introduces a security vulnerability
 
 #### Critical bug notification process
+
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
 Raising an alarm means pinging @here in the #help-product channel with the filed bug.
 
@@ -708,7 +560,8 @@ If a quick fix workaround exists, that should be communicated as well for those 
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases).
 
-### Measurement
+## Measurement
+
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
 The metrics are: 
 * Number of bugs opened this week
@@ -716,56 +569,13 @@ The metrics are:
 * Bugs in each state (inbox, acknowledged, reproduced) 
 * Number of bugs closed this week
 
-Each week these are tracked and shared in the weekly update by Charlie Chance.
-
-### Orphans
-Occasionally, bugs may get lost if, for example, a label is misapplied. Miscategorized issues may slip through the filters and languish in a grey zone. The “orphan” and “reproduced orphan” states exist to catch these issues. 
-Every week, the head of product is responsible for reviewing these two states to identify any that are not properly categorized in the process.
-
-### Bug states and filters
-
-#### Inbox
-The bug has just come in. 
-
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
-
-#### Reproduced
-QA has reproduced the issue successfully. It should now be transferred to engineering. 
-
-Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
-
-#### In product drafting (as needed)
-If a bug requires input from product, the `:product` label is added and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label, moves the back to the "Inbox" on the bugs board, and assigns it to the appropriate EM.
-
-#### In engineering
-A bug is in engineering after it has been reproduced and assigned to an EM. The EM will work with their PM to determine if it meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) or a [release blocking bug](https://fleetdm.com/handbook/engineering#release-blocking-bugs). If so, the `:release` label is added, along with `~release blocker` or `~critical bug`, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the PM follows the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process).
-
-If the bug does not meet the criteria of a critical or release-blocking bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint. 
-
-Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
-
-#### Awaiting QA 
-Bugs are verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
-
-#### Orphans 
-These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
-
-#### All bugs
-[See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
-
-#### Bugs opened this week
-This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+label%3Abug+created%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
-
-#### Bugs closed this week
-This filter returns all "bug" issues closed after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+is%3Aclosed+label%3Abug+closed%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
+Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
 ### Definitions
-
 In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
 In the above process, any reference to "QA" refers to: Reed Haynes, Product Quality Specialist
 
 ## Rituals
-
 The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
 
 | Ritual                        | Frequency           | Description                                                                                                                            | DRI            |
@@ -784,7 +594,6 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
 
 ## 24/7 on-call
-
 The 24/7 on-call (aka infrastructure on-call) team is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility  happen in shifts of 1 week. The people involved in them will be:
 
 First responders:
@@ -813,7 +622,7 @@ All infrastructure alarms (fleetdm.com, Fleet managed cloud, and sandbox) will g
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 
-When an infrastructure oncall engineer is out of office, Mike McNeil will serve as a backup to oncall in #help-p1. All absences must be communicated in advance with Zay Hanlon and Mike McNeil. 
+When an infrastructure oncall engineer is out of office, Zach Wasserman will serve as a backup to oncall in #help-p1. All absences must be communicated in advance with Luke Heath and Zach Wasserman.
 
 ## Slack channels
 
