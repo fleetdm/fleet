@@ -91,13 +91,14 @@ const HostsSummary = ({
     if (isLoadingChromeLabelId || chromeLabelId === undefined) {
       return <></>;
     }
+
     return (
       <SummaryTile
         iconName="chrome-red"
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
-        title="Chromebooks"
+        title={`Chromebook${chromeCount === 1 ? "" : "s"}`}
         path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
         )}
