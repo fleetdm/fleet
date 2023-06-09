@@ -65,7 +65,7 @@ We also opened an issue a few weeks ago to investigate adding a feature to Fleet
 | ----------- | -------------- |
 | Enumeration | Low risk       |
 
-User enumeration by a logged-in user is not a critical issue. Still, when it is done by a user with minimal privileges, such as a team observer, it is a leak of information, and depending on why you use teams, it might be a problem. For this reason, we are planning to make only team administrators able to enumerate users, so they can add them to their own teams. This finding is addressed by [Issue 5657](https://github.com/fleetdm/fleet/issues/5657) and has been resolved and tested in Fleet 4.31.0.
+User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a team observer), it is a leak of information, and might be a problem depending on how you use teams. For this reason, only team administrators are able to enumerate users as of Fleet 4.31.0.
 
 #### 9 - Information disclosure via default content
 | Type                   | Lares Severity |
