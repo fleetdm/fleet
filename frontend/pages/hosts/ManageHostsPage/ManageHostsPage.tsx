@@ -1003,20 +1003,17 @@ const ManageHostsPage = ({
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
-    let action = hostsAPI.destroyBulk(selectedHostIds);
+    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
+    const labelId = selectedLabel?.id;
 
-    if (isAllMatchingHostsSelected) {
-      const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.destroyByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-      });
-    }
+    const action = isAllMatchingHostsSelected
+      ? hostsAPI.destroyByFilter({
+          teamId,
+          query: searchQuery,
+          status,
+          labelId,
+        })
+      : hostsAPI.destroyBulk(selectedHostIds);
 
     try {
       await action;
