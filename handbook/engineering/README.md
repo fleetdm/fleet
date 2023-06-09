@@ -170,7 +170,9 @@ Bugs are exempt from the release freeze period.
 
 ### Freeze day
 
-To begin the freeze, [open the repo on mergefreeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in mergefreeze using the PR number. 
+To begin the freeze, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in Merge Freeze using the PR number. 
+
+> Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
 
 #### Check dependencies
 
@@ -186,7 +188,7 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 2. **macadmins-extension**: Latest release
 * Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
-* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/4322a28f5ae682c8faef3f015b1e8d5c347202db/go.mod#L60).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
 * If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
 * Add the `~release blocker` label.
 
@@ -252,11 +254,9 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 #### PR reviews
 
-Pull requests may be routed through the oncall engineer for review.
+PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually. 
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. ([Kathy](https://github.com/ksatter)) will review all PRs to the Fleet documentation, and she will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
-
-In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
+All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 #### Customer success meetings
 

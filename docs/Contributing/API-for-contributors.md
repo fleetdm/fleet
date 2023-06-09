@@ -1304,6 +1304,14 @@ If the `name` is not already associated with an existing team, this API route cr
 
 `Status: 200`
 
+```json
+{
+  "team_ids_by_name": {
+    "Client Platform Engineering": 123
+  }
+}
+```
+
 ### Apply labels
 
 Adds the supplied labels to Fleet. Each label requires the `name`, and `label_membership_type` properties.

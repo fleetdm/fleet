@@ -1,6 +1,8 @@
 import classnames from "classnames";
 import React from "react";
 
+import * as DOMPurify from "dompurify";
+
 interface ITooltipWrapperProps {
   children: string;
   tipContent: string;
@@ -23,6 +25,8 @@ const TooltipWrapper = ({
     ? `${baseClass}__tip-text delayed-tip`
     : `${baseClass}__tip-text`;
 
+  const sanitizedTipContent = DOMPurify.sanitize(tipContent);
+
   return (
     <div className={classname} data-position={position}>
       <div className={`${baseClass}__element`}>
@@ -31,7 +35,7 @@ const TooltipWrapper = ({
       </div>
       <div
         className={tipClass}
-        dangerouslySetInnerHTML={{ __html: tipContent }}
+        dangerouslySetInnerHTML={{ __html: sanitizedTipContent }}
       />
     </div>
   );

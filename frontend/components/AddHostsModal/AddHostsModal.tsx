@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
+import { useQuery } from "react-query";
+import configAPI from "services/entities/config";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -29,7 +32,21 @@ const AddHostsModal = ({
   onCancel,
   openEnrollSecretModal,
 }: IAddHostsModal): JSX.Element => {
+  const { isPreviewMode, config } = useContext(AppContext);
   const teamDisplayName = (isAnyTeamSelected && currentTeamName) || "Fleet";
+
+  const {
+    data: certificate,
+    error: fetchCertificateError,
+    isFetching: isFetchingCertificate,
+  } = useQuery<string, Error>(
+    ["certificate"],
+    () => configAPI.loadCertificate(),
+    {
+      enabled: !isPreviewMode,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const onManageEnrollSecretsClick = () => {
     onCancel();
@@ -42,7 +59,6 @@ const AddHostsModal = ({
   // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
   const shouldRenderDownloadInstallersContent =
     isSandboxMode && !isAnyTeamSelected;
-
   const renderModalContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -68,7 +84,14 @@ const AddHostsModal = ({
     return shouldRenderDownloadInstallersContent ? (
       <DownloadInstallers onCancel={onCancel} enrollSecret={enrollSecret} />
     ) : (
-      <PlatformWrapper onCancel={onCancel} enrollSecret={enrollSecret} />
+      <PlatformWrapper
+        onCancel={onCancel}
+        enrollSecret={enrollSecret}
+        certificate={certificate}
+        isFetchingCertificate={isFetchingCertificate}
+        fetchCertificateError={fetchCertificateError}
+        config={config}
+      />
     );
   };
 

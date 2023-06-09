@@ -63,7 +63,7 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 			return ctxerr.Wrap(ctx, err, "insert app_config_json")
 		}
 
-		if !info.SSOSettings.EnableSSO {
+		if info.SSOSettings != nil && !info.SSOSettings.EnableSSO {
 			_, err = tx.ExecContext(ctx, `UPDATE users SET sso_enabled=false`)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update users sso")
