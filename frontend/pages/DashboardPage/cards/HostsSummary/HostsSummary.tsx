@@ -54,7 +54,7 @@ const HostsSummary = ({
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="macOS hosts"
+      title={`macOS host${macCount === 1 ? "" : "s"}`}
       path={PATHS.MANAGE_HOSTS_LABEL(7).concat(
         teamId !== undefined ? `?team_id=${teamId}` : ""
       )}
@@ -67,7 +67,7 @@ const HostsSummary = ({
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="Windows hosts"
+      title={`Windows host${windowsCount === 1 ? "" : "s"}`}
       path={PATHS.MANAGE_HOSTS_LABEL(10).concat(
         teamId !== undefined ? `?team_id=${teamId}` : ""
       )}
@@ -80,7 +80,7 @@ const HostsSummary = ({
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
-      title="Linux hosts"
+      title={`Linux host${linuxCount === 1 ? "" : "s"}`}
       path={PATHS.MANAGE_HOSTS_LABEL(12).concat(
         teamId !== undefined ? `?team_id=${teamId}` : ""
       )}
@@ -91,13 +91,14 @@ const HostsSummary = ({
     if (isLoadingChromeLabelId || chromeLabelId === undefined) {
       return <></>;
     }
+
     return (
       <SummaryTile
         iconName="chrome-red"
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
-        title="Chromebooks"
+        title={`Chromebook${chromeCount === 1 ? "" : "s"}`}
         path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
         )}
