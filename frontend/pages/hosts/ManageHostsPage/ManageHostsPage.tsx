@@ -498,11 +498,10 @@ const ManageHostsPage = ({
       (hostsData?.hosts?.length || 0) >=
       hostsCount;
 
-  const handleLabelChange = ({ slug }: ILabel): boolean => {
+  const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
 
-    const isDeselectingLabel =
-      labelID && labelID === selectedLabel?.id.toString();
+    const isDeselectingLabel = newLabelId && newLabelId === selectedLabel?.id;
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
