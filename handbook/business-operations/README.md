@@ -832,6 +832,10 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
 
+## Legal
+
+Please submit legal questions and requests to BizOps via [the intake method](https://fleetdm.com/handbookfleetdm.com/handbook>/business-operations#intake) outlined further down in the handbook.
+
 ## Taxes and compliance
 
 From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
