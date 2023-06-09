@@ -47,6 +47,12 @@ module.exports = {
 
     // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
     pricingTableForSecurity.sort((a, b)=>{
+      // If there is a category that is not in the list above, sort it to the end of the list.
+      if(categoryOrderForSecurityPricingTable.indexOf(a.categoryName) === -1){
+        return 1;
+      } else if(categoryOrderForSecurityPricingTable.indexOf(b.categoryName) === -1) {
+        return -1;
+      }
       return categoryOrderForSecurityPricingTable.indexOf(a.categoryName) - categoryOrderForSecurityPricingTable.indexOf(b.categoryName);
     });
 
