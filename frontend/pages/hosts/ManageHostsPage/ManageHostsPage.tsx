@@ -1005,8 +1005,9 @@ const ManageHostsPage = ({
 
     const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
     const labelId = selectedLabel?.id;
-
-    const action = isAllMatchingHostsSelected
+    
+    try {
+      await  isAllMatchingHostsSelected
       ? hostsAPI.destroyByFilter({
           teamId,
           query: searchQuery,
@@ -1014,9 +1015,6 @@ const ManageHostsPage = ({
           labelId,
         })
       : hostsAPI.destroyBulk(selectedHostIds);
-
-    try {
-      await action;
 
       const successMessage = `${
         selectedHostIds.length === 1 ? "Host" : "Hosts"
