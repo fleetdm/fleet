@@ -196,7 +196,8 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           const count = newMembers.users.length;
           renderFlash(
             "success",
-            `${count} ${count === 1 ? "member" : "members"
+            `${count} ${
+              count === 1 ? "member" : "members"
             } successfully added to ${currentTeamDetails?.name}.`
           );
         })
@@ -424,8 +425,8 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
         )}
       </p>
       {loadingMembersError ||
-        loadingTeamsError ||
-        (!currentTeamDetails && !isLoadingTeams && !isLoadingMembers) ? (
+      loadingTeamsError ||
+      (!currentTeamDetails && !isLoadingTeams && !isLoadingMembers) ? (
         <TableDataError />
       ) : (
         <TableContainer
