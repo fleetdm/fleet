@@ -496,7 +496,7 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 #### In product drafting (as needed)
-If a bug requires input from product, the `:product` label is added and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label, moves the back to the "Inbox" on the bugs board, and assigns it to the appropriate EM.
+If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
 #### In engineering
 A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process).
