@@ -18,7 +18,7 @@ import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
-  PLATFORM_DROPDOWN_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
@@ -303,7 +303,7 @@ const ScheduleEditorModal = ({
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
               />
               <Dropdown
-                options={PLATFORM_DROPDOWN_OPTIONS}
+                options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
                 placeholder="Select"
                 label="Platform"
                 onChange={onChangeSelectPlatformOptions}
