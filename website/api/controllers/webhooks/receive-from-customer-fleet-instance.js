@@ -77,13 +77,13 @@ module.exports = {
         grant_type: 'client_credentials',//eslint-disable-line camelcase
         client_id: sails.config.custom.customerWorkspaceOneOauthId,//eslint-disable-line camelcase
         client_secret: sails.config.custom.customerWorkspaceOneOauthSecret,//eslint-disable-line camelcase
-      }
+      },
     })
     .intercept((err)=>{
       return new Error(`When sending a request to get a Workspace ONE authorization token for the recieve-from-customer-fleet-instance webhook, an error occured. Full error: ${err.stack}`);
     });
 
-    // The body in responses returned from the sendHTTPRequest helper will always be a string, so we need to parse the JSON response body to get the access_token returned from the OAuth URL.
+    // The body in responses returned from the sendHTTPRequest helper will always be a string, so we need to parse the raw JSON response body to get the access_token returned from the OAuth URL.
     // [?]: https://github.com/sailshq/machinepack-http/blob/9770e75db5f005c21068f5411177bf7e072bfd78/lib/send-http-request.js#L91C27-L94
     let oauthResponseBody = JSON.parse(oauthResponse.body);
 
