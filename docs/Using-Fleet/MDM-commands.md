@@ -117,3 +117,4 @@ The command ID can be used to view command results as documented in [step 4 of t
 
 <meta name="pageOrderInSection" value="1506">
 <meta name="title" value="MDM commands">
+<meta name="description" value="Learn how to run custom MDM commands on macOS hosts using Fleet.">

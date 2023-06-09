@@ -703,3 +703,4 @@ SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 
 
 <meta name="pageOrderInSection" value="1600">
+<meta name="description" value="Learn about Fleet's hardcoded queries used to populate device details.">
