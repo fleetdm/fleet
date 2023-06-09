@@ -8,10 +8,9 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 
 import { ITeam } from "interfaces/team";
-
-import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;
@@ -59,11 +58,11 @@ const OSPolicyModal = ({
               >{`${copyMessage} `}</span>
             )}
             <Button
-              variant="unstyled"
+              variant="icon"
               className={`${baseClass}__os-policy-copy-icon`}
               onClick={onCopyOsPolicy}
             >
-              <img src={CopyIcon} alt="copy" />
+              <Icon name="copy" />
             </Button>
           </span>
         </span>

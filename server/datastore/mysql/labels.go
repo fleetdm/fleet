@@ -140,7 +140,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, err
 func (ds *Datastore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query := `
-SELECT name, description, query, platform, label_type, label_membership_type
+SELECT id, name, description, query, platform, label_type, label_membership_type
 FROM labels
 WHERE name = ?
 `
@@ -497,24 +497,25 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       h.label_updated_at,
       h.last_enrolled_at,
       h.refetch_requested,
+      h.refetch_critical_queries_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
-	  %s
+      %s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
-	%s
-	`
+    %s
+`
 	failingPoliciesSelect := `,
 		COALESCE(failing_policies.count, 0) AS failing_policies_count,
 		COALESCE(failing_policies.count, 0) AS total_issues_count
@@ -631,6 +632,7 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
         h.label_updated_at,
         h.last_enrolled_at,
         h.refetch_requested,
+        h.refetch_critical_queries_until,
         h.team_id,
         h.policy_updated_at,
         h.public_ip,
@@ -641,7 +643,7 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
       JOIN hosts h ON lm.host_id = h.id
       LEFT JOIN host_disks hd ON hd.host_id = h.id
       WHERE lm.label_id IN (?) AND %s
-		`, ds.whereFilterHostsByTeams(filter, "h"),
+`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	query, args, err := sqlx.In(sqlStatement, labels)

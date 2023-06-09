@@ -335,7 +335,7 @@ module.exports = {
         if (isAwaitingCeoReview) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
-            labels: ['#g-ea']
+            labels: ['#g-ceo']
           }, baseHeaders);
         }//ﬁ
 

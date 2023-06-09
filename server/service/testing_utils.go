@@ -53,18 +53,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
-	var ssoStore sso.SessionStore
-
 	var (
-		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
-		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
-		is                fleet.InstallerStore
-		mdmStorage        nanomdm_storage.AllStorage
+		failingPolicySet  fleet.FailingPolicySet     = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter    = nopEnrollHostLimiter{}
 		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
-		mdmPusher         nanomdm_push.Pusher
-		mailer            fleet.MailService = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		mailer            fleet.MailService          = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		c                 clock.Clock                = clock.C
+
+		is          fleet.InstallerStore
+		mdmStorage  nanomdm_storage.AllStorage
+		mdmPusher   nanomdm_push.Pusher
+		ssoStore    sso.SessionStore
+		profMatcher fleet.ProfileMatcher
 	)
-	var c clock.Clock = clock.C
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
@@ -89,6 +90,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
+			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+		}
+		if opts[0].ProfileMatcher != nil {
+			profMatcher = opts[0].ProfileMatcher
 		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
@@ -166,6 +171,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			"",
 			ssoStore,
+			profMatcher,
 		)
 		if err != nil {
 			panic(err)
@@ -268,6 +274,7 @@ type TestServerOpts struct {
 	StartCronSchedules  []TestNewScheduleFunc
 	UseMailService      bool
 	APNSTopic           string
+	ProfileMatcher      fleet.ProfileMatcher
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -602,5 +609,7 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 	}
 }

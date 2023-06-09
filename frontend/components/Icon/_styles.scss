@@ -2,8 +2,6 @@
   // keeps this element the same size as the svg
   // aligns properly in text, buttons, dropdowns, summary tile custom component
   display: inline-flex;
-
-  svg {
-    padding: 1px;
-  }
+  // keeps svg vertically centered for non-16px icons (e.g., arrow-internal-link)
+  align-self: center;
 }

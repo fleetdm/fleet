@@ -1,1 +1,0 @@
-- Added device-authenticated endpoint to signal the Fleet server to send a webbook request with the device UUID and serial number to the webhook URL configured for MDM migration.

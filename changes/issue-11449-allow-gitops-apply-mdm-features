@@ -1,0 +1,2 @@
+* Fixed an issue preventing a user with the `gitops` role to apply some MDM settings via `fleetctl apply` (the `macos_setup_assistant` and `bootstrap_package` settings)
+* Added a response payload to the `POST /api/latest/fleet/spec/teams` contributor API endpoint, it now returns an object with a `team_ids_by_name` key which maps team names with their corresponding id.

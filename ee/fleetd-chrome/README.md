@@ -14,4 +14,20 @@ Run the following command to generate an extension.
 To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension.
 
 ## Debugging
-To learn how to debug the Fleetd Chrome extension, visit: https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension.
+
+### Service worker
+
+View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
+### Dev
+
+1. Create your .env file:
+```
+echo 'FLEET_URL="<some_url>"' >> .env
+echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
+```
+2. Build:
+```
+npm install && npm run build
+```
+3. The unpacked extension is in the `dist` dir.

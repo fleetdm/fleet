@@ -10,6 +10,7 @@ on:
       - main
     paths:
       - "mdm_profiles/**.mobileconfig"
+      - ".github/workflows/fleetctl-workstations-canary.yml"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -43,6 +44,6 @@ jobs:
           FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
-          MAC_OS_MIN_VERSION: 13.3.1
-          MAC_OS_VERSION_DEADLINE: 2023-05-15
+          MAC_OS_MIN_VERSION: "13.4.0"
+          MAC_OS_VERSION_DEADLINE: 2023-06-01
           MAC_OS_ENABLE_DISK_ENCRYPTION: true

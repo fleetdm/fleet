@@ -10,21 +10,27 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
 type redisQueryResults struct {
-	// connection pool
 	pool             fleet.RedisPool
 	duplicateResults bool
+	logger           log.Logger
 }
 
 var _ fleet.QueryResultStore = &redisQueryResults{}
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool) *redisQueryResults {
-	return &redisQueryResults{pool: pool, duplicateResults: duplicateResults}
+func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool, logger log.Logger) *redisQueryResults {
+	return &redisQueryResults{
+		pool:             pool,
+		duplicateResults: duplicateResults,
+		logger:           logger,
+	}
 }
 
 func pubSubForID(id uint) string {
@@ -80,7 +86,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by selecting on outChan that is
 // passed into this function)
-func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}) {
+func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}, logger log.Logger) {
 	defer close(outChan)
 
 	for {
@@ -95,6 +101,7 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 		switch msg := msg.(type) {
 		case error:
 			// If an error occurred (i.e. connection was closed), then we should exit.
+			level.Error(logger).Log("msg", "conn.ReceiveWithTimeout failed", "err", msg)
 			return
 		case redigo.Subscription:
 			// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
@@ -122,12 +129,14 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	var wg sync.WaitGroup
 
+	logger := log.With(r.logger, "campaignID", query.ID)
+
 	// Run a separate goroutine feeding redis messages into msgChannel.
 	wg.Add(+1)
 	go func() {
 		defer wg.Done()
 
-		receiveMessages(ctx, psc, msgChannel)
+		receiveMessages(ctx, psc, msgChannel, logger)
 	}()
 
 	wg.Add(+1)
@@ -140,7 +149,13 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
-					writeOrDone(ctx, outChannel, ctxerr.New(ctx, "unexpected exit in receiveMessages"))
+					level.Error(logger).Log("msg", "unexpected exit in receiveMessages")
+					// NOTE(lucas): The below error string should not be modified. The UI is relying on it to detect
+					// when Fleet's connection to Redis has been interrupted unexpectedly.
+					//
+					// TODO(lucas): We should add a unit test (at the time it required many changes to this production code
+					// which increases risk).
+					writeOrDone(ctx, outChannel, ctxerr.Errorf(ctx, "unexpected exit in receiveMessages, campaignID=%d", query.ID))
 					return
 				}
 
@@ -157,6 +172,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
+					level.Error(logger).Log("msg", "error received from pubsub channel", "err", msg)
 					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}

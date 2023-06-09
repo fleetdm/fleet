@@ -13,14 +13,15 @@ import (
 // VulnMapper used for mapping vulnerabilities and their associated data into the payload that
 // will be sent via thrid party webhooks.
 type VulnMapper interface {
-	GetPayload(*url.URL, []*fleet.HostShort, string, fleet.CVEMeta) WebhookPayload
+	GetPayload(*url.URL, []fleet.HostVulnerabilitySummary, string, fleet.CVEMeta) WebhookPayload
 }
 
 type hostPayloadPart struct {
-	ID          uint   `json:"id"`
-	Hostname    string `json:"hostname"`
-	DisplayName string `json:"display_name"`
-	URL         string `json:"url"`
+	ID                     uint     `json:"id"`
+	Hostname               string   `json:"hostname"`
+	DisplayName            string   `json:"display_name"`
+	URL                    string   `json:"url"`
+	SoftwareInstalledPaths []string `json:"software_installed_paths,omitempty"`
 }
 
 type WebhookPayload struct {
@@ -42,25 +43,35 @@ func NewMapper() VulnMapper {
 
 func (m *Mapper) getHostPayloadPart(
 	hostBaseURL *url.URL,
-	hosts []*fleet.HostShort,
+	hosts []fleet.HostVulnerabilitySummary,
 ) []*hostPayloadPart {
 	shortHosts := make([]*hostPayloadPart, len(hosts))
 	for i, h := range hosts {
 		hostURL := *hostBaseURL
 		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
-		shortHosts[i] = &hostPayloadPart{
+		hostPayload := hostPayloadPart{
 			ID:          h.ID,
 			Hostname:    h.Hostname,
 			DisplayName: h.DisplayName,
 			URL:         hostURL.String(),
 		}
+
+		for _, p := range h.SoftwareInstalledPaths {
+			if p != "" {
+				hostPayload.SoftwareInstalledPaths = append(
+					hostPayload.SoftwareInstalledPaths,
+					p,
+				)
+			}
+		}
+		shortHosts[i] = &hostPayload
 	}
 	return shortHosts
 }
 
 func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
-	hosts []*fleet.HostShort,
+	hosts []fleet.HostVulnerabilitySummary,
 	cve string,
 	meta fleet.CVEMeta,
 ) WebhookPayload {

@@ -1,11 +1,12 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
 export default {
-  loadHostDetails: (deviceAuthToken: string) => {
+  loadHostDetails: (deviceAuthToken: string): Promise<IDeviceUserResponse> => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}`;
 

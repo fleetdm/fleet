@@ -173,12 +173,6 @@ const ManageAutomationsModal = ({
     policyItems?.forEach((p) => p.isChecked && newPolicyIds.push(p.id));
 
     const newErrors = { ...errors };
-    // if (isPolicyAutomationsEnabled && !newPolicyIds.length) {
-    //   newErrors.policyItems =
-    //     "Please choose at least one policy you want to listen to:";
-    // } else {
-    //   delete newErrors.policyItems;
-    // }
 
     if (
       isPolicyAutomationsEnabled &&
@@ -191,12 +185,14 @@ const ManageAutomationsModal = ({
       delete newErrors.integration;
     }
 
-    if (isWebhookEnabled && !destinationUrl) {
-      newErrors.url = "Please add a destination URL";
-    } else if (!validUrl({ url: destinationUrl })) {
-      newErrors.url = `${destinationUrl} is not a valid URL`;
-    } else {
-      delete newErrors.url;
+    if (isWebhookEnabled) {
+      if (!destinationUrl) {
+        newErrors.url = "Please add a destination URL";
+      } else if (!validUrl({ url: destinationUrl })) {
+        newErrors.url = `${destinationUrl} is not a valid URL`;
+      } else {
+        delete newErrors.url;
+      }
     }
 
     if (!isEmpty(newErrors)) {

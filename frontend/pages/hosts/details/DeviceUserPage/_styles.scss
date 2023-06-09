@@ -3,24 +3,7 @@
     height: 50px;
   }
 }
-.enroll-mdm-modal {
-  &__description {
-    margin: $pad-large 0;
-  }
 
-  &__download-button {
-    margin-top: 12px;
-  }
-
-  ol {
-    padding-left: 0;
-  }
-
-  li {
-    margin-bottom: $pad-large;
-    list-style-position: inside;
-  }
-}
 .device-user {
   display: flex;
   flex-direction: column;

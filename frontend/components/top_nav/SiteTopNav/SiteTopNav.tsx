@@ -54,6 +54,10 @@ const REGEX_GLOBAL_PAGES = {
   PROFILE: /\/profile/i,
 };
 
+const REGEX_EXCLUDE_NO_TEAM_PAGES = {
+  MANAGE_POLICIES: /\/policies\/manage/i,
+};
+
 const testDetailPage = (path: string, re: RegExp) => {
   if (re === REGEX_DETAIL_PAGES.LABEL_EDIT) {
     // we want to match "/labels/10" but not "/hosts/manage/labels/10"
@@ -70,6 +74,12 @@ const isDetailPage = (path: string) => {
 
 const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
+};
+
+const isExcludeNoTeamPage = (path: string) => {
+  return Object.values(REGEX_EXCLUDE_NO_TEAM_PAGES).some((re) =>
+    path.match(re)
+  );
 };
 
 const SiteTopNav = ({
@@ -156,6 +166,13 @@ const SiteTopNav = ({
           </div> */}
         </li>
       );
+    }
+
+    if (
+      isExcludeNoTeamPage(navItem.location.pathname) &&
+      (currentQueryParams.team_id === "0" || currentQueryParams.team_id === 0)
+    ) {
+      currentQueryParams.team_id = undefined;
     }
 
     return (

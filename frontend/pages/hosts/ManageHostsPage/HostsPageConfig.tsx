@@ -55,6 +55,11 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
 export const MAC_SETTINGS_FILTER_OPTIONS = [
   {
     disabled: false,
+    label: "Verified",
+    value: "verified",
+  },
+  {
+    disabled: false,
     label: "Verifying",
     value: "verifying",
   },

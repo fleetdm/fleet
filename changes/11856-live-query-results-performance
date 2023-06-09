@@ -1,0 +1,2 @@
+- Improved the performance of live query results rendering to address usability issues when querying
+  tens of thousands of hosts.

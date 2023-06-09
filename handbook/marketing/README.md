@@ -68,6 +68,26 @@ Once a blog post has been written, approved, and published, make sure that it is
 - Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
 - Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
+### About Fleet Device Management
+
+#### (Under 50 words)
+
+Fleet is a lightweight, open-core, cross-platform solution providing real-time insights using osquery and GitOps-driven device management, including Mac, Windows, Linux, and ChromeOS. Fleet streamlines IT security with automated vulnerability management, facilitating compliance policy implementation. Offering seamless on-premise or cloud integration, Fleet is a trusted, accessible tool for robust IT administration.
+
+#### (Under 100 words)
+
+Fleet is a lightweight, open-core, cross-platform solution that provides real-time insights using osquery and GitOps-driven management for all your devices, including Mac, Windows, Linux, and ChromeOS. It empowers IT security and IT administrators by facilitating device investigation, mobile device management (MDM), and implementing standard compliance policies for remediation and updates. Fleet enhances IT security with automated vulnerability management and security workflows within a single application. Trusted by hundreds of companies, Fleet requires no certification and offers seamless on-premise or cloud integration. Fleet is a comprehensive, accessible tool to strengthen IT security and device management.
+
+#### (Under 200 words)
+
+Fleet is a lightweight, open-core, cross-platform platform that embraces the power of osquery to provide real-time insights and GitOps-driven management across all your devices, including Mac, Windows, Linux, and ChromeOS. This versatile platform is a comprehensive tool for IT security and IT administrators, offering a streamlined approach to investigating computers, servers, and managing mobile devices.
+
+Leverage Fleet's programmable Mobile Device Management (MDM) capabilities to illuminate the darkness surrounding MDM access and data acquisition. Trusted by hundreds of companies, Fleet and osquery deliver superior visibility into your devices, facilitating the implementation of standard compliance policies for real-time remediation and updates.
+
+Fleet offers seamless integration for on-premise or cloud-based operations, requiring no certification or education to start, making Fleet accessible and straightforward. Additionally, Fleet contributes to robust IT security by enabling the automation of vulnerability management and security workflows within a single application. Create or install policies to ascertain device compliance with your security guidelines, and build automations to address vulnerabilities in your environment promptly.
+
+As a result, Fleet emerges as a practical and efficient solution for IT administrators seeking to
+enhance their IT security landscape through GitOps and elevate their device management capabilities.
 
 ### Press releases
 
@@ -673,21 +693,17 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
-| Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
 | Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
 | Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Brand planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
@@ -723,6 +739,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-marketing`              | Jarod Reyes                                                            |
+| `#g-website`                | Mike Thomas                                                            |
+| `#fleet-mindshare-pr`       | Jarod Reyes                                                            |
 | `#help-public-relations`    | Jarod Reyes                                                            |
 | `#help-promote`             | Jarod Reyes                                                            |
 | `#help-swag`                | Drew Baker                                                          |

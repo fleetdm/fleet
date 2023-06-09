@@ -108,6 +108,10 @@
         }
       }
     }
+
+    .empty-table__container {
+      max-width: 465px; // Fixes wider font causing orphaned word on all teams empty state
+    }
   }
 
   .no-team-schedule {
