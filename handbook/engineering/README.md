@@ -506,7 +506,7 @@ If the bug does not meet the criteria of a critical bug, the EM will determine i
 Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
 
 #### Awaiting QA 
-Bugs are verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
+Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
 
 ### All bugs
 
