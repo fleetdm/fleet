@@ -1,6 +1,6 @@
 # Application security
 
-- [Describe your secure coding practices](#describe-your-secure-coding-practices-including-code-reviews-use-of-staticdynamic-security-testing-tools-3rd-party-scansreviews)
+- [Describe your secure coding practices (SDLC)](#describe-your-secure-coding-practices-including-code-reviews-use-of-staticdynamic-security-testing-tools-3rd-party-scansreviews)
 - [SQL injection](#sql-injection)
 - [Broken authentication](#broken-authentication--authentication-session-management-flaws-that-compromise-passwords-keys-session-tokens-etc)
   - [Passwords](#passwords)

@@ -149,7 +149,7 @@ module.exports = {
                 for(let platform of columnHasFleetOverrides.platforms) {
                   if(platform === 'darwin') {
                     platformWithNormalizedNames.push('macOS');
-                  } else if(platform === 'chromeos') {
+                  } else if(platform === 'chrome') {
                     platformWithNormalizedNames.push('ChromeOS');
                   } else {
                     platformWithNormalizedNames.push(_.capitalize(platform));

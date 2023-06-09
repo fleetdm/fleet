@@ -207,9 +207,6 @@
               .issues__cell {
                 display: flex;
                 align-items: center;
-                .host-issue {
-                  height: 16px;
-                }
               }
 
               .device_mapping__cell,
@@ -236,6 +233,10 @@
 
   &__status_dropdown {
     width: 165px;
+
+    @media (min-width: 1100px) {
+      width: 180px;
+    }
 
     .Select-menu-outer {
       width: 364px;

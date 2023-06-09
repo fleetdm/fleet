@@ -3,13 +3,6 @@
   flex-direction: column;
   align-items: center;
 
-  #error-icon {
-    height: 12px;
-    width: 12px;
-    margin-right: 8px;
-    margin-bottom: -1px;
-  }
-
   &__inner {
     display: flex;
     flex-direction: row;
@@ -23,6 +16,13 @@
       font-weight: $bold;
       font-size: $x-small;
       text-align: center;
+
+      .icon {
+        vertical-align: sub;
+        margin-right: $pad-small;
+        position: relative;
+        bottom: 1px;
+      }
     }
     &__data {
       display: block;

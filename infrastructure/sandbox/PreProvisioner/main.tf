@@ -299,6 +299,14 @@ resource "aws_ecs_task_definition" "main" {
             name  = "TF_VAR_license_key"
             value = var.license_key
           },
+          {
+            name  = "TF_VAR_apm_url"
+            value = var.apm_url
+          },
+          {
+            name  = "TF_VAR_apm_token"
+            value = var.apm_token
+          },
         ]),
         secrets = concat([
           {

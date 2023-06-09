@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { FileVaultProfileStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
+export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -166,5 +169,13 @@ export default {
   downloadEULA: (token: string) => {
     const { MDM_EULA } = endpoints;
     return sendRequest("GET", MDM_EULA(token));
+  },
+
+  updateEndUserAuthentication: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      enable_end_user_authentication: isEnabled,
+    });
   },
 };

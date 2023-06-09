@@ -55,6 +55,7 @@ const (
 type MacOSSettingsStatus string
 
 const (
+	MacOSSettingsVerified  MacOSSettingsStatus = "verified"
 	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
 	MacOSSettingsPending   MacOSSettingsStatus = "pending"
 	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
@@ -62,7 +63,7 @@ const (
 
 func (s MacOSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying:
+	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying, MacOSSettingsVerified:
 		return true
 	default:
 		return false
@@ -357,6 +358,7 @@ type MDMHostData struct {
 type DiskEncryptionStatus string
 
 const (
+	DiskEncryptionVerified            DiskEncryptionStatus = "verified"
 	DiskEncryptionVerifying           DiskEncryptionStatus = "verifying"
 	DiskEncryptionActionRequired      DiskEncryptionStatus = "action_required"
 	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
@@ -372,6 +374,7 @@ func (s DiskEncryptionStatus) IsValid() bool {
 	switch s {
 	case
 		DiskEncryptionVerifying,
+		DiskEncryptionVerified,
 		DiskEncryptionActionRequired,
 		DiskEncryptionEnforcing,
 		DiskEncryptionFailed,
@@ -424,11 +427,16 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 		switch fvprof.OperationType {
 		case MDMAppleOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
+			case fvprof.Status != nil && (*fvprof.Status == MDMAppleDeliveryVerifying || *fvprof.Status == MDMAppleDeliveryVerified):
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					switch {
+					case *fvprof.Status == MDMAppleDeliveryVerifying:
+						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					case *fvprof.Status == MDMAppleDeliveryVerified:
+						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
+					}
 				} else if d.rawDecryptable != nil {
 					// if a FileVault profile has been successfully installed on the host
 					// but either we didn't get an encryption key or we're not able to
@@ -485,6 +493,8 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleD
 		return &MDMAppleDeliveryFailed
 	case DiskEncryptionVerifying:
 		return &MDMAppleDeliveryVerifying
+	case DiskEncryptionVerified:
+		return &MDMAppleDeliveryVerified
 	default:
 		return currStatus
 	}
@@ -793,6 +803,13 @@ func (h *HostMDM) IsManualFleetEnrolled() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM, regardless of automatic or manual
+// enrollment method.
+func (h *HostMDM) IsFleetEnrolled() bool {
+	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
@@ -1023,4 +1040,15 @@ type HostSoftwareInstalledPath struct {
 	SoftwareID uint `db:"software_id"`
 	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
+}
+
+// HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
+// table of the macadmins oquery extension
+type HostMacOSProfile struct {
+	// DisplayName is the display name of the profile.
+	DisplayName string `json:"display_name" db:"display_name"`
+	// Identifier is the identifier of the profile.
+	Identifier string `json:"identifier" db:"identifier"`
+	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
+	InstallDate time.Time `json:"install_date" db:"install_date"`
 }

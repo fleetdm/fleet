@@ -138,6 +138,10 @@ osquery:
       statusTopic: ""
       resultTopic: ""
 
+apm:
+  url: ""
+  token: ""
+
 ## Section: MySQL
 # All of the connection settings for MySQL
 mysql:

@@ -225,8 +225,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		var nudgeConfig *fleet.NudgeConfig
 		if mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.Deadline != "" &&
-			mdmConfig.MacOSUpdates.MinimumVersion != "" {
+			mdmConfig.MacOSUpdates.Deadline.Value != "" &&
+			mdmConfig.MacOSUpdates.MinimumVersion.Value != "" {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
@@ -250,8 +250,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
-	if config.MDM.MacOSUpdates.Deadline != "" &&
-		config.MDM.MacOSUpdates.MinimumVersion != "" {
+	if config.MDM.MacOSUpdates.Deadline.Value != "" &&
+		config.MDM.MacOSUpdates.MinimumVersion.Value != "" {
 		nudgeConfig, err = fleet.NewNudgeConfig(config.MDM.MacOSUpdates)
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err

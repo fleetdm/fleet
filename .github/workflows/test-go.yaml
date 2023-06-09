@@ -40,7 +40,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
@@ -96,7 +96,7 @@ jobs:
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
-          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Upload to Codecov

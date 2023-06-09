@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -57,7 +58,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.Len(t, targets, 0)
 
 	// set the config
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: "11", Deadline: "2022-01-04"})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 
 	// there's an error when the remote repo doesn't have the target yet

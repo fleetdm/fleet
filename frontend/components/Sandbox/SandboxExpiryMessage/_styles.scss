@@ -10,6 +10,8 @@
   font-size: $x-small;
   color: $core-fleet-black;
   font-weight: $regular;
+  position: relative; // Position in front of settings sticky header space
+  z-index: 9; // Position in front of settings sticky header space
 
   p {
     margin: 0;

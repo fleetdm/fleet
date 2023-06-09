@@ -3,7 +3,7 @@ platforms:
   - darwin
   - windows
   - linux
-  - chromeos
+  - chrome
 description: Installed extensions (plugins) for [Chromium-based](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers, including [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).
 examples: >-
   List Chrome extensions by user and profile which have full access to HTTPS

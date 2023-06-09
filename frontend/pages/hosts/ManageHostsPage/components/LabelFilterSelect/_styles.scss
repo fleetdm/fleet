@@ -14,7 +14,6 @@
     border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
-    height: 40px;
 
     &--is-focused,
     &--menu-is-open,
@@ -34,7 +33,7 @@
       content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
       transform: scale(0.5);
       left: -6px;
-      top: -1px;
+      margin-top: 4px;
     }
   }
 
@@ -120,5 +119,11 @@
     &:hover {
       cursor: pointer;
     }
+  }
+}
+
+@media (min-width: 1100px) {
+  .label-filter-select {
+    width: 180px;
   }
 }

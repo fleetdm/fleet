@@ -1,17 +1,53 @@
 # Engineering
 
+## Scrum at Fleet
+
+Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
+
+### Sprint ceremonies
+
+Each sprint is marked by five essential ceremonies:
+
+1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing.
+3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints.
+4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks.
+5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
+
+### Scrum boards
+
+Each product group has a dedicated sprint board:
+- [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+- [CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+- [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
+- [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
+
+New tickets are estimated, specified, and prioritized on the roadmap:
+- [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+
+### Scrum items
+
+Our scrum boards are exclusively composed of three types of scrum items:
+
+1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term 'epic' may be seen. However, we treat these as regular user stories.
+
+2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier to estimate work units.
+
+3. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint. Bugs [may be estimated or left unestimated](https://fleetdm.com/handbook/engineering#do-we-estimate-released-bugs-and-outages), as determined by the product group's engineering manager.
+
+> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these three types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+
 ## Meetings
 
 ### In this section
 
 - [Goals](#goals)
 - [Principles](#principles)
-- [Scrum](#scrum)
-- [Eng Together](#eng-together)
-- [Release Retro](#release-retro)
-- [Group Weeklies](#group-weeklies)
-- [Standup](#standup)
-- [Product and Eng Weekly](#product-and-eng-weekly)
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Eng together](#eng-together)
+- [Group weeklies](#group-weeklies)
+- [Eng leadership weekly](#eng-leadership) 
+- [Eng product weekly](#eng-product-weekly)
 
 ### Goals
 
@@ -26,34 +62,13 @@
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
-The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings and add any other meetings as they see fit.
-
-### Scrum
-- Fleet engineering teams practice scrum as an agile methodology.
-- Sprints are 3 weeks long to match our release cadence.
-- There are 5 “Scrum Ceremonies” performed during each sprint:
-  - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
-  - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
-    - Have Stakeholders know in advance the time it will take to achieve those items.
-    - Make it easier in the next planning meeting to know what the team can take for the next sprint.
-  - Sprint Demo - At the last Friday of the sprint all engineering teams and stakeholders meet to present their work. Engineers will get 3-10 minutes to present what was done / not done.
-  - Sprint Retrospective - At the last Friday of the sprint each team will meet with stakeholders and hold a discussion answering the 3 questions:
-     - What went well?
-     - What could we have done better?
-     - What did we learn?
-- Scrum items:
-  - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
-  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the &lt;user&gt; I would like to &lt;have something done or changed&gt; so that I can &lt;benefit from it in this specific way&gt;. A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
-  - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
-
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, to promote cohesion across groups within the engineering team, and to connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  Subject matter is focused on engineering.
+Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
 
 #### Sample agenda
 
@@ -65,57 +80,81 @@ Everyone at the company is welcome to attend.  Subject matter is focused on engi
 - Social
   - Structured and/or unstructured social activities
 
-### Release Retro
+### Group weeklies
 
-Gather feedback from all participants in each release. Used to improve communication and processes. Held each release for 30 minutes.
-
-This meeting will likely need to be split in the future as the number of attendees increases.
+A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
 
 #### Participants
 
-This would include members of each group (+ quality).
+Anyone who wishes to participate. 
 
-#### Sample agenda
+#### Sample Agenda (Frontend weekly)
 
-For each attendee:
-
-- What went well this release cycle?
-- What could have gone better this release cycle?
-- What should we remember next time?
-
-### Group Weeklies
-
-A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
-
-e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
-
-In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
-
-#### Participants
-
-This would include anyone who wishes to participate. 
-
-#### Sample Agenda (MDM)
-
-- Anything at risk for the release?
-- Confirm response payload matches spec
 - Discuss common patterns and conventions in the codebase
+- Review difficult frontend bugs
+- Write engineering-initiated stories
 
-### Engineering Leadership Weekly (Weekly ~ one hour)
+### Eng leadership weekly 
 
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
 
-This would include the CTO + Engineering managers.
+- Engineering Managers
+- CTO
+- Director of Product Development
 
 #### Sample agenda
 
-- Fullstack engineer hiring
+- Engineer hiring
 - Engineering process discussion
-- Review Q2 OKRs
+- Review engineering KPIs
+
+### Eng product weekly
+
+Engineering and product weekly sync to discuss process, roadmap, and scheduling. 
+
+#### Participants
+
+- Head of Product
+- Product Managers (optional)
+- CTO
+- Director of Product Development
+- Engineering Managers (optional)
+
+#### Sample agenda
+
+- Product to engineering handoff process
+- Q4 product roadmap
+- Optimizing development processes
+
+## Engineering-initiated stories
+
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users. 
+
+Engineering-initiated stories follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process. 
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+
+### Creating an engineering-initiated story
+
+1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
+2. Label it `~engineering-initiated` and the relevant product group. 
+3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
+4. Schedule a time with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
+5. Iterate based on feedback. 
+6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
+
+> We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
 ## Release process
+
+### In this section
+
+- [Release freeze period](#release-freeze-period)
+- [Release day](#release-day)
 
 This section outlines the release process at Fleet.
 
@@ -123,20 +162,45 @@ The current release cadence is once every three weeks and is concentrated around
 
 ### Release freeze period
 
-In order to make sure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+To ensure release quality, Fleet has a freeze period for testing beginning the Thursday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`. 
 
-Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+Bugs are exempt from the release freeze period. 
 
-1. Regressions
-2. Security concerns
-3. Issues with features targeted for current release
+### Freeze day
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](https://fleetdm.com/handbook/product) and Engineering teams.
+To begin the freeze, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the `main` branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in Merge Freeze using the PR number. 
+
+> Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
+
+#### Check dependencies
+
+Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are: 
+
+1. **Go**: Latest minor release
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-binaries.yaml#L30).
+* Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
+* If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release. 
+* If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
+
+> In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
+
+2. **macadmins-extension**: Latest release
+* Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
+* Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
+* If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
+* Add the `~release blocker` label.
+
+>**Note:** Some new versions of the macadmins-extension include updates that require code changes in Fleet. Make sure to note in the bug that the update should be checked for any changes, like new tables, that require code changes in Fleet.
+
+Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
+
+#### Create release QA issue
+
+Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [CX](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product groups.
 
 ### Release day
 
-Documentation on completing the release process can be found
-[here](https://fleetdm.com/docs/contributing/releasing-fleet).
+Documentation on completing the release process can be found [here](https://fleetdm.com/docs/contributing/releasing-fleet).
 
 ## Deploying to dogfood
 
@@ -168,7 +232,7 @@ How to deploy a new release to dogfood:
 
 See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
 
-Fleet team members can can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
+Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
 ### Responsibilities
 
@@ -184,11 +248,9 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 #### 2. PR reviews
 
-Pull requests may be routed through the oncall engineer for review.
+PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually. 
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. ([Kathy](https://github.com/ksatter))will review all PRs to the Fleet documentation, and she will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
-
-In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
+All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 #### 3. Customer success meetings
 
@@ -290,204 +352,9 @@ At Fleet, we consider an outage to be a situation where new features or previous
 - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
 - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
 
-## Do we estimate released bugs and outages?
+## Scaling Fleet
 
-Estimating bugs and outages can be helpful in getting on the same page about how much time we want to spend on a given piece of unplanned work, and how much the ∑ of unplanned work is affecting a team's throughput.
-
-## Project boards
-
-[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
-
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
-
-## Scaling gotchas
-
-### Overall
-
-Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
-
-In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
-
-In many, caching helps, but given that we are not doing load balancing based on host id (i.e., make sure that the same host ends up in the same Fleet server). This goes only so far. Caching host-specific data is not done because round-robin LB means all Fleet instances end up circling the total list of hosts.
-
-### How to prevent most of this
-
-The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
-
-Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
-
-**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
-
-## What have we learned so far?
-
-This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
-
-## Connecting to Dogfood MySQL & Redis
-
-### Prerequisites
-
-1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
-2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
-
-### Connecting
-
-#### MySQL
-
-Get the database host:
-```shell
-DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].Endpoint" --output=text)
-```
-
-Get the database user:
-```shell
-DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].MasterUsername" --output=text)
-```
-
-Get the database password:
-```shell
-DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /fleet/database/password/master --query "SecretString" --output=text)
-```
-
-Connect:
-```shell
-mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
-```
-
-#### Redis
-
-Get the Redis Host:
-```shell
-REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
-```
-
-Connect:
-```shell
-redis-cli -h "${REDIS_HOST}"
-```
-
-
-## Foreign keys and locking
-
-Among the first things you learn in database data modeling is: that if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
-
-However, this database feature doesn’t come without a cost. The one to focus on here is locking, and here’s a great summary of the issue: https://www.percona.com/blog/2006/12/12/innodb-locking-and-foreign-keys/
-
-The TLDR is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
-
-In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that, [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/hosts.go#L309-L309).
-
-### In this section
-
-- [Insert on duplicate update](#insert-on-duplicate-update)
-- [Host extra data and JOINs](#host-extra-data-and-joins)
-- [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
-- [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
-- [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
-- [On constantly changing data](#on-constantly-changing-data)
-- [Counts and aggregated data](#counts-and-aggregated-data)
-- [Caching data such as app config](#caching-data-such-as-app-config)
-- [Redis SCAN](#redis-scan)
-- [Fleet docs](#fleet-docs)
-- [Community support](#community-support)
-
-### Insert on duplicate update
-
-It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an `INSERT … ON DUPLICATE KEY UPDATE`. While technically correct, it will be more performant to try to do an update, and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the `INSERT … ON DUPLICATE KEY UPDATE`, it will try to insert, and 99% of the time, it will go into the `ON DUPLICATE KEY UPDATE`.
-
-This approach has a caveat. It introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
-
-This is subtle, but an insert will update indexes, check constraints, etc. At the same time, an update might sometimes not do any of that, depending on what is being updated.
-
-While not a performance GOTCHA, if you do use `INSERT … ON DUPLICATE KEY UPDATE`, beware that LastInsertId will return non-zero only if the INSERT portion happens. [If an update happens, the LastInsertId will be 0](https://github.com/fleetdm/fleet/blob/1aff4a4231ccff4d80889b46b57ed12c5ba1ae14/server/datastore/mysql/mysql.go#L925-L953).
-
-### Host extra data and JOINs
-
-Indexes are great. But like most good things, the trick is in the dosage. Too many indexes can be a performance killer on inserts/updates. Not enough, and it kills the performance of selects.
-
-Data calculated on the fly cannot be indexed unless it’s precalculated (see counts section below for more information).
-
-Host data is among the data that changes and grows the most in terms of what we store. It used to be that we used to add more columns in the host table for the extra data in some cases.
-
-Nowadays, we don’t update the host table structure unless we really, really, REALLY need to. Instead, we create adjacent tables that reference a host by id (without an FK). These tables can then be JOINed with the host table whenever needed.
-
-This approach works well for most cases, and for now, it should be the default when gathering more data from hosts in Fleet. However, it’s not a perfect approach as it has its limits.
-
-JOINing too many tables, sorting based on the JOINed table, etc., can have a big performance impact on selects.
-
-Sometimes one strategy that works is selecting and filtering the adjacent table with the right indexes; then, JOIN the host table to that. This works when only filtering/sorting by one adjacent table and pagination can be tricky.
-
-Solutions can become a curse too. Be mindful of when we might cross that threshold between good and bad performance.
-
-### What DB tables matter more when thinking about performance?
-
-While we need to be careful about handling everything in the database, not every table is the same. The host and host\_\* tables are the main cases where we have to be careful when using them in any way.
-
-However, beware of tables that go through async aggregation processes (such as scheduled_query and scheduled_query_stats) or those that are read often as part of the osquery distributed/read and config endpoints.
-
-### Expose more host data in the host listing
-
-Particularly with extra host data (think MDM, Munki, Chrome profiles, etc.), another GOTCHA is that some users have built scripts that go through all hosts by using our list host endpoint. This means that any extra data we add might cause this process to be too slow or timeout (this has happened in the past).
-
-Beware of this, and consider gating the extra data behind a query parameter to allow for a performant backward compatible API that can expose all the data needed in other use cases.
-
-Calculated data is also tricky in the host listing API at scale, as those calculations have to happen for each host row. This can be extra problematic if the sort happens on the calculated data, as all data has to be calculated across all hosts before being able to sort and limit the results (more on this below).
-
-### Understand main use-cases for queries
-
-Be aware of the use cases for an API. For example, take the software listing endpoint. This endpoint lists software alongside the number of hosts with that item installed. It was designed to be performant in a limited use case: list the first eight software items, then count hosts for those software ids.
-
-The problem came later when we learned that we missed an important detail: the UI wanted to sort by amount of host count so that the most popular software appeared on top of this.
-
-This resulted in basically a full host_software table scan per each software row to calculate the count per software. Then, sort and limit. The API worked in the simple case, but it timed out for most customers in the real world.
-
-### On constantly changing data
-
-It can be difficult to show real-time presence data. For Fleet, that is the host `seen_time` -- the time a host last connected to the server -- which is used to determine whether a host is online.
-
-Host seen_time is updated with basically every check-in from any kind of host. Hosts check in every 10 seconds by default. Given that it’s a timestamp reflecting the last time a host contacted Fleet for anything, it’s always different.
-
-While we are doing a few things to make this better, this is still a big performance pain point we have. In particular, we are updating it in bulk. It used to be a column of the hosts' table, which caused a lot of locking. Now it’s an adjacent table without FK.
-
-Luckily, we don’t have anything else (at least up to the moment of this writing) that changes as often as seen_time. However, other features such as software last used can cause similar issues.
-
-### Counts and aggregated data
-
-UX is key for any software. APIs that take longer than 500ms to respond can cause UX issues. Counting things in the database is a tricky thing to do.
-
-In the ideal case, the count query will be covered by an index and be extremely fast. In the worst case, the query will be counting filtering on calculated data, which results in a full (multi) table scan on big tables.
-
-An approach we've taken to addressing this is pre-calculating aggregations and counts that take a long time to generate. By generating these results beforehand and storing them, we can return results by reading a single row from a table when the information is needed.
-
-This approach has a handful of issues:
-
-- The accuracy of the data is worse. We will never get truly accurate counts (the “real-time” count the API returns could change 1ms after we get the value).
-- Depending on how many ways we want to count things, we will have to calculate and store them.
-- Communicating to the user the interval at which things update can sometimes be tricky.
-
-All of this said, Fleet and osquery work in an “update at an interval” fashion, so we have exactly one pattern to communicate to the user, and then they can understand how most things work in the system.
-
-### Caching data such as app config
-
-Caching is a usual strategy to solve some performance issues in the case of Fleet level data, such as app config (of which we will only have one), is easy, and we cache at the Fleet server instance level, refreshing the value every one second. App config gets queried with virtually every request, and with this, we reduce drastically how many times the database is hit with that query. The side effect is that a configuration would take one second to be updated in each Fleet instance, which is a price we are willing to pay.
-
-Caching host-level data is a different matter, though. Given that Fleet is usually deployed in infrastructure where the load balancer distributes the load in a round-robin-like fashion (or maybe other algorithms, but nothing aware of anything within Fleet itself). Then virtually all hosts end up being seen by all Fleet instances, so caching host-level data (in the worst case) results in having a copy of all the hosts in each Fleet instance and refreshing that at an interval.
-
-Caching at the Fleet instance level is a great strategy if it can reasonably handle big deployments, as Fleet utilizes minimal RAM.
-
-Another place to cache things would be Redis. The improvement here is that all instances will see the same cache. However, Redis can also be a performance bottleneck depending on how it’s used.
-
-### Redis SCAN
-
-Redis has solved many scaling problems in general, but it’s not devoid of scaling problems of its own. In particular, we learned that the SCAN command scans the whole key space before it does the filtering. This can be very slow, depending on the state of the system. If Redis is slow, a lot suffers from it.
-
-## Fleet docs
-
-Fleet documentation explains how to use, deploy, and contribute to Fleet as simply as possible. This goes a long way in driving adoption while building our community of fans.
-
-## Community support
-
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors.
+Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. However, there are some specific gotchas to be aware of when implementing new features. Visit our [scaling Fleet page](https://fleetdm.com/handbook/engineering/scaling-fleet) for tips on scaling Fleet as efficiently and effectively as possible. 
 
 ### Version support
 
@@ -500,16 +367,6 @@ Community support for support/troubleshooting: **Current major version**
 Premium version supported for bug fixes: **Latest version only**
 
 Premium support for support/troubleshooting: **All versions**
-
-#### Merge Community PRs
-
-When merging a pull request from a community contributor:
-
-- Ensure that the checklist for the submitter is complete.
-- Verify that all necessary reviews have been approved.
-- Merge the PR.
-- Thank and congratulate the contributor.
-- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ### Reviewing PRs from the community
 
@@ -539,6 +396,16 @@ For PRs that will not be merged:
 - Thank the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
 
+#### Merging community PRs
+
+When merging a pull request from a community contributor:
+
+- Ensure that the checklist for the submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
 ## Updating docs and FAQ
 
 When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
@@ -547,17 +414,9 @@ Our goal is to answer every question with a link to the docs and/or result in a 
 
 > **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Kathy Satterlee, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
 
-### Tracking
-
-When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
-
-- proposed change to the documentation.
-- documentation link that was sent as a response.
-- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
-
-
 ### In this section
 
+- [Tracking](#tracking)
 - [How to request a review for Markdown changes to the docs](#how-to-request-a-review-for-markdown-changes-to-the-docs)
 - [Markdown](#markdown)
 - [Adding links](#adding-links)
@@ -566,6 +425,14 @@ When responding to a question or issue in the [#fleet](https://osquery.slack.com
 - [Page order](#page-order)
 - [Adding an image](#adding-an-image)
 - [Adding a mermaid diagram](#adding-a-mermaid-diagram)
+
+### Tracking
+
+When responding to a question or issue in the [#fleet](https://fleetdm.com/slack) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
+
+- proposed change to the documentation.
+- documentation link that was sent as a response.
+- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
 
 ### How to request a review for Markdown changes to the docs
 
@@ -886,15 +753,16 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
+| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Luke Heath |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
 | Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Luke Heath |
-| Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
-| Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
-| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
+| Release ritual                | Every three weeks   | Go through [the process of releasing](https://fleetdm.com/docs/contributing/releasing-fleet) the next iteration of Fleet.              | Luke Heath |
+| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
+| Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
+| QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
+| Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
 
 ## 24/7 on-call
 
@@ -934,11 +802,12 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
-| `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-mdm`             | Luke Heath                                                           |
+| `#help-engineering`      | Zach Wasserman                                                   |
+| `#g-mdm`                 | George Karr                                                      |
 | `#g-customer-experience` | Sharon Katz                                                      |
-| `#_pov-environments` | Ben Edwards                                                          |
-| `#help-qa`           | Reed Haynes                                                          |
+| `#g-infra`               | Luke Heath                                                       |
+| `#help-qa`               | Reed Haynes                                                      |
+| `#_pov-environments`     | Ben Edwards                                                      |
 
-<meta name="maintainedBy" value="zwass">
+<meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🚀 Engineering">

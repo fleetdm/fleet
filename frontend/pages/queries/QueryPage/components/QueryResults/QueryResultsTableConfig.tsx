@@ -47,7 +47,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const resultsTableHeaders = (results: unknown[]): Column[] => {
+const generateResultsTableHeaders = (results: unknown[]): Column[] => {
   // Table headers are derived from the shape of the first result.
   // Note: It is possible that results may vary from the shape of the first result.
   // For example, different versions of osquery may have new columns in a table
@@ -78,4 +78,4 @@ const resultsTableHeaders = (results: unknown[]): Column[] => {
   return _unshiftHostname(headers);
 };
 
-export default resultsTableHeaders;
+export default generateResultsTableHeaders;

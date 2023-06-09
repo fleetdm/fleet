@@ -52,6 +52,11 @@
       &__wrapper {
         margin: 0;
       }
+      .host-issue {
+        .icon {
+          vertical-align: inherit;
+        }
+      }
     }
   }
   &__hosts-selected-table {

@@ -3,7 +3,7 @@ platforms:
   - darwin
   - linux
   - windows
-  - chromeos
+  - chrome
 examples: >-
   See the OS version as well as the CPU architecture in use (X86 vs ARM for
   example)

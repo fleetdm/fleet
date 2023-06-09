@@ -903,6 +903,8 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.MacOSSettingsVerifying:
 		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
+	case fleet.MacOSSettingsVerified:
+		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
 	}
 	if subquery != "" {
 		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
@@ -919,6 +921,8 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
+	case fleet.DiskEncryptionVerified:
+		subquery, subqueryParams = subqueryDiskEncryptionVerified()
 	case fleet.DiskEncryptionVerifying:
 		subquery, subqueryParams = subqueryDiskEncryptionVerifying()
 	case fleet.DiskEncryptionActionRequired:
@@ -3931,4 +3935,30 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	result := map[string]struct{}{}
+	if len(serials) == 0 {
+		return result, nil
+	}
+
+	var args []interface{}
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	stmt, args, err := sqlx.In("SELECT hardware_serial FROM hosts WHERE hardware_serial IN (?)", args)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
+	}
+	var matchingSerials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &matchingSerials, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	for _, serial := range matchingSerials {
+		result[serial] = struct{}{}
+	}
+
+	return result, nil
 }
