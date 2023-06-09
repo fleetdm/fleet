@@ -51,12 +51,12 @@ module.exports = {
       throw new Error('No sails.config.custom.customerWorkspaceOneBaseUrl configured! Please set this value to be the base url of the customers Workspace One instance.');
     }
 
-    if(!sails.config.custom.customerWorkspaceOneTenantId) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneTenantId configured! Please set this value to be a the "AirWatch" API token from the Customer\'s Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneOauthId) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneOauthId configured! Please set this value to be the client id of the Oauth token for requests to the customer\'s Workspace One instance.');
     }
 
-    if(!sails.config.custom.customerWorkspaceOneAuthorizationToken) {
-      throw new Error('No sails.config.custom.customerWorkspaceOneAuthorizationToken configured! Please set this value to be the authorization header for requests to the customer\'s Workspace One instance.');
+    if(!sails.config.custom.customerWorkspaceOneOauthSecret) {
+      throw new Error('No sails.config.custom.customerWorkspaceOneOauthSecret configured! Please set this value to be the client id of the Oauth token for requests to the customer\'s Workspace One instance.');
     }
 
     if(!sails.config.custom.customerMigrationWebhookSecret) {
@@ -67,14 +67,29 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Send a request to Workspace ONE to get an authorization token to use for the request to the Workspace ONE instance.
+    // [?] https://docs.vmware.com/en/VMware-Workspace-ONE-Access/services/ws1_access_service_administration_cloud/GUID-2B419DC4-7332-448A-9285-E10FF90890F8.html
+    let oauthResponse = await sails.helpers.http.sendHttpRequest.with({
+      method: 'POST',
+      url: 'https://na.uemauth.vmwservices.com/connect/token',
+      enctype: 'application/x-www-form-urlencoded',
+      body: {
+        grant_type: 'client_credentials',//eslint-disable-line camelcase
+        client_id: sails.config.custom.customerWorkspaceOneOauthId,//eslint-disable-line camelcase
+        client_secret: sails.config.custom.customerWorkspaceOneOauthSecret,//eslint-disable-line camelcase
+      }
+    })
+    .intercept((err)=>{
+      return new Error(`When sending a request to get a Workspace ONE authorization token for the recieve-from-customer-fleet-instance webhook, an error occured. Full error: ${err.stack}`);
+    });
+
     // Send a request to unenroll this host in the customer's Workspace One instance.
     await sails.helpers.http.post.with({
       // Contrary to what you what think the EnterpriseWipe command only unenrolls the host from a Workspace One instance.
       // [?] [Workspace One URL]/API/help/#!/CommandsV1/CommandsV1_ExecuteByAlternateIdAsync
       url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${encodeURIComponent(host.hardware_serial)}&command=EnterpriseWipe`,
       headers: {
-        'Authorization': sails.config.custom.customerWorkspaceOneAuthorizationToken,
-        'aw-tenant-code': sails.config.custom.customerWorkspaceOneTenantId,
+        'Authorization': 'Bearer '+oauthResponse.access_token,
       },
       baseUrl: sails.config.custom.customerWorkspaceOneBaseUrl
     })
