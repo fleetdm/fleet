@@ -764,7 +764,7 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-> NOTE: The `agent_settings`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+> NOTE: The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
 
 `GET /api/v1/fleet/config`
 
