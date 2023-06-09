@@ -29,7 +29,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
-> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery.
+> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. This Chrome browser extension is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
 
 ## Add hosts with Orbit
 
