@@ -9,6 +9,8 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 ## The CEO support team
 ### EA to the CEO
 
+#### Rituals
+
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
 | CEO e-mail management                                       | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
@@ -16,9 +18,17 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 | Schedule internal and external meetings for the CEO         | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Meeting requests in #-meetings and #help-ceo slack channels | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Preparing agendas and content for CEO's meetings            | Create and edit agenda, provide context, and contact information | PRN                   |
-| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
+
+
+
+
+#### Other responsibilities
+
+| Task | Description | Frequency | 
+| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
 | Ad-hoc requests from the CEO                                | Triage requests, prioritize actions, flag actions for further review | PRN               |
 | Total travel coordination for the CEO    | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
+| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
@@ -139,19 +149,16 @@ In the notes document include:
 
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
-### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
- - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
- - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Tee will update the monthly "All Hands" link and grant Sid viewing access. 
- - Tee will send Mike links to the new document and the backup copy in a direct message in Slack. 
- 
-The day before the meeting, Mike will prepare the "Vision" section of the original document. Mike will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+### 💻 Sid : Mike
+Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
+
+After each meeting, the CEO's apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
+<img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
+
 
 ### Investor and advisor updates
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+  - CEO (TODO: who?) tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
 
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
