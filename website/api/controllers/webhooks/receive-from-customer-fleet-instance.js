@@ -73,9 +73,9 @@ module.exports = {
       url: 'https://na.uemauth.vmwservices.com/connect/token',
       enctype: 'application/x-www-form-urlencoded',
       body: {
-        grant_type: 'client_credentials',
-        client_id: sails.config.custom.customerWorkspaceOneOauthId,
-        client_secret: sails.config.custom.customerWorkspaceOneOauthSecret,
+        grant_type: 'client_credentials',//eslint-disable-line camelcase
+        client_id: sails.config.custom.customerWorkspaceOneOauthId,//eslint-disable-line camelcase
+        client_secret: sails.config.custom.customerWorkspaceOneOauthSecret,//eslint-disable-line camelcase
       }
     })
     .intercept((err)=>{
