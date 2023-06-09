@@ -4,7 +4,7 @@ import PATHS from "router/paths";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { IConfig } from "interfaces/config";
+import { IConfig, IMdmConfig } from "interfaces/config";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
@@ -13,6 +13,8 @@ import { ITeamConfig } from "interfaces/team";
 import Spinner from "components/Spinner";
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
+
+import OsSetupPreview from "../../../../../../assets/images/os-setup-preview.gif";
 
 const baseClass = "end-user-authentication";
 
@@ -33,6 +35,12 @@ const getEnabledEndUserAuth = (
   }
 
   return teamConfig?.mdm?.macos_setup.enable_end_user_authentication ?? false;
+};
+
+const isIdPConfigured = ({
+  end_user_authentication: idp,
+}: Pick<IMdmConfig, "end_user_authentication">) => {
+  return !!idp.entity_id && !!idp.metadata_url && !!idp.idp_name;
 };
 
 interface IEndUserAuthenticationProps {
@@ -81,7 +89,7 @@ const EndUserAuthentication = ({
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
-          {true ? (
+          {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
             <RequireEndUserAuth onClickConnect={onClickConnect} />
           ) : (
             <EndUserAuthForm
@@ -89,8 +97,7 @@ const EndUserAuthentication = ({
               defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
             />
           )}
-          {/* TODO: get gif */}
-          <EndUserExperiencePreview previewImage="">
+          <EndUserExperiencePreview previewImage={OsSetupPreview}>
             <p>
               When the end user reaches the <b>Remote Management</b> pane in the
               macOS Setup Assistant, they are asked to authenticate and agree to
