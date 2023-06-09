@@ -34,7 +34,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 
 		// If JIT provisioning is disabled, then Fleet does not attempt to change
 		// the role of the existing user.
-		if !config.SSOSettings.EnableJITProvisioning {
+		if config.SSOSettings == nil || !config.SSOSettings.EnableJITProvisioning {
 			return user, nil
 		}
 
@@ -75,7 +75,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		}
 		return user, nil
 	case errors.As(err, &nfe):
-		if !config.SSOSettings.EnableJITProvisioning {
+		if config.SSOSettings == nil || !config.SSOSettings.EnableJITProvisioning {
 			return nil, err
 		}
 	default:

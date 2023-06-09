@@ -498,8 +498,10 @@ const ManageHostsPage = ({
       (hostsData?.hosts?.length || 0) >=
       hostsCount;
 
-  const handleLabelChange = ({ slug }: ILabel): boolean => {
+  const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
+
+    const isDeselectingLabel = newLabelId && newLabelId === selectedLabel?.id;
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
@@ -514,7 +516,9 @@ const ManageHostsPage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: `${MANAGE_HOSTS}/${slug}`,
+        pathPrefix: isDeselectingLabel
+          ? MANAGE_HOSTS
+          : `${MANAGE_HOSTS}/${slug}`,
         queryParams: newQueryParams,
       })
     );
@@ -998,23 +1002,18 @@ const ManageHostsPage = ({
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
-    let action = hostsAPI.destroyBulk(selectedHostIds);
-
-    if (isAllMatchingHostsSelected) {
-      const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.destroyByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-      });
-    }
+    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
+    const labelId = selectedLabel?.id;
 
     try {
-      await action;
+      await (isAllMatchingHostsSelected
+        ? hostsAPI.destroyByFilter({
+            teamId,
+            query: searchQuery,
+            status,
+            labelId,
+          })
+        : hostsAPI.destroyBulk(selectedHostIds));
 
       const successMessage = `${
         selectedHostIds.length === 1 ? "Host" : "Hosts"

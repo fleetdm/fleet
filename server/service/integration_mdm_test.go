@@ -598,6 +598,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// order is guaranteed by profile name
 	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	// filevault is enabled by default
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -640,27 +642,31 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
 
-	// the host's profiles are the same as the team's and are pending, and prof2 is pending removal
+	// the host's profiles are the same as the team's and are pending, and prof2 + old filevault are pending removal
 	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 3)
+	require.Len(t, hostProfs, 4)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
 		return l.Name < r.Name
 	})
-	require.Equal(t, "n1", hostProfs[0].Name)
+	require.Equal(t, "Disk encryption", hostProfs[0].Name)
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[0].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[0].OperationType)
-	require.Equal(t, "n2", hostProfs[1].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[0].OperationType)
+	require.Equal(t, "n1", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[1].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[1].OperationType)
-	require.Equal(t, "n4", hostProfs[2].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[1].OperationType)
+	require.Equal(t, "n2", hostProfs[2].Name)
 	require.NotNil(t, hostProfs[2].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[2].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[2].OperationType)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[2].OperationType)
+	require.Equal(t, "n4", hostProfs[3].Name)
+	require.NotNil(t, hostProfs[3].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[3].Status)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[3].OperationType)
 
 	// create a new mdm host enrolled in fleet
 	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -753,6 +759,31 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		<-ch
 	}
 
+	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
+		// run the worker to process the DEP enroll request
+		s.runWorker()
+
+		var fleetdCmd *micromdm.CommandPayload
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
+				cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
+				strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+				fleetdCmd = cmd
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		if shouldReceive {
+			require.NotNil(t, fleetdCmd)
+			require.NotNil(t, fleetdCmd.Command)
+		} else {
+			require.Nil(t, fleetdCmd)
+		}
+	}
+
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -825,24 +856,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-
 	// make sure the host gets a request to install fleetd
-	var fleetdCmd *micromdm.CommandPayload
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
-			cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-			strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
-			fleetdCmd = cmd
-		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	require.NotNil(t, fleetdCmd)
-	require.NotNil(t, fleetdCmd.Command)
+	checkPostEnrollmentCommands(mdmDevice, true)
 
 	// only one shows up as pending
 	listHostsRes = listHostsResponse{}
@@ -913,6 +928,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	_, err = s.ds.GetHostDEPAssignment(ctx, addedHostID)
 	require.NoError(t, err)
+
+	// send a TokenUpdate command, it shouldn't re-send the post-enrollment commands
+	err = mdmDevice.TokenUpdate()
+	require.NoError(t, err)
+	checkPostEnrollmentCommands(mdmDevice, false)
+
+	// enroll the device again, it should get the post-enrollment commands
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	checkPostEnrollmentCommands(mdmDevice, true)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
@@ -4745,6 +4770,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
+
+	// hitting the callback with an invalid session id results in a 4xx
+	rawSSOResp := base64.StdEncoding.EncodeToString([]byte(`<samlp:Response ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef"></samlp:Response>`))
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, http.StatusUnauthorized)
 }
 
 type scepPayload struct {

@@ -23,11 +23,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
-import {
-  normalizeEmptyValues,
-  wrapFleetHelper,
-  humanHostDiskEncryptionEnabled,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import PATHS from "router/paths";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -63,11 +59,6 @@ interface IDeviceUserPageProps {
   params: Params;
 }
 
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
-}
-
 const DeviceUserPage = ({
   location,
   router,
@@ -83,12 +74,6 @@ const DeviceUserPage = ({
   const [showResetKeyModal, setShowResetKeyModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
-  const [
-    hostDiskEncryption,
-    setHostDiskEncryption,
-  ] = useState<IHostDiskEncryptionProps>({});
-  const [host, setHost] = useState<IHostDevice | null>();
   const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -149,10 +134,11 @@ const DeviceUserPage = ({
   };
 
   const {
+    data: { host } = { host: undefined },
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, Error, IDeviceUserResponse>(
+  } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
     () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
@@ -161,22 +147,17 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceUserResponse) => data,
-      onSuccess: (returnedHost: IDeviceUserResponse) => {
-        setShowRefetchSpinner(isRefetching(returnedHost.host));
-        setIsPremiumTier(returnedHost.license.tier === "premium");
-        setHostSoftware(returnedHost.host.software ?? []);
-        setHost(returnedHost.host);
-        setHostDiskEncryption({
-          enabled: returnedHost.host.disk_encryption_enabled,
-          tooltip: humanHostDiskEncryptionEnabled(
-            returnedHost.host.platform,
-            returnedHost.host.disk_encryption_enabled
-          ),
-        });
-        setOrgLogoURL(returnedHost.org_logo_url);
-        setGlobalConfig(returnedHost.global_config);
-        if (isRefetching(returnedHost.host)) {
+      onSuccess: ({
+        license,
+        org_logo_url,
+        global_config,
+        host: responseHost,
+      }) => {
+        setShowRefetchSpinner(isRefetching(responseHost));
+        setIsPremiumTier(license.tier === "premium");
+        setOrgLogoURL(org_logo_url);
+        setGlobalConfig(global_config);
+        if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
@@ -186,7 +167,7 @@ const DeviceUserPage = ({
             // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
             // the first page loads), we start it now if the host is online. If the host is offline,
             // we skip the refetch on page load.
-            if (returnedHost?.host.status === "online") {
+            if (responseHost.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -198,7 +179,7 @@ const DeviceUserPage = ({
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost?.host.status === "online") {
+              if (responseHost.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -407,7 +388,7 @@ const DeviceUserPage = ({
             )}
             <HostSummaryCard
               titleData={titleData}
-              diskEncryption={hostDiskEncryption}
+              diskEncryptionEnabled={host?.disk_encryption_enabled}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
@@ -449,7 +430,7 @@ const DeviceUserPage = ({
                   <SoftwareCard
                     router={router}
                     isLoading={isLoadingHost}
-                    software={hostSoftware}
+                    software={host?.software ?? []}
                     deviceUser
                     pathname={location.pathname}
                     pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(

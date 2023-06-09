@@ -764,6 +764,8 @@ None.
 
 Returns all information about the Fleet's configuration.
 
+> NOTE: The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+
 `GET /api/v1/fleet/config`
 
 #### Parameters
@@ -2085,7 +2087,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "platform": "windows",
       "hosts_count": 12044
     }
-    
+
   ]
 }
 ```
@@ -4191,9 +4193,10 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 #### Parameters
 
-| Name    | Type   | In  | Description                                                                                                                                               |
-| ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | string | url | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team. |
+| Name       | Type    | In    | Description                                                                                                                                                                                                        |
+| -------    | ------  | ---   | ---------------------------------------------------------------------------------------------------------------------------------------------------------                                                          |
+| team_id    | string  | url   | **Required** The team id for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team.                                                          |
+| for_update | boolean | query | If set to `true`, the authorization will be for a `write` action instead of a `read`. Useful for the write-only `gitops` role when requesting the bootstrap metadata to check if the package needs to be replaced. |
 
 #### Example
 
@@ -4335,7 +4338,7 @@ _Available in Fleet Premium_
 
 
 
-### Upload an EULA file 
+### Upload an EULA file
 
 _Available in Fleet Premium_
 
@@ -4374,7 +4377,7 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Get metadata about an EULA file 
+### Get metadata about an EULA file
 
 _Available in Fleet Premium_
 

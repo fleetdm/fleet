@@ -12,9 +12,9 @@ func init() {
 
 func Up_20230525175650(tx *sql.Tx) error {
 	label := fleet.Label{
-		Name:        "ChromeOS",
+		Name:        "chrome",
 		Query:       "select 1 from os_version where platform = 'chrome';",
-		Description: "All ChromeOS hosts",
+		Description: "All Chrome hosts",
 		LabelType:   fleet.LabelTypeBuiltIn,
 	}
 

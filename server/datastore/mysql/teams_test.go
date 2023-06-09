@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -76,6 +77,16 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+			dummyCP := fleet.MDMAppleConfigProfile{
+				Name:         "DummyTestName",
+				Identifier:   "DummyTestIdentifier",
+				Mobileconfig: dummyMC,
+				TeamID:       &team.ID,
+			}
+			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -85,6 +96,10 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 
 			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
+
+			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileID)
+			var nfe fleet.NotFoundError
+			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})

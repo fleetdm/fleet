@@ -108,10 +108,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 	require.Equal(t, fleet.Features{
@@ -197,7 +200,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	// dry-run never returns id to name mappings as it may not have them
+	require.Empty(t, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true
 	teamSpecs = map[string]any{
@@ -334,7 +340,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	teams, err = s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -342,6 +350,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName["team2"], team.ID)
 
 	appConfig, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -364,10 +373,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName["team2"], team.ID)
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
@@ -752,7 +764,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil
@@ -761,7 +773,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// modify a team with an empty config
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, team.ID)
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, tm1ID)
 		return err
 	})
 	tmResp.Team = nil
@@ -905,6 +917,186 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
+	t := s.T()
+
+	// -----------------
+	// Set up test data
+	// -----------------
+	teams := []*fleet.Team{
+		{
+			Name:        "Team One",
+			Description: "Team description",
+			Secrets:     []*fleet.EnrollSecret{{Secret: "DEF"}},
+		},
+		{
+			Name:        "Team Two",
+			Description: "Team Two description",
+			Secrets:     []*fleet.EnrollSecret{{Secret: "ABC"}},
+		},
+	}
+	for _, team := range teams {
+		_, err := s.ds.NewTeam(context.Background(), team)
+		require.NoError(t, err)
+	}
+
+	global_obs := &fleet.User{
+		Name:       "Global Obs",
+		Email:      "global_obs@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	global_obs_plus := &fleet.User{
+		Name:       "Global Obs+",
+		Email:      "global_obs_plus@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserverPlus),
+	}
+	team_obs := &fleet.User{
+		Name:  "Team Obs",
+		Email: "team_obs@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: *teams[1],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	team_obs_plus := &fleet.User{
+		Name:  "Team Obs Plus",
+		Email: "team_obs_plus@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+			{
+				Team: *teams[1],
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	for _, u := range users {
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+	}
+
+	// --------------------------------------------------------------------
+	// Global obs/obs+ should not be able to see any team secrets
+	// --------------------------------------------------------------------
+	for _, u := range []*fleet.User{global_obs, global_obs_plus} {
+
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+
+		// list all teams
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp)
+
+		require.Len(t, listResp.Teams, len(teams))
+		require.NoError(t, listResp.Err)
+
+		for _, team := range listResp.Teams {
+			for _, secret := range team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+		}
+
+		// listing a team / team secrets
+		for _, team := range teams {
+			var getResp getTeamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+
+			require.NoError(t, getResp.Err)
+			for _, secret := range getResp.Team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+
+			var secResp teamEnrollSecretsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), nil, http.StatusOK, &secResp)
+
+			require.Len(t, secResp.Secrets, 1)
+			require.NoError(t, secResp.Err)
+			for _, secret := range secResp.Secrets {
+				require.Equal(t, fleet.MaskedPassword, secret.Secret)
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------
+	// Team obs/obs+ should not be able to see their team secrets
+	// --------------------------------------------------------------------
+	for _, u := range []*fleet.User{team_obs, team_obs_plus} {
+
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+
+		// list all teams
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp)
+
+		require.Len(t, listResp.Teams, len(u.Teams))
+		require.NoError(t, listResp.Err)
+
+		for _, team := range listResp.Teams {
+			for _, secret := range team.Secrets {
+				// team_obs has RoleObserver in Team 1, and an RoleAdmin in Team 2
+				// so it should be able to see the secrets in Team 1
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				// team_obs_plus should not be able to see any Team Secret
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+		}
+
+		// listing a team / team secrets
+		for _, team := range teams {
+			var getResp getTeamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+
+			require.NoError(t, getResp.Err)
+			// team_obs has RoleObserver in Team 1, and an RoleAdmin in Team 2
+			// so it should be able to see the secrets in Team 1
+			for _, secret := range getResp.Team.Secrets {
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+
+			var secResp teamEnrollSecretsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), nil, http.StatusOK, &secResp)
+
+			require.Len(t, secResp.Secrets, 1)
+			require.NoError(t, secResp.Err)
+			for _, secret := range secResp.Secrets {
+				if u.ID == team_obs.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[0].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[1].ID)
+				}
+
+				if u.ID == team_obs_plus.ID {
+					require.Equal(t, fleet.MaskedPassword == secret.Secret, team.ID == teams[1].ID)
+					require.Equal(t, fleet.MaskedPassword != secret.Secret, team.ID == teams[0].ID)
+				}
+			}
+		}
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
