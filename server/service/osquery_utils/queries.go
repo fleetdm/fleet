@@ -2,6 +2,8 @@ package osquery_utils
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/url"
@@ -20,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -575,36 +578,48 @@ var extraDetailQueries = map[string]DetailQuery{
 // They are only sent to the device when Fleet's MDM is on and properly
 // configured
 var mdmQueries = map[string]DetailQuery{
-	"mdm_disk_encryption_key_darwin": {
-		// This query has two pre-requisites:
-		//
-		// 1. FileVault must be enabled with a personal recovery key.
-		// 2. The "FileVault Recovery Key Escrow" profile must be configured
-		//    in the host.
-		//
-		// This file is safe to access and well [documented by Apple][1]:
-		//
-		// > If FileVault is enabled after this payload is installed on the system,
-		// > the FileVault PRK will be encrypted with the specified certificate,
-		// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
-		// > encrypted data will be made available to the MDM server as part of the
-		// > SecurityInfo command.
-		// >
-		// > Alternatively, if a site uses its own administration
-		// > software, it can extract the PRK from the foregoing
-		// > location at any time.
-		//
-		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            fmt.Sprintf(`SELECT base64_encrypted as filevault_key, COALESCE((%s), 0) as encrypted FROM filevault_prk`, usesMacOSDiskEncryptionQuery),
-		Platforms:        []string{"darwin"},
-		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
-		Discovery:        discoveryTable("filevault_prk"),
-	},
 	"mdm_config_profiles_darwin": {
 		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
 		Discovery:        discoveryTable("macos_profiles"),
+	},
+	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
+	// extension tables are discovered on the agent. The preferred query uses the newer custom
+	// `filevault_prk` extension table rather than the macadmins `file_lines` table. It is preferred
+	// because the `file_lines` implementation uses bufio.SnanLines which drops end of line
+	// characters.
+	//
+	// Both queries depend on the same pre-requisites:
+	//
+	// 1. FileVault must be enabled with a personal recovery key.
+	// 2. The "FileVault Recovery Key Escrow" profile must be configured
+	//    in the host.
+	//
+	// This file is safe to access and well [documented by Apple][1]:
+	//
+	// > If FileVault is enabled after this payload is installed on the system,
+	// > the FileVault PRK will be encrypted with the specified certificate,
+	// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
+	// > encrypted data will be made available to the MDM server as part of the
+	// > SecurityInfo command.
+	// >
+	// > Alternatively, if a site uses its own administration
+	// > software, it can extract the PRK from the foregoing
+	// > location at any time.
+	//
+	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
+	"mdm_disk_encryption_key_file_lines_darwin": {
+		Query:            fmt.Sprintf(`SELECT hex(line) as hex_line, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat';`, usesMacOSDiskEncryptionQuery),
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyFileLinesDarwin,
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, strings.Trim(discoveryTable("file_lines"), ";"), strings.Trim(discoveryTable("filevault_prk"), ";")),
+	},
+	"mdm_disk_encryption_key_file_darwin": {
+		Query:            fmt.Sprintf(`SELECT base64_encrypted as filevault_key, COALESCE((%s), 0) as encrypted FROM filevault_prk;`, usesMacOSDiskEncryptionQuery),
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyFileDarwin,
+		Discovery:        discoveryTable("filevault_prk"),
 	},
 }
 
@@ -1373,7 +1388,51 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func directIngestDiskEncryptionKeyDarwin(
+func directIngestDiskEncryptionKeyFileDarwin(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	// TODO: modify extension table to return encrypted even if file is not there?
+
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	if len(rows) > 1 {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", fmt.Sprintf("filevault_prk should have a single row, but got %d", len(rows)),
+			"host", host.Hostname,
+		)
+	}
+
+	if rows[0]["encrypted"] != "1" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", "host does not use disk encryption",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	// it's okay if the key comes empty, this can happen and if the disk is
+	// encrypted it means we need to reset the encryption key
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
+func directIngestDiskEncryptionKeyFileLinesDarwin(
 	ctx context.Context,
 	logger log.Logger,
 	host *fleet.Host,
@@ -1384,35 +1443,43 @@ func directIngestDiskEncryptionKeyDarwin(
 		// assume the extension is not there
 		level.Debug(logger).Log(
 			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"msg", "no rows or failed",
 			"host", host.Hostname,
 		)
 		return nil
 	}
 
-	if len(rows) > 1 {
-		level.Debug(logger).Log(
-			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
-			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
-			"host", host.Hostname,
-		)
-	}
+	// if len(rows) > 1 {
+	// 	level.Debug(logger).Log(
+	// 		"component", "service",
+	// 		"method", "directIngestDiskEncryptionKeyDarwin",
+	// 		"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
+	// 		"host", host.Hostname,
+	// 	)
+	// }
 
-	if rows[0]["encrypted"] == "0" {
-		level.Debug(logger).Log(
-			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
-			"msg", "host does not use disk encryption",
-			"host", host.Hostname,
-		)
-		return nil
+	var hexLines []string
+	for _, row := range rows {
+		if row["encrypted"] != "1" {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "directIngestDiskEncryptionKeyDarwin",
+				"msg", "host does not use disk encryption",
+				"host", host.Hostname,
+			)
+			return nil
+		}
+		hexLines = append(hexLines, row["hex_line"])
+	}
+	b, err := hex.DecodeString(strings.Join(hexLines, "0A"))
+	if err != nil {
+		return errors.Wrap(err, "decoding hex string")
 	}
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
 }
 
 func directIngestMacOSProfiles(
