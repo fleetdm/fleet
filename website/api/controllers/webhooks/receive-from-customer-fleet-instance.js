@@ -69,7 +69,8 @@ module.exports = {
 
     // Send a request to Workspace ONE to get an authorization token to use for the request to the Workspace ONE instance.
     // [?] https://docs.vmware.com/en/VMware-Workspace-ONE-Access/services/ws1_access_service_administration_cloud/GUID-2B419DC4-7332-448A-9285-E10FF90890F8.html
-    // Note: We're using the sendHttpRequest helper so we can set the enctype to be application/x-www-form-urlencoded.
+    // Note: We're using the sendHttpRequest helper so we can set the enctype to be application/x-www-form-urlencoded
+    let oauthResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'POST',
       url: 'https://na.uemauth.vmwservices.com/connect/token',
       enctype: 'application/x-www-form-urlencoded',
