@@ -197,6 +197,12 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
 ];
 
+// Schedules does not support ChromeOS
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = PLATFORM_DROPDOWN_OPTIONS.slice(
+  0,
+  -1
+);
+
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
   darwin: "macOS",
