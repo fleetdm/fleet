@@ -1,5 +1,5 @@
 # CEO handbook
-This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
+This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant (EA) collaborates with the CEO. 
 
 ## Responsibilities
 The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company.
@@ -7,7 +7,7 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 > When the CEO is out of office, these responsibiliies should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## The CEO support team
-### EA to the CEO
+### Executive Assistant (EA) to the CEO
 
 #### Rituals
 
@@ -105,7 +105,7 @@ From Mike:
 >
 > I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.  
 > 
-> What do still read?
+> What do I still read?
 > - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
 > - If you send me a direct message, I'll see and read that ASAP.
 >
@@ -122,7 +122,7 @@ From Mike:
 
 > DISCUSS -mike, 2023-03
 
-Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month the EA to the CEO will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -138,7 +138,7 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. The EA to the CEO will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
@@ -177,7 +177,7 @@ Whereas agendas are good when it's all about action items / decisions / discussi
 ## Tasks as assigned
 
 ### Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the EA to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.
