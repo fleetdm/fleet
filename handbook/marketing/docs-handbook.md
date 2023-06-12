@@ -32,7 +32,7 @@ When creating a pull request for Markdown changes in the docs, request a review 
 
 ## Markdown
 
-The Fleet docs are written in Markdown.[Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo.
+The Fleet docs are written in Markdown. Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo.
 
 See the [Markdown guide](./markdown-guide) for help formatting Fleet-flavored Markdown.
 
