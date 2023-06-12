@@ -195,7 +195,18 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+
+	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
+	// the provided uuids and filtered according to the provided team filters.
+	// The "lite" version is a subset of the fields related to the host. See
+	// documentation of Datastore.HostLite for more information, or the
+	// implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
+
+	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
+	// the provided ids. The "lite" version is a subset of the fields related to
+	// the host. See documentation of Datastore.HostLite for more information, or
+	// the implementation for the exact list.
 	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
