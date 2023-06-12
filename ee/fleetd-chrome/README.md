@@ -32,6 +32,11 @@ echo 'FLEET_URL="https://your-fleet-server.example.com"' >> .env
 echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
 ```
 
+To test with your local Fleet server, you can use ngrok:
+```sh
+ngrok http https://localhost:8080
+```
+
 2. Build the "unpacked extension":
 ```sh
 npm install && npm run build
