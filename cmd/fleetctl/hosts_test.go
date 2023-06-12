@@ -59,6 +59,10 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
 	require.True(t, ds.NewActivityFuncInvoked)
 }
@@ -109,6 +113,10 @@ func TestHostsTransferByLabel(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
 	}
 
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
@@ -162,6 +170,10 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
 	require.True(t, ds.NewActivityFuncInvoked)
@@ -213,6 +225,10 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
 	}
 
 	assert.Equal(t, "", runAppForTest(t,

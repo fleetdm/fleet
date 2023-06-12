@@ -421,6 +421,9 @@ func TestHostAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                  string

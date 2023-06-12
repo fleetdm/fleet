@@ -689,7 +689,27 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 	}
 
 	if len(hostNames) == 0 {
-		// TODO(mna): batch-load host display names if missing
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list hosts by ids")
+		}
+
+		// index the hosts by ids to get the names in the same order as hostIDs
+		hostsByID := make(map[uint]*fleet.Host, len(hosts))
+		for _, h := range hosts {
+			hostsByID[h.ID] = h
+		}
+
+		hostNames = make([]string, 0, len(hostIDs))
+		for _, hid := range hostIDs {
+			if h, ok := hostsByID[hid]; ok {
+				hostNames = append(hostNames, h.DisplayName())
+			} else {
+				// should not happen unless a host gets deleted just after transfer,
+				// but this ensures hostNames always matches hostIDs at the same index
+				hostNames = append(hostNames, "")
+			}
+		}
 	}
 
 	if err := svc.ds.NewActivity(
