@@ -83,6 +83,8 @@ import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
+  MANAGE_HOSTS_PAGE_FILTER_KEYS,
+  ManageHostsPageQueryParams,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -1315,22 +1317,8 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (hostsCount === 0 && searchQuery === "" && !labelID && !status) {
-      const {
-        software_id,
-        policy_id,
-        mdm_id,
-        mdm_enrollment_status,
-        low_disk_space,
-      } = queryParams || {};
-      const includesNameCardFilter = !!(
-        software_id ||
-        policy_id ||
-        mdm_id ||
-        mdm_enrollment_status ||
-        low_disk_space ||
-        osId ||
-        osName ||
-        osVersion
+      const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
+        (filter) => typeof queryParams === "object" && filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
       );
 
       const emptyState = () => {
@@ -1340,13 +1328,12 @@ const ManageHostsPage = ({
           info:
             "Expecting to see devices? Try again in a few seconds as the system catches up.",
         };
-        if (includesNameCardFilter) {
+        if (includesFilterQueryParam) {
           delete emptyHosts.iconName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
-        }
-        if (canEnrollHosts) {
+        } else if (canEnrollHosts) {
           emptyHosts.header = "Add your devices to Fleet";
           emptyHosts.info = "Generate an installer to add your own devices.";
           emptyHosts.primaryButton = (
@@ -1389,12 +1376,6 @@ const ManageHostsPage = ({
       isOnlyObserver:
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
-
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     // Update last column
     tableColumns.forEach((dataColumn) => {
