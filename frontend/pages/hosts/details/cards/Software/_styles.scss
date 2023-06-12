@@ -198,6 +198,7 @@
   @media (max-width: 990px) {
     thead .name__header {
       width: $col-md;
+      min-width: 252px;
     }
 
     .table-container__header {
