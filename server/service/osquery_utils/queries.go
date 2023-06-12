@@ -1395,7 +1395,8 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
-	// TODO: modify extension table to return encrypted even if file is not there?
+	// TODO: What should happen if file does not exist? The query will return an error (because the extension table
+	// failed to generate). Should we be updating the datastore to delete the prior key (if any)?
 
 	if len(rows) == 0 {
 		// assume the extension is not there
@@ -1449,15 +1450,6 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		)
 		return nil
 	}
-
-	// if len(rows) > 1 {
-	// 	level.Debug(logger).Log(
-	// 		"component", "service",
-	// 		"method", "directIngestDiskEncryptionKeyDarwin",
-	// 		"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
-	// 		"host", host.Hostname,
-	// 	)
-	// }
 
 	var hexLines []string
 	for _, row := range rows {

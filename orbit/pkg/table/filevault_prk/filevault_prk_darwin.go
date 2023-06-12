@@ -26,6 +26,8 @@ func Columns() []table.ColumnDefinition {
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	encryptedKey, err := os.ReadFile("/var/db/FileVaultPRK.dat")
 	if err != nil {
+		// TODO: What if the file does not exist? Should we check for "open /var/db/FileVaultPRK.dat:
+		// no such file or directory" and return an empty result instead?
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 	encoded := base64.StdEncoding.EncodeToString(encryptedKey)
