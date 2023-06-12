@@ -27,6 +27,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedTeam{},
 	ActivityTypeDeletedTeam{},
 	ActivityTypeAppliedSpecTeam{},
+	ActivityTypeTransferredHostsToTeam{},
 
 	ActivityTypeEditedAgentOptions{},
 
@@ -393,6 +394,31 @@ func (a ActivityTypeAppliedSpecTeam) Documentation() (activity string, details s
 			"name": "foo"
 		}
 	]
+}`
+}
+
+type ActivityTypeTransferredHostsToTeam struct {
+	TeamID           *uint    `json:"team_id"`
+	TeamName         *string  `json:"team_name"`
+	HostIDs          []uint   `json:"host_ids"`
+	HostDisplayNames []string `json:"host_display_names"`
+}
+
+func (a ActivityTypeTransferredHostsToTeam) ActivityName() string {
+	return "transferred_hosts"
+}
+
+func (a ActivityTypeTransferredHostsToTeam) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user transfers a host (or multiple hosts) to a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the hosts were transferred to, null if transferred to no team.
+- "team_name": The name of the team that the hosts were transferred to, null if transferred to no team.
+- "host_ids": The list of identifiers of the hosts that were transferred.
+- "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").`, `{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "host_ids": [1, 2, 3],
+	"host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
 }`
 }
 

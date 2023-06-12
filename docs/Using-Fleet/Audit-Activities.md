@@ -318,6 +318,27 @@ This activity contains a field "teams" where each item contains the team details
 }
 ```
 
+### Type `transferred_hosts`
+
+Generated when a user transfers a host (or multiple hosts) to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the hosts were transferred to, null if transferred to no team.
+- "team_name": The name of the team that the hosts were transferred to, null if transferred to no team.
+- "host_ids": The list of identifiers of the hosts that were transferred.
+- "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "host_ids": [1, 2, 3],
+	"host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
+}
+```
+
 ### Type `edited_agent_options`
 
 Generated when agent options are edited (either globally or for a team).
