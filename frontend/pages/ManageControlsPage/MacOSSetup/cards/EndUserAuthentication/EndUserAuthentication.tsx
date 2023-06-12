@@ -55,10 +55,9 @@ const EndUserAuthentication = ({
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
-  >(["config"], () => configAPI.loadAll(), {
+  >(["config", currentTeamId], () => configAPI.loadAll(), {
     refetchOnWindowFocus: false,
     retry: false,
-    enabled: currentTeamId === 0,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
