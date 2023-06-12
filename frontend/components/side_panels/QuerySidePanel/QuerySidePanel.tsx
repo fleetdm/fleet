@@ -47,11 +47,9 @@ const QuerySidePanel = ({
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames
-      ?.filter((tableName) => !tableName.hidden)
-      .map((tableName: string) => {
-        return { label: tableName, value: tableName };
-      });
+    const tableNames = osqueryTableNames.map((tableName: string) => {
+      return { label: tableName, value: tableName };
+    });
 
     return (
       <Dropdown
