@@ -21,5 +21,5 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://fleetdm.com/docs/contributing/testing-and-local-development#fleetd-chrome-extension).
 
-
+<meta name="title" value="ChromeOS">
 <meta name="pageOrderInSection" value="2000">

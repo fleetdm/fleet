@@ -64,5 +64,5 @@ This glossary provides definitions to commonly used terms within our space.
 | **Windows** | Microsoft's graphical operating system. |
 | **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
-<meta name="maintainedBy" value="desmi-dizney">
+<meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Commonly used terms">
