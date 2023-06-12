@@ -69,6 +69,7 @@ module.exports = {
 
     // Send a request to Workspace ONE to get an authorization token to use for the request to the Workspace ONE instance.
     // [?] https://docs.vmware.com/en/VMware-Workspace-ONE-Access/services/ws1_access_service_administration_cloud/GUID-2B419DC4-7332-448A-9285-E10FF90890F8.html
+    // Note: We're using the sendHttpRequest helper so we can set the enctype to be application/x-www-form-urlencoded
     let oauthResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'POST',
       url: 'https://na.uemauth.vmwservices.com/connect/token',
@@ -77,11 +78,15 @@ module.exports = {
         grant_type: 'client_credentials',//eslint-disable-line camelcase
         client_id: sails.config.custom.customerWorkspaceOneOauthId,//eslint-disable-line camelcase
         client_secret: sails.config.custom.customerWorkspaceOneOauthSecret,//eslint-disable-line camelcase
-      }
+      },
     })
     .intercept((err)=>{
       return new Error(`When sending a request to get a Workspace ONE authorization token for the recieve-from-customer-fleet-instance webhook, an error occured. Full error: ${err.stack}`);
     });
+
+    // The body in responses returned from the sendHttpRequest helper will always be a string, so we need to parse the raw JSON response body to get the access_token returned from the OAuth URL.
+    // [?]: https://github.com/sailshq/machinepack-http/blob/9770e75db5f005c21068f5411177bf7e072bfd78/lib/send-http-request.js#L91C27-L94
+    let oauthResponseBody = JSON.parse(oauthResponse.body);
 
     // Send a request to unenroll this host in the customer's Workspace One instance.
     await sails.helpers.http.post.with({
@@ -89,7 +94,7 @@ module.exports = {
       // [?] [Workspace One URL]/API/help/#!/CommandsV1/CommandsV1_ExecuteByAlternateIdAsync
       url: `/api/mdm/devices/commands?searchby=Serialnumber&id=${encodeURIComponent(host.hardware_serial)}&command=EnterpriseWipe`,
       headers: {
-        'Authorization': 'Bearer '+oauthResponse.access_token,
+        'Authorization': 'Bearer '+oauthResponseBody.access_token,
       },
       baseUrl: sails.config.custom.customerWorkspaceOneBaseUrl
     })
