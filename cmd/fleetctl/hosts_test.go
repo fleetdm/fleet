@@ -50,7 +50,17 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByLabel(t *testing.T) {

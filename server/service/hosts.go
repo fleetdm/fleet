@@ -666,6 +666,31 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		}
 	}
 
+	if len(hostIDs) > 0 {
+		var teamName *string
+		if teamID != nil {
+			tm, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team for activity")
+			}
+			teamName = &tm.Name
+		}
+
+		// TODO(mna): batch-load host display names
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeTransferredHostsToTeam{
+				TeamID:           teamID,
+				TeamName:         teamName,
+				HostIDs:          hostIDs,
+				HostDisplayNames: nil,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create transferred_hosts activity")
+		}
+	}
+
 	return nil
 }
 
