@@ -335,7 +335,7 @@ This activity contains the following fields:
   "team_id": 123,
   "team_name": "Workstations",
   "host_ids": [1, 2, 3],
-	"host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
+  "host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
 }
 ```
 
