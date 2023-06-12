@@ -1306,6 +1306,17 @@ const ManageHostsPage = ({
     );
   };
 
+  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
+  const maybeEmptyHosts =
+    hostsCount === 0 && searchQuery === "" && !labelID && !status;
+
+  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
+    (filter) =>
+      filter !== "team_id" &&
+      typeof queryParams === "object" &&
+      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
+  );
+
   const renderTable = () => {
     if (!config || !currentUser || !isRouteOk) {
       return <Spinner />;
@@ -1314,13 +1325,7 @@ const ManageHostsPage = ({
     if (hasErrors) {
       return <TableDataError />;
     }
-
-    // There are no hosts for this instance yet
-    if (hostsCount === 0 && searchQuery === "" && !labelID && !status) {
-      const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
-        (filter) => typeof queryParams === "object" && filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
-      );
-
+    if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           iconName: "empty-hosts",
@@ -1484,6 +1489,11 @@ const ManageHostsPage = ({
     );
   };
 
+  const showAddHostsButton =
+    canEnrollHosts &&
+    !hasErrors &&
+    (!maybeEmptyHosts || includesFilterQueryParam);
+
   return (
     <>
       <MainContent>
@@ -1500,22 +1510,15 @@ const ManageHostsPage = ({
                   <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canEnrollHosts &&
-                !hasErrors &&
-                !(
-                  !status &&
-                  hostsCount === 0 &&
-                  searchQuery === "" &&
-                  !labelID
-                ) && (
-                  <Button
-                    onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts`}
-                    variant="brand"
-                  >
-                    <span>Add hosts</span>
-                  </Button>
-                )}
+              {showAddHostsButton && (
+                <Button
+                  onClick={toggleAddHostsModal}
+                  className={`${baseClass}__add-hosts`}
+                  variant="brand"
+                >
+                  <span>Add hosts</span>
+                </Button>
+              )}
             </div>
           </div>
           {/* TODO: look at improving the props API for this component. Im thinking
