@@ -669,6 +669,11 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
 }
 
+// creates the transferred hosts activity if hosts were transferred, taking
+// care of loading the team name and the hosts names if necessary (hostNames
+// may be passed as empty if they were not available to the caller, such as in
+// AddHostsToTeam, while it may be provided if available, such as in
+// AddHostsToTeamByFilter).
 func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *uint, hostIDs []uint, hostNames []string) error {
 	if len(hostIDs) == 0 {
 		return nil
