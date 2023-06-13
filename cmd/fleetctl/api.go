@@ -74,7 +74,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	if clientInfo.Version != serverInfo.Version {
 		fmt.Fprintf(
-			os.Stderr,
+			os.Stdout,
 			"Warning: Version mismatch.\nClient Version:   %s\nServer Version:  %s\n",
 			clientInfo.Version, serverInfo.Version,
 		)
@@ -86,7 +86,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	switch appCfg, err := fleetClient.GetAppConfig(); {
 	case err == nil:
 		if appCfg.MDM.AppleBMTermsExpired {
-			fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
+			fleet.WriteAppleBMTermsExpiredBanner(os.Stdout)
 			// This is just a warning, continue ...
 		}
 	case errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden:

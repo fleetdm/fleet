@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"os"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -48,7 +49,7 @@ by an exit code of zero.`,
 			}
 
 			if licenseInfo != nil && licenseInfo.IsPremium() && licenseInfo.IsExpired() {
-				fleet.WriteExpiredLicenseBanner(os.Stderr)
+				fleet.WriteExpiredLicenseBanner(os.Stdout)
 			}
 
 			ds, err := mysql.New(cfg.Mysql, clock.C)

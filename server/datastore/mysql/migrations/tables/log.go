@@ -13,7 +13,7 @@ type Logger struct {
 func NewLogger() *Logger {
 	return &Logger{
 		Info: log.New(os.Stdout, "INFO: ", log.Ltime),
-		Warn: log.New(os.Stderr, "WARNING: ", log.Ltime),
+		Warn: log.New(os.Stdout, "WARNING: ", log.Ltime),
 	}
 }
 

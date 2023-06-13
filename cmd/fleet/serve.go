@@ -115,7 +115,7 @@ the way that the Fleet server works.
 			}
 
 			if license != nil && license.IsPremium() && license.IsExpired() {
-				fleet.WriteExpiredLicenseBanner(os.Stderr)
+				fleet.WriteExpiredLicenseBanner(os.Stdout)
 			}
 
 			logger := initLogger(config)
