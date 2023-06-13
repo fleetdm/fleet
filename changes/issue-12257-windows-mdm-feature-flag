@@ -1,0 +1,1 @@
+* Added the `FLEET_DEV_MDM_ENABLED` environment variable to enable the Windows MDM feature during its development and beta periodt.
