@@ -554,7 +554,7 @@ the way that the Fleet server works.
 			}
 
 			// setup mail service
-			if appCfg.SMTPSettings.SMTPEnabled {
+			if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
 				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
 				if config.Email.EmailBackend != "" {
 					config.Email.EmailBackend = ""

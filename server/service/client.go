@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 // Client is used to consume Fleet APIs from Go code
@@ -223,28 +224,40 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 func (c *Client) CheckMDMEnabled() error {
-	appCfg, err := c.GetAppConfig()
-	if err != nil {
-		return err
-	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
-	return nil
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
 }
 
 func (c *Client) CheckPremiumMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if ac.License == nil || !ac.License.IsPremium() {
+			return errors.New("missing or invalid license")
+		}
+		if !ac.MDM.EnabledAndConfigured {
+			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+		}
+		return nil
+	})
+}
+
+func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) error {
 	appCfg, err := c.GetAppConfig()
 	if err != nil {
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden {
+			// do not return an error, user may not have permission to read app
+			// config (e.g. gitops) and those appconfig checks are just convenience
+			// to avoid the round-trip with potentially large payload to the server.
+			// Those will still be validated with the actual API call.
+			return nil
+		}
 		return err
 	}
-	if appCfg.License == nil || !appCfg.License.IsPremium() {
-		return errors.New("missing or invalid license")
-	}
-	if !appCfg.MDM.EnabledAndConfigured {
-		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
-	}
-	return nil
+	return fn(appCfg)
 }
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -413,7 +426,8 @@ func (c *Client) ApplyGroup(
 
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
-		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
+		teamIDsByName, err := c.ApplyTeams(specs.Teams, opts)
+		if err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
 
@@ -425,23 +439,15 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
-			// TODO: we need to chat an define on a better way to do this, maybe make
-			// the endpoints support both id/name? have separate endpoints? Or make
-			// the apply team spec endpoint return team ids?
-			tms, err := c.ListTeams("")
-			if err != nil {
-				return err
-			}
-
-			for _, tm := range tms {
-				if bp, ok := tmBootstrapPackages[tm.Name]; ok {
-					if err := c.EnsureBootstrapPackage(bp, tm.ID); err != nil {
-						return fmt.Errorf("uploading bootstrap package for team %q: %w", tm.Name, err)
+			for tmName, tmID := range teamIDsByName {
+				if bp, ok := tmBootstrapPackages[tmName]; ok {
+					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
+						return fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 					}
 				}
-				if b, ok := tmMacSetupAssistants[tm.Name]; ok {
-					if err := c.uploadMacOSSetupAssistant(b, &tm.ID, tmMacSetup[tm.Name].MacOSSetupAssistant.Value); err != nil {
-						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tm.Name, err)
+				if b, ok := tmMacSetupAssistants[tmName]; ok {
+					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
 			}

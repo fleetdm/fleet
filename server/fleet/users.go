@@ -32,6 +32,25 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
+// IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
+func (u *User) IsGlobalObserver() bool {
+	if u.GlobalRole == nil {
+		return false
+	}
+	return *u.GlobalRole == RoleObserver || *u.GlobalRole == RoleObserverPlus
+}
+
+// TeamMembership returns a map whose keys are the TeamIDs of the teams for which pred evaluates to true
+func (u *User) TeamMembership(pred func(UserTeam) bool) map[uint]bool {
+	result := make(map[uint]bool)
+	for _, t := range u.Teams {
+		if pred(t) {
+			result[t.ID] = true
+		}
+	}
+	return result
+}
+
 func (u *User) IsAdminForcedPasswordReset() bool {
 	if u.SSOEnabled {
 		return false

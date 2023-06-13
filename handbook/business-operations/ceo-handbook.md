@@ -1,5 +1,5 @@
 # CEO handbook
-This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
+This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant (EA) collaborates with the CEO. 
 
 ## Responsibilities
 The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company.
@@ -7,7 +7,9 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 > When the CEO is out of office, these responsibiliies should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## The CEO support team
-### EA to the CEO
+### Executive Assistant (EA) to the CEO
+
+#### Rituals
 
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
@@ -16,9 +18,17 @@ The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direc
 | Schedule internal and external meetings for the CEO         | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Meeting requests in #-meetings and #help-ceo slack channels | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Preparing agendas and content for CEO's meetings            | Create and edit agenda, provide context, and contact information | PRN                   |
-| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
+
+
+
+
+#### Other responsibilities
+
+| Task | Description | Frequency | 
+| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
 | Ad-hoc requests from the CEO                                | Triage requests, prioritize actions, flag actions for further review | PRN               |
 | Total travel coordination for the CEO    | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
+| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
@@ -95,7 +105,7 @@ From Mike:
 >
 > I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.  
 > 
-> What do still read?
+> What do I still read?
 > - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
 > - If you send me a direct message, I'll see and read that ASAP.
 >
@@ -112,7 +122,7 @@ From Mike:
 
 > DISCUSS -mike, 2023-03
 
-Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month the EA to the CEO will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -128,7 +138,7 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. The EA to the CEO will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
@@ -139,19 +149,16 @@ In the notes document include:
 
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
-### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
- - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
- - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Tee will update the monthly "All Hands" link and grant Sid viewing access. 
- - Tee will send Mike links to the new document and the backup copy in a direct message in Slack. 
- 
-The day before the meeting, Mike will prepare the "Vision" section of the original document. Mike will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+### 💻 Sid : Mike
+Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
+
+After each meeting, the CEO's apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
+<img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
+
 
 ### Investor and advisor updates
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+  - CEO (TODO: who?) tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
 
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
@@ -170,7 +177,7 @@ Whereas agendas are good when it's all about action items / decisions / discussi
 ## Tasks as assigned
 
 ### Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the EA to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.

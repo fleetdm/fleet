@@ -35,12 +35,10 @@ import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import {
-  normalizeEmptyValues,
-  humanHostDiskEncryptionEnabled,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
+
+import { createMockHostMacMdmProfile } from "__mocks__/hostMock";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -91,11 +89,6 @@ interface ISearchQueryData {
   sortDirection: string;
   pageSize: number;
   pageIndex: number;
-}
-
-interface IHostDiskEncryptionProps {
-  enabled?: boolean;
-  tooltip?: string;
 }
 
 interface IHostDetailsSubNavItem {
@@ -161,12 +154,8 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
-  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
+  const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
-  const [
-    hostDiskEncryption,
-    setHostDiskEncryption,
-  ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
@@ -307,13 +296,6 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
-        setHostDiskEncryption({
-          enabled: returnedHost.disk_encryption_enabled,
-          tooltip: humanHostDiskEncryptionEnabled(
-            returnedHost.platform,
-            returnedHost.disk_encryption_enabled
-          ),
-        });
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -333,7 +315,7 @@ const HostDetailsPage = ({
             { packs: [], schedule: [] }
           );
           setPacksState(packStatsByType.packs);
-          setScheduleState(packStatsByType.schedule);
+          setSchedule(packStatsByType.schedule);
         }
       },
       onError: (error) => handlePageError(error),
@@ -685,7 +667,7 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           titleData={titleData}
-          diskEncryption={hostDiskEncryption}
+          diskEncryptionEnabled={host?.disk_encryption_enabled}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
@@ -693,7 +675,7 @@ const HostDetailsPage = ({
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMacSettings={host?.mdm.profiles ?? []}
+          hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
@@ -723,6 +705,7 @@ const HostDetailsPage = ({
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
+                  isChromeOS={host?.platform === "chrome"}
                 />
                 <LabelsCard
                   labels={host?.labels || []}
@@ -759,7 +742,8 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <ScheduleCard
-                scheduleState={scheduleState}
+                isChromeOSHost={host?.platform === "chrome"}
+                schedule={schedule}
                 isLoading={isLoadingHost}
               />
               {canViewPacks && (

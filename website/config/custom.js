@@ -187,6 +187,12 @@ module.exports.custom = {
   // mergeFreezeAccessToken: '…',
   // datadogApiKey: '…',
 
+  // For receive-from-customer-fleet-instance webhook.
+  // customerWorkspaceOneBaseUrl: '…',
+  // customerWorkspaceOneOauthId: '…',
+  // customerWorkspaceOneOauthSecret: '…',
+  // customerMigrationWebhookSecret: '…',
+
   //…
 
 };

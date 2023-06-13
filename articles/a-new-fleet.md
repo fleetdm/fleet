@@ -16,7 +16,7 @@ This transition aims to invest further into making the Fleet the best management
 
 I have partnered with Mike McNeil, creator of [Sails.js](http://sailsjs.com/about) to build an open-core business model around Fleet. Our new company is [Fleet Device Management](https://fleetdm.com/). We intend to expand the capabilities of the OSS Fleet offering, while beginning to offer additional enterprise grade features.
 
-Releases will be available at [github.com/fleetdm/fleet](http://github.com/fleetdm/fleet) and through Docker with **fleetdm/fleet**. For support, use the #fleet channel on [osquery](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Releases will be available at [github.com/fleetdm/fleet](http://github.com/fleetdm/fleet) and through Docker with **fleetdm/fleet**. For support, use the #fleet channel on [osquery](https://fleetdm.com/slack).
 
 We will never charge for features that are currently free in the OSS version of Fleet. Expect to see significant investments and improvements in both the OSS and enterprise offerings.
 

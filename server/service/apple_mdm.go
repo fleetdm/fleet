@@ -1840,6 +1840,12 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 
 type bootstrapPackageMetadataRequest struct {
 	TeamID uint `url:"team_id"`
+
+	// ForUpdate is used to indicate that the authorization should be for a
+	// "write" instead of a "read", this is needed specifically for the gitops
+	// user which is a write-only user, but needs to call this endpoint to check
+	// if it needs to upload the bootstrap package (if the hashes are different).
+	ForUpdate bool `query:"for_update,optional"`
 }
 
 type bootstrapPackageMetadataResponse struct {
@@ -1851,14 +1857,14 @@ func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
 
 func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*bootstrapPackageMetadataRequest)
-	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID)
+	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	if err != nil {
 		return bootstrapPackageMetadataResponse{Err: err}, nil
 	}
 	return bootstrapPackageMetadataResponse{MDMAppleBootstrapPackage: meta}, nil
 }
 
-func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -2192,11 +2198,14 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	host.UDID = m.UDID
 	host.Model = m.Model
 	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
+	}
+	if err := svc.ds.ResetMDMAppleNanoEnrollment(r.Context, host.UDID); err != nil {
+		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
 	}
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,

@@ -65,29 +65,30 @@ Fleet UI:
 
 2. Look at the on-screen information. In the output you'll see the command required to see results. Be sure to copy this command. If you don't, it will be difficult to view command results later.
 
-Example output:
-
-```
-+--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
-|                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                        RESULTS                        |
-+--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
-| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | RestartDevice  | Acknowledged | mos-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE      |
-|                                      |                      |                |              |                     | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"            |
-|                                      |                      |                |              |                     | "http://www.apple.com/DTDs/PropertyList-1.0.dtd">     |
-|                                      |                      |                |              |                     | <plist version="1.0"> <dict> 	<key>CommandUUID</key>   |
-|                                      |                      |                |              |                     | 	<string>333af7f8-b9a4-4f62-bfb2-f7488fbade21</string> |
-|                                      |                      |                |              |                     | 	<key>Status</key>                                     |
-|                                      |                      |                |              |                     | 	<string>Acknowledged</string> 	<key>UDID</key>         |
-|                                      |                      |                |              |                     | 	<string>3A529CD6-2154-55EA-9AB7-EB13A43D9F5E</string> |
-|                                      |                      |                |              |                     | </dict> </plist>                                      |
-+--------------------------------------+----------------------+----------------+--------------+---------------------+-------------------------------------------------------+
-```
-
 ### Step 4: View the command's results
 
 1. Run the `fleetctl get mdm-command-results --id=<insert-command-id>`
 
 2. Look at the on-screen information.
+
+Example output:
+
+```
+$ fleetctl get mdm-command-results -id 333af7f8-b9a4-4f62-bfb2-f7488fbade21
++--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
+|                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                         RESULTS                         |
++--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
+| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | RestartDevice  | Acknowledged | xyz-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE        |
+|                                      |                      |                |              |                     | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"              |
+|                                      |                      |                |              |                     | "http://www.apple.com/DTDs/PropertyList-1.0.dtd">       |
+|                                      |                      |                |              |                     | <plist version="1.0"> <dict> <key>CommandUUID</key>     |
+|                                      |                      |                |              |                     | 	<string>333af7f8-b9a4-4f62-bfb2-f7488fbade21</string> |
+|                                      |                      |                |              |                     | 	<key>Status</key>                                     |
+|                                      |                      |                |              |                     | 	<string>Acknowledged</string> <key>UDID</key>         |
+|                                      |                      |                |              |                     | 	<string>3A529CD6-2154-55EA-9AB7-EB13A43D9F5E</string> |
+|                                      |                      |                |              |                     | </dict> </plist>                                        |
++--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
+```
 
 ## List recent commands
 
