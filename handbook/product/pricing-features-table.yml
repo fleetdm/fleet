@@ -1,8 +1,5 @@
 - categoryName: Device management
   features:
-    - name: Report on disk encryption status (FileVault)
-      tier: Free
-      comingSoon: false
     - name: User-initiated enrollment of macOS computers
       tier: Free
       comingSoon: false
@@ -33,9 +30,6 @@
     - name: Remotely lock and wipe macOS computers
       tier: Premium
       comingSoon: false
-    - name: Trigger a workflow based on a failing policy
-      tier: Premium
-      comingSoon: true
     - name: Update apps on macOS computers
       tier: Premium
       comingSoon: true
@@ -95,6 +89,9 @@
     - name: Single sign on (SSO, SAML)
       tier: Free
       comingSoon: false
+    - name: Report on disk encryption status (FileVault)
+      tier: Free
+      comingSoon: false
     - name: Audit queries and user activities
       tier: Free
       comingSoon: false
@@ -119,6 +116,9 @@
     - name: Vanta integration
       tier: Premium
       comingSoon: false
+    - name: Trigger a workflow based on a failing policy
+      tier: Premium
+      comingSoon: true
     - name: Granular role-based access control
       tier: Premium
       comingSoon: false

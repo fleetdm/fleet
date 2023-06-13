@@ -56,6 +56,10 @@
 
         .version__header {
           width: $col-xs;
+          display: none;
+          @media (min-width: $break-880) {
+            display: table-cell;
+          }
         }
         .vulnerabilities__header {
           width: 130px;
@@ -89,6 +93,7 @@
         .name__cell {
           // Long software names overflow the software card
           max-width: 0;
+          min-width: 252px;
 
           .button--text-link {
             width: 100%;
@@ -99,12 +104,17 @@
               white-space: nowrap;
               display: block;
               text-overflow: ellipsis;
+              width: 100%;
             }
           }
         }
         .version__cell {
           white-space: nowrap;
           text-overflow: ellipsis;
+          display: none;
+          @media (min-width: $break-880) {
+            display: table-cell;
+          }
         }
         .source__cell {
           display: none;
@@ -188,6 +198,7 @@
   @media (max-width: 990px) {
     thead .name__header {
       width: $col-md;
+      min-width: 252px;
     }
 
     .table-container__header {

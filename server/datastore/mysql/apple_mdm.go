@@ -120,12 +120,14 @@ SELECT
 FROM
 	mdm_apple_configuration_profiles p1
 WHERE
+	p1.identifier NOT IN (?) AND
 	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_apple_configuration_profiles p2
 		WHERE
+			p2.identifier NOT IN (?) AND
 			p1.team_id = p2.team_id AND
 			HEX(p2.checksum) NOT IN (?)
 	)
@@ -134,7 +136,15 @@ GROUP BY
 HAVING
 	COUNT(*) = ?`
 
-	stmt, args, err := sqlx.In(stmt, hexMD5Hashes, len(hexMD5Hashes))
+	// when matching a set of profiles to a team, only the custom profiles need
+	// to match, i.e. we ignore any fleet-specific profiles.
+	idents := mobileconfig.FleetPayloadIdentifiers()
+	fleetIdents := make([]string, 0, len(idents))
+	for ident := range idents {
+		fleetIdents = append(fleetIdents, ident)
+	}
+
+	stmt, args, err := sqlx.In(stmt, fleetIdents, fleetIdents, hexMD5Hashes, len(hexMD5Hashes))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare query arguments")
 	}
@@ -2532,4 +2542,16 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "get mdm apple default setup assistant")
 	}
 	return asst.ProfileUUID, asst.UploadedAt, nil
+}
+
+func (ds *Datastore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
+	// it's okay if we didn't update any rows, `nano_enrollments` entries
+	// are created on `TokenUpdate`, and this function is called on
+	// `Authenticate` to make sure we start on a clean state if a host is
+	// re-enrolling.
+	_, err := ds.writer.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating nano_enrollments")
+	}
+	return nil
 }

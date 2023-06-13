@@ -2,7 +2,7 @@
 name: 🧩  Unestimated sub-task
 about: "Specify an unestimated sub-task. (Avoid comments.  Use only as prescribed.)"
 title: ''
-labels: 'sub-task,:release,#mdm'
+labels: '~sub-task'
 assignees: ''
 
 ---

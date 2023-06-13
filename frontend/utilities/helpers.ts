@@ -647,7 +647,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
-const DISK_ENCRYPTION_MESSAGES = {
+const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
   darwin: {
     enabled:
       "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
@@ -661,15 +661,20 @@ const DISK_ENCRYPTION_MESSAGES = {
   },
 };
 
-export const humanHostDiskEncryptionEnabled = (
-  platform?: string,
-  isDiskEncrypted = false
-): string => {
-  if (platform !== "windows" && platform !== "darwin") {
+export const getHostDiskEncryptionTooltipMessage = (
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (!["windows", "darwin"].includes(platform)) {
     return "Disk encryption is enabled.";
   }
-  const encryptionStatus = isDiskEncrypted ? "enabled" : "disabled";
-  return DISK_ENCRYPTION_MESSAGES[platform][encryptionStatus];
+  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -888,7 +893,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

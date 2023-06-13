@@ -1,39 +1,17 @@
 # Fleetd Chrome Extension
 
-## Pack extension
+## Packaging the extension
+Generate a .pem file to be the key for the chrome extension.
 
 (In parent dir)
+Run the following command to generate an extension.
 
 ``` sh
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=$HOME/chrome.pem
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=path/to/chrome.pem
 ```
 
-## Configure in Google Admin
-
-Left menu: Devices > Chrome > Apps & Extensions > Users & browsers (https://admin.google.com/ac/chrome/apps/user)
-
-Select the appropriate organizational unit, users, or groups.
-
-Bottom right yellow + button > Add Chrome app or extension by ID
-
-Extension ID: `fleeedmmihkfkeemmipgmhhjemlljidg`
-From a custom URL: `https://chrome.fleetdm.com/updates.xml`
-
-Then add the "Policy for extensions" to configure it:
-
-```
-{
-  "fleet_url": {
-    "Value": "https://fleet.example.com"
-  },
-  "enroll_secret":{
-    "Value": "<secretgoeshere>"
-  }
-}
-```
-
-Select "Force install". Select "Update URL" > "Installation URL (see above)"
-
+## Adding Chrome to Fleet
+To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension.
 
 ## Debugging
 
