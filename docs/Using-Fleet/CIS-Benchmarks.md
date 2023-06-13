@@ -53,7 +53,7 @@ Fleet's current set of benchmarks only implements benchmark *auditing* steps tha
 
 In practice, Fleet is able to cover a large majority of benchmarks:
 * macOS 13 Ventura - 96 of 104
-* Windows 10 Enterprise - TODO
+* Windows 10 Enterprise - All CIS items (496) 
 
 For a list of specific checks which are not covered by Fleet, please visit the section devoted to each benchmark.
 
