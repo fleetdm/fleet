@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -1471,7 +1470,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 	b, err := hex.DecodeString(strings.Join(hexLines, "0A"))
 	if err != nil {
-		return errors.Wrap(err, "decoding hex string")
+		return ctxerr.Wrap(ctx, err, "decoding hex string")
 	}
 
 	// it's okay if the key comes empty, this can happen and if the disk is
