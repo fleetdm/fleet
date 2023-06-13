@@ -17,15 +17,17 @@
     font-weight: $regular;
     color: $core-white;
     position: relative;
-    padding-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 
     &::before {
       content: "";
       position: absolute;
-      width: 197px;
+      width: 198px;
       height: 2px;
       background-color: $core-vibrant-blue;
-      bottom: 46px;
+      bottom: 78px;
       left: 90px;
 
       @include breakpoint(tablet) {
@@ -41,7 +43,7 @@
       border-radius: 50%;
       content: "";
       font-size: $x-large;
-      margin: 14px auto 0;
+      margin-top: 12px;
       position: relative;
       z-index: 1;
       cursor: pointer;
@@ -64,6 +66,7 @@
     &--1 {
       &::after {
         border: 2px solid $core-white;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -78,6 +81,7 @@
         &::after {
           background-color: transparent;
           border: 2px solid $core-white;
+          margin-top: 13px;
         }
       }
 
@@ -100,6 +104,7 @@
     &--2 {
       &::after {
         border: solid 1px $core-vibrant-blue;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -114,6 +119,7 @@
         &::after {
           background-color: transparent;
           border: 2px solid $core-white;
+          margin-top: 13px;
         }
       }
 
@@ -139,6 +145,7 @@
 
       &::after {
         border: solid 1px $core-vibrant-blue;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -153,6 +160,7 @@
         &::after {
           background-color: transparent;
           border: 2px solid $core-white;
+          margin-top: 13px;
         }
       }
 
