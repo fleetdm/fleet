@@ -130,9 +130,6 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 - 3.7 Audit Software Inventory
 - 6.2.1 Ensure Protect Mail Activity in Mail Is Enabled
 
-<meta name="pageOrderInSection" value="1700">
-<meta name="title" value="CIS Benchmarks">
-
 ## Windows 10 Enterprise benchmark
 
 Fleet's policies have been written against v1.0 of the benchmark. Please refer to the "CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022" PDF from the CIS website for full details.
@@ -257,3 +254,6 @@ Requires this GPO in place: 'Computer Configuration\Policies\Administrative Temp
 18.8.27.1 CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
 Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
 ```
+
+<meta name="pageOrderInSection" value="1700">
+<meta name="title" value="CIS Benchmarks">
