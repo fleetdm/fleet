@@ -55,7 +55,7 @@ jobs:
           args: release --rm-dist -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get tag
         run: |
