@@ -54,6 +54,8 @@ import (
 )
 
 func TestIntegrationsMDM(t *testing.T) {
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+
 	testingSuite := new(integrationMDMTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -1703,6 +1705,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMEnabled() {
+	t := s.T()
+
+	// the feature flag is enabled for the MDM test suite
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDMEnabled)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {

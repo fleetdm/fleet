@@ -15,6 +15,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -47,6 +48,17 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
+
+	// MDMEnabled is true if fleet serve was started with
+	// FLEET_DEV_MDM_ENABLED=1.
+	//
+	// Undocumented feature flag for Windows MDM, used to determine if the
+	// Windows MDM feature is visible in the UI and can be enabled. More details
+	// here: https://github.com/fleetdm/fleet/issues/12257
+	//
+	// TODO: remove this flag once the Windows MDM feature is ready for
+	// release.
+	MDMEnabled bool `json:"mdm_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -73,7 +85,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if !ok {
 		return nil, errors.New("could not fetch user")
 	}
-	config, err := svc.AppConfigObfuscated(ctx)
+	appConfig, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,30 +115,30 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	var ssoSettings *fleet.SSOSettings
 	var agentOptions *json.RawMessage
 	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
-		smtpSettings = config.SMTPSettings
-		ssoSettings = config.SSOSettings
-		agentOptions = config.AgentOptions
+		smtpSettings = appConfig.SMTPSettings
+		ssoSettings = appConfig.SSOSettings
+		agentOptions = appConfig.AgentOptions
 	}
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
-		transparencyURL = config.FleetDesktop.TransparencyURL
+	if license.IsPremium() && appConfig.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = appConfig.FleetDesktop.TransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
-	if config.OrgInfo.ContactURL == "" {
-		config.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
+	if appConfig.OrgInfo.ContactURL == "" {
+		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
-	features := config.Features
+	features := appConfig.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
-			OrgInfo:               config.OrgInfo,
-			ServerSettings:        config.ServerSettings,
+			OrgInfo:               appConfig.OrgInfo,
+			ServerSettings:        appConfig.ServerSettings,
 			Features:              features,
-			VulnerabilitySettings: config.VulnerabilitySettings,
-			HostExpirySettings:    config.HostExpirySettings,
+			VulnerabilitySettings: appConfig.VulnerabilitySettings,
+			HostExpirySettings:    appConfig.HostExpirySettings,
 
 			SMTPSettings: smtpSettings,
 			SSOSettings:  ssoSettings,
@@ -134,9 +146,9 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			FleetDesktop: fleetDesktop,
 
-			WebhookSettings: config.WebhookSettings,
-			Integrations:    config.Integrations,
-			MDM:             config.MDM,
+			WebhookSettings: appConfig.WebhookSettings,
+			Integrations:    appConfig.Integrations,
+			MDM:             appConfig.MDM,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -145,6 +157,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
+			MDMEnabled:      config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 	return response, nil
