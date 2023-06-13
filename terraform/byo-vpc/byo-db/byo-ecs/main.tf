@@ -53,6 +53,7 @@ resource "aws_ecs_task_definition" "backend" {
         cpu         = var.fleet_config.cpu
         memory      = var.fleet_config.mem
         mountPoints = var.fleet_config.mount_points
+        dependsOn   = var.fleet_config.depends_on
         volumesFrom = []
         essential   = true
         portMappings = [
@@ -131,7 +132,7 @@ resource "aws_ecs_task_definition" "backend" {
   dynamic "volume" {
     for_each = var.fleet_config.volumes
     content {
-      name      = volume["name"]
+      name      = volume.value.name
       host_path = lookup(volume.value, "host_path", null)
 
       dynamic "docker_volume_configuration" {
