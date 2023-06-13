@@ -586,7 +586,7 @@ var mdmQueries = map[string]DetailQuery{
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
 	// `filevault_prk` extension table rather than the macadmins `file_lines` table. It is preferred
-	// because the `file_lines` implementation uses bufio.SnanLines which drops end of line
+	// because the `file_lines` implementation uses bufio.ScanLines which drops end of line
 	// characters.
 	//
 	// Both queries depend on the same pre-requisites:
