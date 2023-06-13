@@ -645,6 +645,19 @@ func (svc *Service) validateMDM(
 			}
 		}
 	}
+
+	// Windows validation
+	if !config.IsMDMFeatureFlagEnabled() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+		}
+	}
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsExcludedTeams) != 0 {
+		invalid.Append("mdm.windows_excluded_teams", "cannot exclude teams from Windows MDM when Windows MDM is not enabled")
+	}
+	if oldMdm.WindowsEnabledAndConfigured && !mdm.WindowsEnabledAndConfigured {
+		invalid.Append("mdm.windows_enabled_and_configured", "cannot disable Windows MDM once it has been enabled")
+	}
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
