@@ -98,6 +98,10 @@ This profile extends the "Level 1" profile. Items in this profile exhibit one or
 
 Fleet's policies have been written against v1.0 of the benchmark. Please refer to the "CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022" PDF from the CIS website for full details.
 
+## Windows 10 Enterprise benchmark
+
+Fleet's policies have been written against v1.0 of the benchmark. Please refer to the "CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022" PDF from the CIS website for full details.
+
 ### Checks that require customer decision
 
 CIS has left the parameters of the following checks up to the benchmark implementer. CIS recommends that an organization make a conscious decision for these benchmarks, but does not make a specific recommendation.
