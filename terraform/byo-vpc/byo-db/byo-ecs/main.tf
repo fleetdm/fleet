@@ -52,7 +52,7 @@ resource "aws_ecs_task_definition" "backend" {
         image       = var.fleet_config.image
         cpu         = var.fleet_config.cpu
         memory      = var.fleet_config.mem
-        mountPoints = []
+        mountPoints = var.fleet_config.mount_points
         volumesFrom = []
         essential   = true
         portMappings = [
@@ -128,6 +128,15 @@ resource "aws_ecs_task_definition" "backend" {
         ], local.environment)
       }
   ], var.fleet_config.sidecars))
+  dynamic "volume" {
+    for_each = var.fleet_config.volumes
+    content {
+      name                        = volume.value["name"]
+      efs_volume_configuration    = lookup(volume.value, "efs_volume_configuration", null)
+      docker_volume_configuration = lookup(volume.value, "docker_volume_configuration", null)
+      host_path                   = lookup(volume.value, "host_path", null)
+    }
+  }
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
