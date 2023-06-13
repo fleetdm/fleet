@@ -137,7 +137,7 @@ Fleet's policies have been written against v1.12.0 of the benchmark. You can ref
 ### Checks that require a Group Policy Template
 
 38 items require Group Policy Template in place in order to audit them.
-These items are marked with the label 'CIS_group_policy_template_required' in the respectivve yml file and are mentioned here:
+These items are marked with the label 'CIS_group_policy_template_required' in the respective yml file and are mentioned here:
 
 ```
 18.3.1 CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
