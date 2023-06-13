@@ -12,7 +12,7 @@
 
   &__page {
     text-align: center;
-    width: 150px;
+    width: 156px;
     font-size: $small;
     font-weight: $regular;
     color: $core-white;
@@ -22,11 +22,11 @@
     &::before {
       content: "";
       position: absolute;
-      width: 200px;
+      width: 197px;
       height: 2px;
       background-color: $core-vibrant-blue;
       bottom: 46px;
-      left: 87px;
+      left: 90px;
 
       @include breakpoint(tablet) {
         bottom: 25px;
