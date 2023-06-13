@@ -1,4 +1,4 @@
-# Fleet 4.33.0 | User migration, customizing macOS Setup Assistant.
+# Fleet 4.33.0 | ChromeOS support, new verified status.
 
 ![Fleet 4.33.0](../website/assets/images/articles/fleet-4.33.0-1600x900@2x.png)
 
@@ -100,5 +100,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-06-13">
-<meta name="articleTitle" value="Fleet 4.33.0 | User migration, customizing macOS Setup Assistant.">
+<meta name="articleTitle" value="Fleet 4.33.0 | ChromeOS support, new verified status">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.33.0-1600x900@2x.png">
