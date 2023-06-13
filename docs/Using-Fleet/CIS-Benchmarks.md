@@ -32,10 +32,14 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 
 How to import them to Fleet:
 ```sh
-# Download policy queries from Fleet's repository (e.g. for macOS 13)
+# Download policy queries from Fleet's repository 
+# macOS 13
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
 
-# Apply the downloaded policies to Fleet.
+# Windows 10 (note the same file name. Rename as needed.)
+wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-10/cis-policy-queries.yml
+
+# Apply the downloaded policies to Fleet for both files.
 fleetctl apply -f cis-policy-queries.yml
 ```
 
