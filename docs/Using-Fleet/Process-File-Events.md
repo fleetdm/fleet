@@ -26,7 +26,7 @@ ps -Af | grep audit
 ```
 
 If auditd is running, osquery will log the following error:
-```
+```log
 I0613 11:25:39.959703 29626 auditdnetlink.cpp:686] Failed to set the netlink owner
 ```
 
@@ -122,8 +122,8 @@ sudo cat /opt/orbit/osquery.flags
 
 - `file_paths:` We set `/etc/foobar/%%` as the path to monitor for file changes.
 - `verbose: true`: We set this to `true` for troubleshooting purposes only.
-- `events_expiry: 3600`: The `events_expiry` value is the time it takes for events to be cleared from osquery local storage.
 - `disable_events: false`: Must be set to `false` to enable evented tables in general.
+- `events_expiry: 3600`: The `events_expiry` value is the time it takes for events to be cleared from osquery local storage.
 - `disable_audit: false`: Must be set to `false` to enable the audit events. 
 - `audit_persist: true`: Set to `true` to attempt to retain control of audit.
 - `audit_allow_fim_events: true`: Must be set to `true` to generate FIM events (otherwise the `process_file_events` will generate no events). Once this is set correctly, the user should see "Enabling audit rules for the process_file_events table" in the logs.
@@ -131,7 +131,24 @@ sudo cat /opt/orbit/osquery.flags
 - `audit_backlog_limit: 60000`: Sets the queue length for audit events awaiting transfer to osquery audit subscriber. We set this to a high value first to make sure the table is working, then it should be modified to a better value suited for production.
 - The following flags were set to `false` to avoid unnecessary load on the host: `audit_allow_process_events: false`, `audit_allow_sockets: false`, `audit_allow_user_events: false`, `audit_allow_selinux_events: false`, `audit_allow_kill_process_events: false`, `audit_allow_apparmor_events: false`, `audit_allow_seccomp_events: false`, `enable_bpf_events: false`.
 
-### 7. Modify the test files
+### 7. Make sure osquery audit subscriber is working
+
+```sh
+auditctl -s
+
+enabled 1
+failure 0
+pid 21590
+rate_limit 0
+backlog_limit 60000
+lost 1137311
+backlog 991
+loginuid_immutable 0 unlocked
+```
+
+`enabled` should be `1` and `pid`'s value should be the process ID of osquery.
+
+### 8. Modify the test files
 
 ```sh
 echo "boo" >> /etc/foobar/zoo.txt
@@ -141,7 +158,7 @@ rm /etc/foobar/other.txt
 > IMPORTANT: Reminder that the files must exist before the osquery process is initialized.
 > Creating or modifying new files won't generate `process_file_events` events.
 
-### 8. Query the process_file_events table
+### 9. Query the process_file_events table
 
 Run the following live query:
 ```sql
@@ -153,7 +170,7 @@ It should return two events, one with `operation=write` and one with `operation=
 ## Misc notes
 
 Make sure to keep an eye on logs like the following:
-```sh
+```log
 auditdnetlink.cpp:354 The Audit publisher has throttled reading records from Netlink for 0.2 seconds. Some events may have been lost.
 ```
 Some events might get lost due to system load or low CPU/memory resources.
