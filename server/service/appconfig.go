@@ -650,13 +650,16 @@ func (svc *Service) validateMDM(
 	if !config.IsMDMFeatureFlagEnabled() {
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+			return
 		}
-	}
-	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsExcludedTeams) != 0 {
-		invalid.Append("mdm.windows_excluded_teams", "cannot exclude teams from Windows MDM when Windows MDM is not enabled")
 	}
 	if oldMdm.WindowsEnabledAndConfigured && !mdm.WindowsEnabledAndConfigured {
 		invalid.Append("mdm.windows_enabled_and_configured", "cannot disable Windows MDM once it has been enabled")
+		return
+	}
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsExcludedTeams) != 0 {
+		invalid.Append("mdm.windows_excluded_teams", "cannot exclude teams from Windows MDM when Windows MDM is not enabled")
+		return
 	}
 	if mdm.WindowsEnabledAndConfigured {
 		// do not revalidate each time, only if the names have changed (we accept

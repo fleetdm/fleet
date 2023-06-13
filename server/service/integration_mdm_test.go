@@ -226,6 +226,14 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
   }`), http.StatusOK)
 	}
+	if appCfg.MDM.WindowsEnabledAndConfigured {
+		// cannot do a PATCH /config as Windows MDM can never be switched off,
+		// so we do it directly in the DB
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.windows_enabled_and_configured', false, '$.mdm.windows_excluded_teams', null) WHERE id = 1`)
+			return err
+		})
+	}
 
 	s.withServer.commonTearDownTest(t)
 
@@ -1723,13 +1731,88 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
 
-func (s *integrationMDMTestSuite) TestAppConfigMDMEnabled() {
+func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
+	ctx := context.Background()
 	t := s.T()
 
 	// the feature flag is enabled for the MDM test suite
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDMEnabled)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.Empty(t, acResp.MDM.WindowsExcludedTeams)
+
+	// try to enable Windows MDM with an unknown team name
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_excluded_teams": ["no-such-team"], "windows_enabled_and_configured": true }
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `team name "no-such-team" not found`)
+
+	// nothing was changed
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.Empty(t, acResp.MDM.WindowsExcludedTeams)
+
+	// create a couple teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+
+	// enable Windows MDM with an excluded team
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "windows_excluded_teams": [%q], "windows_enabled_and_configured": true }
+  }`, tm1.Name)), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{tm1.Name}, acResp.MDM.WindowsExcludedTeams)
+
+	// try to set it back to disabled fails
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `cannot disable Windows MDM once it has been enabled`)
+
+	// delete tm1
+	err = s.ds.DeleteTeam(ctx, tm1.ID)
+	require.NoError(t, err)
+
+	// applying the current state without change does not fail, as the teams are
+	// only validated when changed.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "windows_excluded_teams": [%q], "windows_enabled_and_configured": true }
+  }`, tm1.Name)), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{tm1.Name}, acResp.MDM.WindowsExcludedTeams)
+
+	// applying with both tm1 and tm2 fails due to tm1 not existing
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "windows_excluded_teams": [%q, %q], "windows_enabled_and_configured": true }
+  }`, tm1.Name, tm2.Name)), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, fmt.Sprintf(`team name %q not found`, tm1.Name))
+
+	// applying with tm2 only succeeds
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "windows_excluded_teams": [%q], "windows_enabled_and_configured": true }
+  }`, tm2.Name)), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{tm2.Name}, acResp.MDM.WindowsExcludedTeams)
+
+	// applying without any team succeeds and leaves teams untouched
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{tm2.Name}, acResp.MDM.WindowsExcludedTeams)
+
+	// applying with a null list of teams clears them and leaves mdm enabled untouched
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_excluded_teams": null }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{}, acResp.MDM.WindowsExcludedTeams)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {

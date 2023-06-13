@@ -4876,6 +4876,21 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
+	// try to enable windows mdm, impossible without the feature flag
+	// (only set in mdm integrations tests)
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": true }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "cannot enable Windows MDM without the feature flag explicitly enabled")
+
+	// try to exclude teams from windows mdm, impossible without having it enabled
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_excluded_teams": ["xyz"] }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "cannot exclude teams from Windows MDM when Windows MDM is not enabled")
+
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
