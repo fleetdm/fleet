@@ -6,7 +6,7 @@ For more information about CIS Benchmarks check out [Center for Internet Securit
 
 Fleet has implemented native support for CIS benchmarks for the following platforms:
 - macOS 13.0 Ventura (96 checks)
-- Windows 10 Enterprise (496 checks - in progress)
+- Windows 10 Enterprise (496 checks)
 
 [Where possible](#limitations), each CIS benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
