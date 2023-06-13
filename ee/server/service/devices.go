@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	windows_mdm "github.com/fleetdm/fleet/v4/server/mdm/windows"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -114,6 +115,18 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	// mdm information
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
+
+	if appCfg.MDM.WindowsEnabledAndConfigured {
+		discoURL, err := windows_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "resolving Windows MDM discovery URL")
+		}
+		sum.Config.MDM.Windows.DiscoveryEndpoint = discoURL
+
+		//if host.IsElegibleForWindowsMDMEnrollment() {
+		//	sum.Notifications.NeedsWindowsMDMEnrollment = true
+		//}
+	}
 
 	return sum, nil
 }

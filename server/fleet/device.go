@@ -16,6 +16,8 @@ type DesktopSummary struct {
 type DesktopNotifications struct {
 	NeedsMDMMigration      bool `json:"needs_mdm_migration,omitempty"`
 	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
+	// TODO: ok to use "Windows", or should it be more generic? Should it mention "NeedsProgrammatic...Enrollment"?
+	NeedsWindowsMDMEnrollment bool `json:"needs_windows_mdm_enrollment,omitempty"`
 }
 
 // DesktopConfig is a subset of AppConfig with information relevant to Fleet
@@ -31,6 +33,9 @@ type DesktopMDMConfig struct {
 	MacOSMigration struct {
 		Mode MacOSMigrationMode `json:"mode"`
 	} `json:"macos_migration"`
+	Windows struct {
+		DiscoveryEndpoint string `json:"discovery_endpoint,omitempty"`
+	} `json:"windows,omitempty"`
 }
 
 // DesktopMDMConfig is a subset of fleet.OrgInfo with configuration that's relevant
