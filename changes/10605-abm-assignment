@@ -1,3 +1,0 @@
-* Improved ingestion of MDM devices from ABM:
-  - If a device's operation_type is `modified`, but the device doesn't exist in Fleet yet, a DEP profile will be assigned to the device and a new record will be created in Fleet.
-  - If a device's operation_type is `deleted`, the device won't be prompted to migrate to Fleet if the feature has been configured.
