@@ -1,0 +1,1 @@
+- If the `fleet/forgot_password` endpoint is rate limited it should return the proper HTTP status code.
