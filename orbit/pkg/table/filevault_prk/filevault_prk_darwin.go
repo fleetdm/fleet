@@ -31,8 +31,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
-		// TODO: What if the file does not exist? Should we check for "open /var/db/FileVaultPRK.dat:
-		// no such file or directory" and return an empty result instead?
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 	encoded := base64.StdEncoding.EncodeToString(encryptedKey)
