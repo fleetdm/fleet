@@ -74,7 +74,7 @@ For both the audit and remediation elements of a CIS Benchmark, there are two ty
 
 Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
 
-* macOS 13 Ventura - 96 of 104 are Automated
+* macOS 13 Ventura - 96 of 104 are automated
 * Windows 10 Enterprise - All CIS items (496) are Automated 
 
 
