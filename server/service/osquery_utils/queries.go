@@ -610,13 +610,21 @@ var mdmQueries = map[string]DetailQuery{
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
 	"mdm_disk_encryption_key_file_lines_darwin": {
-		Query:            fmt.Sprintf(`SELECT hex(line) as hex_line, COALESCE((%s), 0) as encrypted FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat';`, usesMacOSDiskEncryptionQuery),
+		Query: fmt.Sprintf(`
+	WITH 
+		de AS (SELECT IFNULL((%s), 0) as encrypted),
+		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyFileLinesDarwin,
 		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, strings.Trim(discoveryTable("file_lines"), ";"), strings.Trim(discoveryTable("filevault_prk"), ";")),
 	},
 	"mdm_disk_encryption_key_file_darwin": {
-		Query:            fmt.Sprintf(`SELECT base64_encrypted as filevault_key, COALESCE((%s), 0) as encrypted FROM filevault_prk;`, usesMacOSDiskEncryptionQuery),
+		Query: fmt.Sprintf(`
+	WITH
+		de AS (SELECT IFNULL((%s), 0) as encrypted),
+		fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+	SELECT encrypted, filevault_key FROM de LEFT JOIN fv;`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyFileDarwin,
 		Discovery:        discoveryTable("filevault_prk"),
@@ -1395,9 +1403,6 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
-	// TODO: What should happen if file does not exist? The query will return an error (because the extension table
-	// failed to generate). Should we be updating the datastore to delete the prior key (if any)?
-
 	if len(rows) == 0 {
 		// assume the extension is not there
 		level.Debug(logger).Log(
