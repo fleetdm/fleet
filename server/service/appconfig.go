@@ -658,6 +658,28 @@ func (svc *Service) validateMDM(
 	if oldMdm.WindowsEnabledAndConfigured && !mdm.WindowsEnabledAndConfigured {
 		invalid.Append("mdm.windows_enabled_and_configured", "cannot disable Windows MDM once it has been enabled")
 	}
+	if mdm.WindowsEnabledAndConfigured {
+		// do not revalidate each time, only if the names have changed (we accept
+		// that the name may become invalid after the fact, e.g. if a team is
+		// renamed or deleted - this is the same behaviour for Apple BM default
+		// team).
+		namesChanged := len(oldMdm.WindowsExcludedTeams) != len(mdm.WindowsExcludedTeams)
+		if !namesChanged {
+			for i, oldName := range oldMdm.WindowsExcludedTeams {
+				if mdm.WindowsExcludedTeams[i] != oldName {
+					namesChanged = true
+					break
+				}
+			}
+		}
+		if namesChanged {
+			for _, tmName := range mdm.WindowsExcludedTeams {
+				if _, err := svc.ds.TeamByName(ctx, tmName); err != nil {
+					invalid.Append("mdm.windows_excluded_teams", fmt.Sprintf("team name %q not found", tmName))
+				}
+			}
+		}
+	}
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
