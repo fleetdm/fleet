@@ -139,6 +139,10 @@ type MDM struct {
 	// configured with the required APNS and SCEP certificates. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
+	//
+	// TODO: should ideally be renamed to AppleEnabledAndConfigured, but it
+	// implies a lot of changes to existing code across both frontend and
+	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
 	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
@@ -146,6 +150,20 @@ type MDM struct {
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
 	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+
+	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
+	// There is no other configuration required for Windows other than enabling
+	// the support, but it is still called "EnabledAndConfigured" for consistency
+	// with the similarly named macOS-specific fields.
+	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+
+	// WindowsExcludedTeams is the list of team names that are excluded from the
+	// Windows MDM enrollment. Hosts that have Fleet Desktop installed and that
+	// are NOT part of those teams will be enrolled. Note that the setting stores
+	// team names instead of IDs because it may be set via 'fleetctl apply' and a
+	// YAML file, where names are used to identify entities (and this is
+	// consistent with the AppleBMDefaultTeam setting).
+	WindowsExcludedTeams []string `json:"windows_excluded_teams"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -452,6 +470,10 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
 		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+	}
+	if c.MDM.WindowsExcludedTeams != nil {
+		clone.MDM.WindowsExcludedTeams = make([]string, len(c.MDM.WindowsExcludedTeams))
+		copy(clone.MDM.WindowsExcludedTeams, c.MDM.WindowsExcludedTeams)
 	}
 
 	return &clone
