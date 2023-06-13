@@ -200,6 +200,13 @@ Sub-tasks:
 - are NOT the best place to post GitHub comments (instead, concentrate conversation in the top-level "user story" issue)
 - will NOT be looked at or QA'd by quality assurance
 
+#### API changes
+
+##### API design and documentation DRI: Rachael Shaw
+
+To maintain consistency and a high level of quality in our API and documentation, there is a single Directly Responsible Individual (DRI). The API DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints. 
+
+No API changes are merged without accompanying API documentation and approval from the DRI. The DRI is responsible for ensuring that the API design remains consistent and adequately addresses both standard and edge-case scenarios. The DRI is also the code owner of the API documentation Markdown file. The DRI is committed to reviewing PRs within one business day. In instances where the DRI is unavailable, the Head of Product will act as the substitute code owner and reviewer.
 
 #### Development best practices
 - Remember the user.  What would you do if you saw that error message? [🔴](https://fleetdm.com/handbook/company#empathy)
