@@ -153,6 +153,7 @@ resource "aws_ecs_task_definition" "backend" {
         }
       }
     }
+  }
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
