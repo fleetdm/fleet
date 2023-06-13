@@ -142,6 +142,7 @@ Fleet's policies have been written against v1.0 of the benchmark. Please refer t
 38 items require Group Policy Template in place in order to audit them.
 These items are marked with the label 'CIS_group_policy_template_required' in the respectivve yml file and are mentioned here:
 
+```
 18.3.1 CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
 Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Apply UAC restrictions to local accounts on network logons'
 
@@ -255,3 +256,4 @@ Requires this GPO in place: 'Computer Configuration\Policies\Administrative Temp
 
 18.8.27.1 CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
 Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
+```
