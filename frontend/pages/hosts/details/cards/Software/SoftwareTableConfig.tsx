@@ -102,49 +102,22 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
     : condensed;
 };
 
-const renderBundleTooltip = (name: string, bundle: string) => {
-  console.log("bundle,", bundle);
-  return (
-    <span className="name-container">
-      <TooltipWrapper
-        position="top"
-        tipContent={`
+const renderBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      position="top"
+      tipContent={`
         <span>
           <b>Bundle identifier: </b>
           <br />
           ${bundle}
         </span>
       `}
-      >
-        {name}
-      </TooltipWrapper>
-    </span>
-  );
-};
-
-// const renderBundleTooltip = (name: string, bundle: string) => (
-//   <div className={`bundle-tooltip`}>
-//     <div className={"data-table__truncated-text"} data-tip data-for={tooltipId}>
-//       <span className={`data-table__truncated-text--cell`}>{value}</span>
-//     </div>
-//     <ReactTooltip
-//       place="top"
-//       effect="solid"
-//       backgroundColor="#3e4771"
-//       id={tooltipId}
-//       data-html
-//       className={"truncated-tooltip"} // responsive widths
-//       clickable
-//       delayHide={200} // need delay set to hover using clickable
-//     >
-//       <>
-//         {value}
-//         <div className="safari-hack">&nbsp;</div>
-//         {/* Fixes triple click selecting next element in Safari */}
-//       </>
-//     </ReactTooltip>
-//   </div>
-// );
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
 
 interface IInstalledPathCellProps {
   cell: {
