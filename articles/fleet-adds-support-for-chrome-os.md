@@ -2,7 +2,7 @@
 
 ![Fleet enhances device management with ChromeOS support](../website/assets/images/articles/fleet-adds-support-for-chrome-os-1600x900@2x.png)
 
-At Fleet, we strive to deliver on Fleet's promise of enabling real-time insights and GitOps-driven management across all your devices. Today, we are thrilled to announce that we've expanded Fleet's support to include Google's ChromeOS. This new addition aligns with Fleet's lightweight, open-core, cross-platform ethos and reaffirms our commitment to support all major operating systems, including Mac, Windows, Linux, and now ChromeOS.
+With every release, we strive to deliver on Fleet's promise to enable real-time insights and GitOps-driven management across all your devices. Today, we are thrilled to announce that we've expanded Fleet's support to include Google's ChromeOS. This new addition aligns with Fleet's lightweight, open-core, cross-platform ethos and reaffirms our commitment to support all major operating systems, including Mac, Windows, Linux, and now ChromeOS.
 
 
 ## Unleashing the fleetd Chrome extension
