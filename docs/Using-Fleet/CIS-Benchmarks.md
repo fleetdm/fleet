@@ -1,4 +1,6 @@
-# CIS Benchmarks
+# CIS benchmarks
+
+> Available in Fleet Premium
 
 ## Overview
 CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
@@ -12,11 +14,11 @@ Fleet has implemented native support for CIS benchmarks for the following platfo
 
 ## Requirements
 
-Following are the requirements to use the CIS Benchmarks in Fleet:
+Following are the requirements to use the CIS benchmarks in Fleet:
 
-- Fleet must be Premium or Ultimate licensed.
-- Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.
-- Devices must be enrolled to an MDM solution.
+- To use these policies, Fleet must have an up-to-date paid license (≥Fleet Premium).
+- Devices must be running [`fleetd`](https://fleetdm.com/docs/using-fleet/orbit), the lightweight agent that bundles the latest osqueryd.
+- Some CIS benchmarks explicitly involve verifying MDM-based controls, so devices must be enrolled to an MDM solution.  (Any MDM solution works, it doesn't have to be Fleet.)
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
 
 ### MDM required
