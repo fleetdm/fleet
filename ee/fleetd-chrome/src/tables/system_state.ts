@@ -1,11 +1,5 @@
 import Table from "./Table";
 
-enum IdleState {
-  "active",
-  "idle",
-  "locked",
-}
-
 export default class TableSystemState extends Table {
   name = "system_state";
   columns = ["idle_state"];
