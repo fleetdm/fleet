@@ -6,7 +6,7 @@ module.exports = {
 
   description: 'Sends an email address containing a link to a MDM demo video to the specified email address',
 
-  extendedDescription: 'This action is triggered by form submissions on the /device-management page'
+  extendedDescription: 'This action is triggered by form submissions on the /device-management page',
 
   inputs: {
     emailAddress: {

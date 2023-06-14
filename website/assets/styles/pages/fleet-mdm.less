@@ -212,6 +212,9 @@
     input[type='number'] {
       -moz-appearance: textfield;
     }
+    input[type='radio'] {
+      accent-color: #6a67fe;
+    }
 
     label {
       font-weight: 700;
@@ -242,13 +245,15 @@
   }
 
   [purpose='modal-content'] {
+    background-color: #F9FAFC;
     padding: 40px;
+    margin-top: 150px;
     margin-left: auto;
     margin-right: auto;
     [purpose='modal-close-button'] {
-      margin-top: -40px;
-      margin-right: -40px;
-      border-radius: 100%;
+      top: -40px;
+      right: -40px;
+      border-radius: 50%;
       width: 32px;
       height: 32px;
       padding: 0;
@@ -374,6 +379,25 @@
   }
 
   @media (max-width: 575px) {
+
+    [purpose='modal-content'] {
+      background-color: #F9FAFC;
+      padding: 24px;
+      margin-top: 100px;
+      margin-left: auto;
+      margin-right: auto;
+      [purpose='modal-close-button'] {
+        top: 5px;
+        right: 0;
+        border-radius: 100%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background-color: unset;
+        color: #192147;
+        opacity: 1;
+      }
+    }
 
     [purpose='button-row'] {
       max-width: 100%;
