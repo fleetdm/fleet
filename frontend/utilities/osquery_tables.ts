@@ -13,5 +13,5 @@ export const osqueryTables = queryTable.sort((a, b) => {
 
 // Note: Hiding tables where key hidden is set to true
 export const osqueryTableNames = flatMap(osqueryTables, (table) => {
-  return !table.hidden ? table.name : [];
+  return table.hidden ? [] : table.name;
 });
