@@ -1395,6 +1395,8 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
+// directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`
+// extension table. It is the preferred method when a host has the extension table available.
 func directIngestDiskEncryptionKeyFileDarwin(
 	ctx context.Context,
 	logger log.Logger,
@@ -1437,6 +1439,9 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
 }
 
+// directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
+// extension table. It is the fallback method in cases where the preferred `filevault_prk` extension
+// table is not available on the host.
 func directIngestDiskEncryptionKeyFileLinesDarwin(
 	ctx context.Context,
 	logger log.Logger,
@@ -1468,6 +1473,13 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		}
 		hexLines = append(hexLines, row["hex_line"])
 	}
+	// We concatenate the lines in Go rather than using SQL `group_concat` because the order in
+	// which SQL appends the lines is not deterministic, nor guaranteed to be the right order.
+	// We assume that hexadecimal 0A (i.e. new line) was the delimiter used to split all lines;
+	// however, there are edge cases where this will not be true. It is a known limitation
+	// with the `file_lines` extension table and its reliance on bufio.ScanLines that carriage
+	// returns will be lost if the source file contains hexadecimal 0D0A (i.e. carriage
+	// return preceding new line). In such cases, the stored key will be incorrect.
 	b, err := hex.DecodeString(strings.Join(hexLines, "0A"))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "decoding hex string")

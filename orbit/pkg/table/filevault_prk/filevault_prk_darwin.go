@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
 )
@@ -35,5 +34,5 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 	encoded := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	return []map[string]string{{"base64_encrypted": strings.TrimSpace(encoded)}}, nil
+	return []map[string]string{{"base64_encrypted": encoded}}, nil
 }
