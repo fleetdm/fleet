@@ -14,9 +14,8 @@ type DesktopSummary struct {
 // Fleet Desktop so that it can run commands or more generally react to this
 // information.
 type DesktopNotifications struct {
-	NeedsMDMMigration      bool `json:"needs_mdm_migration,omitempty"`
-	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
-	// TODO: ok to use "Windows", or should it be more generic? Should it mention "NeedsProgrammatic...Enrollment"?
+	NeedsMDMMigration         bool `json:"needs_mdm_migration,omitempty"`
+	RenewEnrollmentProfile    bool `json:"renew_enrollment_profile,omitempty"`
 	NeedsWindowsMDMEnrollment bool `json:"needs_windows_mdm_enrollment,omitempty"`
 }
 
