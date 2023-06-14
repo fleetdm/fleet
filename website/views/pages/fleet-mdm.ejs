@@ -8,7 +8,7 @@
         <h1>Fleet brings GitOps to MDM</h1>
         <p>We prefer a more collaborative approach to device management. Fleet uses a GitOps workflow, ensuring checks and balances for your configuration deployments.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
+          <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
@@ -47,7 +47,7 @@
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
+      <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
       <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
@@ -81,6 +81,50 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
-</div>
 
+
+  <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
+    <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
+      <div purpose="modal-form"  v-if="!showSignupFormSuccess">
+      <div class="modal-header pb-2">
+        <h2 class="text-center mb-2">Is it any good?</h2>
+        <p>Fill out the form below to see Dave bootstrapping a macOS device with MDM.
+      </div>
+        <ajax-form action="deliverMdmDemoEmail" class="mdm-register w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+            <div class="form-group">
+              <label for="emailAddress">Work email</label>
+              <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address</div>
+            </div>
+            <div class="form-group">
+              <p style="padding-bottom: 12px;" class="mb-0 font-weight-bold">How many hosts do you have?</p>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="more-than-1000" value="true" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="more-than-1000">
+                    More than 1,000
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="less-than-1000" value="false" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="less-than-1000">
+                    Less than 1,000
+                  </label>
+                  <div class="invalid-feedback" style="margin-left: -20px;" v-if="formErrors.hasOverOneThousandHosts" focus-first>Please choose one option</div>
+                </div>
+            </div>
+            <cloud-error v-if="cloudError"></cloud-error>
+          <div class="border-0 justify-content-center">
+            <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+      <div purpose="modal-form" class="text-center" v-else>
+        <h2 class="mb-2">Thank you!</h2>
+        <p class="mb-4">We just sent you an email in case you need to watch it again.</p>
+        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue5caa4fa" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
+      </div>
+    </div>
+  </modal>
+
+</div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

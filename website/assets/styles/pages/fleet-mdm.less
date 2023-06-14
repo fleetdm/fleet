@@ -198,6 +198,66 @@
     }
   }
 
+  [purpose='modal-form'] {
+    color: #192147;
+    input {
+      border-radius: 6px;
+      // height: 48px;
+    }
+    // Disable default buttons on type="number" inputs
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type='number'] {
+      -moz-appearance: textfield;
+    }
+
+    label {
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    width: 100%;
+    max-width: 450px;
+  }
+
+  [purpose='submit-button'] {
+    border-radius: 8px;
+    height: 54px;
+  }
+
+  [purpose='mdm-modal'] {
+    h2 {
+      font-weight: 800;
+      font-size: 28px;
+      line-height: 38px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 24px;
+    }
+  }
+  [purpose='modal-dialog'] {
+    max-width: 800px;
+  }
+
+  [purpose='modal-content'] {
+    padding: 40px;
+    margin-left: auto;
+    margin-right: auto;
+    [purpose='modal-close-button'] {
+      margin-top: -40px;
+      margin-right: -40px;
+      border-radius: 100%;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background-color: #192147;
+      color: #FFF;
+      opacity: 1;
+    }
+  }
+
   @media (min-width: 1200px) {
     [purpose='page-container'] {
       padding-left: 120px;
