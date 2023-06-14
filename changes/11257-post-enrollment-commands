@@ -1,1 +1,0 @@
-* Ensure we send post-enrollment commands to MDM devices that are re-enrolling after being wiped.

@@ -1,1 +1,0 @@
-* `GET /api/_version_/fleet/config` to omit fields `smtp_settings` and `sso_settings` if not set.
