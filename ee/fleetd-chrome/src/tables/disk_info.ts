@@ -5,10 +5,9 @@ export default class TableDiskInfo extends Table {
   columns = ["capacity", "id", "name", "type"];
 
   async generate() {
-    let capacity, id, name, type;
+    let rows = [];
     try {
       const disks = (await chrome.system.storage.getInfo()) as chrome.system.storage.StorageUnitInfo[];
-      let rows = [];
       for (let d of disks) {
         rows.push({
           capacity: d.capacity,
@@ -20,14 +19,6 @@ export default class TableDiskInfo extends Table {
     } catch (err) {
       console.warn(`get disk info: ${err}`);
     }
-
-    return [
-      {
-        capacity: capacity,
-        id: id,
-        name: name,
-        type: type,
-      },
-    ];
+    return rows;
   }
 }
