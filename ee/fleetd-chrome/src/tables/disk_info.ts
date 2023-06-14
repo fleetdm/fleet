@@ -8,6 +8,9 @@ export default class TableDiskInfo extends Table {
     let capacity, id, name, type;
     try {
       const diskInfo = (await chrome.system.storage.getInfo()) as chrome.system.storage.StorageUnitInfo[];
+      
+      //loop diskInfo.length and add lines
+
       capacity = diskInfo[0].capacity;
       id = diskInfo[0].id
       name = diskInfo[0].name
