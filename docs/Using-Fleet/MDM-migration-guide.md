@@ -87,9 +87,9 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 #### Automatic Enrollment (ADE)
 
-1. If your device is enrolled in Apple Business Manager (ABM) and assigned to the Fleet server, the end user will receive a "Device Enrollment: <organization> can automatically configure your Mac." system notification within the macOS Notifications Center. 
+1. If your device is enrolled in Apple Business Manager (ABM) and assigned to the Fleet server, the end user will receive a "Device Enrollment: &lt;organization&gt; can automatically configure your Mac." system notification within the macOS Notifications Center. 
    
-2. After the end user clicks on the system notification, macOS will open the "Profiles" System Setting and ask the user to "Allow Device Enrollment: <organization> can automatically configure your Mac based on settings provided by your System Administrator."
+2. After the end user clicks on the system notification, macOS will open the "Profiles" System Setting and ask the user to "Allow Device Enrollment: &lt;organization&gt; can automatically configure your Mac based on settings provided by your System Administrator."
   
 3. If the end user does not Allow the setting, the system notification will continue to nag the end user until the setting has been allowed.
    
@@ -99,7 +99,7 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 1. If your device is not enrolled in Apple Business Manager (ABM), the end user will be given the option to manually download the MDM enrollment profile.
    
-2. Once downloaded, the user will receive a system notification that the Device Enrollment profile has been needs to be installed in the System Settings> Profiles section. 
+2. Once downloaded, the user will receive a system notification that the Device Enrollment profile has been needs to be installed in the System Settings &gt; Profiles section. 
    
 2. After installation, the MDM enrollment profile can be removed by the end user at any time.
    
