@@ -4,6 +4,7 @@ import * as SQLite from "wa-sqlite";
 import TableOSVersion from "./tables/os_version";
 import TableGeolocation from "./tables/geolocation";
 import TableSystemInfo from "./tables/system_info";
+import TableDiskInfo from "./tables/disk_info";
 import TableOsqueryInfo from "./tables/osquery_info";
 import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableUsers from "./tables/users";
@@ -21,6 +22,7 @@ export default class VirtualDatabase {
     VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableDiskInfo(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
     VirtualDatabase.register(
       sqlite3,
