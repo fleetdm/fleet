@@ -123,9 +123,9 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 		}
 		sum.Config.MDM.Windows.DiscoveryEndpoint = discoURL
 
-		//if host.IsElegibleForWindowsMDMEnrollment() {
-		//	sum.Notifications.NeedsWindowsMDMEnrollment = true
-		//}
+		if host.IsElegibleForWindowsMDMEnrollment(appCfg.MDM.WindowsExcludedTeams) {
+			sum.Notifications.NeedsWindowsMDMEnrollment = true
+		}
 	}
 
 	return sum, nil

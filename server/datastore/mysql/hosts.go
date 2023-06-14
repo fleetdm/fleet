@@ -1683,7 +1683,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      t.name AS team_name
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1694,13 +1695,15 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       host_disks hd ON hd.host_id = hda.host_id
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
-	LEFT OUTER JOIN
-	  host_dep_assignments hdep
-	ON
-	  hdep.host_id = h.id
+    LEFT OUTER JOIN
+      host_dep_assignments hdep ON hdep.host_id = h.id
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
-    WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    LEFT OUTER JOIN
+      teams t ON h.team_id = t.id
+    WHERE
+      hda.token = ? AND
+      hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var hostWithMDM hostWithMDMInfo
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
