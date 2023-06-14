@@ -653,10 +653,6 @@ func (svc *Service) validateMDM(
 			return
 		}
 	}
-	if oldMdm.WindowsEnabledAndConfigured && !mdm.WindowsEnabledAndConfigured {
-		invalid.Append("mdm.windows_enabled_and_configured", "cannot disable Windows MDM once it has been enabled")
-		return
-	}
 	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsExcludedTeams) != 0 {
 		invalid.Append("mdm.windows_excluded_teams", "cannot exclude teams from Windows MDM when Windows MDM is not enabled")
 		return

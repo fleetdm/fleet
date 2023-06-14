@@ -227,12 +227,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
   }`), http.StatusOK)
 	}
 	if appCfg.MDM.WindowsEnabledAndConfigured {
-		// cannot do a PATCH /config as Windows MDM can never be switched off,
-		// so we do it directly in the DB
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.windows_enabled_and_configured', false, '$.mdm.windows_excluded_teams', null) WHERE id = 1`)
-			return err
-		})
+		// ensure windows MDM is disabled on exit
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false, "windows_excluded_teams": null }
+  }`), http.StatusOK)
 	}
 
 	s.withServer.commonTearDownTest(t)
@@ -1767,12 +1765,12 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.ElementsMatch(t, []string{tm1.Name}, acResp.MDM.WindowsExcludedTeams)
 
-	// try to set it back to disabled fails
+	// try to set it back to disabled fails because there are still excluded teams
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `cannot disable Windows MDM once it has been enabled`)
+	assert.Contains(t, errMsg, `cannot exclude teams from Windows MDM when Windows MDM is not enabled`)
 
 	// delete tm1
 	err = s.ds.DeleteTeam(ctx, tm1.ID)
@@ -1812,6 +1810,13 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		"mdm": { "windows_excluded_teams": null }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+	assert.ElementsMatch(t, []string{}, acResp.MDM.WindowsExcludedTeams)
+
+	// it can be explicitly disabled
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.ElementsMatch(t, []string{}, acResp.MDM.WindowsExcludedTeams)
 }
 
