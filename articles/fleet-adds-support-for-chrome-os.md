@@ -29,7 +29,7 @@ We understand that the path to perfection involves continual refinement. We plan
 
 ## Why ChromeBooks, ChromeOS, and ChromeOS Flex?
 
-We’ve been listening to Fleet's customers and many have told us that they would love to have better insight into their Chromebooks. For businesses, Chromebooks offer a unique edge given their exceptional security, low cost, ease of use, cloud-based nature, and easy manageability. Chromebooks' affinity for increased productivity, improved collaboration, and reduced IT costs makes them a compelling choice for businesses. And even when Chromebooks aren’t available ChromeOS Flex allows businesses to install ChromeOS on any old x64 machine allowing you to modernize devices you already own. With the Fleetd Chrome extension, managing these devices becomes even easier and more streamlined, empowering IT administrators to harness the full potential of ChromeOS.
+We’ve been listening to customers' comments, and many have asked for better insight into their Chromebooks. Chromebooks offer a unique edge for businesses given their exceptional security, low cost, ease of use, cloud-based nature, and easy manageability. Chromebooks' affinity for increased productivity, improved collaboration, and reduced IT costs makes them a compelling choice for businesses. And even when Chromebooks aren’t available ChromeOS Flex allows businesses to install ChromeOS on any old x64 machine allowing you to modernize devices you already own. With the Fleetd Chrome extension, managing these devices becomes even easier and more streamlined, empowering IT administrators to harness the full potential of ChromeOS.
 
 
 ## Mac, Windows, and ChromeOS. What’s next?
