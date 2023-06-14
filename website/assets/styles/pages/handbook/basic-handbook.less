@@ -1,5 +1,5 @@
 #basic-handbook {
-  padding: 0px 40px;
+
   a {
     color: @core-vibrant-blue;
   }
@@ -9,6 +9,9 @@
     li {
       padding-bottom: 8px;
     }
+  }
+  [purpose='handbook-template'] {
+    padding: 0px 40px;
   }
 
   [purpose='search'] {
@@ -399,7 +402,7 @@
     }
   }
 
-  // for larger screens (>900px)
+  // for larger screens (>1200px)
   @media (max-width: 1199px) {
 
     [purpose='content'] {
@@ -411,8 +414,49 @@
     }
   }
 
+  // only on larger screens (>900px)
+  @media (min-width: 992px) {
+
+    [purpose='back-to-top-button-container'] {
+      position: sticky;
+      bottom: 107px;
+    }
+    [purpose='back-to-top-button'] {
+      display: inline-block;
+      position: relative;
+      left: calc(~'100% - 103px');
+      width: 104px;
+      background: #FFFFFF;
+      padding: 8px 12px;
+      transition: transform 0.5s;
+      transform: translateX(104px);
+      cursor: pointer;
+      border: 1px solid #E2E4EA;
+      border-radius: 16px 0px 0px 16px;
+      p {
+        color: #515774;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 16px;
+      }
+      img {
+        height: 12px;
+        margin-right: 6px;
+      }
+    }
+    [purpose='back-to-top-button'].show {
+      display: inline-block;
+      transition: transform 0.5s;
+      transform: translateX(0);
+    }
+
+  }
+
   // for smaller screens (>768px)
   @media (max-width: 991px) {
+    [purpose='back-to-top-button-container'] {
+      display: none;
+    }
     [purpose='content'] {
       max-width: 100%;
     }
@@ -447,7 +491,9 @@
 
   // for mobile screens (< 576px)
   @media (max-width: 576px) {
-    padding: 0px 24px;
+    [purpose='handbook-template'] {
+      padding: 0px 24px;
+    }
   }
 
 
