@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	windows_mdm "github.com/fleetdm/fleet/v4/server/mdm/windows"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -1758,12 +1759,58 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
 	require.NoError(t, err)
 
-	// enable Windows MDM with an excluded team
+	// create some hosts - a Windows workstation in each team and no-team,
+	// Windows server in no team, Windows workstation enrolled in a 3rd-party in
+	// team 2, Windows workstation already enrolled in Fleet in no team, and a
+	// macOS host in no team.
+	metadataHosts := []struct {
+		os           string
+		token        string
+		isServer     bool
+		teamID       *uint
+		enrolledName string
+		shouldEnroll bool
+	}{
+		{"windows", "win-no-team", false, nil, "", true},
+		{"windows", "win-team-1", false, &tm1.ID, "", false}, // team is excluded
+		{"windows", "win-team-2", false, &tm2.ID, "", true},
+		{"windows", "win-server", true, nil, "", false},                                    // is a server
+		{"windows", "win-third-party", false, &tm2.ID, fleet.WellKnownMDMSimpleMDM, false}, // is enrolled in 3rd-party
+		{"windows", "win-fleet", false, nil, fleet.WellKnownMDMFleet, false},               // is already Fleet-enrolled
+		{"darwin", "macos-no-team", false, nil, "", false},                                 // is not Windows
+	}
+	for _, meta := range metadataHosts {
+		h := createOrbitEnrolledHost(t, meta.os, meta.token, s.ds)
+		createDeviceTokenForHost(t, s.ds, h.ID, meta.token)
+		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName)
+		require.NoError(t, err)
+		if meta.teamID != nil {
+			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{h.ID})
+			require.NoError(t, err)
+		}
+	}
+
+	// enable Windows MDM with an excluded team (tm1)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": { "windows_excluded_teams": [%q], "windows_enabled_and_configured": true }
   }`, tm1.Name)), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.ElementsMatch(t, []string{tm1.Name}, acResp.MDM.WindowsExcludedTeams)
+
+	// get the desktop summary for each host, verify that only the expected ones
+	// receive the "needs enrollment to Windows MDM" notification.
+	for _, meta := range metadataHosts {
+		var getDesktopResp fleetDesktopResponse
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+meta.token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		res.Body.Close()
+		require.Equal(t, meta.shouldEnroll, getDesktopResp.Notifications.NeedsWindowsMDMEnrollment)
+		if meta.shouldEnroll {
+			require.Contains(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint, windows_mdm.DiscoveryPath)
+		} else {
+			require.Empty(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint)
+		}
+	}
 
 	// try to set it back to disabled fails because there are still excluded teams
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

@@ -117,13 +117,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	if appCfg.MDM.WindowsEnabledAndConfigured {
-		discoURL, err := windows_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
-		if err != nil {
-			return sum, ctxerr.Wrap(ctx, err, "resolving Windows MDM discovery URL")
-		}
-		sum.Config.MDM.Windows.DiscoveryEndpoint = discoURL
-
 		if host.IsElegibleForWindowsMDMEnrollment(appCfg.MDM.WindowsExcludedTeams) {
+			discoURL, err := windows_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
+			if err != nil {
+				return sum, ctxerr.Wrap(ctx, err, "resolving Windows MDM discovery URL")
+			}
+			sum.Config.MDM.Windows.DiscoveryEndpoint = discoURL
 			sum.Notifications.NeedsWindowsMDMEnrollment = true
 		}
 	}

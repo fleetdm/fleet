@@ -1873,6 +1873,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+	require.False(t, getDesktopResp.Notifications.NeedsWindowsMDMEnrollment)
+	require.Empty(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint)
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
