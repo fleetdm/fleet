@@ -2,7 +2,7 @@
 
 ![Fleet enhances device management with ChromeOS support](../website/assets/images/articles/fleet-adds-support-for-chrome-os-1600x900@2x.png)
 
-At Fleet, we strive to deliver on our promise of enabling real-time insights and GitOps-driven management across all your devices. Today, we are thrilled to announce that we've expanded our support to include Google's ChromeOS. This new addition aligns with our lightweight, open-core, cross-platform ethos and reaffirms our commitment to support all major operating systems, including Mac, Windows, Linux, and now ChromeOS.
+At Fleet, we strive to deliver on Fleet's promise of enabling real-time insights and GitOps-driven management across all your devices. Today, we are thrilled to announce that we've expanded Fleet's support to include Google's ChromeOS. This new addition aligns with Fleet's lightweight, open-core, cross-platform ethos and reaffirms our commitment to support all major operating systems, including Mac, Windows, Linux, and now ChromeOS.
 
 
 ## Unleashing the fleetd Chrome extension
@@ -29,14 +29,14 @@ We understand that the path to perfection involves continual refinement. We plan
 
 ## Why ChromeBooks, ChromeOS, and ChromeOS Flex?
 
-We’ve been listening to our customers and many have told us that they would love to have better insight into their Chromebooks. For businesses, Chromebooks offer a unique edge given their exceptional security, low cost, ease of use, cloud-based nature, and easy manageability. Chromebooks' affinity for increased productivity, improved collaboration, and reduced IT costs makes them a compelling choice for businesses. And even when Chromebooks aren’t available ChromeOS Flex allows businesses to install ChromeOS on any old x64 machine allowing you to modernize devices you already own. With the Fleetd Chrome extension, managing these devices becomes even easier and more streamlined, empowering IT administrators to harness the full potential of ChromeOS.
+We’ve been listening to Fleet's customers and many have told us that they would love to have better insight into their Chromebooks. For businesses, Chromebooks offer a unique edge given their exceptional security, low cost, ease of use, cloud-based nature, and easy manageability. Chromebooks' affinity for increased productivity, improved collaboration, and reduced IT costs makes them a compelling choice for businesses. And even when Chromebooks aren’t available ChromeOS Flex allows businesses to install ChromeOS on any old x64 machine allowing you to modernize devices you already own. With the Fleetd Chrome extension, managing these devices becomes even easier and more streamlined, empowering IT administrators to harness the full potential of ChromeOS.
 
 
 ## Mac, Windows, and ChromeOS. What’s next?
 
 With this expanded support for ChromeOS, Fleet has once again demonstrated its commitment to broadening device management capabilities and adapting to the evolving needs of IT security and administration. We urge all ChromeOS users to try the new Fleetd Chrome extension with Fleet and experience a novel way of managing devices. 
 
-We'd like to extend our gratitude to our dedicated community and users who inspire us to continually push the boundaries of what's possible in device management. As we continue to explore new frontiers, we look forward to your continued support and feedback. Stay tuned for more exciting updates from the world of Fleet!
+We'd like to extend our gratitude to Fleet's dedicated community and users who inspire us to continually push the boundaries of what's possible in device management. As we continue to explore new frontiers, we look forward to your continued support and feedback. Stay tuned for more exciting updates from the world of Fleet!
 
 
 <meta name="category" value="announcements">
