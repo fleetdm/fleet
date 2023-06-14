@@ -8,13 +8,16 @@ export default class TableDiskInfo extends Table {
     let capacity, id, name, type;
     try {
       const diskInfo = (await chrome.system.storage.getInfo()) as chrome.system.storage.StorageUnitInfo[];
-      
-      //loop diskInfo.length and add lines
-
-      capacity = diskInfo[0].capacity;
-      id = diskInfo[0].id
-      name = diskInfo[0].name
-      type = diskInfo[0].type
+      let rows = [];
+      for (let d of disks) {
+        const mergedPerms = [...ext.permissions, ...ext.hostPermissions];
+        rows.push({
+          capacity: d.capacity,
+          id: d.id,
+          name: d.name,
+          type: d.type,
+        });
+      }
     } catch (err) {
       console.warn(`get disk info: ${err}`);
     }
