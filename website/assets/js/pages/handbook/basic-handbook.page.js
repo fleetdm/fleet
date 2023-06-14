@@ -119,7 +119,6 @@ parasails.registerPage('basic-handbook', {
     handleScrollingInHandbook: function () {
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
-      let windowHeight = window.innerHeight;
       if (backToTopButton) {
         if(scrollTop > 2000) {
           backToTopButton.classList.add('show');
