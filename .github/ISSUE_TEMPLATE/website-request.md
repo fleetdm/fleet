@@ -13,13 +13,15 @@ assignees: ''
 
 ## Goal
 
-<!-- Describe the desired outcome -->
+<!-- Describe the desired outcome.-->
 
 | User story  |
 |:---------------------------------------------------------------------------|
 | As a _________________________________________,
 | I want to _________________________________________
 | so that I can _________________________________________.
+
+>For help creating a user story, see ["Writing a good user story"](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the website handbook.
 
 ## Changes
 
@@ -29,11 +31,9 @@ This issue's estimation includes completing:
 
 ## QA
 
-<!--
-Make sure that someone verified each step outlined below before the associated PR is merged.
---> 
+>The QA steps outlined below must be verified before the associated PR is merged. See ["Quality"](https://fleetdm.com/handbook/marketing/website-handbook#quality) in the website handbook for help.
 
-### Manual testing steps
+### Manual QA steps
 <!-- 
 Add detailed manual testing steps for all affected user flows. 
 -->
@@ -41,6 +41,8 @@ Add detailed manual testing steps for all affected user flows.
 1. Step 1
 2. Step 2
 3. Step 3
+
+>In addition to the steps above, ensure changes have been checked at all breakpoints, and a [browser compatibility](https://fleetdm.com/handbook/marketing/website-handbook#browser-compatibility) test has been carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
 
 ### Testing notes
 <!-- Any additional testing notes relevant to this story or tools required for testing. -->
