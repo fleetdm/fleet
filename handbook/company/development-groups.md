@@ -119,7 +119,7 @@ A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
-- [ ] [Designs revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
+- [ ] [Designs revised and approved](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
 
@@ -176,6 +176,18 @@ Here are some examples of questions that might be helpful to answer:
 These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
 
+#### Design reviews
+
+Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit).
+
+The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
+- Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
+- Say the user story out loud to remind participants of what it is.
+- Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
+- For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
+- Zoom in.
+
+
 ### Implementing
 
 #### Developing from wireframes
@@ -202,9 +214,9 @@ Sub-tasks:
 
 #### API changes
 
-##### API design and documentation DRI: Rachael Shaw
+> DRI: Rachael Shaw
 
-To maintain consistency and a high level of quality in our API and documentation, there is a single Directly Responsible Individual (DRI). The API DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints. 
+To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints. 
 
 No API changes are merged without accompanying API documentation and approval from the DRI. The DRI is responsible for ensuring that the API design remains consistent and adequately addresses both standard and edge-case scenarios. The DRI is also the code owner of the API documentation Markdown file. The DRI is committed to reviewing PRs within one business day. In instances where the DRI is unavailable, the Head of Product will act as the substitute code owner and reviewer.
 
