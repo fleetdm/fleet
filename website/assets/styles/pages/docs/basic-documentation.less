@@ -35,16 +35,16 @@
     }
 
   }
-  .markdown-heading:hover {
 
+  .markdown-heading:hover {
     .markdown-link {
       height: 16px;
       vertical-align: middle;
       margin-left: 8px;
       content: url('/images/icon-link-16x16@2x.png');
     }
-
   }
+
   .markdown-heading.copied::before {
     content: 'Link copied to clipboard';
     display: flex;
@@ -70,18 +70,16 @@
     100% {opacity: 0;}
   }
 
-
   [purpose='search'] {
-
+    // Note: We're using classes here to override the default Docsearch styles;
     input {
       padding-top: 6px;
       padding-bottom: 6px;
       border: none;
-      } &::placeholder {
-        font-size: 16px;
-        line-height: 24px;
-      }
-
+    } &::placeholder {
+      font-size: 16px;
+      line-height: 24px;
+    }
     .input-group {
       border-top-left-radius: 6px;
       border-bottom-left-radius: 6px;
@@ -90,11 +88,9 @@
       border: 1px solid @core-fleet-black-25;
       background-color: #FFF;
     }
-
     .input-group:focus-within {
       border: 1px solid @core-vibrant-blue;
     }
-
     .docsearch-input {
       height: 100%;
       width: 98%;
@@ -102,15 +98,12 @@
     .docsearch-input:focus-visible {
       outline: none;
     }
-
     .ds-input:focus {
       outline: rgba(0, 0, 0, 0);
     }
-
     .input-group-text {
       color: @core-fleet-black-50;
     }
-
     .form-control {
       height: 48px;
       padding: 0px;
@@ -118,20 +111,16 @@
     } &:focus {
       border: none;
     }
-
   }
 
   [purpose='docs-landing-page'] {
-
     h3 {
       font-size: 24px;
       line-height: 32px;
     }
-
     a {
       color: @core-vibrant-blue;
     }
-
     [purpose='support-link'] {
       text-align: center;
       margin-top: 24px;
@@ -153,101 +142,27 @@
       br {
         display: none;
       }
-
     }
-
-    [purpose='cta-cards'] {
-
-      .cta-card {
-        cursor: pointer;
-        border: 1px solid @ui-gray;
-        border-radius: 8px;
-        box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
-
-        .cta-image {
-          max-height: 60px;
-          width: auto;
-        }
-
-        .cta-text {
-
-          a {
-            color: @core-fleet-black;
-            text-decoration: none;
-          }
-
-          img {
-            padding-left: 8px;
-            transition: 0.2s ease-in-out;
-            -o-transition: 0.2s ease-in-out;
-            -ms-transition: 0.2s ease-in-out;
-            -moz-transition: 0.2s ease-in-out;
-            -webkit-transition: 0.2s ease-in-out;
-          }
-
-          &:hover {
-
-            .arrow {
-
-              img {
-                padding-left: 11px;
-                transition: 0.2s ease-in-out;
-                -o-transition: 0.2s ease-in-out;
-                -ms-transition: 0.2s ease-in-out;
-                -moz-transition: 0.2s ease-in-out;
-                -webkit-transition: 0.2s ease-in-out;
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
     [purpose='docs-tree'] {
-
       a {
         color: @core-fleet-black;
         text-decoration: none;
-
         &:hover {
           color: @core-vibrant-blue;
         }
-
       }
-
     }
-
-    @media (min-width: 768px) {
-
-      .cta-card {
-        max-width: 437px;
-        min-height: 160px;
-
-        .cta-image {
-          max-height: 72px;
-        }
-
-      }
-
-    }
-
   }
 
 
   [purpose='docs-template'] {
 
     h3 {
-
       code {
         color: @core-fleet-black;
       }
-
     }
+
     [purpose='edit-button-container'] {
       position: relative;
     }
@@ -268,9 +183,7 @@
       i {
         height: 16px;
         padding-right: 5px;
-      }
-
-      &:hover {
+      } &:hover {
         background: @core-vibrant-blue;
 
         a {
@@ -280,9 +193,7 @@
 
       }
 
-    }
-
-    &:hover {
+    } &:hover {
 
       [purpose='edit-button'] {
         opacity: 1;
@@ -302,12 +213,11 @@
     }
 
     [purpose='breadcrumbs'] {
-
       p, a {
         font-size: 14px;
       }
-
     }
+
 
     [purpose='mobile-docs-nav'] {
 
@@ -519,7 +429,6 @@
     }
 
     [purpose='content'] {
-
       .markdown-heading {
         scroll-margin-top: 140px;
       }
@@ -764,10 +673,12 @@
       }
 
     }
+  }
 
-    // for larger screens
-    @media (min-width: 992px) {
+  // for larger screens
+  @media (min-width: 992px) {
 
+    [purpose='docs-template'] {
       ul {
         .topic {
           padding-left: 8px;
@@ -775,19 +686,15 @@
       }
 
       [purpose='search'] {
-
         .input-group {
           min-width: 400px;
         }
-
       }
 
       [purpose='page-title'] {
-
         h1 {
           display: block;
         }
-
       }
 
       .header-hidden { // For scrolling the sidebars with the sticky header
@@ -843,13 +750,52 @@
       [purpose='content'] {
         min-width: 0px; // in order for <pre> elements to shrink properly, the parent flex element needs to override min-width auto
       }
-
     }
+    [purpose='back-to-top-button-container'] {
+      position: sticky;
+      bottom: 107px;
+    }
+    [purpose='back-to-top-button'] {
+      display: inline-block;
+      position: relative;
+      left: calc(~'100% - 103px');
+      width: 104px;
+      background: #FFFFFF;
+      padding: 8px 12px;
+      transition: transform 0.5s;
+      transform: translateX(104px);
+      cursor: pointer;
+      border: 1px solid #E2E4EA;
+      border-radius: 16px 0px 0px 16px;
+      p {
+        color: #515774;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 16px;
+      }
+      img {
+        height: 12px;
+        margin-right: 6px;
+      }
+    }
+    [purpose='back-to-top-button'].show {
+      display: inline-block;
+      transition: transform 0.5s;
+      transform: translateX(0);
+    }
+  }
 
-    // for smaller screens
-    @media (max-width: 991px) {
-
+  // for smaller screens
+  @media (max-width: 991px) {
+    [purpose='back-to-top-button-container'] {
+      display: none;
+    }
+    [purpose='docs-template'] {
       padding: 0px 40px;
+
+      [purpose='back-to-top-button'].show {
+        display: none;
+      }
 
       [purpose='edit-button'] {
         top: -61px;
@@ -880,25 +826,29 @@
         }
 
       }
-
     }
 
-    @media (max-width: 768px) {
+  }
+
+  @media (max-width: 768px) {
+    [purpose='docs-template'] {
 
       [purpose='edit-button'] {
         top: -2px;
         right: 0px;
       }
-
-    }
-
-    // for mobile
-    @media (max-width: 576px) {
-      padding: 0px 24px;
-
     }
 
   }
+
+  // for mobile
+  @media (max-width: 576px) {
+    [purpose='docs-template'] {
+      padding: 0px 24px;
+    }
+
+  }
+
 
   @import 'code-blocks.less'; // styles for code blocks and hljs
 
