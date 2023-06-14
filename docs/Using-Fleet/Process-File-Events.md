@@ -2,7 +2,7 @@
 
 This guide contains step-by-step instructions for configuring the `process_file_events` table on CentOS 7.
 
-## 1. Setup a CentOS 7 VM
+## Setup a CentOS 7 VM
 
 Setup a CentOS 7 VM. (VMWare Fusion was used for this guide.)
 The following kernel release was used:
@@ -13,7 +13,7 @@ $ uname --kernel-release
 
 > All commands shown in this guide were executed as `root`.
 
-## 2. Disable auditd
+## Disable auditd
 
 The `process_file_events` table will not work if the `auditd` daemon is running (there can only be one audit daemon).
 To disable auditd run the following:
@@ -30,9 +30,9 @@ If auditd is running, osquery will log the following error:
 I0613 11:25:39.959703 29626 auditdnetlink.cpp:686] Failed to set the netlink owner
 ```
 
-## 3. Create test files
+## Create test files
 
-> The `process_file_events` table can only process events for files that are existing before the osquery initialization.
+> The `process_file_events` table can only process events for files that existed before the osquery initialization.
 > New files created after osqueryd has initialized won't be tracked by the `process_file_events` table.
 
 Create the following test files in the CentOS VM:
@@ -42,11 +42,11 @@ echo "zoo" > /etc/foobar/zoo.txt
 echo "other" > /etc/foobar/other.txt
 ```
 
-## 4. Create a test team in Fleet.
+## Create a test team in Fleet.
 
 We will use a test team with special settings to avoid impacting other hosts.
 
-## 5. Install fleetd on the CentOS instance and enroll host
+## Install fleetd on the CentOS instance and enroll host
 
 Generate fleetd rpm package (This step was executed on macOS.)
 ```sh
@@ -58,7 +58,7 @@ Install fleetd package on the CentOS 7 VM:
 rpm --install fleet-osquery-1.10.0.x86_64.rpm
 ```
 
-## 6. Set team agent options
+## Set team agent options
 
 Configure following settings on the team's agent options:
 ```sh
@@ -131,7 +131,7 @@ sudo cat /opt/orbit/osquery.flags
 - `audit_backlog_limit: 60000`: Sets the queue length for audit events awaiting transfer to osquery audit subscriber. We set this to a high value first to make sure the table is working, then it should be modified to a better value suited for production.
 - The following flags were set to `false` to avoid unnecessary load on the host: `audit_allow_process_events: false`, `audit_allow_sockets: false`, `audit_allow_user_events: false`, `audit_allow_selinux_events: false`, `audit_allow_kill_process_events: false`, `audit_allow_apparmor_events: false`, `audit_allow_seccomp_events: false`, `enable_bpf_events: false`.
 
-## 7. Make sure osquery audit subscriber is working
+## Make sure osquery audit subscriber is working
 
 ```sh
 auditctl -s
@@ -148,7 +148,7 @@ loginuid_immutable 0 unlocked
 
 `enabled` should be `1` and `pid`'s value should be the process ID of osquery.
 
-## 8. Modify the test files
+## Modify the test files
 
 ```sh
 echo "boo" >> /etc/foobar/zoo.txt
@@ -158,7 +158,7 @@ rm /etc/foobar/other.txt
 > Remember: the files must exist before the osquery process is initialized.
 > Creating or modifying new files won't generate `process_file_events` events.
 
-## 9. Query the process_file_events table
+## Query the process_file_events table
 
 Run the following live query:
 ```sql
