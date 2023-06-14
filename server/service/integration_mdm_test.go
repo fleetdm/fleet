@@ -54,6 +54,8 @@ import (
 )
 
 func TestIntegrationsMDM(t *testing.T) {
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+
 	testingSuite := new(integrationMDMTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -590,6 +592,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\)$`, tm1.Name)
+
+	// it create activities for the new team, the profiles assigned to it, and
+	// the host moved to it
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
+		0)
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -1703,6 +1721,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMEnabled() {
+	t := s.T()
+
+	// the feature flag is enabled for the MDM test suite
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDMEnabled)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
