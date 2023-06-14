@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-> **This request is expected to be doable in ≤1 sprint.  It would be valuable even if nothing else ships.**
+> **This request is expected to be doable in ≤1 sprint. It would be valuable even if nothing else ships.**
 > 
 > It will be reviewed by the acting PM for the #g-website product group, and then hopefully [prioritized, drafted, and implemented](https://fleetdm.com/handbook/company/development-groups#making-changes).
 
@@ -25,15 +25,15 @@ assignees: ''
 
 ## Changes
 
-This issue's estimation includes completing:
+This issue's estimation includes completing the following:
 - [ ] UI changes: TODO
 - [ ] QA complete?
 
 ## QA
 
->The QA steps outlined below must be verified before the associated PR is merged. See ["Quality"](https://fleetdm.com/handbook/marketing/website-handbook#quality) in the website handbook for help.
+>The testing steps outlined below must be verified before the associated PR is merged. See ["Quality"](https://fleetdm.com/handbook/marketing/website-handbook#quality) in the website handbook for help.
 
-### Manual QA steps
+### Manual testing steps
 <!-- 
 Add detailed manual testing steps for all affected user flows. 
 -->
