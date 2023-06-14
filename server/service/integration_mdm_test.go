@@ -1799,7 +1799,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.ElementsMatch(t, []string{tm1.Name}, acResp.MDM.WindowsExcludedTeams)
 
-	// get the desktop summary for each host, verify that only the expected ones
+	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
 	for _, meta := range metadataHosts {
 		var resp orbitGetConfigResponse
