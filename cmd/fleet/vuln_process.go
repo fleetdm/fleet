@@ -49,7 +49,7 @@ by an exit code of zero.`,
 			}
 
 			if licenseInfo != nil && licenseInfo.IsPremium() && licenseInfo.IsExpired() {
-				fleet.WriteExpiredLicenseBanner(os.Stdout)
+				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
 			ds, err := mysql.New(cfg.Mysql, clock.C)

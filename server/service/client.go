@@ -113,7 +113,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	}
 
 	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
-		fleet.WriteExpiredLicenseBanner(c.writer)
+		fleet.WriteExpiredLicenseBanner(os.Stderr)
 	}
 
 	return resp, nil
