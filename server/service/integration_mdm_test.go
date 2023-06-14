@@ -1765,7 +1765,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// macOS host in no team.
 	metadataHosts := []struct {
 		os           string
-		token        string
+		suffix       string
 		isServer     bool
 		teamID       *uint
 		enrolledName string
@@ -1779,15 +1779,17 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		{"windows", "win-fleet", false, nil, fleet.WellKnownMDMFleet, false},               // is already Fleet-enrolled
 		{"darwin", "macos-no-team", false, nil, "", false},                                 // is not Windows
 	}
+	hostsBySuffix := make(map[string]*fleet.Host, len(metadataHosts))
 	for _, meta := range metadataHosts {
-		h := createOrbitEnrolledHost(t, meta.os, meta.token, s.ds)
-		createDeviceTokenForHost(t, s.ds, h.ID, meta.token)
+		h := createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
+		createDeviceTokenForHost(t, s.ds, h.ID, meta.suffix)
 		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName)
 		require.NoError(t, err)
 		if meta.teamID != nil {
 			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{h.ID})
 			require.NoError(t, err)
 		}
+		hostsBySuffix[meta.suffix] = h
 	}
 
 	// enable Windows MDM with an excluded team (tm1)
@@ -1800,15 +1802,15 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// get the desktop summary for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
 	for _, meta := range metadataHosts {
-		var getDesktopResp fleetDesktopResponse
-		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+meta.token+"/desktop", nil, http.StatusOK)
-		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-		res.Body.Close()
-		require.Equal(t, meta.shouldEnroll, getDesktopResp.Notifications.NeedsWindowsMDMEnrollment)
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsWindowsMDMEnrollment)
 		if meta.shouldEnroll {
-			require.Contains(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint, windows_mdm.DiscoveryPath)
+			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, windows_mdm.DiscoveryPath)
 		} else {
-			require.Empty(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint)
+			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 		}
 	}
 

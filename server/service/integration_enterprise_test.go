@@ -1873,8 +1873,6 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
-	require.False(t, getDesktopResp.Notifications.NeedsWindowsMDMEnrollment)
-	require.Empty(t, getDesktopResp.Config.MDM.Windows.DiscoveryEndpoint)
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
@@ -2795,11 +2793,13 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
-	// nudge config is empty if macos_updates is not set
+	// nudge config is empty if macos_updates is not set, and windows mdm notifications are unset
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
+	require.False(t, resp.Notifications.NeedsWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 
 	// set macos_updates
 	s.applyConfig([]byte(`
