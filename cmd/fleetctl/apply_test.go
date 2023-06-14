@@ -765,6 +765,8 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+
 	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -895,7 +897,8 @@ spec:
 
 	emptySetupAsst := writeTmpJSON(t, map[string]any{})
 
-	// Apply global config with custom setting and macos setup assistant.
+	// Apply global config with custom setting and macos setup assistant, and enable
+	// Windows MDM.
 	name = writeTmpYml(t, fmt.Sprintf(`---
 apiVersion: v1
 kind: config
@@ -909,6 +912,9 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
+    windows_enabled_and_configured: true
+    windows_excluded_teams:
+    - Team1
 `, mobileConfigPath, emptySetupAsst))
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
@@ -925,6 +931,8 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
+		WindowsEnabledAndConfigured: true,
+		WindowsExcludedTeams:        []string{"Team1"},
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
@@ -957,6 +965,8 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
+		WindowsEnabledAndConfigured: true,
+		WindowsExcludedTeams:        []string{"Team1"},
 	}, currentAppConfig.MDM)
 
 	// Apply team config.
