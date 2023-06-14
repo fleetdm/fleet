@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -439,6 +440,9 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return newNotFoundError()
+				}
 				return ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{
