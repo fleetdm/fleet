@@ -1,1 +1,1 @@
-- Warnings should go to stderr instead of stdout.
+- Warnings in fleetctl should go to stderr instead of stdout.
