@@ -81,7 +81,7 @@ Give it the following environment variables:
 
 Additionally we’ll configure the following so Render knows how to build our app and make sure its healthy:
 
-![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-3-512x213@2x.png)
+![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-7-627x416@2x.png)
 
 - Health Check Path: `/healthz`
 - Docker Build Context Directory: `.`
