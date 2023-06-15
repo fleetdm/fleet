@@ -40,7 +40,13 @@ func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.M
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "check rate limit")
 			}
+
 			if limited {
+				// We need to set authentication as checked, otherwise we end up returning HTTP 500
+				// errors.
+				if az, ok := authz_ctx.FromContext(ctx); ok {
+					az.SetChecked()
+				}
 				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
 			}
 
