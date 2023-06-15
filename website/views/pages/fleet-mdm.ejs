@@ -90,7 +90,7 @@
         <h2 class="text-center mb-2">Is it any good?</h2>
         <p>Fill out the form below to see Dave bootstrapping a macOS device with MDM.</p>
       </div>
-        <ajax-form action="deliverMdmDemoEmail" class="mdm-register w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+        <ajax-form action="deliverMdmDemoEmail" class="mdm-demo-video w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
             <div class="form-group">
               <label for="emailAddress">Work email</label>
               <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
