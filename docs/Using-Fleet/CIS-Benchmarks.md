@@ -40,7 +40,8 @@ wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-po
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-10/cis-policy-queries.yml
 
 # Apply the downloaded policies to Fleet for both files.
-fleetctl apply -f cis-policy-queries.yml
+fleetctl apply --context <context> -f <path-to-macOS-13-policies> --policies-team <team-name>
+fleetctl apply --context <context> -f <path-to-windows-10-policies> --policies-team <team-name>
 ```
 
 To apply the policies on a specific team use the `--policies-team` flag:
