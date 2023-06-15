@@ -1760,7 +1760,7 @@ this table. This table also holds most of the timestamps, but it doesn't hold al
 detail as we'll see below.
 
 There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of
-this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from
+this are: `host_additional` that holds additional query results, `host_` that links a host with many rows from
 the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
@@ -5995,6 +5995,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List all software](#list-all-software)
 - [Count software](#count-software)
+
 ### List all software
 
 `GET /api/v1/fleet/software`
