@@ -1,12 +1,12 @@
 import VirtualDatabase from "../db";
 
 describe("system_state", () => {
-  test("success active state", async () => {
-    const delay = 600; // Returned from chrome.idle.getAutoLockDelay tested in screen_lock
+  const delay = 600; // Returned from chrome.idle.getAutoLockDelay tested in screen_lock
 
+  test("success active state", async () => {
     // @ts-ignore
-    chrome.idle.queryState(delay) = jest.fn((idle_state) =>
-      Promise.resolve({ idle_state })
+    chrome.idle.queryState(delay) = jest.fn(() =>
+      Promise.resolve({ idle_state: "active" })
     );
 
     const db = await VirtualDatabase.init();
@@ -18,13 +18,11 @@ describe("system_state", () => {
     ]);
   });
 
+  // TODO test via Fleet app as you can't test idle from an active Chromebook
   test("success idle state", async () => {
-    // TODO
-    const delay = 600; // Returned from chrome.idle.getAutoLockDelay tested in screen_lock
-
     // @ts-ignore
-    chrome.idle.queryState(delay) = jest.fn((idle_state) =>
-      Promise.resolve({ idle_state })
+    chrome.idle.queryState(delay) = jest.fn(() =>
+      Promise.resolve({ idle_state: "idle" })
     );
 
     const db = await VirtualDatabase.init();
@@ -37,12 +35,9 @@ describe("system_state", () => {
   });
 
   test("success locked state", async () => {
-    // TODO
-    const delay = 600; // Returned from chrome.idle.getAutoLockDelay tested in screen_lock
-
     // @ts-ignore
-    chrome.idle.queryState(delay) = jest.fn((idle_state) =>
-      Promise.resolve({ idle_state })
+    chrome.idle.queryState(delay) = jest.fn(() =>
+      Promise.resolve({ idle_state: "locked" })
     );
 
     const db = await VirtualDatabase.init();

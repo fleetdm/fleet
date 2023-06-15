@@ -1,5 +1,4 @@
 import Table from "./Table";
-
 export default class TableScreenLock extends Table {
   name = "screen_lock";
   columns = ["delay"];
@@ -8,11 +7,12 @@ export default class TableScreenLock extends Table {
     let delay;
 
     try {
-      // @ts-ignore
-      const delay = await chrome.idle.getAutoLockDelay();
-      return [{ delay }];
+      const autoLockDelay = await new Promise((resolve) =>
+        chrome.idle.getAutoLockDelay(resolve)
+      );
+      delay = autoLockDelay;
     } catch (err) {
-      console.warn("get screen lock delay info:", err);
+      console.warn("get screen lock info:", err);
     }
 
     return [{ delay }];

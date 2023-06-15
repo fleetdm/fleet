@@ -8,12 +8,15 @@ export default class TableSystemState extends Table {
     let idle_state;
 
     try {
-      // @ts-ignore
-      const delay = await chrome.idle.getAutoLockDelay();
-      // @ts-ignore
-      const idle_state = await chrome.idle.queryState(delay);
+      const autoLockDelay = (await new Promise((resolve) =>
+        chrome.idle.getAutoLockDelay(resolve)
+      )) as number;
 
-      return [{ idle_state }];
+      const idleState = await new Promise((resolve) =>
+        chrome.idle.queryState(autoLockDelay, resolve)
+      );
+
+      idle_state = idleState;
     } catch (err) {
       console.warn("get system state info:", err);
     }
