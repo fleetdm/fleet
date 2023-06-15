@@ -12,7 +12,6 @@ import TablePrivacyPreferences from "./tables/privacy_preferences";
 import TableScreenLock from "./tables/screen_lock";
 import TableSystemInfo from "./tables/system_info";
 import TableSystemState from "./tables/system_state";
-
 import TableUsers from "./tables/users";
 
 export default class VirtualDatabase {

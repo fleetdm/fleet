@@ -1,4 +1,5 @@
 import Table from "./Table";
+
 export default class TableScreenLock extends Table {
   name = "screen_lock";
   columns = ["delay"];
