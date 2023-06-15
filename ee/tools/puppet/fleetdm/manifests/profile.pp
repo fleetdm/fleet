@@ -39,7 +39,7 @@ define fleetdm::profile (
     $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group)
     $err = $response['error']
 
-    if $err {
+    if $err != '' {
       notify { "client: error pre-assigning profile ${$name}: ${$err} \n\n ${$template}":
         loglevel => 'err',
       }

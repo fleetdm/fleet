@@ -69,7 +69,7 @@ $host_uuid = $facts['system_profiler']['hardware_uuid']
 $response = fleetdm::release_device($host_uuid)
 $err = $response['error']
 
-if $err {
+if $err != '' {
   notify { "error releasing device: ${err}": }
 }
 ```
