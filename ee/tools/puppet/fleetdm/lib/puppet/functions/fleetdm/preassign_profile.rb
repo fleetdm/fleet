@@ -19,7 +19,7 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     if response['error'].empty?
       Puppet.info("successfully pre-assigned profile #{profile_identifier}")
     else
-      Puppet.err("error pre-assigning profile #{profile_identifier}: #{response['error']}")
+      Puppet.err("error pre-assigning profile #{profile_identifier}: #{response['error']} \n\n #{template}")
     end
 
     response
