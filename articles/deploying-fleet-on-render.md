@@ -43,6 +43,10 @@ We’re also going to need to set up some environment variables and a disk to mo
 - Mount Path: `/var/lib/mysql`
 - Size: `50GB`
 
+Once you've setup your mysql service on Render we will need to copy the address. You can find that here:
+![mysql address on render](../website/assets/images/articles/deploying-fleet-on-render-6-666x416@2x.png)
+*mysql address on Render*
+
 ---
 
 ## Redis
