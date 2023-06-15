@@ -27213,73 +27213,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
-    "name": "apfs_physical_stores",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
-    "columns": [
-      {
-        "name": "container_uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the APFS Contianer"
-      },
-      {
-        "name": "container_designated_physical_store",
-        "type": "text",
-        "required": false,
-        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
-      },
-      {
-        "name": "container_reference",
-        "type": "text",
-        "required": false,
-        "description": "The current reference for the APFS container, e.g. \"disk3\""
-      },
-      {
-        "name": "container_fusion",
-        "type": "text",
-        "required": false,
-        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "container_capacity_ceiling",
-        "type": "bigint",
-        "required": false,
-        "description": "The total amount of space in the container"
-      },
-      {
-        "name": "container_capacity_free",
-        "type": "bigint",
-        "required": false,
-        "description": "The amount of remaining free space in the container"
-      },
-      {
-        "name": "uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the physical store"
-      },
-      {
-        "name": "identifier",
-        "type": "text",
-        "required": false,
-        "description": "The current identifier of the physical store (e.g. disk1s2)"
-      },
-      {
-        "name": "size",
-        "type": "bigint",
-        "required": false,
-        "description": "The size of the physical store in byptes"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/apfs_physical_stores",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
-  },
-  {
     "name": "apfs_volumes",
     "platforms": [
       "darwin"
@@ -27393,6 +27326,73 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/apfs_volumes",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
+  },
+  {
+    "name": "apfs_physical_stores",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
+    "columns": [
+      {
+        "name": "container_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS Contianer"
+      },
+      {
+        "name": "container_designated_physical_store",
+        "type": "text",
+        "required": false,
+        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+      },
+      {
+        "name": "container_reference",
+        "type": "text",
+        "required": false,
+        "description": "The current reference for the APFS container, e.g. \"disk3\""
+      },
+      {
+        "name": "container_fusion",
+        "type": "text",
+        "required": false,
+        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "container_capacity_ceiling",
+        "type": "bigint",
+        "required": false,
+        "description": "The total amount of space in the container"
+      },
+      {
+        "name": "container_capacity_free",
+        "type": "bigint",
+        "required": false,
+        "description": "The amount of remaining free space in the container"
+      },
+      {
+        "name": "uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the physical store"
+      },
+      {
+        "name": "identifier",
+        "type": "text",
+        "required": false,
+        "description": "The current identifier of the physical store (e.g. disk1s2)"
+      },
+      {
+        "name": "size",
+        "type": "bigint",
+        "required": false,
+        "description": "The size of the physical store in byptes"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_physical_stores",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
   },
   {
     "name": "authdb",
@@ -27821,6 +27821,51 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
+    "name": "filevault_prk",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
+    "columns": [
+      {
+        "name": "base64_encrypted",
+        "type": "text",
+        "required": false,
+        "description": "The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/filevault_prk",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
+  },
+  {
+    "name": "filevault_users",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "columns": [
+      {
+        "name": "username",
+        "description": "Username of the FileVault user.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+  },
+  {
     "name": "file_lines",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows reading an arbitrary file.",
@@ -27849,30 +27894,65 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
-    "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
     ],
-    "evented": false,
-    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
     "columns": [
       {
-        "name": "username",
-        "description": "Username of the FileVault user.",
+        "name": "chip",
+        "type": "text",
         "required": false,
-        "type": "text"
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
       },
       {
-        "name": "uuid",
-        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "name": "output",
+        "type": "text",
         "required": false,
-        "type": "text"
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
       }
     ],
-    "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
+    "name": "geolocation",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Last reported geolocation",
+    "columns": [
+      {
+        "name": "ip",
+        "type": "text",
+        "required": false,
+        "description": "IP address"
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false,
+        "description": "City"
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "required": false,
+        "description": "Country"
+      },
+      {
+        "name": "region",
+        "type": "text",
+        "required": false,
+        "description": "Region"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/geolocation",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -27915,42 +27995,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
   },
   {
-    "name": "geolocation",
-    "evented": false,
-    "platforms": [
-      "chrome"
-    ],
-    "description": "Last reported geolocation",
-    "columns": [
-      {
-        "name": "ip",
-        "type": "text",
-        "required": false,
-        "description": "IP address"
-      },
-      {
-        "name": "city",
-        "type": "text",
-        "required": false,
-        "description": "City"
-      },
-      {
-        "name": "country",
-        "type": "text",
-        "required": false,
-        "description": "Country"
-      },
-      {
-        "name": "region",
-        "type": "text",
-        "required": false,
-        "description": "Region"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/geolocation",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
-  },
-  {
     "name": "icloud_private_relay",
     "platforms": [
       "darwin"
@@ -27968,31 +28012,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/icloud_private_relay",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
-  },
-  {
-    "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
-    "columns": [
-      {
-        "name": "chip",
-        "type": "text",
-        "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
-      },
-      {
-        "name": "output",
-        "type": "text",
-        "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
   },
   {
     "name": "macadmins_unified_log",
@@ -28345,44 +28364,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
-    "name": "munki_installs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
-    "columns": [
-      {
-        "name": "end_time",
-        "description": "The end time of the last Munki run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed",
-        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_version",
-        "description": "The version number of installed items.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "name",
-        "description": "The name of items managed by Munki.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
-  },
-  {
     "name": "munki_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
@@ -28449,6 +28430,44 @@
     ],
     "url": "https://fleetdm.com/tables/munki_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
+  },
+  {
+    "name": "munki_installs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
+    "columns": [
+      {
+        "name": "end_time",
+        "description": "The end time of the last Munki run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed",
+        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed_version",
+        "description": "The version number of installed items.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "name",
+        "description": "The name of items managed by Munki.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_installs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
     "name": "network_interfaces",
@@ -28581,6 +28600,124 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
+  },
+  {
+    "name": "puppet_info",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
+    "columns": [
+      {
+        "name": "cached_catalog_status",
+        "description": "The status of Puppet catalogs cached on the system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "catalog_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "code_id",
+        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "configuration_version",
+        "description": "The version of the Puppet configuration.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "environment",
+        "description": "The environment name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "host",
+        "description": "The host on which Puppet is used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "kind",
+        "description": "Kind of Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "master_used",
+        "description": "The Puppet server used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop",
+        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop_prending",
+        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "puppet_version",
+        "description": "The version of Puppet used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "report_format",
+        "description": "The format the Puppet report was exported as.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "status",
+        "description": "The status of Puppet on this system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time of the last Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_completed",
+        "description": "Indicates if the transaction completed or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "puppet_logs",
@@ -28727,124 +28864,6 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
-  },
-  {
-    "name": "puppet_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
-    "columns": [
-      {
-        "name": "cached_catalog_status",
-        "description": "The status of Puppet catalogs cached on the system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "catalog_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "code_id",
-        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "configuration_version",
-        "description": "The version of the Puppet configuration.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "environment",
-        "description": "The environment name.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "host",
-        "description": "The host on which Puppet is used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "kind",
-        "description": "Kind of Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "master_used",
-        "description": "The Puppet server used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop",
-        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop_prending",
-        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "puppet_version",
-        "description": "The version of Puppet used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "report_format",
-        "description": "The format the Puppet report was exported as.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "status",
-        "description": "The status of Puppet on this system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time of the last Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_completed",
-        "description": "Indicates if the transaction completed or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "pwd_policy",
