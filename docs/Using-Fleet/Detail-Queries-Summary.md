@@ -13,6 +13,16 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 SELECT serial_number, cycle_count, health FROM battery;
 ```
 
+## chromeos_profile_user_info
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT email FROM users
+```
+
 ## disk_encryption_darwin
 
 - Platforms: darwin
@@ -268,6 +278,27 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT version FROM orbit_info
 ```
 
+## os_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.platform,
+		os.version AS version,
+		os.version AS kernel_version
+	FROM
+		os_version os
+```
+
 ## os_unix_like
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
@@ -309,8 +340,7 @@ SELECT * FROM os_version LIMIT 1
 ```sql
 SELECT
 		os.name,
-		os.version as display_version
-
+		os.version
 	FROM
 		os_version os
 ```
@@ -327,8 +357,7 @@ SELECT
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.codename as display_version
-
+		os.version
 	FROM
 		os_version os,
 		kernel_info k

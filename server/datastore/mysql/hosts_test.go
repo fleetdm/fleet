@@ -149,6 +149,7 @@ func TestHosts(t *testing.T) {
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
 		{"ListHostsLiteByUUIDs", testHostsListHostsLiteByUUIDs},
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
+		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7168,5 +7169,68 @@ func testGetMatchingHostSerials(t *testing.T, ds *Datastore) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
 
+func testHostsListHostsLiteByIDs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	cases := []struct {
+		desc    string
+		ids     []uint
+		wantIDs []uint
+	}{
+		{
+			"empty list",
+			nil,
+			nil,
+		},
+		{
+			"invalid ids",
+			[]uint{hosts[2].ID + 1000, hosts[2].ID + 1001},
+			nil,
+		},
+		{
+			"single valid id",
+			[]uint{hosts[0].ID},
+			[]uint{hosts[0].ID},
+		},
+		{
+			"multiple valid ids",
+			[]uint{hosts[0].ID, hosts[1].ID, hosts[2].ID},
+			[]uint{hosts[0].ID, hosts[1].ID, hosts[2].ID},
+		},
+		{
+			"valid and invalid ids",
+			[]uint{hosts[0].ID, hosts[1].ID, hosts[2].ID + 1000},
+			[]uint{hosts[0].ID, hosts[1].ID},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			hosts, err := ds.ListHostsLiteByIDs(ctx, c.ids)
+			require.NoError(t, err)
+
+			gotIDs := make([]uint, len(hosts))
+			for i, h := range hosts {
+				gotIDs[i] = h.ID
+			}
+			require.ElementsMatch(t, c.wantIDs, gotIDs)
+		})
+	}
 }
