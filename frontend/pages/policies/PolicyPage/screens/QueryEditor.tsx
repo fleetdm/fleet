@@ -49,7 +49,9 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const { currentUser, isPremiumTier } = useContext(AppContext);
+  const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
+    AppContext
+  );
   const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
@@ -171,17 +173,15 @@ const QueryEditor = ({
     return null;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToPoliciesPath = () => {
+    return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
+  };
+
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink
-          text="Back to policies"
-          path={
-            policyTeamId
-              ? `${PATHS.MANAGE_POLICIES}?team_id=${policyTeamId}`
-              : PATHS.MANAGE_POLICIES
-          }
-        />
+        <BackLink text="Back to policies" path={backToPoliciesPath()} />
       </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}

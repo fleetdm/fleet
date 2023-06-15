@@ -16,7 +16,7 @@ interface IManualEnrollMdmModalProps {
   token?: string;
 }
 
-const baseClass = "manual-enroll-mdm-modal enroll-mdm-modal";
+const baseClass = "manual-enroll-mdm-modal";
 
 const ManualEnrollMdmModal = ({
   onCancel,
@@ -35,6 +35,7 @@ const ManualEnrollMdmModal = ({
     () => mdmAPI.downloadDeviceUserEnrollmentProfile(token),
     {
       refetchOnWindowFocus: false,
+      retry: false,
     }
   );
 
@@ -60,15 +61,17 @@ const ManualEnrollMdmModal = ({
 
     return false;
   };
-  if (isFetchingMdmProfile) {
-    return <Spinner />;
-  }
-  if (fetchMdmProfileError) {
-    return <DataError card />;
-  }
 
-  return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+  const renderModalBody = () => {
+    if (isFetchingMdmProfile) {
+      return <Spinner />;
+    }
+
+    if (fetchMdmProfileError) {
+      return <DataError card />;
+    }
+
+    return (
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
@@ -120,6 +123,17 @@ const ManualEnrollMdmModal = ({
           </Button>
         </div>
       </div>
+    );
+  };
+
+  return (
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
+      {renderModalBody()}
     </Modal>
   );
 };

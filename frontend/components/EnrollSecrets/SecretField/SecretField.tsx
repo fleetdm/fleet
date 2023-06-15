@@ -3,11 +3,9 @@ import React, { useState } from "react";
 import { stringToClipboard } from "utilities/copy_text";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
-import ClipboardIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 
 const baseClass = "secret-field";
 
@@ -50,14 +48,14 @@ const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
             className={`${baseClass}__secret-copy-icon`}
             onClick={onCopySecret}
           >
-            <img src={ClipboardIcon} alt="copy to clipboard" />
+            <Icon name="copy" />
           </Button>
           <a
             href="#showSecret"
             onClick={onToggleSecret}
             className={`${baseClass}__show-secret`}
           >
-            <img src={EyeIcon} alt="show/hide" />
+            <Icon name="eye" />
           </a>
         </span>
       </span>

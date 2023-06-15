@@ -55,6 +55,9 @@ variable "oidc_provider_arn" {}
 variable "oidc_provider" {}
 variable "kms_key_arn" {}
 variable "ecr_url" {}
+variable "license_key" {}
+variable "apm_url" {}
+variable "apm_token" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -162,7 +165,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.26.0-3"
+    value = "v4.33.0"
   }
 
   set {
@@ -193,6 +196,21 @@ resource "helm_release" "main" {
   set {
     name  = "crons.vulnerabilities"
     value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} * * * *"
+  }
+
+  set {
+    name  = "fleet.license_key"
+    value = var.license_key
+  }
+
+  set {
+    name  = "apm.url"
+    value = var.apm_url
+  }
+
+  set {
+    name  = "apm.token"
+    value = var.apm_token
   }
 }
 

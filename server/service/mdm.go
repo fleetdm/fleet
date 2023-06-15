@@ -3,12 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
@@ -203,8 +208,177 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrMDMNotConfigured
-
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/setup/eula
+////////////////////////////////////////////////////////////////////////////////
+
+type createMDMAppleEULARequest struct {
+	EULA *multipart.FileHeader
+}
+
+// TODO: We parse the whole body before running svc.authz.Authorize.
+// An authenticated but unauthorized user could abuse this.
+func (createMDMAppleEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["eula"] == nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "eula multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	return &createMDMAppleEULARequest{
+		EULA: r.MultipartForm.File["eula"][0],
+	}, nil
+}
+
+type createMDMAppleEULAResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r createMDMAppleEULAResponse) error() error { return r.Err }
+
+func createMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*createMDMAppleEULARequest)
+	ff, err := req.EULA.Open()
+	if err != nil {
+		return createMDMAppleEULAResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	if err := svc.MDMAppleCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
+		return createMDMAppleEULAResponse{Err: err}, nil
+	}
+
+	return createMDMAppleEULAResponse{}, nil
+}
+
+func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/setup/eula?token={token}
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleEULARequest struct {
+	Token string `url:"token"`
+}
+
+type getMDMAppleEULAResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// fields used in hijackRender to build the response
+	eula *fleet.MDMAppleEULA
+}
+
+func (r getMDMAppleEULAResponse) error() error { return r.Err }
+
+func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(r.eula.Bytes); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+}
+
+func getMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleEULARequest)
+
+	eula, err := svc.MDMAppleGetEULABytes(ctx, req.Token)
+	if err != nil {
+		return getMDMAppleEULAResponse{Err: err}, nil
+	}
+
+	return getMDMAppleEULAResponse{eula: eula}, nil
+}
+
+func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/setup/eula/{token}/metadata
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleEULAMetadataRequest struct{}
+
+type getMDMAppleEULAMetadataResponse struct {
+	*fleet.MDMAppleEULA
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleEULAMetadataResponse) error() error { return r.Err }
+
+func getMDMAppleEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	eula, err := svc.MDMAppleGetEULAMetadata(ctx)
+	if err != nil {
+		return getMDMAppleEULAMetadataResponse{Err: err}, nil
+	}
+
+	return getMDMAppleEULAMetadataResponse{MDMAppleEULA: eula}, nil
+}
+
+func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/apple/setup/eula
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMAppleEULARequest struct {
+	Token string `url:"token"`
+}
+
+type deleteMDMAppleEULAResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleEULAResponse) error() error { return r.Err }
+
+func deleteMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMAppleEULARequest)
+	if err := svc.MDMAppleDeleteEULA(ctx, req.Token); err != nil {
+		return deleteMDMAppleEULAResponse{Err: err}, nil
+	}
+	return deleteMDMAppleEULAResponse{}, nil
+}
+
+func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

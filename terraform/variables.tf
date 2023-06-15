@@ -8,16 +8,16 @@ variable "vpc" {
     database_subnets    = optional(list(string), ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"])
     elasticache_subnets = optional(list(string), ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"])
 
-    create_database_subnet_group          = optional(bool, false)
-    create_database_subnet_route_table    = optional(bool, true)
-    create_elasticache_subnet_group       = optional(bool, true)
-    create_elasticache_subnet_route_table = optional(bool, true)
-    enable_vpn_gateway                    = optional(bool, false)
-    one_nat_gateway_per_az                = optional(bool, false)
-    single_nat_gateway                    = optional(bool, true)
-    enable_nat_gateway                    = optional(bool, true)
-    enable_dns_hostnames                  = optional(bool, false)
-    enable_dns_support                    = optional(bool, true)
+    create_database_subnet_group              = optional(bool, false)
+    create_database_subnet_route_table        = optional(bool, true)
+    create_elasticache_subnet_group           = optional(bool, true)
+    create_elasticache_subnet_route_table     = optional(bool, true)
+    enable_vpn_gateway                        = optional(bool, false)
+    one_nat_gateway_per_az                    = optional(bool, false)
+    single_nat_gateway                        = optional(bool, true)
+    enable_nat_gateway                        = optional(bool, true)
+    enable_dns_hostnames                      = optional(bool, false)
+    enable_dns_support                        = optional(bool, true)
     enable_flow_log                           = optional(bool, false)
     create_flow_log_cloudwatch_log_group      = optional(bool, false)
     create_flow_log_cloudwatch_iam_role       = optional(bool, false)
@@ -35,16 +35,16 @@ variable "vpc" {
     database_subnets    = ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"]
     elasticache_subnets = ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"]
 
-    create_database_subnet_group          = false
-    create_database_subnet_route_table    = true
-    create_elasticache_subnet_group       = true
-    create_elasticache_subnet_route_table = true
-    enable_vpn_gateway                    = false
-    one_nat_gateway_per_az                = false
-    single_nat_gateway                    = true
-    enable_nat_gateway                    = true
-    enable_dns_hostnames                  = false
-    enable_dns_support                    = true
+    create_database_subnet_group              = false
+    create_database_subnet_route_table        = true
+    create_elasticache_subnet_group           = true
+    create_elasticache_subnet_route_table     = true
+    enable_vpn_gateway                        = false
+    one_nat_gateway_per_az                    = false
+    single_nat_gateway                        = true
+    enable_nat_gateway                        = true
+    enable_dns_hostnames                      = false
+    enable_dns_support                        = true
     enable_flow_log                           = false
     create_flow_log_cloudwatch_log_group      = false
     create_flow_log_cloudwatch_iam_role       = false
@@ -120,7 +120,8 @@ variable "redis_config" {
       name  = string
       value = string
     })), [])
-    tags = optional(map(string), {})
+    log_delivery_configuration = optional(list(map(any)), [])
+    tags                       = optional(map(string), {})
   })
   default = {
     name                          = "fleet"
@@ -138,6 +139,7 @@ variable "redis_config" {
     at_rest_encryption_enabled    = true
     transit_encryption_enabled    = true
     parameter                     = []
+    log_delivery_configuration    = []
     tags                          = {}
   }
 }
@@ -213,7 +215,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    image                        = optional(string, "fleetdm/fleet:v4.31.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     extra_environment_variables  = optional(map(string), {})
@@ -305,7 +307,7 @@ variable "fleet_config" {
   default = {
     mem                          = 512
     cpu                          = 256
-    image                        = "fleetdm/fleet:v4.22.1"
+    image                        = "fleetdm/fleet:v4.31.1"
     family                       = "fleet"
     sidecars                     = []
     extra_environment_variables  = {}

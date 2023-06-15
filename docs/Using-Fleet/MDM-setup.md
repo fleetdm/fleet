@@ -1,60 +1,64 @@
-# Supported macOS versions
+# MDM setup
 
-In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and higher.
+## Supported macOS versions
 
-# Overview
+macOS 12 (Monterey) and higher.
+
+## Overview
 
 MDM features require Apple's Push Notification service (APNs) to control and secure Apple devices. This guide will walk you through how to generate and upload a valid APNs certificate to Fleet in order to use Fleet's MDM features.
 
-[Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will walk you through how to connect Apple Business Manager (ABM) to Fleet. Note that this is only required if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
+[Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will also walk you through how to connect Apple Business Manager (ABM) to Fleet. 
 
-# Requirements
-To use Fleet's MDM features you must have:
-1. A [deployed Fleet instance](../Deploying/Introduction.md)
-2. A Fleet user with the admin role
+> **Note** you are only required to connect Apple Business Manager (ABM) to Fleet if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
+
+## Requirements
+To use Fleet's MDM features you need to have:
+- A [deployed Fleet instance](../Deploying/Introduction.md).
+- A Fleet user with the admin role.
 
 ## Apple Push Notification service (APNs)
-Apple uses APNs to authenticate and manage interactions between Fleet and the host. 
+Apple uses APNs to authenticate and manage interactions between Fleet and the host.
 
-To connect Fleet to APNs, we will do the following steps:
-1. Generate four required files
-2. Generate an APNs certificate from Apple Push Certificates Portal
-3. Configure Fleet with the required files
+This section will show you how to:
+1. Generate the files to connect Fleet to APNs.
+2. Generate an APNs certificate from Apple Push Certificates Portal.
+3. Configure Fleet with the required files.
 
-### Step 1: generate required files
+### Step 1: generate the required files
 For the MDM protocol to function, we need to generate the four following files:
-1. APNs certificate 
-2. APNs private key 
-3. Simple Certificate Enrollment Protocol (SCEP) certificate 
-4. SCEP private key
+- APNs certificate 
+- APNs private key 
+- Simple Certificate Enrollment Protocol (SCEP) certificate 
+- SCEP private key
 
-The APNs certificates serves as authentication between Fleet and Apple, while the SCEP certificates serve as authentication between Fleet and hosts.
+The APNs certificates serve as authentication between Fleet and Apple, while the SCEP certificates serve as authentication between Fleet and hosts.
 
-To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+Use either of the following methods to generate the necessary files:
 
-Fleet UI:
+#### Fleet UI
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 2. Under **Apple Push Certificates Portal**, select **Request**, then fill out the form. This should generate three files and send an email to you with an attached CSR file.
 
-`fleetctl` CLI:
+#### Fleetctl CLI
 
-1. Run `fleetctl generate mdm-apple --email <email> --org <org>`. This should download three files and send an email to you with an attached CSR file.
+Run the following command to download three files and send an email to you with an attached CSR file.
 
-### Step 2: generate an APNs certificate from Apple Push Certificates Portal
+```
+fleetctl generate mdm-apple --email <email> --org <org> 
+```
 
+### Step 2: generate an APNs certificate
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com).
-2. Select **Create a Certificate**
+2. Select **Create a Certificate**.
 3. Upload your CSR and input a friendly name, such as "Fleet."
-4. Download the APNs certificate
+4. Download the APNs certificate.
 
-> Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
+> **Important** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
 
-### Step 3: configure Fleet with the required files
-
-With the four generated files, we now give them to the Fleet server. 
-
-Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in following environment variables:
+### Step 3: configure Fleet with the generated files
+Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in the following environment variables:
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
 * [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
 * [FLEET_MDM_APPLE_SCEP_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-cert-bytes)
@@ -62,116 +66,121 @@ Restart the Fleet server with the contents of the APNs certificate, APNs private
 
 > You do not need to provide the APNs CSR which was emailed to you. 
 
-Confirm that Fleet is set up by visiting the "Fleet UI" or using "fleetctl."
+### Step 4: confirm that Fleet is set up correctly 
 
-Fleet UI:
+Use either of the following methods to confirm that Fleet is set up. You should see information about the APNs certificate such as serial number and renewal date.
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+#### Fleet UI
 
-2. Look at the **Apple Push Certificates Portal** section.
+Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-`fleetctl` CLI:
+#### Fleetctl CLI
 
-1. Run `fleetctl get mdm-apple`.
+```
+fleetctl get mdm-apple
+```
 
-You should see information about the APNs certificate such as serial number and renewal date. 
+## Renewing APNs 
 
-## Renewing APNs
+> **Important** Apple requires that APNs certificates are renewed anually. 
+> - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
+> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-> Apple requires that APNs certificates are renewed once every year. 
-> * Be sure to do it early. If you renew after a certificate has expired, you will have to turn MDM off and back on for all macOS hosts. 
-> * Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts. 
+This section will guide you through how to:
+1. Generate the files required to renew your APNs certificate.
+2. Renew your APNs certificate in Apple Push Certificates Portal.
+3. Configure Fleet with the required files.
+4. Confirm that Fleet is set up correctly.
 
-You can see the certificate's renewal date and other important APNs information using the Fleet UI or the `fleetctl` command-line interface:
+Use either of the following methods to see your APNs certificate's renewal date and other important information:
 
-Fleet UI:
+#### Fleet UI
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-2. Look at the **Apple Push Certificates Portal** section.
+#### Fleetctl CLI
 
-`fleetctl` CLI:
+```
+fleetctl get mdm-apple
+``` 
 
-1. Run `fleetctl get mdm-apple`.
+### Step 1: generate the required files
+- A new APNs certificate. 
+- A new APNs private key.
 
-2. Look at the on-screen information.
+Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the SCEP certificate and SCEP key as you do not need these to renew APNs.
 
-### Step 1: generate required files
-To renew APNs, we need to generate the two following files:
-1. New APNs certificate 
-2. New APNs private key 
+```
+fleetctl generate mdm-apple --email <email> --org <org>
+```
 
-1. Run `fleetctl generate mdm-apple --email <email> --org <org>`. This should download three files and send an email to you with an attached CSR file.
-
-> Of these files, you can ignore the SCEP certificate and SCEP key. You don't need these to renew APNs.
-
-### Step 2: renew APNs certificate in Apple Push Certificates Portal
+### Step 2: renew APNs certificate
 
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original APNs certificate.
-2. Click **Renew** next to the expired certificate 
-3. Upload your CSR
-4. Download the new APNs certificate
+2. Click **Renew** next to the expired certificate. 
+3. Upload your CSR.
+4. Download the new APNs certificate.
 
-### Step 3: configure Fleet with the required files
-
-With the two generated files, we now give them to the Fleet server. 
-
+### Step 3: configure Fleet with the generated files
 Restart the Fleet server with the contents of the APNs certificate and APNs private key in following environment variables:
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
 * [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
 
 > You do not need to provide the APNs CSR which was emailed to you.
 
-### Step 4: confirm Fleet is updated
-Confirm that Fleet is set up by visiting the "Fleet UI" or using "fleetctl."
+### Step 4: confirm that Fleet is set up correctly
 
-Fleet UI:
+Use either of the following methods to confirm that Fleet is set up:
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+#### Fleet UI:
 
-2. Look at the **Apple Push Certificates Portal** section.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-2. Follow the on-screen instructions.
-`fleetctl` CLI:
+2. Follow the on-screen instructions in the **Apple Push Certificates Portal** section.
 
-1. Run `fleetctl get mdm-apple`.
+#### Fleetctl CLI:
 
-You should see information about the new APNs certificate such as serial number and renewal date. 
+Run the following command. You should see information about the new APNs certificate such as serial number and renewal date. 
+
+```
+fleetctl get mdm-apple
+```
 
 ## Renewing SCEP
 The SCEP certificates generated by Fleet and uploaded to the environment variables expire every 10 years. To renew them, regenerate the keys and update the relevant environment variables.
 
 ## Apple Business Manager (ABM)
 
-_Available in Fleet Premium_
+> Available in Fleet Premium
 
-When purchased through Apple or an authorized reseller, Macs can automatically enroll to Fleet when they’re first unboxed and set up by your end user. To do this, you must connect Fleet to Apple Business Manager (ABM).
+By connecting Fleet to ABM, Macs purchased through Apple or an authorized reseller can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
 
-To connect Fleet to ABM, we will do the following steps:
+This section will guide you through how to:
+
 1. Generate certificate and private key for ABM
 2. Create a new MDM server record for Fleet in ABM
 3. Download the MDM server token from ABM
 4. Upload the server token, certificate, and private key to the Fleet server
 5. Set the new MDM server as the auto-enrollment server for Macs in ABM
 
-### Step 1: generate required certificate and private key
+### Step 1: generate the required certificate and private key
 
-First we will generate a certificate/key pair. This pair is how Fleet authenticates itself to ABM.
+User either of the following methods to generate a certificate and private key pair. This pair is how Fleet authenticates itself to ABM:
 
-To get the two files, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+#### Fleet UI:
 
-Fleet UI:
-
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 2. Under **Apple Business Manager**, click the "Download" button
 
-`fleetctl` CLI:
+#### Fleetctl CLI:
 
-1. Run `fleetctl generate mdm-apple-bm`.
+```
+fleetctl generate mdm-apple-bm
+```
 
 ### Step 2: create a new MDM server in ABM
 
-Next we create an MDM server record in ABM which represents Fleet. How to create a new MDM server in ABM:
+Create an MDM server record in ABM which represents Fleet:
 
 1. Log in to or enroll in [ABM](https://business.apple.com) 
 2. Click your name at the bottom left of the screen
@@ -182,7 +191,7 @@ Next we create an MDM server record in ABM which represents Fleet. How to create
 7. Upload the certificate generated in Step 1
 
 ### Step 3: download the server token 
-1. In the details page of the newly created server, click **Download Token** at the top. You should receive a `.p7m` file.
+In the details page of the newly created server, click **Download Token** at the top. You should receive a `.p7m` file.
 
 ### Step 4: upload server token, certificate, and private key to Fleet
 With the three generated files, we now give them to the Fleet server so that it can authenticate itself to ABM. 
@@ -192,24 +201,26 @@ Restart the Fleet server with the contents of the server token, certificate, and
 * [FLEET_MDM_APPLE_BM_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-cert-bytes)
 * [FLEET_MDM_APPLE_BM_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-key-bytes)
 
-Confirm that Fleet is set up by visitng the "Fleet UI" or using "fleetctl."
+### Step 3: confirm that Fleet is set up correctly
 
-Fleet UI:
+Use either of the following methods to confirm that Fleet is set up correctly. You should see information about the ABM server token such as organization name and renewal date. 
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+#### Fleet UI:
 
-2. Look at the **Apple Business Manager** section.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
-`fleetctl` CLI:
+2. Navigate to the **Apple Business Manager** section.
 
-1. Run `fleetctl get mdm-apple`.
+#### Fleetctl CLI:
 
-You should see information about the ABM server token such as organization name and renewal date. 
+```
+fleetctl get mdm-apple
+```
 
 ### Step 5: set Fleet to be the MDM server for Macs in ABM
-Finally, we set Fleet to be the MDM for all future Macs purchased via Apple or an authorized reseller. 
+Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized reseller: 
 
-1. Log in to [Apple Business Manager](business.apple.com)
+1. Log in to [Apple Business Manager](https://business.apple.com)
 2. Click your profile icon in the bottom left
 3. Click **Preferences**
 4. Click **MDM Server Assignment**
@@ -221,17 +232,17 @@ All automatically-enrolled hosts will be assigned to a default team of your choo
 
 > A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host will automatically enforce the new team's settings when it enrolls.
 
-To change the default team, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+Use either of the following methods to change the default team:
 
-Fleet UI:
+#### Fleet UI
 
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. In the Apple Business Manager section, select the **Edit team** button next to **Default team**.
 
 3. Choose a team and select **Save**.
 
-`fleetctl` CLI:
+#### Fleetctl CLI
 
 1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
 
@@ -239,24 +250,26 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-### Pending hosts
+### Pending hosts 
 Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
 
 ## Renewing ABM
 
 > Apple expires ABM server tokens certificates once every year or whenever the account that downloaded the token has their password changed. 
 
-You can see the renewal date and other important ABM information using the Fleet UI or the `fleetctl` command-line interface:
+Use either of the following methods to see your ABM renewal date and other important information:
 
-Fleet UI:
+#### Fleet UI
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. Look at the **Apple Business Manager** section.
 
-`fleetctl` CLI:
+#### Fleetctl CLI
 
-1. Run `fleetctl get mdm-apple`.
+```
+fleetctl get mdm-apple
+```
 
 If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
 

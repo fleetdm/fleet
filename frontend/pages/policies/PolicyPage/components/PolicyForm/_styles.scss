@@ -41,7 +41,8 @@
 
     .edit-link {
       cursor: pointer;
-      padding-left: 12px;
+      padding-left: $pad-small;
+      height: 18px;
     }
 
     .name-description-resolve {
@@ -82,8 +83,6 @@
         }
       }
       .edit-icon {
-        width: 14px;
-        height: 14px;
         opacity: 1;
         transition: opacity 0.2s;
         margin-left: 0;
@@ -177,7 +176,7 @@
     margin: 0;
     margin-top: $pad-large;
     display: flex;
-    gap: $pad-medium;
+    column-gap: $pad-medium;
 
     &--tooltip {
       display: flex;

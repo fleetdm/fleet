@@ -22,13 +22,16 @@ import {
   IMdmSummaryResponse,
 } from "interfaces/mdm";
 import { ISelectedPlatform } from "interfaces/platform";
-import { ISoftwareResponse } from "interfaces/software";
+import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI, { ISoftwareQueryKey } from "services/entities/software";
+import softwareAPI, {
+  ISoftwareQueryKey,
+  ISoftwareCountQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
@@ -115,6 +118,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
+  const [chromeCount, setChromeCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -126,6 +130,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMdmCard, setShowMdmCard] = useState(true);
+  const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
@@ -196,9 +201,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
+        const chromebooks = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
+        ) || { platform: "chrome", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
+        setChromeCount(chromebooks.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -267,7 +277,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (data.software?.length !== 0) {
+        if (data.software?.length > 0) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -275,8 +285,35 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
                 whatToRetrieve={"software"}
               />
             );
+          setShowSoftwareCard(true);
+        } else {
+          setShowSoftwareCard(false);
         }
       },
+    }
+  );
+
+  // If no vulnerable software, !software?.software can return undefined
+  // Must check non-vuln software count > 0 to show software card iff API returning undefined
+  const { data: softwareCount } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number,
+    ISoftwareCountQueryKey[]
+  >(
+    [
+      {
+        scope: "softwareCount",
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    {
+      enabled: isRouteOk && !software?.software,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
     }
   );
 
@@ -287,7 +324,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     [`mdm-${selectedPlatform}`, teamIdForApi],
     () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
     {
-      enabled: isRouteOk && selectedPlatform !== "linux",
+      enabled: isRouteOk && !["linux", "chrome"].includes(selectedPlatform),
       onSuccess: ({
         counts_updated_at,
         mobile_device_management_solution,
@@ -354,6 +391,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
   });
 
+  useEffect(() => {
+    softwareCount && softwareCount > 0
+      ? setShowSoftwareCard(true)
+      : setShowSoftwareCard(false);
+  }, [softwareCount]);
+
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
     if (labels) {
@@ -399,6 +442,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
+        chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
@@ -459,6 +503,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
         isSandboxMode={isSandboxMode}
+        notSupported={selectedPlatform === "chrome"}
       />
     ),
   });
@@ -596,7 +641,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {software?.software && SoftwareCard}
+        {showSoftwareCard && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
@@ -621,6 +666,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
   const linuxLayout = () => null;
 
+  const chromeLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -629,6 +680,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return windowsLayout();
       case "linux":
         return linuxLayout();
+      case "chrome":
+        return chromeLayout();
       default:
         return allLayout();
     }

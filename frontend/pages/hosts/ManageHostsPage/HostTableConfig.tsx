@@ -17,6 +17,8 @@ import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedText
 import TooltipWrapper from "components/TooltipWrapper";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import CustomLink from "components/CustomLink";
+import NotSupported from "components/NotSupported";
+
 import {
   humanHostMemory,
   humanHostLastRestart,
@@ -286,12 +288,15 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "gigs_disk_space_available",
-    Cell: (cellProps: INumberCellProps): JSX.Element => {
+    Cell: (cellProps: INumberCellProps) => {
       const {
         id,
         platform,
         percent_disk_space_available,
       } = cellProps.row.original;
+      if (platform === "chrome") {
+        return NotSupported;
+      }
       return (
         <DiskSpaceGraph
           baseClass="gigs_disk_space_available__cell"
@@ -353,6 +358,8 @@ const allHostTableHeaders: IDataColumn[] = [
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}
               data-html
+              clickable
+              delayHide={300}
             >
               <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
             </ReactTooltip>
@@ -400,8 +407,12 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "mdm.enrollment_status",
     id: "mdm_enrollment_status",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.cell.value)
+      if (cellProps.row.original.platform === "chrome") {
+        return NotSupported;
+      }
+      if (cellProps.cell.value) {
         return <TextCell value={cellProps.cell.value} />;
+      }
       return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
     },
   },
@@ -431,10 +442,13 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "mdm.server_url",
     id: "mdm_server_url",
     Cell: (cellProps: ICellProps) => {
+      if (cellProps.row.original.platform === "chrome") {
+        return NotSupported;
+      }
       if (cellProps.cell.value) {
         return <TextCell value={cellProps.cell.value} />;
       }
-      return <span className="text-muted">---</span>;
+      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
     },
   },
   {
@@ -563,8 +577,11 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "uptime",
     Cell: (cellProps: ICellProps) => {
-      const { uptime, detail_updated_at } = cellProps.row.original;
+      const { uptime, detail_updated_at, platform } = cellProps.row.original;
 
+      if (platform === "chrome") {
+        return NotSupported;
+      }
       return (
         <TextCell
           value={{

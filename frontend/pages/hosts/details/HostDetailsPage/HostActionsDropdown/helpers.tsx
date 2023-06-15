@@ -120,7 +120,6 @@ const setOptionsAsDisabled = (
   };
 
   let optionsToDisable: IDropdownOption[] = [];
-  console.log("options to disable: ", optionsToDisable);
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
@@ -128,14 +127,12 @@ const setOptionsAsDisabled = (
       )
     );
   }
-  console.log("options to disable: ", optionsToDisable);
   if (isSandboxMode) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "transfer")
     );
   }
 
-  console.log("options to disable: ", optionsToDisable);
   disableOptions(optionsToDisable);
   return options;
 };

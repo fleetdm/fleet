@@ -3636,8 +3636,9 @@
     "url": "https://fleetdm.com/tables/chrome_extensions",
     "platforms": [
       "darwin",
+      "windows",
       "linux",
-      "windows"
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
@@ -3646,7 +3647,7 @@
     "columns": [
       {
         "name": "browser_type",
-        "description": "The type of browser. (Valid values: `chrome`, `chromium`, `opera`, `yandex`, `brave`, `edge`, `edge_beta`)",
+        "description": "The browser type (Valid values: chrome, chromium, opera, yandex, brave, edge, edge_beta)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -3661,6 +3662,11 @@
         "hidden": false,
         "required": false,
         "index": true,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ],
         "requires_user_context": true
       },
       {
@@ -3679,7 +3685,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "profile_path",
@@ -3688,7 +3699,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "referenced_identifier",
@@ -3697,7 +3713,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "identifier",
@@ -3733,7 +3754,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "current_locale",
@@ -3742,7 +3768,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "update_url",
@@ -3760,7 +3791,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "persistent",
@@ -3769,12 +3805,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "path",
-        "description": "Path to extension folder",
-        "type": "text",
+        "description": "Defaults to '' on ChromeOS",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -3805,16 +3846,26 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "optional_permissions_json",
         "description": "The JSON-encoded permissions optionally required by the extensions",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "manifest_hash",
@@ -3823,7 +3874,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "referenced",
@@ -3832,7 +3888,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "from_webstore",
@@ -3841,12 +3902,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "text",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -3859,7 +3925,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "install_timestamp",
@@ -3868,25 +3939,40 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "manifest_json",
         "description": "The manifest file of the extension",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "key",
         "description": "The extension key, from the manifest file",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/chrome_extensions.yml"
@@ -13769,7 +13855,7 @@
       },
       {
         "name": "username",
-        "description": "Policy applies only this user",
+        "description": "policy only applies to the listed user. Blank if global.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -15723,7 +15809,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
@@ -16087,8 +16174,9 @@
     "url": "https://fleetdm.com/tables/osquery_info",
     "platforms": [
       "darwin",
+      "windows",
       "linux",
-      "windows"
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
@@ -16102,7 +16190,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "uuid",
@@ -16111,7 +16204,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "instance_id",
@@ -16120,7 +16218,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "version",
@@ -16138,7 +16241,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "config_valid",
@@ -16147,7 +16255,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "extensions",
@@ -16183,7 +16296,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "watcher",
@@ -16192,7 +16310,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "platform_mask",
@@ -16201,7 +16324,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/osquery_info.yml"
@@ -22915,9 +23043,10 @@
     "description": "System information for identification.",
     "url": "https://fleetdm.com/tables/system_info",
     "platforms": [
+      "windows",
       "darwin",
       "linux",
-      "windows"
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
@@ -22926,8 +23055,8 @@
     "columns": [
       {
         "name": "hostname",
-        "description": "Network hostname including domain",
-        "type": "text",
+        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -22945,7 +23074,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "text",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -22958,12 +23087,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "text",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -22976,7 +23110,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "cpu_logical_cores",
@@ -22985,7 +23124,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "cpu_microcode",
@@ -22994,12 +23138,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "bigint",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -23007,8 +23156,8 @@
       },
       {
         "name": "hardware_vendor",
-        "description": "Hardware vendor",
-        "type": "text",
+        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -23016,8 +23165,8 @@
       },
       {
         "name": "hardware_model",
-        "description": "Hardware model",
-        "type": "text",
+        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -23030,12 +23179,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "hardware_serial",
-        "description": "Device serial number",
-        "type": "text",
+        "description": "The device's serial number (For chromeos, this is only available if the extension was force-installed by an enterprise policy)",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -23048,7 +23202,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "board_model",
@@ -23057,7 +23216,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "board_version",
@@ -23066,7 +23230,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "board_serial",
@@ -23075,12 +23244,17 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "computer_name",
-        "description": "Friendly computer name (optional)",
-        "type": "text",
+        "description": "For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
+        "type": "STRING",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -23093,7 +23267,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_info.yml"
@@ -24298,8 +24477,9 @@
     "url": "https://fleetdm.com/tables/users",
     "platforms": [
       "darwin",
+      "windows",
       "linux",
-      "windows"
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
@@ -24322,7 +24502,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "uid_signed",
@@ -24331,7 +24516,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "gid_signed",
@@ -24340,7 +24530,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "username",
@@ -24358,7 +24553,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "directory",
@@ -24367,7 +24567,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "shell",
@@ -24376,7 +24581,12 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "macOS",
+          "Windows",
+          "Linux"
+        ]
       },
       {
         "name": "uuid",
@@ -24421,6 +24631,15 @@
         "index": false,
         "platforms": [
           "Linux"
+        ]
+      },
+      {
+        "name": "email",
+        "required": false,
+        "type": "string",
+        "description": "Email",
+        "platforms": [
+          "chrome"
         ]
       }
     ],
@@ -27201,6 +27420,31 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
   },
   {
+    "name": "cis_audit",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Enables querying CIS items values.",
+    "columns": [
+      {
+        "name": "item",
+        "type": "text",
+        "required": false,
+        "description": "Contains the input CIS item to query. If empty, no CIS item is queried."
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "required": false,
+        "description": "Contains the value for the queried CIS item."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/cis_audit",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
+  },
+  {
     "name": "corestorage_logical_volume_families",
     "platforms": [
       "darwin"
@@ -27577,57 +27821,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
-    "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
-    "columns": [
-      {
-        "name": "chip",
-        "type": "text",
-        "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
-      },
-      {
-        "name": "output",
-        "type": "text",
-        "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
-  },
-  {
-    "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
-    "columns": [
-      {
-        "name": "username",
-        "description": "Username of the FileVault user.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
-  },
-  {
     "name": "file_lines",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows reading an arbitrary file.",
@@ -27656,23 +27849,30 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
-    "name": "icloud_private_relay",
+    "name": "filevault_users",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
     "platforms": [
-      "macOS"
+      "darwin"
     ],
-    "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
+    "evented": false,
+    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
     "columns": [
       {
-        "name": "status",
-        "type": "integer",
+        "name": "username",
+        "description": "Username of the FileVault user.",
         "required": false,
-        "description": "whether iCloud Private Relay is on or off. 1 is on. 0 is off."
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "required": false,
+        "type": "text"
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/icloud_private_relay",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
+    "url": "https://fleetdm.com/tables/filevault_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -27715,66 +27915,84 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
   },
   {
-    "name": "macos_profiles",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "High level information on installed profiles enrollment.",
+    "name": "geolocation",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Last reported geolocation",
+    "columns": [
+      {
+        "name": "ip",
+        "type": "text",
+        "required": false,
+        "description": "IP address"
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false,
+        "description": "City"
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "required": false,
+        "description": "Country"
+      },
+      {
+        "name": "region",
+        "type": "text",
+        "required": false,
+        "description": "Region"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/geolocation",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
+  },
+  {
+    "name": "icloud_private_relay",
     "platforms": [
       "darwin"
     ],
-    "evented": false,
-    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
+    "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
     "columns": [
       {
-        "name": "description",
-        "description": "The description of the profile.",
+        "name": "status",
+        "type": "integer",
         "required": false,
-        "type": "text"
-      },
-      {
-        "name": "display_name",
-        "description": "The display name of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "identifier",
-        "description": "The identifier of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "install_date",
-        "description": "Date and time at which the profile was installed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "organization",
-        "description": "The profile's organization value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "type",
-        "description": "The type of profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "verification_state",
-        "description": "The verification state of the profile.",
-        "required": false,
-        "type": "text"
+        "description": "whether iCloud Private Relay is on or off. 1 is on. 0 is off."
       }
     ],
-    "url": "https://fleetdm.com/tables/macos_profiles",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/icloud_private_relay",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
+  },
+  {
+    "name": "firmware_eficheck_integrity_check",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
+    "columns": [
+      {
+        "name": "chip",
+        "type": "text",
+        "required": false,
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
+      },
+      {
+        "name": "output",
+        "type": "text",
+        "required": false,
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
   },
   {
     "name": "macadmins_unified_log",
@@ -27891,6 +28109,105 @@
     ],
     "url": "https://fleetdm.com/tables/macadmins_unified_log",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
+  },
+  {
+    "name": "macos_profiles",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "High level information on installed profiles enrollment.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
+    "columns": [
+      {
+        "name": "description",
+        "description": "The description of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "display_name",
+        "description": "The display name of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "identifier",
+        "description": "The identifier of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_date",
+        "description": "Date and time at which the profile was installed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "organization",
+        "description": "The profile's organization value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "type",
+        "description": "The type of profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "verification_state",
+        "description": "The verification state of the profile.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_profiles",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
+  },
+  {
+    "name": "macos_rsr",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Returns information about installed Rapid Security Responses (RSRs).",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "full_macos_version",
+        "description": "Full macOS version string (including the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "macos_version",
+        "description": "The macOS version string (excluding the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_supported",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_version",
+        "description": "RSR version string suffix (with parenthesis included)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_rsr",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
     "name": "mdm",
@@ -28134,6 +28451,37 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
+    "name": "network_interfaces",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.",
+    "columns": [
+      {
+        "name": "mac",
+        "type": "text",
+        "required": false,
+        "description": "MAC address (only available to extensions force-installed by enterprise policy)"
+      },
+      {
+        "name": "ipv4",
+        "type": "text",
+        "required": false,
+        "description": "IPv4 address (only available to extensions force-installed by enterprise policy)"
+      },
+      {
+        "name": "ipv6",
+        "type": "text",
+        "required": false,
+        "description": "IPv6 address (only available to extensions force-installed by enterprise policy)"
+      }
+    ],
+    "notes": "- Requires that the fleetd extension is force-installed by enterprise policy",
+    "url": "https://fleetdm.com/tables/network_interfaces",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
+  },
+  {
     "name": "nvram_info",
     "platforms": [
       "darwin"
@@ -28233,124 +28581,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
-  },
-  {
-    "name": "puppet_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
-    "columns": [
-      {
-        "name": "cached_catalog_status",
-        "description": "The status of Puppet catalogs cached on the system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "catalog_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "code_id",
-        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "configuration_version",
-        "description": "The version of the Puppet configuration.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "environment",
-        "description": "The environment name.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "host",
-        "description": "The host on which Puppet is used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "kind",
-        "description": "Kind of Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "master_used",
-        "description": "The Puppet server used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop",
-        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop_prending",
-        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "puppet_version",
-        "description": "The version of Puppet used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "report_format",
-        "description": "The format the Puppet report was exported as.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "status",
-        "description": "The status of Puppet on this system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time of the last Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_completed",
-        "description": "Indicates if the transaction completed or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "puppet_logs",
@@ -28499,6 +28729,124 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
   },
   {
+    "name": "puppet_info",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
+    "columns": [
+      {
+        "name": "cached_catalog_status",
+        "description": "The status of Puppet catalogs cached on the system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "catalog_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "code_id",
+        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "configuration_version",
+        "description": "The version of the Puppet configuration.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "environment",
+        "description": "The environment name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "host",
+        "description": "The host on which Puppet is used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "kind",
+        "description": "Kind of Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "master_used",
+        "description": "The Puppet server used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop",
+        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop_prending",
+        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "puppet_version",
+        "description": "The version of Puppet used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "report_format",
+        "description": "The format the Puppet report was exported as.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "status",
+        "description": "The status of Puppet on this system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time of the last Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_completed",
+        "description": "Indicates if the transaction completed or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
+  },
+  {
     "name": "pwd_policy",
     "platforms": [
       "darwin"
@@ -28573,6 +28921,25 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/sntp_request",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sntp_request.yml"
+  },
+  {
+    "name": "software_update",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about available Apple software updates.",
+    "columns": [
+      {
+        "name": "software_update_required",
+        "type": "integer",
+        "required": false,
+        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/software_update",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
   },
   {
     "name": "sudo_info",

@@ -12,6 +12,8 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
   column: {
@@ -103,6 +105,7 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
+      position="top"
       tipContent={`
         <span>
           <b>Bundle identifier: </b>
@@ -115,6 +118,42 @@ const renderBundleTooltip = (name: string, bundle: string) => (
     </TooltipWrapper>
   </span>
 );
+
+interface IInstalledPathCellProps {
+  cell: {
+    value: string[];
+  };
+  row: {
+    original: ISoftware;
+  };
+}
+
+const condenseInstalledPaths = (installedPaths: string[]): string[] => {
+  if (!installedPaths?.length) {
+    return [];
+  }
+  const condensed =
+    installedPaths.length === 4
+      ? installedPaths.slice(-4).reverse()
+      : installedPaths.slice(-3).reverse() || [];
+  return installedPaths.length > 4
+    ? condensed.concat(`+${installedPaths.length - 3} more`) // TODO: confirm limit
+    : condensed;
+};
+
+const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span
+        className="tooltip__tooptip_text_line"
+        key={Math.random().toString().slice(2)}
+      >
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
 
 interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[];
@@ -306,6 +345,55 @@ export const generateSoftwareTableHeaders = ({
         );
       },
       sortType: "dateStrings",
+    },
+    {
+      title: "File path",
+      Header: () => {
+        return (
+          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+            File path
+          </TooltipWrapper>
+        );
+      },
+      disableSortBy: true,
+      accessor: "installed_paths",
+      Cell: (cellProps: IInstalledPathCellProps): JSX.Element => {
+        const numInstalledPaths = cellProps.cell.value?.length || 0;
+        const installedPaths = condenseInstalledPaths(
+          cellProps.cell.value || []
+        );
+        if (installedPaths.length) {
+          const tooltipText = tooltipTextWithLineBreaks(installedPaths);
+          return (
+            <>
+              <span
+                className={`text-cell ${
+                  installedPaths.length > 1 ? "text-muted tooltip" : ""
+                }`}
+                data-tip
+                data-for={`installed_paths__${cellProps.row.original.id}`}
+                data-tip-disable={installedPaths.length <= 1}
+              >
+                {numInstalledPaths === 1
+                  ? installedPaths[0]
+                  : `${numInstalledPaths} paths`}
+              </span>
+              <ReactTooltip
+                effect="solid"
+                backgroundColor={COLORS["tooltip-bg"]}
+                id={`installed_paths__${cellProps.row.original.id}`}
+                className="installed_paths__tooltip"
+                data-html
+                clickable
+                delayHide={300}
+              >
+                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+              </ReactTooltip>
+            </>
+          );
+        }
+        return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+      },
     },
     {
       title: "",

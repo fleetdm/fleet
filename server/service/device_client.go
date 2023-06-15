@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
@@ -77,7 +78,7 @@ func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {
-	_, err := dc.NumberOfFailingPolicies(token)
+	_, err := dc.DesktopSummary(token)
 	return err
 }
 
@@ -109,16 +110,17 @@ func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse
 	return r, err
 }
 
-func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
+func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, error) {
 	r, err := dc.getMinDesktopPayload(token)
 	if err == nil {
-		return uintValueOrZero(r.FailingPolicies), nil
+		r.FailingPolicies = ptr.Uint(uintValueOrZero(r.FailingPolicies))
+		return &r, nil
 	}
 
 	if errors.Is(err, notFoundErr{}) {
 		policies, err := dc.getListDevicePolicies(token)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
 		var failingPolicies uint
@@ -127,8 +129,17 @@ func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
 				failingPolicies++
 			}
 		}
-		return failingPolicies, nil
+		return &fleetDesktopResponse{
+			DesktopSummary: fleet.DesktopSummary{
+				FailingPolicies: ptr.Uint(failingPolicies),
+			},
+		}, nil
 	}
 
-	return 0, err
+	return nil, err
+}
+
+func (dc *DeviceClient) MigrateMDM(token string) error {
+	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
+	return dc.request(verb, path, "", nil)
 }

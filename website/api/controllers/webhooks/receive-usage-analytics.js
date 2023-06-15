@@ -197,25 +197,27 @@ module.exports = {
     if(inputs.storedErrors.length > 0) {
       // If inputs.storedErrors is not an empty array, we'll iterate through it to build custom metric for each object in the array
       for(let error of inputs.storedErrors) {
-        // Create a new array of tags for this error
-        let errorTags = _.clone(baseMetricTags);
-        let errorLocation = 1;
-        // Create a tag for each error location
-        for(let location of error.loc) { // iterate throught the location array of this error
-          // Add the error's location as a custom tag (SNAKE_CASED)
-          errorTags.push(`error_location_${errorLocation}:${location.replace(/\s/gi, '_')}`);
-          errorLocation++;
-        }
-        //
-        let metricToAdd = {
-          metric: 'usage_statistics.stored_errors',
-          type: 3,
-          points: [{timestamp: metricsTimestampInSeconds, value: error.count}],
-          resources: [{name: inputs.anonymousIdentifier, type: 'fleet_instance'}],
-          tags: errorTags,
-        };
-        // Add the custom metric to the array of metrics to send to Datadog.
-        metricsToSendToDatadog.push(metricToAdd);
+        // Make sure every error object in the storedErrors array has a 'loc' array and a count.
+        if((error.loc && _.isArray(error.loc)) && error.count) {
+          // Create a new array of tags for this error
+          let errorTags = _.clone(baseMetricTags);
+          let errorLocation = 1;
+          // Create a tag for each error location
+          for(let location of error.loc) { // iterate throught the location array of this error
+            // Add the error's location as a custom tag (SNAKE_CASED)
+            errorTags.push(`error_location_${errorLocation}:${location.replace(/\s/gi, '_')}`);
+            errorLocation++;
+          }
+          let metricToAdd = {
+            metric: 'usage_statistics.stored_errors',
+            type: 3,
+            points: [{timestamp: metricsTimestampInSeconds, value: error.count}],
+            resources: [{name: inputs.anonymousIdentifier, type: 'fleet_instance'}],
+            tags: errorTags,
+          };
+          // Add the custom metric to the array of metrics to send to Datadog.
+          metricsToSendToDatadog.push(metricToAdd);
+        }//ﬁ
       }//∞
     }//ﬁ
 

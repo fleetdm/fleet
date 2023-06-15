@@ -50,19 +50,12 @@ type AppConfigUpdater interface {
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 }
 
-// SaltedSha512PBKDF2Dictionary is a SHA512 PBKDF2 dictionary.
-type SaltedSHA512PBKDF2Dictionary struct {
-	Iterations int    `plist:"iterations"`
-	Salt       []byte `plist:"salt"`
-	Entropy    []byte `plist:"entropy"`
-}
-
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	SaltedSHA512PBKDF2Dictionary
 	UUID     string
 	Username string
+	Fullname string
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -87,4 +80,16 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
+}
+
+// MDMAppleEULA represents an EULA (End User License Agreement) file.
+type MDMAppleEULA struct {
+	Name      string    `json:"name"`
+	Bytes     []byte    `json:"bytes"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+func (e MDMAppleEULA) AuthzType() string {
+	return "mdm_apple"
 }

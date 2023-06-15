@@ -415,11 +415,18 @@ allow {
 # Targets
 ##
 
-# All users can read targets (filtered appropriately based on their
-# teams/roles).
+# Global admin, maintainer, observer_plus and observer can read targets.
 allow {
-  not is_null(subject)
   object.type == "target"
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Team admin, maintainer, observer_plus and observer can read global config.
+allow {
+  object.type == "target"
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -698,6 +705,13 @@ allow {
   action == [read, write][_]
 }
 
+# Global gitops can write bootstrap packages.
+allow {
+  object.type == "mdm_apple_bootstrap_package"
+  subject.global_role == gitops
+  action == write
+}
+
 # Team admins and maintainers can read and write bootstrap packages on their teams.
 allow {
   not is_null(object.team_id)
@@ -705,6 +719,15 @@ allow {
   object.type == "mdm_apple_bootstrap_package"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+# Team gitops can write bootstrap packages on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_bootstrap_package"
+  team_role(subject, object.team_id) == gitops
+  action == write
 }
 
 ##

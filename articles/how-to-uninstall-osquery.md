@@ -50,7 +50,7 @@ sudo yum remove osquery
 rm -rf /var/osquery /var/log/osquery /etc/osquery
 ```
 
-Are you running into trouble uninstalling osquery on macOS, Windows, or Linux? Get help on Slack in the [#fleet channel](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Are you running into trouble uninstalling osquery on macOS, Windows, or Linux? Get help on Slack in the [#fleet channel](https://fleetdm.com/slack).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Eric Shaw">

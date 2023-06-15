@@ -63,3 +63,44 @@ func TestMakeRepoPath(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalTargetPaths(t *testing.T) {
+	testCases := []struct {
+		info         TargetInfo
+		wantPath     string
+		wantExecPath string
+		wantDirPath  string
+	}{
+		{
+			DesktopWindowsTarget,
+			"root/bin/target/windows/stable/fleet-desktop.exe",
+			"root/bin/target/windows/stable/fleet-desktop.exe",
+			"",
+		},
+		{
+			NudgeMacOSTarget,
+			"root/bin/target/macos/stable/nudge.app.tar.gz",
+			"root/bin/target/macos/stable/Nudge.app/Contents/MacOS/Nudge",
+			"root/bin/target/macos/stable/Nudge.app",
+		},
+		{
+			DesktopLinuxTarget,
+			"root/bin/target/linux/stable/desktop.tar.gz",
+			"root/bin/target/linux/stable/fleet-desktop/fleet-desktop",
+			"root/bin/target/linux/stable/fleet-desktop",
+		},
+		{
+			SwiftDialogMacOSTarget,
+			"root/bin/target/macos/stable/swiftDialog.app.tar.gz",
+			"root/bin/target/macos/stable/Dialog.app/Contents/MacOS/Dialog",
+			"root/bin/target/macos/stable/Dialog.app",
+		},
+	}
+
+	for _, tt := range testCases {
+		path, execPath, dirPath := LocalTargetPaths("root", "target", tt.info)
+		require.Equal(t, tt.wantPath, path)
+		require.Equal(t, tt.wantExecPath, execPath)
+		require.Equal(t, tt.wantDirPath, dirPath)
+	}
+}

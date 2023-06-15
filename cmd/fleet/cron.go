@@ -35,6 +35,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/nanodep/godep"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -540,15 +541,23 @@ func triggerFailingPoliciesAutomation(
 	return nil
 }
 
-func newIntegrationsSchedule(
+func newWorkerIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	depStorage *mysql.NanoDEPStorage,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronIntegrations)
-		defaultInterval = 10 * time.Minute
+		name = string(fleet.CronWorkerIntegrations)
+
+		// the schedule interval is shorter than the max run time of the scheduled
+		// job, but that's ok - the job will acquire and extend the lock as long as
+		// it runs, the shorter interval is to make sure we don't wait more than
+		// that interval to start a new job when none is running.
+		scheduleInterval = 1 * time.Minute  // schedule a worker to run every minute if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
 	)
 
 	logger = kitlog.With(logger, "cron", name)
@@ -557,6 +566,8 @@ func newIntegrationsSchedule(
 	// integration is enabled, as that config can change live (and if it's not
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
+	// leave the url empty for now, will be filled when the lock is acquired with
+	// the up-to-date config.
 	jira := &worker.Jira{
 		Datastore:     ds,
 		Log:           logger,
@@ -567,10 +578,29 @@ func newIntegrationsSchedule(
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
 	}
-	// leave the url empty for now, will be filled when the lock is acquired with
-	// the up-to-date config.
-	w.Register(jira)
-	w.Register(zendesk)
+	var (
+		depSvc *apple_mdm.DEPService
+		depCli *godep.Client
+	)
+	// depStorage could be nil if mdm is not configured for fleet, in which case
+	// we leave depSvc and deCli nil and macos setup assistants jobs will be
+	// no-ops.
+	if depStorage != nil {
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
+	}
+	macosSetupAsst := &worker.MacosSetupAssistant{
+		Datastore:  ds,
+		Log:        logger,
+		DEPService: depSvc,
+		DEPClient:  depCli,
+	}
+	appleMDM := &worker.AppleMDM{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -589,7 +619,7 @@ func newIntegrationsSchedule(
 	}
 
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
+		ctx, name, instanceID, scheduleInterval, ds, ds,
 		schedule.WithAltLockID("worker"),
 		schedule.WithLogger(logger),
 		schedule.WithJob("integrations_worker", func(ctx context.Context) error {
@@ -602,13 +632,12 @@ func newIntegrationsSchedule(
 			jira.FleetURL = appConfig.ServerSettings.ServerURL
 			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
 
-			workCtx, cancel := context.WithTimeout(ctx, defaultInterval)
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
 			if err := w.ProcessJobs(workCtx); err != nil {
-				cancel() // don't use defer inside loop
 				return fmt.Errorf("processing integrations jobs: %w", err)
 			}
-
-			cancel() // don't use defer inside loop
 			return nil
 		}),
 	)
@@ -889,11 +918,10 @@ func newAppleMDMDEPProfileAssigner(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, loggingDebug)
+	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),

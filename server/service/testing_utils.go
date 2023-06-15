@@ -53,18 +53,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
-	var ssoStore sso.SessionStore
-
 	var (
-		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
-		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
-		is                fleet.InstallerStore
-		mdmStorage        nanomdm_storage.AllStorage
+		failingPolicySet  fleet.FailingPolicySet     = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter    = nopEnrollHostLimiter{}
 		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
-		mdmPusher         nanomdm_push.Pusher
-		mailer            fleet.MailService = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		mailer            fleet.MailService          = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		c                 clock.Clock                = clock.C
+
+		is          fleet.InstallerStore
+		mdmStorage  nanomdm_storage.AllStorage
+		mdmPusher   nanomdm_push.Pusher
+		ssoStore    sso.SessionStore
+		profMatcher fleet.ProfileMatcher
 	)
-	var c clock.Clock = clock.C
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
@@ -89,6 +90,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
+			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+		}
+		if opts[0].ProfileMatcher != nil {
+			profMatcher = opts[0].ProfileMatcher
 		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
@@ -123,6 +128,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
+	mdmPushCertTopic := ""
+	if len(opts) > 0 && opts[0].APNSTopic != "" {
+		mdmPushCertTopic = opts[0].APNSTopic
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -143,7 +153,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		"",
+		mdmPushCertTopic,
 		cronSchedulesService,
 	)
 	if err != nil {
@@ -161,6 +171,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			"",
 			ssoStore,
+			profMatcher,
 		)
 		if err != nil {
 			panic(err)
@@ -262,6 +273,8 @@ type TestServerOpts struct {
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
 	UseMailService      bool
+	APNSTopic           string
+	ProfileMatcher      fleet.ProfileMatcher
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -555,31 +568,48 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 	return res, nil
 }
 
-func mdmAppleConfigurationRequiredEndpoints() [][2]string {
-	return [][2]string{
-		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
-		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
-		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1"},
-		{"GET", "/api/latest/fleet/mdm/apple/installers"},
-		{"GET", "/api/latest/fleet/mdm/apple/devices"},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/1"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1"},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary"},
-		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll"},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key"},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
-		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
-		{"GET", "/api/latest/fleet/mdm/apple"},
-		{"GET", apple_mdm.EnrollPath + "?token=test"},
-		{"GET", apple_mdm.InstallerPath + "?token=test"},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile"},
-		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile"},
-		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile"},
+func mdmAppleConfigurationRequiredEndpoints() []struct {
+	method, path        string
+	deviceAuthenticated bool
+	premiumOnly         bool
+} {
+	return []struct {
+		method, path        string
+		deviceAuthenticated bool
+		premiumOnly         bool
+	}{
+		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
+		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
+		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple", false, false},
+		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
+		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
+		// TODO: this endpoint accepts multipart/form data that gets
+		// parsed before the MDM check, we need to refactor this
+		// function to return more information to the caller, or find a
+		// better way to test these endpoints.
+		// {"POST", "/api/latest/fleet/mdm/apple/setup/eula"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 	}
 }

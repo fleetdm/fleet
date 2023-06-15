@@ -13,7 +13,7 @@ import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
-import navItems, { INavItem } from "./navItems";
+import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
   config: IConfig;
@@ -54,6 +54,10 @@ const REGEX_GLOBAL_PAGES = {
   PROFILE: /\/profile/i,
 };
 
+const REGEX_EXCLUDE_NO_TEAM_PAGES = {
+  MANAGE_POLICIES: /\/policies\/manage/i,
+};
+
 const testDetailPage = (path: string, re: RegExp) => {
   if (re === REGEX_DETAIL_PAGES.LABEL_EDIT) {
     // we want to match "/labels/10" but not "/hosts/manage/labels/10"
@@ -72,6 +76,12 @@ const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
 };
 
+const isExcludeNoTeamPage = (path: string) => {
+  return Object.values(REGEX_EXCLUDE_NO_TEAM_PAGES).some((re) =>
+    path.match(re)
+  );
+};
+
 const SiteTopNav = ({
   config,
   currentUser,
@@ -87,6 +97,7 @@ const SiteTopNav = ({
     isAnyTeamMaintainer,
     isNoAccess,
     isMdmEnabledAndConfigured, // TODO: confirm
+    isSandboxMode,
   } = useContext(AppContext);
 
   const isActiveDetailPage = isDetailPage(currentPath);
@@ -157,6 +168,13 @@ const SiteTopNav = ({
       );
     }
 
+    if (
+      isExcludeNoTeamPage(navItem.location.pathname) &&
+      (currentQueryParams.team_id === "0" || currentQueryParams.team_id === 0)
+    ) {
+      currentQueryParams.team_id = undefined;
+    }
+
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
         {withParams ? (
@@ -190,13 +208,14 @@ const SiteTopNav = ({
     );
   };
 
-  const userNavItems = navItems(
+  const userNavItems = getNavItems(
     currentUser,
     isGlobalAdmin,
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isSandboxMode
   );
 
   const renderNavItems = () => {
@@ -213,6 +232,7 @@ const SiteTopNav = ({
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}
+          isSandboxMode={isSandboxMode}
         />
       </div>
     );

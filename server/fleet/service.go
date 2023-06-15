@@ -29,7 +29,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
-	MDMAppleSyncDEPPRofile            func(ctx context.Context) error
+	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 }
 
@@ -81,6 +81,9 @@ type Service interface {
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
+
+	// GetFleetDesktopSummary returns a summary of the host used by Fleet Desktop to operate.
+	GetFleetDesktopSummary(ctx context.Context) (DesktopSummary, error)
 
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.
@@ -168,8 +171,7 @@ type Service interface {
 
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid, then responds with an enrollment profile.
-	// TODO: add support for EULAs too
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) ([]byte, error)
+	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -338,9 +340,6 @@ type Service interface {
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
-	// FailingPoliciesCount returns the number of failling policies for 'host'
-	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
-
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
@@ -492,7 +491,8 @@ type Service interface {
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
+	// On success, it returns the mapping of team names to team ids.
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
@@ -581,6 +581,9 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
+	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
@@ -601,18 +604,11 @@ type Service interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
-	// Such enrollment profiles allow devices to enroll to Fleet MDM.
-	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
-
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	// TODO(mna): this may have to be removed if we don't end up supporting
 	// manual enrollment via a token (currently we only support it via Fleet
 	// Desktop, in the My Device page). See #8701.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
@@ -656,7 +652,7 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.
-	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (status int, result *CommandEnqueueResult, err error)
 
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
@@ -665,6 +661,16 @@ type Service interface {
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
+
+	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
+	// request that will match the profiles to a team (or create one if needed),
+	// assign the host to that team and assign the profiles to the host.
+	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
+
+	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
+	// team, creating one if none match, assigns the corresponding host to that
+	// team and assigns the matched team's profiles to the host.
+	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
@@ -694,11 +700,25 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
-	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
+	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*MDMAppleBootstrapPackage, error)
 
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
+
+	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// the given token.
+	//
+	// A token is required as the means of authentication for this resource
+	// since it can be publicly accessed with anyone with a valid token.
+	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	// MDMAppleGetEULABytes returns metadata about the EULA file that can
+	// be used by clients to display information.
+	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	// MDMAppleCreateEULA adds a new EULA file.
+	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	// MDMAppleDelete EULA removes an EULA entry.
+	MDMAppleDeleteEULA(ctx context.Context, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -706,6 +726,14 @@ type Service interface {
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSetup(ctx context.Context, payload MDMAppleSetupPayload) error
+
+	// TriggerMigrateMDMDevice posts a webhook request to the URL configured
+	// for MDM macOS migration.
+	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

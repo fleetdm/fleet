@@ -41,14 +41,14 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v2.1.3
         with:
-          go-version: 1.19.4
+          go-version: 1.19.10
 
       - name: Build, codesign and notarize orbit
         run: go run ./orbit/tools/build/build.go 
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

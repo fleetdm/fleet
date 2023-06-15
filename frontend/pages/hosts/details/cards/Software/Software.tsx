@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
@@ -20,7 +14,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
-import { getNextLocationPath } from "pages/hosts/ManageHostsPage/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
@@ -50,8 +44,8 @@ interface ISoftwareTableProps {
     order_direction?: "asc" | "desc";
   };
   routeTemplate?: string;
-  hostId: number;
   pathname: string;
+  pathPrefix: string;
 }
 
 interface IRowProps extends Row {
@@ -73,50 +67,19 @@ const SoftwareTable = ({
   router,
   queryParams,
   routeTemplate,
-  hostId,
+  pathPrefix,
   pathname,
 }: ISoftwareTableProps): JSX.Element => {
   const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
 
-  const initialSearchQuery = (() => {
-    let query = "";
-    if (queryParams && queryParams.query) {
-      query = queryParams.query;
-    }
-    return query;
-  })();
-
-  const initialSortHeader = (() => {
-    let sortHeader = "name";
-    if (queryParams && queryParams.order_key) {
-      sortHeader = queryParams.order_key;
-    }
-    return sortHeader;
-  })();
-
-  const initialSortDirection = ((): "asc" | "desc" | undefined => {
-    let sortDirection = "asc";
-    if (queryParams && queryParams.order_direction) {
-      sortDirection = queryParams.order_direction;
-    }
-    return sortDirection as "asc" | "desc" | undefined;
-  })();
-
-  const initialVulnFilter = (() => {
-    let isFilteredByVulnerabilities = false;
-    if (queryParams && queryParams.vulnerable === "true") {
-      isFilteredByVulnerabilities = true;
-    }
-    return isFilteredByVulnerabilities;
-  })();
-
-  const initialPage = (() => {
-    let page = 0;
-    if (queryParams && queryParams.page) {
-      page = parseInt(queryParams?.page, 10) || 0;
-    }
-    return page;
-  })();
+  // Functions to avoid race conditions
+  const initialSearchQuery = (() => queryParams?.query ?? "")();
+  const initialSortHeader = (() => queryParams?.order_key ?? "name")();
+  const initialSortDirection = (() =>
+    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+  const initialVulnFilter = (() => queryParams?.vulnerable === "true")();
+  const initialPage = (() =>
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Never set as state as URL is source of truth
   const searchQuery = initialSearchQuery;
@@ -155,8 +118,9 @@ const SoftwareTable = ({
       ) {
         newQueryParams.page = 0;
       }
+
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        pathPrefix,
         routeTemplate,
         queryParams: newQueryParams,
       });
@@ -169,7 +133,7 @@ const SoftwareTable = ({
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
+        pathPrefix,
         routeTemplate,
         queryParams: {
           ...queryParams,
@@ -200,17 +164,16 @@ const SoftwareTable = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
-    router?.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.HOST_SOFTWARE(hostId),
-        routeTemplate,
-        queryParams: {
-          ...queryParams,
-          page: 0,
-          vulnerable: isFilterVulnerable,
-        },
-      })
-    );
+    const nextPath = getNextLocationPath({
+      pathPrefix,
+      routeTemplate,
+      queryParams: {
+        ...queryParams,
+        page: 0,
+        vulnerable: isFilterVulnerable,
+      },
+    });
+    router?.replace(nextPath);
   };
 
   const handleRowSelect = (row: IRowProps) => {
@@ -256,6 +219,7 @@ const SoftwareTable = ({
           {software && (
             <div className={deviceType || ""}>
               <TableContainer
+                resultsTitle="software items"
                 columns={tableHeaders}
                 data={tableSoftware || []}
                 filters={{
@@ -263,15 +227,13 @@ const SoftwareTable = ({
                   vulnerabilities: filterVuln,
                 }}
                 isLoading={isLoading}
-                defaultSortHeader={sortHeader || DEFAULT_SORT_DIRECTION}
+                defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
                 defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-                defaultPageIndex={page}
                 defaultSearchQuery={searchQuery}
-                inputPlaceHolder={
-                  "Search software by name or vulnerabilities ( CVEs)"
-                }
+                defaultPageIndex={page}
+                pageSize={DEFAULT_PAGE_SIZE}
+                inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
                 onQueryChange={onQueryChange}
-                resultsTitle={"software items"}
                 emptyComponent={() => (
                   <EmptySoftwareTable
                     isFilterVulnerable={filterVuln}
@@ -285,8 +247,8 @@ const SoftwareTable = ({
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
                 onClientSidePaginationChange={onClientSidePaginationChange}
-                pageSize={DEFAULT_PAGE_SIZE}
                 isClientSideFilter
+                searchQueryColumn="name"
                 disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
                 onSelectSingleRow={handleRowSelect}
               />

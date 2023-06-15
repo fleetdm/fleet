@@ -68,9 +68,9 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
     },
   });
 
-  const smtpConfigured = config?.smtp_settings.configured || false;
+  const smtpConfigured = config?.smtp_settings?.configured || false;
   const sesConfigured = config?.email?.backend === "ses" || false;
-  const canUseSso = config?.sso_settings.enable_sso || false;
+  const canUseSso = config?.sso_settings?.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
@@ -436,12 +436,15 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
-          onActionButtonClick={
-            isGlobalAdmin ? toggleAddUserModal : toggleCreateMemberModal
-          }
-          actionButtonText={isGlobalAdmin ? "Add member" : "Create user"}
-          actionButtonVariant={"brand"}
-          hideActionButton={memberIds.length === 0 && searchString === ""}
+          actionButton={{
+            name: isGlobalAdmin ? "add member" : "create user",
+            buttonText: isGlobalAdmin ? "Add member" : "Create user",
+            variant: "brand",
+            onActionButtonClick: isGlobalAdmin
+              ? toggleAddUserModal
+              : toggleCreateMemberModal,
+            hideButton: memberIds.length === 0 && searchString === "",
+          }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
           emptyComponent={() =>

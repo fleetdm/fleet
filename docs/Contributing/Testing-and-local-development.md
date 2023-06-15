@@ -30,6 +30,7 @@
   - [Testing Kinesis Logging](#testing-kinesis-logging)
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
+  - [Fleetd Chrome extension](#fleetd-chrome-extension)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -40,6 +41,7 @@
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
+      - [Debugging tips](#debugging-tips)
 
 ## License key
 
@@ -323,7 +325,6 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -480,7 +481,13 @@ MinIO also offers a web interface at http://localhost:9001. Credentials are `min
 
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
-Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructions.
+Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
+
+## Fleetd Chrome extension
+
+### Debugging the service Worker
+
+View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
 
 ## MDM setup and testing
 
@@ -595,30 +602,36 @@ If you are using QEMU for Linux, follow the instruction guide to install a recen
 
 > NOTE: Currently this is not possible for M1 Mac machines.
 
-1. Create a DEP profile with:
+1. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
-```
-fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
-```
-Reference the [Apple DEP Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for further information on each setting.
-
-2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
-
-3. Boot the machine, it should automatically enroll into MDM.
+2. Boot the machine, it should automatically enroll into MDM.
 
 ##### Gating the DEP profile behind SSO
 
-To gate DEP enrollments behind SSO, you can use the same configuration values as those described in [Testing SSO](#testing-sso):
+For rapid iteration during local development, you can use the same configuration values as those described in [Testing SSO](#testing-sso), and test the flow in the browser by navigating to `https://localhost:8080/mdm/sso`.
+
+To fully test e2e during DEP enrollment however, you need:
+
+- A local tunnel to your Fleet server (instructions to set your tunnel are in the [running the server](#running-the-server) section)
+- A local tunnel to your local IdP server (or, optionally create an account in a cloud IdP like Okta)
+
+With an accessible Fleet server and IdP server, you can configure your env:
+
+- If you're going to use the SimpleSAML server that is automatically started in local development, edit [./tools/saml/config.php](https://github.com/fleetdm/fleet/blob/6cfef3d3478f02227677071fe3a62bada77c1139/tools/saml/config.php) and replace `https://localhost:8080` everywhere with the URL of your local tunnel.
+- After saving the file, restart the SimpleSAML service (eg: `docker-compose restart saml_idp`)
+- Finally, edit your app configuration:
 
 ```yaml
 mdm:
   end_user_authentication:
-    entity_id: https://localhost:8080
+    entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: http://localhost:9080/simplesaml/saml2/idp/SSOService.php
-    metadata: ""
-    metadata_url: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+    metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
+
+> Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
+
+The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
 
 ### Nudge
 

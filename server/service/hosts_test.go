@@ -168,6 +168,19 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.MDMAppleDeliveryVerifying,
 		},
 		{
+			"installed profile, decryptable, verified",
+			ptr.Int(1),
+			&fleet.HostMDMAppleProfile{
+				HostUUID:      "abc",
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+				Status:        &fleet.MDMAppleDeliveryVerified,
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+			},
+			fleet.DiskEncryptionVerified,
+			"",
+			&fleet.MDMAppleDeliveryVerified,
+		},
+		{
 			"pending install, decryptable",
 			ptr.Int(1),
 			&fleet.HostMDMAppleProfile{
@@ -399,6 +412,18 @@ func TestHostAuth(t *testing.T) {
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -610,6 +635,12 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
@@ -637,6 +668,15 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 

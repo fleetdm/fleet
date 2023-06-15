@@ -318,14 +318,35 @@ This activity contains a field "teams" where each item contains the team details
 }
 ```
 
+### Type `transferred_hosts`
+
+Generated when a user transfers a host (or multiple hosts) to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the hosts were transferred to, `null` if transferred to no team.
+- "team_name": The name of the team that the hosts were transferred to, `null` if transferred to no team.
+- "host_ids": The list of identifiers of the hosts that were transferred.
+- "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "host_ids": [1, 2, 3],
+  "host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
+}
+```
+
 ### Type `edited_agent_options`
 
 Generated when agent options are edited (either globally or for a team).
 
 This activity contains the following fields:
 - "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
-- "team_id": unique ID of the team for which the agent options were updated (null if global is true).
-- "team_name": the name of the team for which the agent options were updated (null if global is true).
+- "team_id": unique ID of the team for which the agent options were updated (`null` if global is true).
+- "team_name": the name of the team for which the agent options were updated (`null` if global is true).
 
 #### Example
 
@@ -567,8 +588,8 @@ This activity contains the following fields:
 Generated when the minimum required macOS version or deadline is modified.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
 - "minimum_version": The minimum macOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -607,8 +628,8 @@ Generated when a user adds a new macOS profile to a team (or no team).
 This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "profile_identifier": Identifier of the profile.
-- "team_id": The ID of the team that the profile applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -628,8 +649,8 @@ Generated when a user deletes a macOS profile from a team (or no team).
 This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "profile_identifier": Identifier of deleted the profile.
-- "team_id": The ID of the team that the profile applied to, null if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, null if it applied to devices that are not in a team.
+- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
 
 #### Example
 
@@ -647,8 +668,8 @@ This activity contains the following fields:
 Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.
+- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 
 #### Example
 
@@ -665,8 +686,8 @@ Generated when a user sets the macOS setup assistant for a team (or no team).
 
 This activity contains the following fields:
 - "name": Name of the macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -684,8 +705,8 @@ Generated when a user deletes the macOS setup assistant for a team (or no team).
 
 This activity contains the following fields:
 - "name": Name of the deleted macOS setup assistant file.
-- "team_id": The ID of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
-- "team_name": The name of the team that the setup assistant applied to, null if it applied to devices that are not in a team.
+- "team_id": The ID of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
 
 #### Example
 
@@ -702,8 +723,8 @@ This activity contains the following fields:
 Generated when a user turns on macOS disk encryption for a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -719,8 +740,8 @@ This activity contains the following fields:
 Generated when a user turns off macOS disk encryption for a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -737,8 +758,8 @@ Generated when a user adds a new bootstrap package to a team (or no team).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -756,14 +777,48 @@ Generated when a user deletes a bootstrap package from a team (or no team).
 
 This activity contains the following fields:
 - "package_name": Name of the package.
-- "team_id": The ID of the team that the package applies to, null if it applies to devices that are not in a team.
-- "team_name": The name of the team that the package applies to, null if it applies to devices that are not in a team.
+- "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
 ```json
 {
   "package_name": "bootstrap-package.pkg",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `enabled_macos_setup_end_user_auth`
+
+Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `disabled_macos_setup_end_user_auth`
+
+Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
   "team_id": 123,
   "team_name": "Workstations"
 }

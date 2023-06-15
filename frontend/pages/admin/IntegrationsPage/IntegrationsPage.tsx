@@ -1,20 +1,25 @@
 import { AppContext } from "context/app";
 import React, { useContext } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import SideNav from "../components/SideNav";
-import INTEGRATION_SETTINGS_NAV_ITEMS from "./IntegrationNavItems";
+import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
 interface IIntegrationSettingsPageProps {
+  router: InjectedRouter;
   params: Params;
 }
 
-const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
+const IntegrationsPage = ({
+  router,
+  params,
+}: IIntegrationSettingsPageProps) => {
+  const { isSandboxMode } = useContext(AppContext);
   const { section } = params;
-  const DEFAULT_SETTINGS_SECTION = INTEGRATION_SETTINGS_NAV_ITEMS[0];
-  const navItems = INTEGRATION_SETTINGS_NAV_ITEMS;
+  const navItems = getFilteredIntegrationSettingsNavItems(isSandboxMode);
+  const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
@@ -30,7 +35,7 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
         className={`${baseClass}__side-nav`}
         navItems={navItems}
         activeItem={currentSection.urlSection}
-        CurrentCard={<CurrentCard />}
+        CurrentCard={<CurrentCard router={router} />}
       />
     </div>
   );

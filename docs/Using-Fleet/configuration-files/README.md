@@ -257,6 +257,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+
 ### Modify an existing team
 
 You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it.
@@ -521,7 +522,7 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](ht
 **Available in Fleet Premium**. Direct users of Fleet Desktop to a custom transparency URL page.
 
 - Optional setting (string)
-- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
+- Default value: Fleet's default transparency URL ("[https://fleetdm.com/transparency](https://fleetdm.com/transparency)")
 - Config file format:
   ```yaml
   fleet_desktop:
@@ -703,18 +704,8 @@ For additional information on SSO configuration, including just-in-time (JIT) us
 
 ##### sso_settings.enable_jit_role_sync
 
-**Available in Fleet Premium**.
-
-If set to `true` Fleet account roles will be updated to match those set in the SAML custom attributes at every login. See [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles).
-This flag only has effect if `sso_settings.enable_jit_provisioning` is set to `true`.
-
-- Optional setting (boolean)
-- Default value: `false`
-- Config file format:
-  ```yaml
-  sso_settings:
-    enable_jit_role_sync: true
-  ```
+> This setting is now deprecated and will be removed soon.
+> For more information on how SSO login and role syncing works see [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles) 
 
 ##### sso_settings.enable_sso
 

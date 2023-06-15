@@ -1,27 +1,29 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
-import { noop } from "lodash";
+import { Meta, StoryObj } from "@storybook/react";
 
 import Checkbox from ".";
 
-import { ICheckboxProps } from "./Checkbox";
-
-import "../../../../index.scss";
-
-export default {
+const meta: Meta<typeof Checkbox> = {
   component: Checkbox,
   title: "Components/FormFields/Checkbox",
-  args: {
-    value: false,
-    disabled: false,
-    indeterminate: false,
-    className: "",
-    name: "",
-    wrapperClassName: "",
-    onChange: noop,
+};
+
+export default meta;
+
+type Story = StoryObj<typeof Checkbox>;
+
+export const Basic: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url:
+        "https://www.figma.com/file/qbjRu8jf01BzEfdcge1dgu/Fleet-style-guide-2022-(WIP)?node-id=117-16951",
+    },
   },
-} as Meta;
+};
 
-const Template: Story<ICheckboxProps> = (props) => <Checkbox {...props} />;
-
-export const Default = Template.bind({});
+export const WithLabel: Story = {
+  args: {
+    children: <b>Label</b>,
+  },
+};

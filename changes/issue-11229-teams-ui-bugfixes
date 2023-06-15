@@ -1,5 +1,0 @@
-- Fixed bug in manage hosts table where UI elements related to row selection were displayed to a team
-  observer user when that user was also a team and maintainer or admin on another team.
-
-- Fixed bug in add policy UI where a user that is team maintainer or team admin cannot access the UI
-  to save a new policy if that user is also an observer on another team.

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useState } from "react";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -10,22 +10,31 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
 import Spinner from "components/Spinner";
+import paths from "router/paths";
 
 import SideNav from "../components/SideNav";
 import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
 
 interface IOrgSettingsPageProps {
   params: Params;
+  router: InjectedRouter; // v3
 }
 
 export const baseClass = "org-settings";
 
-const OrgSettingsPage = ({ params }: IOrgSettingsPageProps) => {
+const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   const { section } = params;
   const DEFAULT_SETTINGS_SECTION = ORG_SETTINGS_NAV_ITEMS[0];
 
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
-  const { isFreeTier, isPremiumTier, setConfig } = useContext(AppContext);
+  const { isFreeTier, isPremiumTier, setConfig, isSandboxMode } = useContext(
+    AppContext
+  );
+
+  if (isSandboxMode) {
+    // redirect to Integrations page in sandbox mode
+    router.push(paths.ADMIN_INTEGRATIONS);
+  }
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 

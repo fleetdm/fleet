@@ -71,12 +71,13 @@ module.exports = {
       'zhumo',
       'ghernandez345',
       'rfairburn',
-      'artemist-work',
       'marcosd4h',
       'zayhanlon',
       'bradmacd',
       'alexmitchelliii',
       'jarodreyes',
+      'jostableford',
+      'jinny321',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -328,7 +329,17 @@ module.exports = {
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
             labels: ['#handbook']
           }, baseHeaders);
-        }
+        }//ﬁ
+
+        // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
+        // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
+        let isAwaitingCeoReview = _.isArray(pr.requested_reviewers) && _.pluck(pr.requested_reviewers, 'login').includes('mikermcneil');
+        if (isAwaitingCeoReview) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#g-ceo']
+          }, baseHeaders);
+        }//ﬁ
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {

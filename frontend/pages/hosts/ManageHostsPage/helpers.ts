@@ -1,15 +1,3 @@
-import { isEmpty, reduce, trim, trimEnd, union } from "lodash";
-import { buildQueryStringFromParams } from "utilities/url";
-
-interface ILocationParams {
-  pathPrefix?: string;
-  routeTemplate?: string;
-  routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number | undefined };
-}
-
-type RouteParams = Record<string, string>;
-
 export const isAcceptableStatus = (filter: string): boolean => {
   return (
     filter === "new" ||
@@ -32,35 +20,4 @@ export const isValidPemCertificate = (cert: string): boolean => {
   const regexPemFooter = /-----END/;
 
   return regexPemHeader.test(cert) && regexPemFooter.test(cert);
-};
-
-const createRouteString = (routeTemplate: string, routeParams: RouteParams) => {
-  let routeString = "";
-  if (!isEmpty(routeParams)) {
-    routeString = reduce(
-      routeParams,
-      (string, value, key) => {
-        return string.replace(`:${key}`, encodeURIComponent(value));
-      },
-      routeTemplate
-    );
-  }
-  return routeString;
-};
-
-export const getNextLocationPath = ({
-  pathPrefix = "",
-  routeTemplate = "",
-  routeParams = {},
-  queryParams = {},
-}: ILocationParams): string => {
-  const routeString = createRouteString(routeTemplate, routeParams);
-  const queryString = buildQueryStringFromParams(queryParams);
-
-  const nextLocation = trimEnd(
-    union(trim(pathPrefix, "/").split("/"), routeString.split("/")).join("/"),
-    "/"
-  );
-
-  return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };

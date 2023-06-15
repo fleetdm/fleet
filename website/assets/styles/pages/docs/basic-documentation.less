@@ -16,6 +16,7 @@
   }
 
   h4 {
+    margin-top: 24px;
     font-size: 18px;
     line-height: 24px;
   }
@@ -30,7 +31,7 @@
     padding-left: 8px;
 
     li {
-      padding-bottom: 8px;
+      margin-bottom: 8px;
     }
 
   }
@@ -87,6 +88,7 @@
       border-top-right-radius: 6px;
       border-bottom-right-radius: 6px;
       border: 1px solid @core-fleet-black-25;
+      background-color: #FFF;
     }
 
     .input-group:focus-within {
@@ -128,6 +130,30 @@
 
     a {
       color: @core-vibrant-blue;
+    }
+
+    [purpose='support-link'] {
+      text-align: center;
+      margin-top: 24px;
+      margin-bottom: 0px;
+      a {
+        display: inline-block;
+      }
+      a:after {
+        background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
+        background-size: 7px 7px;
+        display: inline-block;
+        position: relative;
+        top: -4px;
+        left: 4px;
+        width: 7px;
+        height: 7px;
+        content: '';
+      }
+      br {
+        display: none;
+      }
+
     }
 
     [purpose='cta-cards'] {
@@ -298,7 +324,6 @@
       [purpose='docs-nav-button'] {
         color: @core-fleet-black;
         background-color: transparent;
-        font-family: 'Nunito Sans';
         font-weight: 400;
         font-size: 16px;
         padding: 0;
@@ -371,6 +396,10 @@
         &:hover {
           color: #6A67FE;
         }
+      }
+
+      li {
+        margin-bottom: 0;
       }
 
     }
@@ -466,7 +495,9 @@
         padding: 20px 16px;
         color: @core-fleet-black;
         width: 100%;
+        cursor: pointer;
         a {
+
           text-decoration: none;
           color: @core-fleet-black;
           &:hover {
@@ -503,8 +534,8 @@
 
       h2 {
         border-top: 1px solid @core-fleet-black-25;
-        margin-top: 24px;
-        padding-top: 40px;
+        margin-top: 32px;
+        padding-top: 52px;
         padding-bottom: 24px;
 
         &:first-of-type {
@@ -515,13 +546,13 @@
       }
 
       h3 {
-        padding-top: 24px;
-        padding-bottom: 24px;
-        margin-bottom: 0px;
+        padding-bottom: 16px;
+        margin-top: 24px;
+        margin-bottom: 40px;
+        border-bottom: 1px dashed @core-fleet-black-25;
       }
 
       h4 {
-        padding-top: 8px;
         padding-bottom: 24px;
         margin-bottom: 0px;
       }
@@ -554,21 +585,20 @@
         font-size: 16px;
       }
       [purpose='large-quote']::before, [purpose='quote']::before {
-        font-family: 'Nunito Sans';
-        display: inline;
-        position: absolute;
-        content: '“';
+        content: ' ';
+        background-image: url('/images/icon-quote-mark-22x18@2x.png');
+        background-size: 22px 18px;
+        display: block;
+        position: relative;
         top: 16px;
         left: -32px;
-        font-size: 64px;
-        padding-right: 8px;
-        color: @core-vibrant-blue;
+        width: 22px;
+        height: 18px;
       }
       [purpose='tip'] {
         margin: 16px 0 32px;
-        background: #F7F7FC;
-        border: 1px solid @core-vibrant-blue-50;
-        padding: 16px;
+        background: #F4F4FF;
+        padding: 24px;
         border-radius: 8px;
         display: flex;
         img {
@@ -587,6 +617,9 @@
         p:last-child {
           margin-bottom: 0px;
         }
+        ul {
+          padding-left: 16px;
+        }
         ul:last-child {
           margin-bottom: 0px;
         }
@@ -601,6 +634,18 @@
         pre {
           margin: 0px 0px 16px;
         }
+      }
+
+      ol, ul {
+        margin-top: 16px;
+        margin-bottom: 20px;
+        padding-inline-start: 16px;
+        padding: 0 0 0 40px;
+      }
+
+      li {
+        margin-bottom: 16px;
+        padding-left: 8px;
       }
 
       img {
@@ -648,9 +693,7 @@
         border-radius: 12px;
         text-decoration: none;
       }
-      ol {
-        padding-inline-start: 16px;
-      }
+
       [purpose='next-steps-button'] {
         font-size: 16px;
         line-height: 25px;
@@ -670,6 +713,17 @@
         margin-bottom: 40px;
         border-top: 1px solid @core-fleet-black-25;
         border-bottom: 1px solid @core-fleet-black-25;
+        h3 {
+          margin-top: 0;
+          margin-bottom: 24px;
+          padding-bottom: 0;
+          border-bottom: 0;
+        }
+      }
+      [purpose='improve-docs'] {
+        h3 {
+          border-bottom: 0;
+        }
       }
       [purpose='checklist-item'] {
         display: flex;

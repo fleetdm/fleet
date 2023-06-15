@@ -30,6 +30,7 @@ export default {
         "unstyled-modal-query",
         "contextual-nav-item",
         "small-text-icon",
+        "oversized",
       ],
       control: "select",
     },
