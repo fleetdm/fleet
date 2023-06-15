@@ -130,13 +130,6 @@ const live_query = async () => {
           `Discovery (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
         );
 
-        if (err.includes("RuntimeError")) {
-          const virtual = await VirtualDatabase.init();
-          DATABASE = virtual;
-
-          // Expose it for debugging in console
-          globalThis.DB = DATABASE;
-        }
         continue;
       }
     }
