@@ -436,8 +436,8 @@ module.exports = {
               }
 
               if(sectionRepoPath === 'handbook/') {
-                 if(!embeddedMetadata.maintainedBy){
-                  // throw an error if a Handbook page is missing a maintainedBy value
+                if(!embeddedMetadata.maintainedBy) {
+                  // Throw an error if a handbook page is missing a maintainedBy meta tag.
                   throw new Error(`Failed compiling markdown content: A handbook page is missing a maintainedBy meta tag (<meta name="maintainedBy" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a maintainedBy meta tag with the page maintainer's GitHub username as the value.`);
                 }
               }
