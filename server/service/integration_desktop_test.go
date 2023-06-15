@@ -241,13 +241,13 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst,
+			burst:    forgotPasswordRateLimitMaxBurst - 1,
 			status:   http.StatusAccepted,
 		},
 		{
 			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
 			verb:     "GET",
-			burst:    desktopRateLimitMaxBurst,
+			burst:    desktopRateLimitMaxBurst + 1,
 			status:   http.StatusUnauthorized,
 		},
 	}
@@ -256,7 +256,7 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		b, err := json.Marshal(tCase.payload)
 		require.NoError(s.T(), err)
 
-		for i := 0; i < tCase.burst+1; i++ {
+		for i := 0; i < tCase.burst; i++ {
 			s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, tCase.status, headers).Body.Close()
 		}
 		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
