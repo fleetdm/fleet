@@ -1,227 +1,265 @@
 <div id="homepage" v-cloak>
   <%/* Hero container */%>
   <div purpose="hero-container">
-    <div purpose="homepage-hero" class="container mx-auto">
-      <div class="d-flex flex-column flex-md-row justify-content-between">
-        <%/* Hero text */%>
-        <div purpose="hero-text"  class="d-flex flex-column">
-          <h4>Open-source device management</h4>
-          <h1>Think for yourself</h1>
-          <p>Introducing the first GitOps-driven MDM with real-time visibility into every platform.</p>
-          <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-self-start align-items-center">
-            <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-            <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
-          </div>
-          <div purpose="hero-quote" class="d-flex flex-row align-items-between justify-content-center justify-content-md-start">
-            <div><img alt="An opening quotation mark" src="/images/homepage-hero-quote-mark-22x17@2x.png"></div>
-            <div>
-              <p purpose="quote">We wanted an open-source way to take advantage of MDM that is easy to integrate with Puppet in our configuration-as-code environment. Fleet is the obvious, and really the only, choice.</p>
-              <p><span class="font-weight-bold">Platform Engineering Manager</span><br>A leading online games company</p>
+    <div purpose="hero-background-image">
+      <div purpose="homepage-hero" class="container mx-auto">
+        <div class="d-flex flex-row justify-content-center align-items-start">
+          <%/* Hero text */%>
+          <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
+            <h4>Open-source device management</h4>
+            <h1>Lighter than air</h1>
+            <p>Lightweight management for laptops and servers.<br class="d-sm-block d-none"> Designed for APIs, GitOps, webhooks, YAML, and humans.</p>
+            <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
+              <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
+              <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
             </div>
-          </div>
-        </div>
-        <%/* Hero images */%>
-        <div purpose="homepage-hero-images">
-          <div purpose="top-hero-image">
-            <img alt="Gitops hero image" src="/images/homepage-top-hero-image-410x226@2x.png">
-          </div>
-          <div purpose="middle-hero-image">
-            <img alt="A small infinity symbol" class="mx-auto my-3" src="/images/homepage-hero-small-union-48x25@2x.png">
-          </div>
-          <div  purpose="bottom-hero-image">
-            <img alt="The OS settings page in Fleet" src="/images/homepage-bottom-hero-image-410x300@2x.png">
           </div>
         </div>
       </div>
     </div>
-    <div purpose="hero-ribbon">
-      <img alt="A small white curve" purpose="ribbon-banner" src="/images/homepage-hero-ribbon.svg">
-    </div>
   </div>
   <%/* Row of logos */%>
-  <div purpose="hero-logos" style="max-width: 960px;" class="mx-auto d-flex flex-md-row flex-column align-items-center justify-content-center">
+  <div purpose="hero-logos" style="max-width: 1080px;" class="mx-auto d-flex flex-md-row flex-column align-items-center justify-content-center">
     <div purpose="logo-column" class="flex-row d-flex justify-content-between align-items-center mb-4 mb-md-0">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-dark-140x28@2x.png"></a>
-      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-dark-151x33@2x.png"></a>
-      <a class="d-none d-sm-flex" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-dark-64x30@2x.png"></a>
+      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-167x40@2x.png"></a>
+      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-color-147x32@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-dark-84x30@2x.png"></a>
     </div>
     <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-start align-items-md-center">
-      <a class="d-inline-flex d-sm-none" href="#community"><img purpose="uber-logo" alt="Uber logo" src="/images/logo-uber-dark-64x30@2x.png"></a>
-      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-dark-172x22@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-dark-149x32@2x.png"></a>
+      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-139x30@2x.png"></a>
     </div>
     <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-center">
-      <a purpose="bottom-row-uber-logo" href="#community" target="_blank"><img style="height: 20px; width: auto" alt="Uber logo" src="/images/logo-uber-dark-64x30@2x.png"></a>
+      <a purpose="bottom-row-uber-logo" href="#community" target="_blank"><img style="height: 20px; width: auto" alt="Uber logo" src="/images/logo-uber-dark-84x30@2x.png"></a>
     </div>
   </div>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
 
-    <div purpose="homepage-text-block" class="text-sm-center text-left mx-auto">
-      <h4>Device management built for IT, security approved</h4>
-      <h2>Fleet brings GitOps to MDM</h2>
-      <p>We prefer a more collaborative approach to device management. Fleet uses a GitOps workflow, ensuring checks and balances for your configuration deployments.</p>
-    </div>
-
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-left-text-block" class="d-flex flex-column">
-        <h3>Made for customization</h3>
-        <p>Integrations with leading configuration management platforms, including Chef, Munki, and Puppet, allow for efficiency in your management workflows. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
+    <%/* Device management block */%>
+    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="platform-left-text-block" class="d-flex flex-column">
+        <h3>GitOps-driven MDM</h3>
+        <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
+        <a purpose="animated-arrow-button-red" href="/device-management">More about device management</a>
       </div>
-      <div purpose="feature-image">
-        <img alt="A bento box featuring all the tools Fleet can bring together" src="/images/homepage-bento-logos-320x295@2x.png">
+      <div purpose="platform-image">
+        <img alt="GitOps-driven MDM" src="/images/homepage-fleet-ui-536x389@2x.png">
       </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="feature-image">
-        <img alt="A Fleet orb scanning a Laptop" src="/images/homepage-realtime-visibility-320x294@2x.png">
+    <%/* Vulnerability management block */%>
+    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="platform-image">
+        <img alt="Vulnerability management" src="/images/homepage-vulnerability-management-530x458@2x.png">
       </div>
-      <div purpose="feature-right-text-block" class="d-flex flex-column">
-        <h3>Real-time visibility</h3>
-        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results allow you to see the status of your entire fleet at any given moment.</p>
+      <div purpose="platform-right-text-block" class="d-flex flex-column">
+        <h3>Know what’s going on with your computers</h3>
+        <p>Monitor vulnerabilities in software packages, operating systems, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
+        <a purpose="animated-arrow-button-red" href="/vulnerability-management">More about vulnerability management</a>
       </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-left-text-block" class="d-flex flex-column">
-        <h3>All platforms welcome</h3>
-        <p>Give your teams access to any machine regardless of OS or manufacturer. Fleet supports Mac, Linux, Chromebooks, and Windows devices. So, you can make the most of your resources (and make everybody’s lives easier).</p>
+    <%/* Security compliance block */%>
+    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="platform-left-text-block" class="d-flex flex-column">
+        <h3>Simplify security compliance</h3>
+        <p>Policies make it easy to keep your devices compliant with your organization’s custom rules and common benchmarks like CIS. Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.</p>
+        <a purpose="animated-arrow-button-red" href="/compliance">More about security compliance</a>
       </div>
-      <div purpose="feature-image">
-        <img alt="All platforms welcome" src="/images/homepage-all-platforms-welcome-320-249@2x.png">
+      <div purpose="platform-image">
+        <img alt="Security compliance" src="/images/homepage-security-compliance-520x337@2x.png">
       </div>
     </div>
-    <%/* Call to action */%>
-    <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+
+    <%/* Osquery management block */%>
+    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
+      <div purpose="platform-image">
+        <img alt="Osquery management" src="/images/homepage-osquery-management-543x371@2x.png">
+      </div>
+      <div purpose="platform-right-text-block" class="d-flex flex-column">
+        <h3>Deploy osquery at scale</h3>
+        <p>Fleet provides a centralized management interface for osquery to deploy, update, and manage osquery agents across a thousand or one hundred thousand devices.</p>
+        <a purpose="animated-arrow-button-red" href="/osquery-management">More about osquery management</a>
+      </div>
+    </div>
+
+    <%/* Supported platforms */%>
+    <div purpose="supported-platforms" class="d-flex flex-column">
+      <h2>Supported platforms</h2>
+      <div class="card-deck d-flex flex-row flex-wrap justify-content-center mx-auto">
+          <div purpose="supported-platform" class="">
+            <img alt="Linux" src="/images/homepage-platform-linux-41x48@2x.png">
+            <p>Linux <br><span>(all distros)</span></p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="macOS" src="/images/homepage-platform-macos-42x48@2x.png">
+            <p>macOS</p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="Windows" src="/images/homepage-platform-windows-40x48@2x.png">
+            <p>Windows</p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="ChromeOS" src="/images/homepage-platform-chromeos-48x48@2x.png">
+            <p>Chromebook</p>
+          </div>
+          <div purpose="supported-platform" class="">
+            <img alt="AWS" src="/images/homepage-platform-aws-54x48@2x.png">
+            <p>AWS</p>
+          </div>
+          <div purpose="supported-platform" class="">
+            <img alt="Google Cloud" src="/images/homepage-platform-google-cloud-48x48@2x.png">
+            <p>GCP</p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="Azure" src="/images/homepage-platform-azure-24x24@2x.png">
+            <p>Azure <br><span>(Microsoft Cloud)</span></p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="Datacenters" src="/images/homepage-platform-datacenters-48x48@2x.png">
+            <p>Data centers</p>
+          </div>
+          <div purpose="supported-platform">
+            <img alt="Containers" src="/images/homepage-platform-docker-48x48@2x.png">
+            <p>Containers</p>
+          </div>
+          <div purpose="supported-platform" class="">
+            <img alt="IOT" src="/images/homepage-platform-iot-38x48@2x.png">
+            <p>IoT devices <br><span>(Linux-based)</span></p>
+          </div>
+      </div>
+    </div>
+
+    <div purpose="two-column-features" class="mx-auto">
+
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-center">
+        <div purpose="feature" class="ml-sm-0">
+        <img alt="Modular" src="/images/homepage-icon-modular-64x64@2x.png">
+          <h5>As much or as little as you need</h5>
+          <p>Fleet is lightweight and modular. Use it for security without MDM, and vice versa. You can turn off features you are not using.</p>
+        </div>
+
+        <div purpose="feature" class="mr-sm-0 mb-0">
+        <img alt="Good neighbors" src="/images/homepage-icon-good-neighbors-64x64@2x.png">
+          <h5>Good neighbors</h5>
+          <p>Ready-to-use, enterprise-friendly integrations exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic, Jira, Zendesk, and more.</p>
+        </div>
+      </div>
+
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-center mb-0">
+        <div purpose="feature" class="ml-sm-0">
+        <img alt="Plays well with others" src="/images/homepage-icon-play-well-64x64@2x.png">
+          <h5>Plays well with others</h5>
+          <p>Fleet plays nicely with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.</p>
+        </div>
+
+        <div purpose="feature" class="mr-sm-0 mb-0">
+        <img alt="One agent to rule them all" src="/images/homepage-icon-one-agent-64x64@2x.png">
+          <h5>One agent to rule them all...</h5>
+          <p>...but it’s ok if you have others. Fleet coexists peacefully with Rapid7 and other agent-based vulnerability scanners.</p>
+        </div>
+      </div>
+    </div>
+
+    <%/* ClickOps or DevOps block */%>
+    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="platform-small-text-block" class="d-flex flex-column">
+        <h3>ClickOps or DevOps</h3>
+        <p>Manage your IT infrastructure <a href="/docs/using-fleet/fleet-ui">in any browser</a> or use <a href="/guides/using-github-actions-to-apply-configuration-profiles-with-fleet">git</a> to make infrastructure changes as code. You can use the <a href="/docs/using-fleet/fleetctl-cli">CLI</a> or <a href="/docs/using-fleet/rest-api">API</a> to automate the deployment, configuration, and monitoring of your devices.</p>
+        <a purpose="animated-arrow-button-red" href="/docs">Explore the docs</a>
+      </div>
+      <div purpose="platform-large-image">
+        <img alt="ClickOps or GitOps" src="/images/homepage-fleet-ui-536x389@2x.png">
+      </div>
+    </div>
+
+    <div purpose="homepage-text-block" class="text-center mx-auto">
+      <h2>Open through and through</h2>
+      <p>Fleet is dedicated to flexibility, accessibility, and clarity. We think everyone can contribute and that tools should be as easy as possible for everyone to understand.</p>
+    </div>
+
+    <div purpose="three-column-features" class="mx-auto">
+
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-center justify-content-center">
+        <div purpose="feature" class="ml-sm-0">
+          <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-sm-0">
+          <h5>Transparency: user-first</h5>
+          <p>Fleet champions a user-first transparency model with its open-source software, allowing users to see what's being monitored and how. Read more on Fleet’s <a href="/transparency">transparency</a> page. </p>
+        </div>
+
+        <div purpose="feature">
+          <img alt="Free as in free" src="/images/homepage-icon-free-48x64@2x.png">
+          <h5>Free as in free</h5>
+          <p>The <a href="/pricing">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
+        </div>
+
+        <div purpose="feature" class="mr-sm-0 mb-0">
+          <img alt="An open book" src="/images/homepage-icon-openness-80x64@2x.png">
+          <h5>We value openness</h5>
+          <p>Fleet Device Management's company <a href="/handbook">handbook</a> is public and open source. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
+        </div>
+      </div>
+
+    </div>
+
+
+    <div purpose="homepage-cards" class="d-flex flex-md-row flex-column justify-content-center">
+
+      <div purpose="homepage-card" class="card ml-md-0">
+        <h3>Chat</h3>
+        <p>Please join us in <a href="https://www.macadmins.org/">MacAdmins Slack</a> or in <a href="/slack">osquery Slack</a>.</p>
+        <p>The Fleet community is full of <a href="https://fleetdm.com/handbook/company#empathy">kind and helpful people</a>. Whether or not you are a paying customer, if you need help, just ask.</p>
+      </div>
+
+      <div purpose="homepage-card" class="card mr-md-0">
+        <h3>Contribution</h3>
+        <p>Contributions are welcome, whether you answer questions on <a href="https://github.com/fleetdm/fleet#chat">Slack</a> / <a href="https://github.com/fleetdm/fleet/issues">GitHub</a> / <a href="https://stackoverflow.com/search?q=osquery">StackOverflow</a> / <a href="https://www.linkedin.com/company/fleetdm/">LinkedIn</a> / <a href="https://twitter.com/fleetctl">Twitter</a>, improve the documentation or <a href="https://github.com/fleetdm/fleet/tree/main/website">website</a>, write a tutorial, give a talk at a conference or local meetup, give an <a href="/podcasts">interview on a podcast</a>, troubleshoot reported issues, or <a href="/docs/contributing">submit a patch</a>.</p>
+      </div>
+
     </div>
 
   </div>
   <%/* Bottom gradient */%>
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
-    <%/* Fleet Cloud Banner */%>
-      <div purpose="fleet-cloud-banner" class="d-flex flex-md-row flex-column">
-        <div purpose="banner-image">
-        </div>
-        <div purpose="banner-text">
-          <div class="d-flex flex-column">
-            <h2>Instant deployment with Fleet Managed Cloud.</h2>
-            <p>Focus on device management, and leave your Fleet server management to us.</p>
-            <a href="https://kqphpqst851.typeform.com/to/yoo5smT9" target="_blank" purpose="animated-arrow-button-red">Join the beta</a>
+      <div purpose="three-column-features" class="mx-auto">
+        <h2>Ready to get started?</h2>
+        <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-center">
+          <div purpose="feature" class="ml-sm-0">
+            <img alt="Explore data" src="/images/homepage-icon-explore-data-64x64@2x.png">
+            <h5>Explore data</h5>
+            <p>Check out the <a href="/tables">table reference</a> documentation to see what kind of data you can use Fleet to gather.</p>
           </div>
-        </div>
-      </div>
-      <div id="community" purpose="homepage-text-block" class="text-sm-center text-left mx-auto">
-        <h4>4 years in the making</h4>
-        <h2>Trusted by teams that think</h2>
-        <p>Fleet is built with <a href="/handbook/company/why-this-way#why-open-source">openness at its core</a>, incorporating projects like osquery, microMDM, and Nudge. We work to contribute back to these and other open-source communities.</p>
-      </div>
-    </div>
 
-    <div  purpose="scrollable-tweets" class="d-flex flex-column">
-      <div purpose="tweets" class="d-flex flex-row flex-nowrap">
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
+          <div purpose="feature">
+            <img alt="Easy to deploy" src="/images/homepage-icon-deploy-64x64@2x.png">
+            <h5>Production deployment</h5>
+            <p>Fleet is easy to <a href="/docs/using-fleet/learn-how-to-use-fleet">spin up for yourself</a>. Or you can have us <a href="/pricing">host it for you</a>. Premium features are available either way.</p>
           </div>
-          <p class="pb-2 mb-1">Exciting. This is a team that listens to feedback.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Erik Gomez</p>
-              <p class="m-0">Staff Software Engineer <a href="https://twitter.com/Uber">@Uber</a></p>
-            </div>
-          </div>
-        </div>
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Wesley Whetstone</p>
-              <p class="m-0">CPE <a href="https://twitter.com/Square">@Square</a></p>
-            </div>
+
+          <div purpose="feature" class="mr-sm-0 mb-0">
+            <img alt="Documentation" src="/images/homepage-icon-documentation-64x64@2x.png">
+            <h5>Documentation</h5>
+            <p>Explore guides and examples over in the <a href="/docs">docs</a>, along with complete <a href="/docs/using-fleet/rest-api">API reference</a>.</p>
           </div>
         </div>
 
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/fleet">#Fleet</a>’s come a long way - to now being the top open-source <a href="https://twitter.com/hashtag/fleet">#osquery</a> manager. Just in the past 6 months.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Brendan Shaklovitz</p>
-              <p class="m-0">Senior SRE <a href="https://twitter.com/atlassian">@Atlassian</a></p>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Mike Arpaia</p>
-              <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
-          <p>I have used it on 15k servers and it’s really scalable.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Ahmed Elshaer</p>
-              <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
-              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
-            </div>
-          </div>
-        </div>
-        <div purpose="tweet-card" style="max-width: 40px; min-width: 40px;" class="invisible">
-        </div>
-      </div>
-      <div purpose="" class="mx-auto d-flex flex-row justify-content-center">
-        <nav aria-label="..." >
-          <ul purpose="tweets-page-indicator" class="pagination pagination-sm" v-if="numberOfTweetPages > 1">
-            <li class="page-item" :class="[currentTweetPage === index ? 'selected' : '']" v-for="(pageNumber, index) in numberOfTweetPages" @click="scrollTweetsDivToPage(index)"><span purpose="page-item-dot"></span></li>
-          </ul>
-        </nav>
       </div>
     </div>
+
 
     <div purpose="homepage-content" class="container">
       <div class="text-center">
         <h4>Open-source device management</h4>
-        <h1>Think for yourself</h1>
+        <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
     </div>
+
   </div>
   <%/* Cloud city banner */%>
   <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">

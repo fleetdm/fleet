@@ -43,28 +43,39 @@
       text-align: center;
     }
     .data-table__table {
+      // Adds border to headers except for empty last header to view filtered hosts
       thead {
-        .name__header {
-          width: $col-md;
+        th {
+          border-right: none;
+          border-left: 1px solid $ui-fleet-black-10;
         }
+
+        .linkToFilteredHosts__header {
+          border-left: none;
+        }
+
         .version__header {
-          width: $col-sm;
+          width: $col-xs;
+          display: none;
+          @media (min-width: $break-880) {
+            display: table-cell;
+          }
         }
         .vulnerabilities__header {
-          min-width: 130px;
+          width: 130px;
         }
         .source__header {
           display: none;
           width: 0px;
         }
-        .hosts_count__header {
-          border-right: 0;
-        }
         .last_opened_at__header {
           display: none;
         }
+        .installed_paths__header {
+          display: none;
+        }
         .linkToFilteredHosts__header {
-          min-width: 115px;
+          width: 115px;
         }
         @media (min-width: $break-1400) {
           .version__header {
@@ -73,20 +84,64 @@
 
           .source__header {
             display: table-cell;
-            width: $col-md;
+            width: $col-sm;
           }
         }
       }
 
       tbody {
-        .name__cell,
+        .name__cell {
+          // Long software names overflow the software card
+          max-width: 0;
+          min-width: 252px;
+
+          .button--text-link {
+            width: 100%;
+            justify-content: left;
+
+            .children-wrapper {
+              overflow-x: clip; // Truncates the text but does not hide tooltip outside cell
+              white-space: nowrap;
+              display: block;
+              text-overflow: ellipsis;
+              width: 100%;
+            }
+          }
+        }
         .version__cell {
           white-space: nowrap;
           text-overflow: ellipsis;
+          display: none;
+          @media (min-width: $break-880) {
+            display: table-cell;
+          }
         }
         .source__cell {
           display: none;
           width: 0px;
+        }
+        .installed_paths__cell {
+          display: none;
+          width: 0px;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
+
+          .installed_paths__tooltip {
+            max-width: 550px;
+
+            // gap between each filepath
+            .tooltip__tooltip-text {
+              display: flex;
+              flex-direction: column;
+              gap: $pad-small;
+
+              .tooltip__tooptip_text_line {
+                display: block;
+                word-wrap: break-word;
+                max-width: 550px;
+              }
+            }
+          }
         }
         .hosts_count__cell {
           .hosts-cell__wrapper {
@@ -106,7 +161,7 @@
         @media (min-width: $break-1400) {
           .source__cell {
             display: table-cell;
-            width: $col-md;
+            width: $col-sm;
           }
           .hosts_count__cell {
             .hosts-cell__wrapper {
@@ -143,6 +198,7 @@
   @media (max-width: 990px) {
     thead .name__header {
       width: $col-md;
+      min-width: 252px;
     }
 
     .table-container__header {
@@ -182,8 +238,7 @@
     }
   }
 
-  // Only show this column to macos users
-  .macos .data-table-block .data-table__table {
+  .data-table-block .data-table__table {
     @media (min-width: $break-990) {
       thead .version__header {
         width: $col-sm;
@@ -191,9 +246,6 @@
     }
     @media (min-width: $break-1400) {
       thead {
-        .vulnerabilities__header {
-          width: $col-md;
-        }
         .last_opened_at__header {
           display: table-cell;
         }
@@ -201,6 +253,33 @@
       tbody {
         .last_opened_at__cell {
           display: table-cell;
+          width: 100px;
+          min-width: min-content;
+        }
+      }
+    }
+
+    @media (min-width: $break-1500) {
+      thead {
+        .installed_paths__header {
+          display: table-cell;
+          width: $col-md;
+        }
+      }
+      tbody {
+        .installed_paths__cell {
+          display: table-cell;
+
+          .text-cell {
+            width: $col-md;
+            text-overflow: initial;
+            overflow: initial;
+            white-space: initial;
+            word-wrap: break-word;
+          }
+          .tooltip {
+            display: inline; // center tooltip with hovered text
+          }
         }
       }
     }

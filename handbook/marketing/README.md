@@ -68,6 +68,26 @@ Once a blog post has been written, approved, and published, make sure that it is
 - Open Source For U: [Fleet Unveils The First Ever Open Source, Cross-Platform Device Management Platform](https://www.opensourceforu.com/2023/04/fleet-unveils-the-first-ever-open-source-cross-platform-device-management-platform/)
 - Tech Switch: [Fleet announces open-source, cross-platform MDM solution](https://techswitchcf.com/fleet-announces-open-source-cross-platform-mdm-solution/)
 
+### About Fleet Device Management
+
+#### (Under 50 words)
+
+Fleet is a lightweight, open-core, cross-platform solution providing real-time insights using osquery and GitOps-driven device management, including Mac, Windows, Linux, and ChromeOS. Fleet streamlines IT security with automated vulnerability management, facilitating compliance policy implementation. Offering seamless on-premise or cloud integration, Fleet is a trusted, accessible tool for robust IT administration.
+
+#### (Under 100 words)
+
+Fleet is a lightweight, open-core, cross-platform solution that provides real-time insights using osquery and GitOps-driven management for all your devices, including Mac, Windows, Linux, and ChromeOS. It empowers IT security and IT administrators by facilitating device investigation, mobile device management (MDM), and implementing standard compliance policies for remediation and updates. Fleet enhances IT security with automated vulnerability management and security workflows within a single application. Trusted by hundreds of companies, Fleet requires no certification and offers seamless on-premise or cloud integration. Fleet is a comprehensive, accessible tool to strengthen IT security and device management.
+
+#### (Under 200 words)
+
+Fleet is a lightweight, open-core, cross-platform platform that embraces the power of osquery to provide real-time insights and GitOps-driven management across all your devices, including Mac, Windows, Linux, and ChromeOS. This versatile platform is a comprehensive tool for IT security and IT administrators, offering a streamlined approach to investigating computers, servers, and managing mobile devices.
+
+Leverage Fleet's programmable Mobile Device Management (MDM) capabilities to illuminate the darkness surrounding MDM access and data acquisition. Trusted by hundreds of companies, Fleet and osquery deliver superior visibility into your devices, facilitating the implementation of standard compliance policies for real-time remediation and updates.
+
+Fleet offers seamless integration for on-premise or cloud-based operations, requiring no certification or education to start, making Fleet accessible and straightforward. Additionally, Fleet contributes to robust IT security by enabling the automation of vulnerability management and security workflows within a single application. Create or install policies to ascertain device compliance with your security guidelines, and build automations to address vulnerabilities in your environment promptly.
+
+As a result, Fleet emerges as a practical and efficient solution for IT administrators seeking to
+enhance their IT security landscape through GitOps and elevate their device management capabilities.
 
 ### Press releases
 
@@ -262,6 +282,32 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 ## Brand
 
+### Brand resources
+
+To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
+
+See [About Fleet Device Management](#about-fleet-device-management) for ready-to-go descriptions of Fleet and for the press-release boilerplate.
+
+#### Figma
+
+We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
+
+##### Which file should I use?
+
+**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
+
+**Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
+
+**Design system.** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
+
+> The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
+
+**Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
+
+### Content style guide
+
+Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more. [Read the content style guide](./content-style-guide).
+
 ### Publishing Fleet content
 
 The following describes how to go about publishing and editing content at Fleet.
@@ -301,96 +347,13 @@ Detail the minimum time needed for new or updated content to be live (published)
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 | Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
 
-### Content style guide
-
-Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more. [Read the content style guide](./content-style-guide).
-
 ### For editors
 
-#### In this section
-
-- [How to make edits with GitHub](#how-to-make-edits-with-github)
-- [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
-- [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
-- [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
-- [How to edit social media posts](#how-to-edit-social-media-posts)
-
-While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
-
-The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
-
-- Docs and Handbook pages.
-- Articles, release posts, and press releases.
-- Social media posts.
-
-#### How to make edits with GitHub
-
-Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
-1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub editor).
-2. Make your suggested edits in the GitHub editor.
-3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
-4. Hit Propose change which will open a new pull request (PR).
-5. Request a review from the page maintainer, and finally, press “Create pull request.”
-6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
-
-> Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
->
-> Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
-
-#### How to edit recently merged pull requests for the handbook
-
-We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
-
-> **Note:** Contributors are not required to request reviews from editors for handbook changes.
-
-1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
-3. From the list of recently merged PRs, look at the files changed for each and then:
-  - Scan for typos and grammatical errors.
-  - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
-  - Check that Markdown is formatted correctly.
-  - **Remember**, Do not make edits to this page. It's already merged.
-4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
-5. Comment on the original PR to keep track of your progress. Comments made will show up on the history feed. E.g., `"Edited, PR incoming"` or `"LGTM, no edits required."`
-6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
-
-> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
-
-#### How to edit Markdown pull requests for the docs
-
-- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
-- If no edits are needed, the editor will merge the PR. 
-- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
-
-#### How to edit articles, release posts, and press releases
-
-Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
-
-* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
-
-* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-github).
-
-#### How to edit social media posts
-
-In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
-
-Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet) for details on editing draft social media posts.
-
-Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
-
-1. Post the tweet in the #g-marketing Slack channel and tag the Brand team lead.
-2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
-3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
+Check the [Editor's page](./editor-guide) for everything you need to know to reach editor bliss at Fleet.
 
 ### Commonly used terms
 
 If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](./commonly-used-terms) is here to help.
-
-### Brand resources
-
-To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
-
-See also [https://fleetdm.com/handbook/community#press-releases](https://fleetdm.com/handbook/community#press-releases) for our press-release boilerplate.
 
 ### Email blasts
 
@@ -452,211 +415,13 @@ Once you have the above follow these steps:
 - HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to [Eric Shaw](https://github.com/eashaw) for help.
 - The filename of the generated email will have periods changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `fleet-4-19-0.ejs`
 
-### Using Figma
+## Website
 
-We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
+Read the [Website handbook](./website-handbook) for detailed information and processes specific to the Fleet website. Including the website roadmap, how to request changes, and processes related to QA, deploying changes, and marketing experimentation.
 
-#### Which file should I use?
+## Documentation
 
-**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
-
-**Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
-
-**Design system.** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
-
-> The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
-
-**Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
-
-> Looking for the official Fleet logo? Download it from: https://fleetdm.com/logos.
-
-
-### Fleet website
-
-The Brand team is responsible for production and maintenance of the Fleet website.
-
-#### Wireframes
-
-Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
-
-See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
-
-#### Design reviews
-
-We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
-
-Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
-
-#### Experimentation
-
-In order for marketing to iterate rapidly we have created a process of experimentation. This will allow a small group of marketers to draft, review and publish a page or a flyer or an experiment without getting a series of approvals. Experiments should be short-lived, temporary things intended for a small audience. When an experiment succeeds it should immediately be turned into a part of Fleet'd rituals and then go through the proper wireframe-first approach. 
-
-Website experiments and landing pages should live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
-
-Some examples of experiments that would qualify to get a rapid approach:
-- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
-- A landing page for a movie screening presented by Fleet
-- A landing page for a private event
-- A landing page for an ad campaign that is running for 4 weeks.
-- An A/B test on product positioning
-- A giveaway page for a conference
-- Table-top signage for a conference booth or meetup
-
-#### Estimation sessions
-
-We use estimation sessions to estimate the effort required to complete a prioritized task. 
-
-Through these sessions, we can:
-
-- Confirm that wireframes are complete before moving to production
-- Consider all edge cases and requirements that may have been with during wireframing.
-- Avoid having the engineer make choices for “unknowns” during production.
-- More accurately plan and prioritize upcoming tasks.
-
-##### Story points
-
-Story points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
-
-We use the following story points to estimate website tasks:
-
-| Story point | Time |
-|:---|:---|
-| 1 | 1 to 2 hours |
-| 2 | 2 to 4 hours |
-| 3 | 1 day |
-| 5 | 1 to 2 days |
-| 8 | Up to a week |
-| 13 | 1 to 2 weeks |
-
-#### When can I merge a change to the website?
-When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
-
-Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
-
-#### How can I test changes to the website?
-
-When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-Once you have the above follow these steps:
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
-
-
-2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
-  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
-  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
-    
-    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
-    > 
-    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
-
-3. Once the script is complete, start the website server. From the `website/` folder:
-  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
-  - **With Sails.js installed globally:** start the server by running `sails lift`.
-4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024/admin/email-preview)
-    
-  > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
-
-#### How can I create a new landing page?
-
-The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
-
-To generate a new page, you'll need: 
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running the website locally, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
-
-2. Call the `landing-page` generator by running `node ./node_modules/sails/bin/sails generate landing-page [page-name]`, replacing `[page-name]` with the kebab-cased name (words seperated by dashes `-`) of your page.
-
-3. After the files have been generated, you'll need to manually update the website's routes. To do this, copy and paste the generated route for the new page to the "Imagine" section of `website/config/routes.js`.
-
-4. Next you need to update the stylesheets so that the page can inherit the correct styles. To do this, copy and paste the generated import statement to the "Imagine" section of `website/assets/styles/importer.less`.
-
-5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
-
-6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
-
-
-#### How to export images for the website
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  * File extension might be .jpg or .png.
-  * Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
-
-#### Maintaining browser compatibility
-
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../../docs/Using-Fleet/Supported-browsers.md).
-
-- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
-- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
-- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the Design team.
-
-#### Responding to a 5xx error on fleetdm.com
-
-Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
-* investigate the problem to determine the root cause.
-* identify affected users.
-* escalate if necessary.
-* understand and remediate the problem.
-* notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
-* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
-
-##### Incident post-mortems
-
-When conducting an incident post-mortem, answer the following three questions:
-
-1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
-2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error. 
-
-#### The "Deploy Fleet Website" GitHub action failed
-If the action fails, please complete the following steps:
-1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
-2. Select "Roll back to here" on the second to most recent deploy.
-3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
-
-#### Vulnerability monitoring
-
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
-
-#### How to make usability changes to the website
-
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
-
-To propose changes:
-1. Decide what you want to change. A small change is the best place to start.
-2. Wireframe the design. Usually, the Brand team does this, but anyone can contribute.
-3. Present your change to the website DRI. They will approve it or suggest revisions.
-4. Code the website change. Again, the Brand team often does this, but anyone can help.
-5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
-
-#### Cloudflare
-
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
-If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
-
-
-To make DNS changes in Cloudflare:
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
+The [Docs handbook](./docs-handbook) details processes specific to updating and maintaining the Fleet docs. 
 
 ## Rituals
 
@@ -673,21 +438,17 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
-| Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
 | Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
 | Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Brand planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
@@ -709,9 +470,6 @@ To plan or propose a change to the website, or to submit a bug report about the 
 
 > _**Note:** One important exception is changes to the website that accompany changes in the core product.  These are instead handled by the [Customer Experience group](https://fleetdm.com/handbook/company/product-groups#customer-experience-group), and should be [proposed as changes to the core product](https://fleetdm.com/handbook/product#intake)._
 
-#### Website roadmap
-You can see [planned changes to the website](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).  All groups at Fleet share the same release schedule for iterations (sprints).
-
 ### Other requests
 To make any other kind of request from the marketing department, or if you are unsure, then post in our group Slack channel (`#g-marketing`) and someone from this group will reply within 1 business day.  Please only at-mention specific contributors in time-sensitive situations, or when their personal attention is required.
 
@@ -723,10 +481,12 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-marketing`              | Jarod Reyes                                                            |
+| `#g-website`                | Michael Thomas                                                            |
+| `#fleet-mindshare-pr`       | Jarod Reyes                                                            |
 | `#help-public-relations`    | Jarod Reyes                                                            |
 | `#help-promote`             | Jarod Reyes                                                            |
 | `#help-swag`                | Drew Baker                                                          |
-| `#oooh-websites`            | Mike Thomas                                                         |
+| `#oooh-websites`            | Michael Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
 
 

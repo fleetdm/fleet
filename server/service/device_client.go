@@ -138,3 +138,8 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 
 	return nil, err
 }
+
+func (dc *DeviceClient) MigrateMDM(token string) error {
+	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
+	return dc.request(verb, path, "", nil)
+}

@@ -57,4 +57,5 @@ module.exports.policies = {
   'deliver-premium-upgrade-form': true,
   'view-compliance': true,
   'view-osquery-management': true,
+  'view-vulnerability-management': true,
 };

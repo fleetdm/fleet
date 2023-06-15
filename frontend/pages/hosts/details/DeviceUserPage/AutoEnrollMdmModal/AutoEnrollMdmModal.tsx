@@ -7,13 +7,18 @@ interface IAutoEnrollMdmModalProps {
   onCancel: () => void;
 }
 
-const baseClass = "auto-enroll-mdm-modal enroll-mdm-modal";
+const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you install a profile.

@@ -56,6 +56,10 @@ Osquery should always be written in lowercase unless used to start a sentence or
 - Open-source software, built on osquery.
 - Osquery and Fleet provide structured, convenient access to information about your devices.
 
+#### Device vs endpoint
+When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
+
+
 ## Grammar and mechanics
 
 ### Headings
@@ -297,6 +301,7 @@ Give an overview of the topic. You don’t need to mention everything at the beg
 
 #### Explanation
 You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
+
 #### Reference
 Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
 

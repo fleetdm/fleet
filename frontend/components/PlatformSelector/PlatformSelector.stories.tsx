@@ -10,9 +10,11 @@ const meta: Meta<typeof PlatformSelector> = {
     checkDarwin: true,
     checkWindows: true,
     checkLinux: false,
+    checkChrome: false,
     setCheckDarwin: noop,
     setCheckWindows: noop,
     setCheckLinux: noop,
+    setCheckChrome: noop,
   },
 };
 
