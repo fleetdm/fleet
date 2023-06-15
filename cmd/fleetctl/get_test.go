@@ -193,22 +193,26 @@ func TestGetTeams(t *testing.T) {
 			}
 			expectedJson := buf.String()
 
-			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner.String() + expectedJson
-				expectedText = expiredBanner.String() + expectedText
-			}
+			var errBuffer strings.Builder
 
-			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			actualText, err := runWithErrWriter([]string{"get", "teams"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedText, actualText.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
+
 			// cannot use assert.JSONEq like we do for YAML because this is not a
 			// single JSON value, it is a list of 2 JSON objects.
-			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+			errBuffer.Reset()
+			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedJson, actualJSON.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
-			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
-			if tt.shouldHaveExpiredBanner {
-				require.True(t, strings.HasPrefix(actualYaml, expiredBanner.String()))
-				actualYaml = strings.TrimPrefix(actualYaml, expiredBanner.String())
-			}
-			assert.YAMLEq(t, expectedYaml, actualYaml)
+			errBuffer.Reset()
+			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
+			require.NoError(t, err)
+			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 		})
 	}
 }
