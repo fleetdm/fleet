@@ -26,7 +26,8 @@ type Client struct {
 	token         string
 	customHeaders map[string]string
 
-	writer io.Writer
+	outputWriter io.Writer
+	errWriter    io.Writer
 }
 
 type ClientOption func(*Client) error
@@ -66,9 +67,16 @@ func EnableClientDebug() ClientOption {
 	}
 }
 
-func SetClientWriter(w io.Writer) ClientOption {
+func SetClientOutputWriter(w io.Writer) ClientOption {
 	return func(c *Client) error {
-		c.writer = w
+		c.outputWriter = w
+		return nil
+	}
+}
+
+func SetClientErrorWriter(w io.Writer) ClientOption {
+	return func(c *Client) error {
+		c.errWriter = w
 		return nil
 	}
 }
@@ -113,7 +121,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	}
 
 	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
-		fleet.WriteExpiredLicenseBanner(os.Stderr)
+		fleet.WriteExpiredLicenseBanner(c.errWriter)
 	}
 
 	return resp, nil

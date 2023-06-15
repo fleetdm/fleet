@@ -9,7 +9,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -77,7 +76,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	defer response.Body.Close()
 
 	if response.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
-		fleet.WriteExpiredLicenseBanner(os.Stderr)
+		fleet.WriteExpiredLicenseBanner(c.errWriter)
 	}
 
 	if response.StatusCode != http.StatusOK {
