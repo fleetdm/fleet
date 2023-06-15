@@ -19,8 +19,12 @@ First let’s get these dependencies up and running on Render.
 
 Fleet uses MySQL as the datastore to organize host enrollment and other metadata around serving Fleet. Start by forking [https://github.com/edwardsb/render-mysql](https://github.com/edwardsb/render-mysql), then create a new private service within Render. When prompted for the repository — enter your fork’s URL here.
 
-![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-2-216x163@2x.png)
+![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-1-216x165@2x.png)
 *Private Service component in Render*
+
+Your private service should look like this:
+![Private Service settings in Render](../website/assets/images/articles/deploying-fleet-on-render-5-450x286@2x.png)
+*Private Service settings in Render*
 
 This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
 
