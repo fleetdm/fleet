@@ -1962,6 +1962,50 @@ WHERE uuid IN (?) AND %s
 	return hosts, nil
 }
 
+func (ds *Datastore) ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	id,
+	created_at,
+	updated_at,
+	osquery_host_id,
+	node_key,
+	hostname,
+	uuid,
+	hardware_serial,
+	hardware_model,
+	computer_name,
+	platform,
+	team_id,
+	distributed_interval,
+	logger_tls_period,
+	config_tls_refresh,
+	detail_updated_at,
+	label_updated_at,
+	last_enrolled_at,
+	policy_updated_at,
+	refetch_requested,
+	refetch_critical_queries_until
+FROM hosts
+WHERE id IN (?)`
+
+	stmt, args, err := sqlx.In(stmt, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by id")
+	}
+
+	var hosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by id")
+	}
+
+	return hosts, nil
+}
+
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
     SELECT
@@ -3935,4 +3979,30 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	}
 
 	return counts, nil
+}
+
+func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	result := map[string]struct{}{}
+	if len(serials) == 0 {
+		return result, nil
+	}
+
+	var args []interface{}
+	for _, serial := range serials {
+		args = append(args, serial)
+	}
+	stmt, args, err := sqlx.In("SELECT hardware_serial FROM hosts WHERE hardware_serial IN (?)", args)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN statement for matching hosts")
+	}
+	var matchingSerials []string
+	if err := sqlx.SelectContext(ctx, ds.reader, &matchingSerials, stmt, args...); err != nil {
+		return nil, err
+	}
+
+	for _, serial := range matchingSerials {
+		result[serial] = struct{}{}
+	}
+
+	return result, nil
 }

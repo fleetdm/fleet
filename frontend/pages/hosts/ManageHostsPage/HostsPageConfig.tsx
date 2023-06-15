@@ -2,6 +2,34 @@ import React from "react";
 
 import Icon from "components/Icon";
 
+export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
+  "query",
+  "team_id",
+  "policy_id",
+  "policy_response",
+  "macos_settings",
+  "software_id",
+  "status",
+  "mdm_id",
+  "mdm_enrollment_status",
+  "os_id",
+  "os_name",
+  "os_version",
+  "munki_issue_id",
+  "low_disk_space",
+  "macos_settings_disk_encryption",
+  "bootstrap_package",
+] as const;
+
+// TODO: refactor to use this type as the location.query prop of the page
+export type ManageHostsPageQueryParams = Record<
+  | "page"
+  | "order_key"
+  | "order_direction"
+  | typeof MANAGE_HOSTS_PAGE_FILTER_KEYS[number],
+  string
+>;
+
 export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "display_name";
@@ -53,6 +81,11 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
 };
 
 export const MAC_SETTINGS_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "Verified",
+    value: "verified",
+  },
   {
     disabled: false,
     label: "Verifying",

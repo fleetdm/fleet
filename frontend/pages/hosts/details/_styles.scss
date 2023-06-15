@@ -83,10 +83,18 @@
     .info-grid {
       display: grid;
       grid-auto-flow: column;
-      grid-template-columns: repeat(4, max-content);
-      grid-template-rows: repeat(3, 1fr);
+      grid-template-columns: repeat(
+        3,
+        max-content
+      ); // Prevents overflow off screen
+      grid-template-rows: repeat(4, 1fr);
       column-gap: $pad-xxlarge;
       row-gap: $pad-medium;
+
+      @media (min-width: $break-990) {
+        grid-template-columns: repeat(4, max-content);
+        grid-template-rows: repeat(3, 1fr);
+      }
 
       &__block {
         font-size: $x-small;

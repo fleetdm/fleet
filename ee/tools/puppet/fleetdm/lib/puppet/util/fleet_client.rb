@@ -23,9 +23,9 @@ module Puppet::Util
       post(
         '/api/latest/fleet/mdm/apple/profiles/preassign',
         {
-          'external_node_identifier' => Puppet[:node_name_value],
+          'external_host_identifier' => Puppet[:node_name_value],
           'host_uuid' => uuid,
-          'profile' => profile_xml,
+          'profile' => Base64.strict_encode64(profile_xml),
           'group' => group,
         },
       )
@@ -34,14 +34,14 @@ module Puppet::Util
     # Matches the set of profiles preassigned to the host (via the sibling
     # `preassign_profile` method) with a team.
     #
-    # It uses `Puppet[:node_name_value]` as the `external_node_identifier`,
+    # It uses `Puppet[:node_name_value]` as the `external_host_identifier`,
     # which is unique per Puppet host.
     #
     # @return [Hash] The response status code, headers, and body.
     def match_profiles
       post('/api/latest/fleet/mdm/apple/profiles/match',
   {
-    'external_node_identifier' => Puppet[:node_name_value],
+    'external_host_identifier' => Puppet[:node_name_value],
   })
     end
 
@@ -53,7 +53,13 @@ module Puppet::Util
     def send_mdm_command(uuid, command_xml)
       post('/api/latest/fleet/mdm/apple/enqueue',
       {
-        'command' => command_xml,
+        # For some reason, the enqueue function expects the command to be
+        # base64 encoded using _raw encoding_ (without padding, as defined in RFC
+        # 4648 section 3.2)
+        #
+        # I couldn't find a built-in Ruby function to do raw encoding, so we're
+        # removing the padding manually instead.
+        'command' => Base64.strict_encode64(command_xml).gsub(/[\n=]/, ""),
         'device_ids' => [uuid],
       })
     end

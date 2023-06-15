@@ -28,3 +28,17 @@ variable "s3_noncurrent_version_expiration_days" {
   default = 30
 }
 
+variable "extra_kms_policies" {
+  type    = list(any)
+  default = []
+}
+
+variable "extra_s3_log_policies" {
+  type    = list(any)
+  default = []
+}
+
+variable "extra_s3_athena_policies" {
+  type    = list(any)
+  default = []
+}

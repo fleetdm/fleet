@@ -6,7 +6,6 @@ Changes begin as [ideas](#intake) or [code](#outside-contributions) that can be 
 
 > You can read what's coming in the next 3-6 weeks in Fleet's [⚗️ Drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-
 ## Product design
 
 The product team is responsible for product design tasks like drafting [changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
@@ -74,11 +73,11 @@ Many open source contributions that start as a small, seemingly innocuous pull r
 Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
 ## Prioritizing improvements
-Product Managers prioritize all potential product improvements worked on by contributors inside the company.
+Product Managers prioritize all potential product improvements worked on by contributors inside the company. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint.
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [emergency drafting](#emergency-drafting). 
 
 > Anyone can [suggest improvements](#intake).
 
@@ -100,53 +99,6 @@ Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-wa
 
 ### Sprint numbering
 Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.
-
-### Leftovers
-Improvements are prioritized prior to estimation.  But sometimes, estimations will affect the calculus of what to include in an upcoming release.  Improvements that do not not "fit" into the capacity of the next scheduled release are left at the very top of the "Estimated" column of the drafting board.  The Product Manager always either includes these "leftovers" in the _next_ release (3-6 weeks) or deprioritizes and closes them.
-
-
-<!-- 
-
-----
-TODO: Revisit.  I noticed on 2023-03-22 there are old references to no longer relevant product groups in here.  Rather than documenting incorrect things, I commented it out.  Some of this writing is not captured elsewhere though.  We should consider extrapolating a lot of this from eng and product handbooks into the "product groups" page, to avoid duplication and out of date content.  -mike
-----
-
-### Process
-
-1. **Intake:** Product has a "time til estimated" timeframe, which measures the time from when an idea is first received until it is written up as an estimated issue and the requestor is notified exactly which aspects are scheduled for release. How intake works, and the estimation timeframe, vary per group, but every group has an estimation timeframe.
-
-2. **Estimation:** The estimation process consists of drafting, API design, and either planning poker or a quick timebox decided by the group EM. When the Interface group relies on the Platform group for part of an issue, only the Interface group's work is estimated. It is up to the Interface PM to obtain estimated Platform issues for any needed work and thus make sure it is scheduled in the appropriate release. It is up to the Platform PM to get those specced (in consultation with Engineering), then up to the Engineering to estimate and communicate promptly if issues arise. We avoid having more estimated issues than capacity in the next release. If the team is fully allocated, no more issues will be estimated, or the PM will decide whether to swap anything out. Once estimated, an issue is scheduled for release. 
-
-3. **Development:** Development starts on the first day of the new release. Only estimated issues are scheduled for release.
-
-4. **Quality assurance (QA):** Everyone in each group is responsible for quality: engineers, PM, and the EM. The QA process varies per group and is set by the group's PM. For example, in the Interface group, every issue is QA'd (i.e. a per-change basis), as well as a holistic "smoke test" during the last few days of each release.
-
-5. **Release:** Release dates are time-based and happen even if all features are not complete (± a day or two sometimes, if there's an emergency. Either way, the next release cycle starts on time). If anything is not finished, or can only be finished with changes, the PM finds out immediately and notifies the requestor right away.
-
-### Timeframes
-
-These are effectively internal SLAs. We moved away from the term "SLA" to avoid potential confusion with future, contractual Service Level Agreements Fleet might sign with its customers.
-
-#### Prioritization
-
-≤Five business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
-
-#### Release
-
-≤Six weeks from when the initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
-
-Work that is prioritized by the group PM should be released in the six week timeframe (two releases). Work that is too large for this timeframe should be split up.
-
-#### Estimation
-
-≤Five business days from the initial request, an issue is created with a summary of the purpose, the goal, and the plan to achieve it. The level of detail in that plan is up to the PM of the product group. The issue also has an estimation, expressed in story points, which is either determined through planning poker or a "timebox."
-
-For the Interface group, "estimated" means UI wireframes and API design are completed, and the work to implement them has been estimated.
-
-#### Adjustment
-
-≤One business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies the original requestor of changes to the spec.
- -->
 
 ### Product design conventions
 
@@ -229,7 +181,6 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-
 ## Breaking changes
 
 For product changes that cause breaking API or configuration changes or major impact for users (or even just the _impression_ of major impact!), the company plans migration thoughtfully.  That means the product department and E-group:
@@ -248,44 +199,69 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 
 ## Intake
 
-You can quickly suggest a product idea by adding a bullet to the bottom of ["Feature Fest"](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit).
+- [Making a request](#making-a-request)
+- [How features are evaluated](#how-features-are-evaluated)
+- [After the feature is accepted](#after-the-feature-is-accepted)
+- [Why this way?](#why-this-way)
 
-Digestion of these new product ideas (requests) happens at the **🗣 Feature Fest** meeting.  This recurring meeting is located on the "Office hours" calendar.
-
-At the **🗣 Feature Fest** meeting, the product team weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.  The DRI for this decision is the Head of Product.
-
-- A _request is prioritized_ when the business decides it is an immediate priority. When this happens, the team sets the request to be estimated within five business days.
-- A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
-
-### Why this way?
-
-- At Fleet, we use quarterly metrics to align the organization with measurable goals.  These goals fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.) and engineering capacity.   This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the wider Fleet community.
-- The 🗣️ Feature Fest meeting is a recurring ritual to make sure that the team weighs all requests.
-- If a feature is not prioritized in that meeting, then it is up to the requestor to bring the request back again another time.
-- Fleet only prioritizes changes that can go live in ≤6 weeks.  (That means becoming convinced that a request can shaped down such that a minimally valuable change can be designed, revised, built, and hand-tested in that timeframe.)
-- Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship.
-- Sometimes, the design or dev process reveals that a prioritized change needs to be canceled or significantly rethought.  In this case, the PM notifies the requestor.
-- You will be informed if your request is prioritized or put to the side within one business day from when the PM weighs your request.
-- Fleet always prioritizes bugs.
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the [regular 🎁🗣 Feature Fest meeting](#rituals). Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
 
 ### Making a request
 
-To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣  Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
-Then attend the next scheduled 🎁🗣 Feature Fest meeting.
+To make a feature request or advocate for a feature request from a customer or community member, add your request to the list in the [🎁🗣 Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
-Anyone in the company is invited to attend the 🎁🗣 Feature Fest meeting.  Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
+Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-Requests are weighed from top to bottom while prioritizing attendee requests.  This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+To be acceptable for consideration, a request must:
+- Have a clear proposed change
+- Have a well-articulated underlying user need
+- Specify the requestor (either internal stakeholder or customer or community user)
 
-All 🎁🗣 Feature Feat meetings are recorded and uploaded to Gong.
+To help the product team, other pieces of information can be optionally included:
+- How would they solve the problem without any changes if pressed?
+- How does this change fit into the requester's overall usage of Fleet?
+- What other potential changes to the product have you considered?
 
-> Fleet aspires to make these discussions public on YouTube when possible.  Interested in that?  Please [let us know](https://fleetdm.com/contact)!
+To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
 
-### Preparing for the meeting
-Each week the DRI for the 🎁🗣 Feature Fest meeting resets the document to blank by doing the following:
-1. Create issues for accepted items
-2. Notify absent requesters of decisions
-3. Move that week's feature requests to the backup journal document
+### How feature requests are evaluated
+Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
+
+At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.
+- A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
+- A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
+
+If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
+
+Requests are weighed by:
+- The completeness of the request (see [making a request](#making-a-request)
+- How urgent the need is for the customer
+- How much impact the request will have. This may be a wide impact across many customers and/or high impact on one
+- How well the request fits within Fleet's product vision and roadmap
+- Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
+
+### After the feature is accepted
+- After the 🎁🗣 Feature Fest meeting, the Head of Product resets the agenda to blank by doing the following:
+  - Create issues for accepted items
+  - Notify absent requesters of decisions
+  - Move that week's feature requests to the backup journal document
+
+> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
+
+Potential reasons for why a feature may be de-prioritized include:
+- The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity. 
+  - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
+- The was designed but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
+
+Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
+
+### Why this way?
+
+Most requests are not prioritized.  The goal is to narrow our focus and avoid creating an overflowing, aspirational backlog where good ideas inevitably go to die.  Instead, at Fleet we manage a small "frontlog" of changes we intend to ship. Responsibility for keeping backlogs then belong to the stakeholder who is closest to the customer. 
+
+### Misc.
+- All 🎁🗣 Feature Fest meetings are recorded and uploaded to Gong.
+- 🎁🗣 Feature Fest is located on the "Office hours" calendar.
 
 ## Usage statistics
 
@@ -303,14 +279,20 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| 🎁🗣 Feature fest  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| 🎁 Feature fest prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🎁🗣️ Feature fest event | Mo Zhu |
-| 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
-| Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
+| Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
+| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
+| Design sprint kickoff (CX) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
+| Design sprint kickoff (MDM) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
+| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
+| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the sprint backlog with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
+| Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the sprint backlog with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
+| Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
-| ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |
-| ⚗️ Sprint release notes kickoff | Tri-weekly | Product provides recommended features to highlight for the current sprint to enable the Marketing team to start writing release notes | Mo Zhu |
+| Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
 
 ## Slack channels
 

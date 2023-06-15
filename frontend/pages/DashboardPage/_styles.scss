@@ -63,6 +63,14 @@
 
   &__platform_dropdown {
     width: 138px;
+
+    .Select-menu-outer {
+      max-height: none;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
   }
 
   &__section {

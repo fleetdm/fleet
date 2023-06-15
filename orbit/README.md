@@ -74,6 +74,6 @@ Orbit uses a configurable update server. We expect that many folks will just use
 
 #### Chat
 
-Please join us in the #fleet channel on [osquery Slack](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/).
+Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
 
 <a href="https://fleetdm.com"><img alt="Banner featuring a futuristic cloud city with the Fleet logo" src="https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg"/></a>

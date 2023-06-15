@@ -33,7 +33,7 @@ const Spinner = ({
     "include-container": includeContainer,
   });
   return (
-    <div className={classOptions}>
+    <div className={classOptions} data-testid="spinner">
       <div className="loader">
         <svg className="circular" viewBox="25 25 50 50">
           <circle

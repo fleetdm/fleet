@@ -1,1 +1,0 @@
-* Updated the `/api/latest/fleet/mdm/apple_bm` to return 400 instead of 500 when it fails to authenticate with Apple's Business Manager API, as this indicates a Fleet configuration issue with the Apple BM certificate or token.

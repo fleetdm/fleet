@@ -156,6 +156,8 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
+type ListHostsLiteByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.Host, error)
+
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
@@ -570,6 +572,8 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
+type ResetMDMAppleNanoEnrollmentFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
@@ -637,6 +641,10 @@ type SetMDMAppleSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *
 type SetMDMAppleDefaultSetupAssistantProfileUUIDFunc func(ctx context.Context, teamID *uint, profileUUID string) error
 
 type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+
+type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
+
+type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -848,6 +856,9 @@ type DataStore struct {
 
 	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
 	ListHostsLiteByUUIDsFuncInvoked bool
+
+	ListHostsLiteByIDsFunc        ListHostsLiteByIDsFunc
+	ListHostsLiteByIDsFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -1470,6 +1481,9 @@ type DataStore struct {
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 
+	ResetMDMAppleNanoEnrollmentFunc        ResetMDMAppleNanoEnrollmentFunc
+	ResetMDMAppleNanoEnrollmentFuncInvoked bool
+
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
 
@@ -1571,6 +1585,12 @@ type DataStore struct {
 
 	GetMDMAppleDefaultSetupAssistantFunc        GetMDMAppleDefaultSetupAssistantFunc
 	GetMDMAppleDefaultSetupAssistantFuncInvoked bool
+
+	GetMatchingHostSerialsFunc        GetMatchingHostSerialsFunc
+	GetMatchingHostSerialsFuncInvoked bool
+
+	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
+	DeleteHostDEPAssignmentsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -2063,6 +2083,13 @@ func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamF
 	s.ListHostsLiteByUUIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsLiteByUUIDsFunc(ctx, filter, uuids)
+}
+
+func (s *DataStore) ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+	s.mu.Lock()
+	s.ListHostsLiteByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsLiteByIDsFunc(ctx, ids)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -3514,6 +3541,13 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }
 
+func (s *DataStore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResetMDMAppleNanoEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetMDMAppleNanoEnrollmentFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	s.mu.Lock()
 	s.ListMDMAppleDEPSerialsInTeamFuncInvoked = true
@@ -3750,4 +3784,18 @@ func (s *DataStore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID
 	s.GetMDMAppleDefaultSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleDefaultSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetMatchingHostSerialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMatchingHostSerialsFunc(ctx, serials)
+}
+
+func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []string) error {
+	s.mu.Lock()
+	s.DeleteHostDEPAssignmentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
 }
