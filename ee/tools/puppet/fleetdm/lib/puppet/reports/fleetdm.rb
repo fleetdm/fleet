@@ -18,7 +18,10 @@ Puppet::Reports.register_report(:fleetdm) do
     client = Puppet::Util::FleetClient.new(host, token)
     response = client.match_profiles
 
-    return unless response[:status] >= 400 && response[:status] < 600
-    Puppet.err _('Unable to match profiles to Fleet [%{code}] %{message}') % { code: response[:status], message: response[:body] }
+    if response['error'].empty?
+      Puppet.info("successfully matched #{node} with a team containing configuration profiles")
+    else
+      Puppet.err("error matching node #{node} with a team containing configuration profiles: #{response['error']}")
+    end
   end
 end
