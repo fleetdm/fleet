@@ -1,0 +1,11 @@
+{
+  "generators": {
+    "modules": {
+      "landing-page": "./generators/landing-page"
+    }
+  },
+  "_generatedWith": {
+    "sails": "1.2.5",
+    "sails-generate": "2.0.0"
+  }
+}
