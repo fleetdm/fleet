@@ -140,7 +140,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, err
 func (ds *Datastore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query := `
-SELECT name, description, query, platform, label_type, label_membership_type
+SELECT id, name, description, query, platform, label_type, label_membership_type
 FROM labels
 WHERE name = ?
 `

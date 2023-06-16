@@ -10,12 +10,14 @@ export default {
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
   CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
+  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/mac-setup/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
   CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
+  DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -73,6 +75,12 @@ export default {
   },
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
+  DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
+  },
+  DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
   SOFTWARE_DETAILS: (id: string): string => {

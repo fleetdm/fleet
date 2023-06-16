@@ -88,6 +88,7 @@
       border-top-right-radius: 6px;
       border-bottom-right-radius: 6px;
       border: 1px solid @core-fleet-black-25;
+      background-color: #FFF;
     }
 
     .input-group:focus-within {
@@ -129,6 +130,30 @@
 
     a {
       color: @core-vibrant-blue;
+    }
+
+    [purpose='support-link'] {
+      text-align: center;
+      margin-top: 24px;
+      margin-bottom: 0px;
+      a {
+        display: inline-block;
+      }
+      a:after {
+        background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
+        background-size: 7px 7px;
+        display: inline-block;
+        position: relative;
+        top: -4px;
+        left: 4px;
+        width: 7px;
+        height: 7px;
+        content: '';
+      }
+      br {
+        display: none;
+      }
+
     }
 
     [purpose='cta-cards'] {
@@ -299,7 +324,6 @@
       [purpose='docs-nav-button'] {
         color: @core-fleet-black;
         background-color: transparent;
-        font-family: 'Nunito Sans';
         font-weight: 400;
         font-size: 16px;
         padding: 0;
@@ -504,6 +528,10 @@
         padding: 0px;
         display: none;
       }
+      h1:first-of-type {
+        // Note: We're adding right margin to the first h1 to make sure it won't overlap the edit page button.
+        margin-right: 100px;
+      }
       h1 {
         padding-bottom: 16px;
       }
@@ -561,15 +589,15 @@
         font-size: 16px;
       }
       [purpose='large-quote']::before, [purpose='quote']::before {
-        font-family: 'Nunito Sans';
-        display: inline;
-        position: absolute;
-        content: '“';
+        content: ' ';
+        background-image: url('/images/icon-quote-mark-22x18@2x.png');
+        background-size: 22px 18px;
+        display: block;
+        position: relative;
         top: 16px;
         left: -32px;
-        font-size: 64px;
-        padding-right: 8px;
-        color: @core-vibrant-blue;
+        width: 22px;
+        height: 18px;
       }
       [purpose='tip'] {
         margin: 16px 0 32px;
@@ -834,6 +862,9 @@
 
       [purpose='right-sidebar'] {
         width: 100%;
+        // Note: we're specifying a minimum height for this element to be the height of the edit page button.
+        // Even if there are no subtopics on a documentation page, we can be sure that the edit page button will not overlap the pages content.
+        min-height: 30px;
 
         [purpose='subtopics'] {
           color: @core-fleet-black;

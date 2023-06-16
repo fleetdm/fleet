@@ -48,7 +48,7 @@
 
   .input-field {
     &__textarea {
-      min-height: 94px;
+      min-height: 88px;
     }
 
     &__textarea,
@@ -59,13 +59,13 @@
       color: $core-fleet-blue;
       line-height: 20px;
       margin-bottom: 0;
-      padding: $pad-medium $pad-large $pad-medium $pad-medium;
+      padding: 12px $pad-large 12px $pad-medium;
     }
   }
 
   &__advanced--installer {
     .input-field {
-      height: 115px;
+      height: 105px;
     }
   }
 
@@ -85,11 +85,14 @@
   }
 
   .buttons {
-    display: block;
+    display: flex;
+    flex-direction: row-reverse;
     align-items: center;
-    position: absolute;
-    right: 15px;
-    top: 40px;
+    position: relative;
+    top: 38px;
+    margin-right: $pad-medium;
+    height: 12px;
+    gap: $pad-small;
 
     a {
       display: flex;
@@ -104,7 +107,7 @@
 
   &__run-osquery-input {
     .buttons {
-      top: 12px;
+      top: 34px;
     }
   }
 
@@ -132,7 +135,8 @@
     }
   }
 
-  &__advanced--heading {
+  &__advanced--heading,
+  &__chromeos--heading {
     font-weight: $bold;
     margin-bottom: $pad-small;
   }
@@ -141,15 +145,23 @@
     font-weight: normal;
   }
 
-  &__advanced--installer {
-    p {
-      margin: 0;
+  &__chromeos--instructions,
+  &__advanced--instructions {
+    margin-bottom: $pad-medium;
+  }
+
+  &__chromeos-extension-id,
+  &__chromeos-url {
+    .buttons {
+      top: 34px;
     }
   }
 
-  &__advanced--osqueryd {
-    .buttons {
-      top: 73px;
+  &__chromeos-policy-for-extension {
+    height: 230px;
+
+    .input-field--disabled {
+      height: 190px;
     }
   }
 

@@ -42,10 +42,14 @@ func (c *Client) DeleteTeam(teamID uint) error {
 
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
-func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.TeamIDsByName, nil
 }
 
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified

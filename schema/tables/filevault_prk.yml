@@ -1,0 +1,11 @@
+name: filevault_prk
+platforms:
+  - darwin
+description: Returns contents of `/var/db/FileVaultPRK.dat`.
+columns:
+  - name: base64_encrypted
+    type: text
+    required: false
+    description: The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

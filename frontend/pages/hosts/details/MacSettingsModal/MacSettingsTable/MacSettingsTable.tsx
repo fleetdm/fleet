@@ -1,23 +1,22 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
-import { IHostMacMdmProfile } from "interfaces/mdm";
 
-import tableHeaders from "./MacSettingsTableConfig";
+import tableHeaders, { IMacSettingsTableRow } from "./MacSettingsTableConfig";
 
 const baseClass = "macsettings-table";
 
 interface IMacSettingsTableProps {
-  hostMacSettings?: IHostMacMdmProfile[];
+  tableData?: IMacSettingsTableRow[];
 }
 
-const MacSettingsTable = ({ hostMacSettings }: IMacSettingsTableProps) => {
+const MacSettingsTable = ({ tableData }: IMacSettingsTableProps) => {
   return (
     <div className={baseClass}>
       <TableContainer
         resultsTitle="settings"
         defaultSortHeader="name"
         columns={tableHeaders}
-        data={hostMacSettings}
+        data={tableData}
         emptyComponent={"symbol"}
         isLoading={false}
         showMarkAllPages={false}

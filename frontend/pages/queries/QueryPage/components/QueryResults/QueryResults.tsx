@@ -1,31 +1,30 @@
-import React, { useState, useContext } from "react";
-import { Row } from "react-table";
+import React, { useState, useContext, useEffect, useCallback } from "react";
+import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
+import { useDebouncedCallback } from "use-debounce";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import resultsTableHeaders from "./QueryResultsTableConfig";
-
-import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
+import generateResultsTableHeaders from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
-  onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
@@ -83,6 +82,44 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
+  const [tableHeaders, setTableHeaders] = useState<null | Column[]>([]);
+  const [errorTableHeaders, setErrorTableHeaders] = useState<null | Column[]>(
+    []
+  );
+  const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
+    queryResults
+  );
+
+  // immediately reset results
+  const onRunAgain = useCallback(() => {
+    setQueryResultsForTableRender([]);
+    onRunQuery();
+  }, [onRunQuery]);
+
+  const debounceQueryResults = useDebouncedCallback(
+    setQueryResultsForTableRender,
+    1000,
+    { maxWait: 2000 }
+  );
+
+  useEffect(() => {
+    debounceQueryResults(queryResults);
+  }, [queryResults, debounceQueryResults]);
+
+  // set tableHeaders when initial results come in
+  // instead of memoizing tableHeaders, since we know the conditions exactly under which we want to
+  // set these
+  useEffect(() => {
+    if (tableHeaders?.length === 0 && !!queryResults?.length) {
+      setTableHeaders(generateResultsTableHeaders(queryResults));
+    }
+  }, [tableHeaders, queryResults]);
+
+  useEffect(() => {
+    if (errorTableHeaders?.length === 0 && !!errors?.length) {
+      setErrorTableHeaders(generateResultsTableHeaders(errors));
+    }
+  }, [errorTableHeaders, errors]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -134,10 +171,10 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-link"
+          variant="text-icon"
         >
           <>
-            Show query <img alt="Show query" src={EyeIcon} />
+            Show query <Icon name="eye" size="small" />
           </>
         </Button>
         <Button
@@ -147,11 +184,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="text-link"
+          variant="text-icon"
         >
           <>
-            {`Export ${tableType}`}{" "}
-            <img alt={`Export ${tableType}`} src={DownloadIcon} />
+            Export {tableType}
+            <Icon name="download" color="core-fleet-blue" />
           </>
         </Button>
       </div>
@@ -165,7 +202,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={resultsTableHeaders(tableData || [])}
+          columns={tableType === "results" ? tableHeaders : errorTableHeaders}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -185,7 +222,9 @@ const QueryResults = ({
   };
 
   const renderResultsTab = () => {
-    const hasNoResultsYet = !isQueryFinished && !queryResults?.length;
+    // TODO - clean up these conditions
+    const hasNoResultsYet =
+      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
     const finishedWithNoResults =
       isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
@@ -197,7 +236,7 @@ const QueryResults = ({
       return renderNoResults();
     }
 
-    return renderTable(queryResults, "results");
+    return renderTable(queryResultsForTableRender, "results");
   };
 
   const renderErrorsTab = () => renderTable(errors, "errors");
@@ -213,7 +252,7 @@ const QueryResults = ({
         targetsTotalCount={targetsTotalCount}
         isQueryFinished={isQueryFinished}
         onClickDone={onQueryDone}
-        onClickRunAgain={onRunQuery}
+        onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
       <TabsWrapper>

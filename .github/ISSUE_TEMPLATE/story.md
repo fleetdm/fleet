@@ -2,7 +2,7 @@
 name: 🎟  Story
 about: Specify an iterative change to the Fleet product.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story,:product'
+labels: 'story'
 assignees: ''
 
 ---

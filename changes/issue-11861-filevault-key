@@ -1,0 +1,2 @@
+- Fixed bug when reading filevault key in osquery and created new Fleet osquery
+  extension table to read the file directly rather than via filelines table.

@@ -26,7 +26,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
-import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -115,6 +114,10 @@ const DataTable = ({
     return tableData;
   }, [tableData]);
 
+  const initialSortBy = useMemo(() => {
+    return [{ id: sortHeader, desc: sortDirection === "desc" }];
+  }, [sortHeader, sortDirection]);
+
   const {
     headerGroups,
     rows,
@@ -143,9 +146,7 @@ const DataTable = ({
       columns,
       data,
       initialState: {
-        sortBy: useMemo(() => {
-          return [{ id: sortHeader, desc: sortDirection === "desc" }];
-        }, [sortHeader, sortDirection]),
+        sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,
@@ -372,7 +373,7 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      icon,
+      iconSvg,
       iconPosition,
       indicatePremiumFeature,
     } = actionButtonProps;
@@ -387,7 +388,7 @@ const DataTable = ({
           variant={variant}
           hideButton={hideButton}
           indicatePremiumFeature={indicatePremiumFeature}
-          icon={icon}
+          iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
       </div>
@@ -408,7 +409,7 @@ const DataTable = ({
       onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
-      icon: primarySelectAction?.icon,
+      iconSvg: primarySelectAction?.iconSvg,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);

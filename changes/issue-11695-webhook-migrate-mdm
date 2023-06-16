@@ -1,2 +1,0 @@
-- Added device-authenticated endpoint to signal the Fleet server to send a webbook request with the device UUID and serial number to the webhook URL configured for MDM migration.
-- Added mechanism to refetch MDM enrollment status of a host pending unenrollment (due to a migration to Fleet) at a high interval.

@@ -115,11 +115,11 @@ module.exports.custom = {
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['hollidayn', 'mikermcneil'],
-    'handbook/engineering': 'zwass',
+    'handbook/business-operations': ['jostableford','hollidayn', 'mikermcneil'],
+    'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
@@ -159,8 +159,12 @@ module.exports.custom = {
     '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
 
+  },
+
+  fleetMdmGitopsGithubRepoDRIByPath: {
+    '/': ['lukeheath']
   },
 
   // The version of osquery to use when generating schema docs
@@ -182,6 +186,12 @@ module.exports.custom = {
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
   // datadogApiKey: '…',
+
+  // For receive-from-customer-fleet-instance webhook.
+  // customerWorkspaceOneBaseUrl: '…',
+  // customerWorkspaceOneOauthId: '…',
+  // customerWorkspaceOneOauthSecret: '…',
+  // customerMigrationWebhookSecret: '…',
 
   //…
 
