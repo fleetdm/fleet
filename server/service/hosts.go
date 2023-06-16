@@ -209,7 +209,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
 
-	hostIDs, err := svc.hostIDsFromFilters(ctx, opts, lid)
+	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, opts, lid)
 	if err != nil {
 		return err
 	}
@@ -666,6 +666,64 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		}
 	}
 
+	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
+}
+
+// creates the transferred hosts activity if hosts were transferred, taking
+// care of loading the team name and the hosts names if necessary (hostNames
+// may be passed as empty if they were not available to the caller, such as in
+// AddHostsToTeam, while it may be provided if available, such as in
+// AddHostsToTeamByFilter).
+func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *uint, hostIDs []uint, hostNames []string) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	var teamName *string
+	if teamID != nil {
+		tm, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team for activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if len(hostNames) == 0 {
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list hosts by ids")
+		}
+
+		// index the hosts by ids to get the names in the same order as hostIDs
+		hostsByID := make(map[uint]*fleet.Host, len(hosts))
+		for _, h := range hosts {
+			hostsByID[h.ID] = h
+		}
+
+		hostNames = make([]string, 0, len(hostIDs))
+		for _, hid := range hostIDs {
+			if h, ok := hostsByID[hid]; ok {
+				hostNames = append(hostNames, h.DisplayName())
+			} else {
+				// should not happen unless a host gets deleted just after transfer,
+				// but this ensures hostNames always matches hostIDs at the same index
+				hostNames = append(hostNames, "")
+			}
+		}
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeTransferredHostsToTeam{
+			TeamID:           teamID,
+			TeamName:         teamName,
+			HostIDs:          hostIDs,
+			HostDisplayNames: hostNames,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create transferred_hosts activity")
+	}
 	return nil
 }
 
@@ -712,7 +770,8 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
+
+	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, opt, lid)
 	if err != nil {
 		return err
 	}
@@ -742,7 +801,8 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
 		}
 	}
-	return nil
+
+	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, hostNames)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -887,10 +947,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}, nil
 }
 
-func (svc *Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
+func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Load hosts, either from label if provided or from all hosts.
@@ -901,18 +961,20 @@ func (svc *Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOp
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(hosts) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	hostIDs := make([]uint, 0, len(hosts))
+	hostNames := make([]string, 0, len(hosts))
 	for _, h := range hosts {
 		hostIDs = append(hostIDs, h.ID)
+		hostNames = append(hostNames, h.DisplayName())
 	}
-	return hostIDs, nil
+	return hostIDs, hostNames, nil
 }
 
 func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
