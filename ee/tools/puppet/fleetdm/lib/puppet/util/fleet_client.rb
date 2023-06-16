@@ -59,7 +59,7 @@ module Puppet::Util
         #
         # I couldn't find a built-in Ruby function to do raw encoding, so we're
         # removing the padding manually instead.
-        'command' => Base64.strict_encode64(command_xml).gsub(/[\n=]/, ""),
+        'command' => Base64.strict_encode64(command_xml).gsub(%r{[\n=]}, ''),
         'device_ids' => [uuid],
       })
     end
@@ -71,6 +71,7 @@ module Puppet::Util
     # @param headers [Hash] (optional) Additional headers to include in the request.
     # @return [Hash] The response status code, headers, and body.
     def post(path, body = nil, headers = {})
+      out = { 'error' => '' }
       uri = URI.parse("#{@host}#{path}")
 
       http = Net::HTTP.new(uri.host, uri.port)
@@ -82,23 +83,45 @@ module Puppet::Util
       headers.each { |key, value| request[key] = value }
       request.body = body.to_json if body
 
-      response = http.request(request)
-      parse_response(response)
+      begin
+        response = http.request(request)
+        out = parse_response(response)
+      rescue => e
+        out['error'] = e
+      end
+
+      out
     end
 
     private
 
     def parse_response(response)
-      {
-        status: response.code.to_i,
-        headers: response.to_hash,
-        body: response.body ? JSON.parse(response.body) : nil,
+      out = {
+        'status' => response.code.to_i,
+        'error' => ''
       }
+
+      if (400...600).cover?(response.code.to_i)
+        message = 'server returned a non-ok status code without an error'
+
+        if response.body
+          body = JSON.parse(response.body)
+          message = body['message']
+
+          unless body['errors'].nil?
+            error_messages = body['errors'].map { |e| "#{e['name']} #{e['reason']}" }
+            message = [message, *error_messages].join(': ')
+          end
+        end
+
+        out['error'] = message
+      end
+
+      out
     rescue JSON::ParserError => e
       {
-        status: response.code.to_i,
-        headers: response.to_hash,
-        error: "Failed to parse response body: #{e.message}"
+        'status' => response.code.to_i,
+       'error' => "Failed to parse response body: #{e.message}"
       }
     end
   end
