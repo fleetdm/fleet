@@ -5995,6 +5995,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List all software](#list-all-software)
 - [Count software](#count-software)
+
 ### List all software
 
 `GET /api/v1/fleet/software`

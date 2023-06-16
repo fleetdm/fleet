@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -24,14 +25,19 @@ func TestLimit(t *testing.T) {
 		throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
 	)(endpoint)
 
-	_, err := wrapped(context.Background(), struct{}{})
+	authzCtx := &authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(context.Background(), authzCtx)
+
+	_, err := wrapped(ctx, struct{}{})
 	assert.NoError(t, err)
 
 	// Hits rate limit
-	_, err = wrapped(context.Background(), struct{}{})
+	_, err = wrapped(ctx, struct{}{})
 	assert.Error(t, err)
 	var rle Error
+
 	assert.True(t, errors.As(err, &rle))
+	assert.True(t, authzCtx.Checked())
 }
 
 func TestNewErrorMiddlewarePanics(t *testing.T) {

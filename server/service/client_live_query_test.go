@@ -93,8 +93,8 @@ func TestLiveQueryWithContext(t *testing.T) {
 			insecureSkipVerify: false,
 			urlPrefix:          "",
 		},
-		token:  "1234",
-		writer: nil,
+		token:        "1234",
+		outputWriter: nil,
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
