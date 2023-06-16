@@ -60,7 +60,7 @@ describe("QuerySidePanel - component", () => {
       />
     );
 
-    const tooltip = screen.getByText(/only available on windows/i);
+    const tooltip = screen.getByText(/only available on chrome/i);
     expect(tooltip).toBeInTheDocument();
   });
 
