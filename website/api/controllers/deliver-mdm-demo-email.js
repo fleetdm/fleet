@@ -14,11 +14,6 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    hasOverOneThousandHosts: {
-      description: 'Whether the user who requested access to the MDM demo video has over 1,000 hosts.',
-      type: 'boolean',
-      required: true,
-    }
   },
 
 
@@ -29,12 +24,9 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, hasOverOneThousandHosts}) {
+  fn: async function ({emailAddress}) {
 
-    if(hasOverOneThousandHosts) {
-      // TODO are we creating leads from this form?
-    }
-    // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
+    // Send an email to the provided email address that contains a link to Dave's MDM demo.
     await sails.helpers.sendTemplateEmail.with({
       to: emailAddress,
       subject: 'Dave’s MDM video (again)',
