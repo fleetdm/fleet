@@ -32,6 +32,14 @@ Puppet::Functions.create_function(:"fleetdm::release_device") do
     host = call_function('lookup', 'fleetdm::host')
     token = call_function('lookup', 'fleetdm::token')
     client = Puppet::Util::FleetClient.new(host, token)
-    client.send_mdm_command(uuid, command_xml)
+    response = client.send_mdm_command(uuid, command_xml)
+
+    if response['error'].empty?
+      Puppet.info('successfully released device')
+    else
+      Puppet.err("error releasing device: #{response['error']}")
+    end
+
+    response
   end
 end
