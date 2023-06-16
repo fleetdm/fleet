@@ -39,6 +39,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
+
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
@@ -611,5 +613,7 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		{"GET", microsoft_mdm.MDE2DiscoveryPath, false, false},
+		{"POST", microsoft_mdm.MDE2DiscoveryPath, false, false},
 	}
 }

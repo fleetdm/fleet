@@ -696,6 +696,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMAppleConfigured(ctx context.Context) error
 
+	// VerifyMDMMicrosoftConfigured verifies that the server is configured for
+	// Microsoft MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user.
+	VerifyMDMMicrosoftConfigured(ctx context.Context) error
+
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
@@ -746,4 +751,10 @@ type Service interface {
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 
 	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft MDM
+
+	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
+	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)
 }
