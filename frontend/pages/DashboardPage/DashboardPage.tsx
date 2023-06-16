@@ -596,7 +596,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {useInfoCard({
         title: "Mobile device management (MDM)",
         titleDetail: mdmTitleDetail,
-        showTitle: !isMacAdminsFetching,
+        showTitle: !isMdmFetching,
         description: (
           <p>
             MDM is used to change settings and install software on your hosts.
