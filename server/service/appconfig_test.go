@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -397,6 +399,33 @@ func TestMissingMetadata(t *testing.T) {
 	require.True(t, invalid.HasErrors())
 	assert.Contains(t, invalid.Error(), "metadata")
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
+}
+
+func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
+	var schemas []string
+	schemas = append(schemas, getURISchemas()...)
+	schemas = append(schemas, "asdfaklsdfjalksdfja")
+
+	for _, scheme := range schemas {
+		actual := &fleet.InvalidArgumentError{}
+		sut := fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					IssuerURI:   "http://issuer.idp.com",
+					IDPName:     "onelogin",
+					MetadataURL: fmt.Sprintf("%s://somehost", scheme),
+				},
+			},
+		}
+
+		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{})
+
+		require.Equal(t, scheme == "http" || scheme == "https", !actual.HasErrors())
+		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "metadata_url"))
+		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "Metadata URL must be either https or http"))
+	}
 }
 
 func TestJITProvisioning(t *testing.T) {

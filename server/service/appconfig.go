@@ -668,6 +668,14 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 			invalid.Append("idp_name", "required")
 		}
 	}
+
+	if incoming.MetadataURL != "" {
+		if u, err := url.ParseRequestURI(incoming.MetadataURL); err != nil {
+			invalid.Append("metadata_url", err.Error())
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			invalid.Append("metadata_url", "Metadata URL must be either https or http")
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
