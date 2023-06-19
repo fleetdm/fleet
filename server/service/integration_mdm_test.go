@@ -54,6 +54,8 @@ import (
 )
 
 func TestIntegrationsMDM(t *testing.T) {
+	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+
 	testingSuite := new(integrationMDMTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -589,7 +591,23 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
-	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\)$`, tm1.Name)
+	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\.\d\d\d\)$`, tm1.Name)
+
+	// it create activities for the new team, the profiles assigned to it, and
+	// the host moved to it
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+		0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
+		0)
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -598,6 +616,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// order is guaranteed by profile name
 	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
+	// filevault is enabled by default
+	require.True(t, tm1.Config.MDM.MacOSSettings.EnableDiskEncryption)
 
 	// create a team and set profiles to it
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -640,27 +660,31 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
 
-	// the host's profiles are the same as the team's and are pending, and prof2 is pending removal
+	// the host's profiles are the same as the team's and are pending, and prof2 + old filevault are pending removal
 	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 3)
+	require.Len(t, hostProfs, 4)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
 		return l.Name < r.Name
 	})
-	require.Equal(t, "n1", hostProfs[0].Name)
+	require.Equal(t, "Disk encryption", hostProfs[0].Name)
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[0].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[0].OperationType)
-	require.Equal(t, "n2", hostProfs[1].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[0].OperationType)
+	require.Equal(t, "n1", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[1].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[1].OperationType)
-	require.Equal(t, "n4", hostProfs[2].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[1].OperationType)
+	require.Equal(t, "n2", hostProfs[2].Name)
 	require.NotNil(t, hostProfs[2].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[2].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[2].OperationType)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[2].OperationType)
+	require.Equal(t, "n4", hostProfs[3].Name)
+	require.NotNil(t, hostProfs[3].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[3].Status)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[3].OperationType)
 
 	// create a new mdm host enrolled in fleet
 	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1697,6 +1721,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMEnabled() {
+	t := s.T()
+
+	// the feature flag is enabled for the MDM test suite
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDMEnabled)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
@@ -4764,6 +4797,10 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
+
+	// hitting the callback with an invalid session id results in a 4xx
+	rawSSOResp := base64.StdEncoding.EncodeToString([]byte(`<samlp:Response ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef"></samlp:Response>`))
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, http.StatusUnauthorized)
 }
 
 type scepPayload struct {

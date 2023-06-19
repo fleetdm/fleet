@@ -1,2 +1,0 @@
-- Fix a bug in the users table where users that are observer+ for all of more than one team were
-  listed as "Various roles"

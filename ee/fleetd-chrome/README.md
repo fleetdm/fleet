@@ -1,39 +1,17 @@
 # Fleetd Chrome Extension
 
-## Pack extension
+## Packaging the extension
+Generate a .pem file to be the key for the chrome extension.
 
 (In parent dir)
+Run the following command to generate an extension.
 
 ``` sh
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=$HOME/chrome.pem
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --pack-extension=./fleetd-chrome --pack-extension-key=path/to/chrome.pem
 ```
 
-## Configure in Google Admin
-
-Left menu: Devices > Chrome > Apps & Extensions > Users & browsers (https://admin.google.com/ac/chrome/apps/user)
-
-Select the appropriate organizational unit, users, or groups.
-
-Bottom right yellow + button > Add Chrome app or extension by ID
-
-Extension ID: `fleeedmmihkfkeemmipgmhhjemlljidg`
-From a custom URL: `https://chrome.fleetdm.com/updates.xml`
-
-Then add the "Policy for extensions" to configure it:
-
-```
-{
-  "fleet_url": {
-    "Value": "https://fleet.example.com"
-  },
-  "enroll_secret":{
-    "Value": "<secretgoeshere>"
-  }
-}
-```
-
-Select "Force install". Select "Update URL" > "Installation URL (see above)"
-
+## Adding Chrome to Fleet
+To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension.
 
 ## Debugging
 
@@ -41,15 +19,30 @@ Select "Force install". Select "Update URL" > "Installation URL (see above)"
 
 View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
 
-### Dev
+### Manual Enroll
+
+> Steps 1 and 2 can be performed on your workstation. Step 3 and 4 are to be executed on the target Chromebook.
 
 1. Create your .env file:
-```
-echo 'FLEET_URL="<some_url>"' >> .env
+
+> IMPORTANT: The address in `FLEET_URL` must have a valid TLS certificate.
+
+```sh
+echo 'FLEET_URL="https://your-fleet-server.example.com"' >> .env
 echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
 ```
-2. Build:
+
+To test with your local Fleet server, you can use ngrok:
+```sh
+ngrok http https://localhost:8080
 ```
+
+2. Build the "unpacked extension":
+```sh
 npm install && npm run build
 ```
-3. The unpacked extension is in the `dist` dir.
+The above command will generate an unpacked extension in `./dist`.
+
+3. Send the `./dist` folder to the target Chromebook.
+
+4. In the target Chromebook, go to `chrome://settings`, toggle `Developer mode` and click on `Load unpacked` and select the `dist` folder.

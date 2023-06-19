@@ -42,6 +42,7 @@ export interface IOsQueryTable {
   columns: IQueryTableColumn[];
   examples?: string;
   notes?: string;
+  hidden?: boolean;
 }
 
 // Also used for testing

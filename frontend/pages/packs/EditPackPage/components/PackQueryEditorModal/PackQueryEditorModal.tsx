@@ -11,7 +11,7 @@ import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
-  PLATFORM_DROPDOWN_OPTIONS,
+  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -218,7 +218,7 @@ const PackQueryEditorModal = ({
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
         />
         <Dropdown
-          options={PLATFORM_DROPDOWN_OPTIONS}
+          options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
           placeholder="Select"
           label="Platform"
           onChange={onChangeSelectPlatformOptions}

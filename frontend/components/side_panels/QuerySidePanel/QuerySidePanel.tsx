@@ -47,7 +47,7 @@ const QuerySidePanel = ({
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames?.map((tableName: string) => {
+    const tableNames = osqueryTableNames.map((tableName: string) => {
       return { label: tableName, value: tableName };
     });
 

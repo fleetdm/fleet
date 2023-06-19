@@ -83,6 +83,8 @@ import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
+  MANAGE_HOSTS_PAGE_FILTER_KEYS,
+  ManageHostsPageQueryParams,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -498,11 +500,10 @@ const ManageHostsPage = ({
       (hostsData?.hosts?.length || 0) >=
       hostsCount;
 
-  const handleLabelChange = ({ slug }: ILabel): boolean => {
+  const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
 
-    const isDeselectingLabel =
-      labelID && labelID === selectedLabel?.id.toString();
+    const isDeselectingLabel = newLabelId && newLabelId === selectedLabel?.id;
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
@@ -1003,23 +1004,18 @@ const ManageHostsPage = ({
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
-    let action = hostsAPI.destroyBulk(selectedHostIds);
-
-    if (isAllMatchingHostsSelected) {
-      const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.destroyByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-      });
-    }
+    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
+    const labelId = selectedLabel?.id;
 
     try {
-      await action;
+      await (isAllMatchingHostsSelected
+        ? hostsAPI.destroyByFilter({
+            teamId,
+            query: searchQuery,
+            status,
+            labelId,
+          })
+        : hostsAPI.destroyBulk(selectedHostIds));
 
       const successMessage = `${
         selectedHostIds.length === 1 ? "Host" : "Hosts"
@@ -1310,6 +1306,17 @@ const ManageHostsPage = ({
     );
   };
 
+  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
+  const maybeEmptyHosts =
+    hostsCount === 0 && searchQuery === "" && !labelID && !status;
+
+  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
+    (filter) =>
+      filter !== "team_id" &&
+      typeof queryParams === "object" &&
+      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
+  );
+
   const renderTable = () => {
     if (!config || !currentUser || !isRouteOk) {
       return <Spinner />;
@@ -1318,27 +1325,7 @@ const ManageHostsPage = ({
     if (hasErrors) {
       return <TableDataError />;
     }
-
-    // There are no hosts for this instance yet
-    if (hostsCount === 0 && searchQuery === "" && !labelID && !status) {
-      const {
-        software_id,
-        policy_id,
-        mdm_id,
-        mdm_enrollment_status,
-        low_disk_space,
-      } = queryParams || {};
-      const includesNameCardFilter = !!(
-        software_id ||
-        policy_id ||
-        mdm_id ||
-        mdm_enrollment_status ||
-        low_disk_space ||
-        osId ||
-        osName ||
-        osVersion
-      );
-
+    if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           iconName: "empty-hosts",
@@ -1346,13 +1333,12 @@ const ManageHostsPage = ({
           info:
             "Expecting to see devices? Try again in a few seconds as the system catches up.",
         };
-        if (includesNameCardFilter) {
+        if (includesFilterQueryParam) {
           delete emptyHosts.iconName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
-        }
-        if (canEnrollHosts) {
+        } else if (canEnrollHosts) {
           emptyHosts.header = "Add your devices to Fleet";
           emptyHosts.info = "Generate an installer to add your own devices.";
           emptyHosts.primaryButton = (
@@ -1395,12 +1381,6 @@ const ManageHostsPage = ({
       isOnlyObserver:
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
-
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     // Update last column
     tableColumns.forEach((dataColumn) => {
@@ -1509,6 +1489,11 @@ const ManageHostsPage = ({
     );
   };
 
+  const showAddHostsButton =
+    canEnrollHosts &&
+    !hasErrors &&
+    (!maybeEmptyHosts || includesFilterQueryParam);
+
   return (
     <>
       <MainContent>
@@ -1525,22 +1510,15 @@ const ManageHostsPage = ({
                   <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canEnrollHosts &&
-                !hasErrors &&
-                !(
-                  !status &&
-                  hostsCount === 0 &&
-                  searchQuery === "" &&
-                  !labelID
-                ) && (
-                  <Button
-                    onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts`}
-                    variant="brand"
-                  >
-                    <span>Add hosts</span>
-                  </Button>
-                )}
+              {showAddHostsButton && (
+                <Button
+                  onClick={toggleAddHostsModal}
+                  className={`${baseClass}__add-hosts`}
+                  variant="brand"
+                >
+                  <span>Add hosts</span>
+                </Button>
+              )}
             </div>
           </div>
           {/* TODO: look at improving the props API for this component. Im thinking

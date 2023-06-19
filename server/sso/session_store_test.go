@@ -27,7 +27,8 @@ func TestSessionStore(t *testing.T) {
 		// Wait a little bit more than one second, session should no longer be present.
 		time.Sleep(1100 * time.Millisecond)
 		sess, err = store.get("request123")
-		assert.Equal(t, ErrSessionNotFound, err)
+		var authRequiredError *fleet.AuthRequiredError
+		assert.ErrorAs(t, err, &authRequiredError)
 		assert.Nil(t, sess)
 
 		// Create another session for 1 second
@@ -40,7 +41,7 @@ func TestSessionStore(t *testing.T) {
 
 		// It is not present anymore
 		sess, err = store.get("request456")
-		assert.Equal(t, ErrSessionNotFound, err)
+		assert.ErrorAs(t, err, &authRequiredError)
 		assert.Nil(t, sess)
 
 		// Expire a session that does not exist is fine

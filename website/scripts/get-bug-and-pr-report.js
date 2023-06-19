@@ -181,7 +181,9 @@ module.exports = {
           if (!pullRequest.draft) {// Exclude draft PRs
             daysSincePullRequestsWereOpened.push(timeOpenInDays);
           }
-          if (!pullRequest.draft && pullRequest.user.type !== 'Bot') {// Exclude draft PRs and PRs from bots
+          // If not a draft, not a bot, not a PR labeled with #handbook
+          // Track as a contributor PR and include in contributor PR KPI
+          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '#g-ceo')) {
             daysSinceContributorPullRequestsWereOpened.push(timeOpenInDays);
             contributorPullRequests.push(pullRequest);
           }
@@ -216,8 +218,8 @@ module.exports = {
     Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
     Average open time: ${averageDaysPullRequestsAreOpenFor} days.
 
-    Number of open pull requests in the fleetdm/fleet Github repo (no bots): ${daysSinceContributorPullRequestsWereOpened.length}
-    Average open time (no bots): ${averageDaysContributorPullRequestsAreOpenFor} days.`);
+    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
+    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.`);
   }
 
 };

@@ -764,6 +764,8 @@ None.
 
 Returns all information about the Fleet's configuration.
 
+> NOTE: The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned to Global Admin users.
+
 `GET /api/v1/fleet/config`
 
 #### Parameters
@@ -5993,6 +5995,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List all software](#list-all-software)
 - [Count software](#count-software)
+
 ### List all software
 
 `GET /api/v1/fleet/software`
