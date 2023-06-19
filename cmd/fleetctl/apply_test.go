@@ -913,8 +913,6 @@ spec:
     macos_setup:
       macos_setup_assistant: %s
     windows_enabled_and_configured: true
-    windows_excluded_teams:
-    - Team1
 `, mobileConfigPath, emptySetupAsst))
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
@@ -932,7 +930,6 @@ spec:
 			CustomSettings: []string{mobileConfigPath},
 		},
 		WindowsEnabledAndConfigured: true,
-		WindowsExcludedTeams:        []string{"Team1"},
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
@@ -966,7 +963,6 @@ spec:
 			CustomSettings: []string{mobileConfigPath},
 		},
 		WindowsEnabledAndConfigured: true,
-		WindowsExcludedTeams:        []string{"Team1"},
 	}, currentAppConfig.MDM)
 
 	// Apply team config.

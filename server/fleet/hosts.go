@@ -557,24 +557,13 @@ func (h *Host) NeedsDEPEnrollment() bool {
 
 // IsElegibleForWindowsMDMEnrollment returns true if the host can be enrolled
 // in Fleet's Windows MDM (if Windows MDM was enabled).
-func (h *Host) IsElegibleForWindowsMDMEnrollment(excludedTeamNames []string) bool {
+func (h *Host) IsElegibleForWindowsMDMEnrollment() bool {
 	// TODO: double-check those conditions (esp. 3rd party?)
-	canEnroll := h.FleetPlatform() == "windows" &&
+	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		!h.MDMInfo.IsFleetEnrolled() &&
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
-
-	if canEnroll && h.TeamName != nil {
-		// must not be part of one of the excluded teams
-		for _, nm := range excludedTeamNames {
-			if *h.TeamName == nm {
-				canEnroll = false
-				break
-			}
-		}
-	}
-	return canEnroll
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't

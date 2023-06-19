@@ -157,14 +157,6 @@ type MDM struct {
 	// with the similarly named macOS-specific fields.
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
-	// WindowsExcludedTeams is the list of team names that are excluded from the
-	// Windows MDM enrollment. Hosts that have Fleet Desktop installed and that
-	// are NOT part of those teams will be enrolled. Note that the setting stores
-	// team names instead of IDs because it may be set via 'fleetctl apply' and a
-	// YAML file, where names are used to identify entities (and this is
-	// consistent with the AppleBMDefaultTeam setting).
-	WindowsExcludedTeams []string `json:"windows_excluded_teams"`
-
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
@@ -470,10 +462,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
 		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
-	}
-	if c.MDM.WindowsExcludedTeams != nil {
-		clone.MDM.WindowsExcludedTeams = make([]string, len(c.MDM.WindowsExcludedTeams))
-		copy(clone.MDM.WindowsExcludedTeams, c.MDM.WindowsExcludedTeams)
 	}
 
 	return &clone
