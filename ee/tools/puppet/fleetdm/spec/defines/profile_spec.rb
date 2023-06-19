@@ -8,6 +8,7 @@ describe 'fleetdm::profile' do
   let(:template) { 'test-template' }
   let(:group) { 'group' }
   let(:node) { 'testhost.example.com' }
+  let(:catalog_uuid) { '827a74c8-cf98-44da-9ff7-18c5e4bee41e' }
   let(:params) do
     { 'template' => template, 'group' => group }
   end
@@ -16,6 +17,7 @@ describe 'fleetdm::profile' do
     fleet_client_class = class_spy('Puppet::Util::FleetClient')
     stub_const('Puppet::Util::FleetClient', fleet_client_class)
     allow(fleet_client_class).to receive(:new).with('https://example.com', 'test_token') { fleet_client_mock }
+    allow(SecureRandom).to receive(:uuid).and_return(catalog_uuid)
   end
 
   on_supported_os.each do |os, os_facts|
@@ -24,7 +26,7 @@ describe 'fleetdm::profile' do
 
       it 'compiles' do
         uuid = os_facts[:system_profiler]['hardware_uuid']
-        expect(fleet_client_mock).to receive(:preassign_profile).with(uuid, template, group)
+        expect(fleet_client_mock).to receive(:preassign_profile).with(catalog_uuid, uuid, template, group).and_return({ 'error' => '' })
         is_expected.to compile
       end
 
@@ -59,7 +61,7 @@ describe 'fleetdm::profile' do
 
         it 'compiles' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
-          expect(fleet_client_mock).to receive(:preassign_profile).with(uuid, template, 'default')
+          expect(fleet_client_mock).to receive(:preassign_profile).with(catalog_uuid, uuid, template, 'default').and_return({ 'error' => '' })
           is_expected.to compile
         end
       end

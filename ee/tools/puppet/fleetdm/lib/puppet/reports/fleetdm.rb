@@ -17,7 +17,8 @@ Puppet::Reports.register_report(:fleetdm) do
     token = Puppet::Pops::Lookup.lookup('fleetdm::token', nil, '', false, nil, lookup_invocation)
 
     client = Puppet::Util::FleetClient.new(host, token)
-    response = client.match_profiles
+    run_identifier = catalog_uuid || node_name
+    response = client.match_profiles(run_identifier)
 
     if response['error'].empty?
       Puppet.info("successfully matched #{node_name} with a team containing configuration profiles")
