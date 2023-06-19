@@ -1806,7 +1806,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
-		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsWindowsMDMEnrollment)
+		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		if meta.shouldEnroll {
 			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, windows_mdm.DiscoveryPath)
 		} else {

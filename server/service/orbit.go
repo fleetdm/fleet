@@ -213,7 +213,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
 			notifs.WindowsMDMDiscoveryEndpoint = discoURL
-			notifs.NeedsWindowsMDMEnrollment = true
+			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
 		}
 	}
 

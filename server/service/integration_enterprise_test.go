@@ -2798,7 +2798,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
-	require.False(t, resp.Notifications.NeedsWindowsMDMEnrollment)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 
 	// set macos_updates
