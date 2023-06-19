@@ -1,5 +1,14 @@
 import Table from "./Table";
 
+/*
+TODO:
+- Test certificate
+- What columns do we expect to return
+- How do returned values line up with (the 3 other platforms) osquery's certificates table
+- Write tests
+- Merge into schema once table is approved
+*/
+
 export default class TableCertificates extends Table {
   name = "certificates";
   columns = ["token"];
