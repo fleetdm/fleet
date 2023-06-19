@@ -350,7 +350,7 @@ const PlatformWrapper = ({
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
       policyForExtension: `{
   "fleet_url": {
-    "Value": "https://dogfood.fleetdm.com"
+    "Value": "${tlsHostname}"
   },
   "enroll_secret": {
     "Value": "${enrollSecret}"
