@@ -2,6 +2,29 @@
 
 package update
 
-func runWindowsMDMEnrollment() error {
+import (
+	"strings"
+
+	"golang.org/x/sys/windows/registry"
+)
+
+// Exported so that it can be used in tools/ (so that it can be built for
+// Windows and tested on a Windows machine). Otherwise not meant to be called
+// from outside this package.
+func RunWindowsMDMEnrollment() error {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close()
+
+	s, _, err := k.GetStringValue("InstallationType")
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(s) == "server" {
+		// do not enroll, it is a server
+		return errIsWindowsServer
+	}
 	return nil
 }

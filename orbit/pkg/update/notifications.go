@@ -94,7 +94,7 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	Frequency time.Duration
 
 	// for tests, to be able to mock command execution. If nil, will use
-	// runWindowsMDMEnrollment.
+	// RunWindowsMDMEnrollment.
 	runCmdFn runCmdFunc
 
 	// ensures only one command runs at a time, protects access to lastRun and
@@ -125,7 +125,7 @@ func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, err
 			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
 				fn := w.runCmdFn
 				if fn == nil {
-					fn = runWindowsMDMEnrollment
+					fn = RunWindowsMDMEnrollment
 				}
 				if err := fn(); err != nil {
 					if errors.Is(err, errIsWindowsServer) {
