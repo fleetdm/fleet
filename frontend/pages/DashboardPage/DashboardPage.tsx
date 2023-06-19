@@ -61,7 +61,6 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
-import { MANAGE_HOSTS_PAGE_FILTER_KEYS } from "pages/hosts/ManageHostsPage/HostsPageConfig";
 
 const baseClass = "dashboard-page";
 
@@ -424,7 +423,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const { MANAGE_HOSTS } = paths;
-  console.log("selectedPlatform", selectedPlatform);
+
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
     action:
