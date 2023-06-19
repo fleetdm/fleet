@@ -53,7 +53,7 @@ If you want to change the name of a query, you must first create a new query wit
 
 ## Labels
 
-Labels can be used to filter the list of hosts. When you create a label, it will get evaluated the next time the host runs "details" queries, which by default is every hour. If you would like to force the result of the label, this can be done by clicking on "Refetch" in the host details page. 
+Labels can be used to filter the list of hosts. When you create a label, it will get evaluated the next time Fleet fetches host vitals, which by default is every hour. If you would like to force the result of the label, this can be done by clicking "Refetch" on the host details page.
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
 
