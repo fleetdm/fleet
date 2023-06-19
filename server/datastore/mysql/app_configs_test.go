@@ -331,7 +331,7 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 
 func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-	_, err := ds.writer.Exec(insertAppConfigQuery, `{}`)
+	_, err := ds.writer(context.Background()).Exec(insertAppConfigQuery, `{}`)
 	require.NoError(t, err)
 
 	ac, err := ds.AppConfig(context.Background())
@@ -341,7 +341,7 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	require.True(t, ac.Features.EnableHostUsers)
 	require.False(t, ac.Features.EnableSoftwareInventory)
 
-	_, err = ds.writer.Exec(
+	_, err = ds.writer(context.Background()).Exec(
 		insertAppConfigQuery,
 		`{"webhook_settings": {"interval": "12h"}, "features": {"enable_host_users": false}}`,
 	)
@@ -357,7 +357,7 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 
 func testAppConfigBackwardsCompatibility(t *testing.T, ds *Datastore) {
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-	_, err := ds.writer.Exec(insertAppConfigQuery, `
+	_, err := ds.writer(context.Background()).Exec(insertAppConfigQuery, `
 {
   "host_settings": {
     "enable_host_users": false,
