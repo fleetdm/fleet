@@ -6,19 +6,16 @@ export default class TableCertificates extends Table {
 
   async generate() {
     let allCertificates;
-    try {
-      const tokens: any[] = await new Promise((resolve) =>
-        chrome.enterprise.platformKeys.getTokens(resolve)
-      );
 
-      for (let i = 0; i < tokens.length; i++) {
-        const certificates = await new Promise((resolve) =>
-          chrome.enterprise.platformKeys.getCertificates(tokens[i], resolve)
-        );
-        allCertificates.push({ token: tokens[i], certificates });
-      }
-    } catch (err) {
-      console.warn("get certificates info:", err);
+    const tokens: any[] = await new Promise((resolve) =>
+      chrome.enterprise.platformKeys.getTokens(resolve)
+    );
+
+    for (let i = 0; i < tokens.length; i++) {
+      const certificates = await new Promise((resolve) =>
+        chrome.enterprise.platformKeys.getCertificates(tokens[i].id, resolve)
+      );
+      allCertificates.push({ token: tokens[i], certificates });
     }
 
     return [{ allCertificates }];
