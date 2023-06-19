@@ -39,7 +39,7 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			}
 
 			var cmdGotCalled bool
-			renewFetcher := &RenewEnrollmentProfileConfigFetcher{
+			renewFetcher := &renewEnrollmentProfileConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
 				runCmdFn: func() error {
@@ -71,7 +71,7 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 
 	var cmdCallCount int
 	chProceed := make(chan struct{})
-	renewFetcher := &RenewEnrollmentProfileConfigFetcher{
+	renewFetcher := &renewEnrollmentProfileConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
 		runCmdFn: func() error {

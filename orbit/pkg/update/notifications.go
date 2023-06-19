@@ -10,7 +10,7 @@ import (
 
 type runCmdFunc func() error
 
-// RenewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
+// renewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
 // renew the enrollment profile. If so, it runs the command (as root) to
 // bootstrap the renewal of the profile on the device (the user still needs to
@@ -18,7 +18,7 @@ type runCmdFunc func() error
 //
 // It ensures only one renewal command is executed at any given time, and that
 // it doesn't re-execute the command until a certain amount of time has passed.
-type RenewEnrollmentProfileConfigFetcher struct {
+type renewEnrollmentProfileConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
@@ -36,13 +36,13 @@ type RenewEnrollmentProfileConfigFetcher struct {
 }
 
 func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
-	return &RenewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+	return &renewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the renew enrollment profile flag to true, executes the command
 // to renew the enrollment profile.
-func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := h.Fetcher.GetConfig()
 
 	// TODO: download and use swiftDialog following the same patterns we
