@@ -350,7 +350,7 @@ const PlatformWrapper = ({
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
       policyForExtension: `{
   "fleet_url": {
-    "Value": "${tlsHostname}"
+    "Value": "${config?.server_settings.server_url}"
   },
   "enroll_secret": {
     "Value": "${enrollSecret}"
