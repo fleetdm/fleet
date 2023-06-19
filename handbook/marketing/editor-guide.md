@@ -51,7 +51,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
 
-* For unpublished articles, please read the review process in [How to submit and publish an article](./how-to-submit-and-publish-an-article#review-process).
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/marketing/how-to-submit-and-publish-an-article#review-process).
 
 * To edit an existing article, see [How to make edits with GitHub](#how-to-make-edits-with-github).
 
