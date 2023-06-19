@@ -28,7 +28,7 @@ func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostIDs []uint) 
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &r, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -48,7 +48,7 @@ func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilitie
 	for _, v := range vulnerabilities {
 		args = append(args, v.HostID, v.OSID, v.CVE, source)
 	}
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert operating system vulnerabilities")
 	}
@@ -71,7 +71,7 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 	for _, v := range vulnerabilities {
 		args = append(args, v.HostID, v.CVE)
 	}
-	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting operating system vulnerabilities")
 	}
 	return nil
