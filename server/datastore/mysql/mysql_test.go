@@ -20,6 +20,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -34,20 +35,21 @@ func TestDatastoreReplica(t *testing.T) {
 	// with other tests when/if we move to subtests to minimize the number of
 	// databases created for tests (see #1805).
 
+	ctx := context.Background()
 	t.Run("noreplica", func(t *testing.T) {
 		ds := CreateMySQLDSWithOptions(t, nil)
 		defer ds.Close()
-		require.Equal(t, ds.reader, ds.writer)
+		require.Equal(t, ds.reader(ctx), ds.writer(ctx))
 	})
 
 	t.Run("replica", func(t *testing.T) {
 		opts := &DatastoreTestOptions{Replica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
-		require.NotEqual(t, ds.reader, ds.writer)
+		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
 
 		// create a new host
-		host, err := ds.NewHost(context.Background(), &fleet.Host{
+		host, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
@@ -62,14 +64,21 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID)
+		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
+		// force read from primary works
+		ctx = ctxdb.RequirePrimary(ctx, true)
+		got, err := ds.Host(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, got.ID)
+
 		opts.RunReplication()
 
-		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID)
+		// now it can read it from replica
+		ctx = ctxdb.RequirePrimary(ctx, false)
+		host2, err := ds.Host(ctx, host.ID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})
@@ -230,9 +239,9 @@ func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	require.NoError(t, err)
 	dbmock := sqlx.NewDb(db, "sqlmock")
 	ds := &Datastore{
-		writer: dbmock,
-		reader: dbmock,
-		logger: log.NewNopLogger(),
+		primary: dbmock,
+		replica: dbmock,
+		logger:  log.NewNopLogger(),
 	}
 
 	return mock, ds
@@ -983,7 +992,7 @@ func TestANSIQuotesEnabled(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	var sqlMode string
-	err := ds.writer.GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
+	err := ds.writer(context.Background()).GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
 }

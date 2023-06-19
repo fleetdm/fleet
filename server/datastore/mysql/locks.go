@@ -33,28 +33,28 @@ func (ds *Datastore) Lock(ctx context.Context, name string, owner string, expira
 }
 
 func (ds *Datastore) createLock(ctx context.Context, name string, owner string, expiration time.Duration) (sql.Result, error) {
-	return ds.writer.ExecContext(ctx,
+	return ds.writer(ctx).ExecContext(ctx,
 		`INSERT IGNORE INTO locks (name, owner, expires_at) VALUES (?, ?, ?)`,
 		name, owner, time.Now().Add(expiration),
 	)
 }
 
 func (ds *Datastore) extendLockIfAlreadyAcquired(ctx context.Context, name string, owner string, expiration time.Duration) (sql.Result, error) {
-	return ds.writer.ExecContext(ctx,
+	return ds.writer(ctx).ExecContext(ctx,
 		`UPDATE locks SET name = ?, owner = ?, expires_at = ? WHERE name = ? and owner = ?`,
 		name, owner, time.Now().Add(expiration), name, owner,
 	)
 }
 
 func (ds *Datastore) overwriteLockIfExpired(ctx context.Context, name string, owner string, expiration time.Duration) (sql.Result, error) {
-	return ds.writer.ExecContext(ctx,
+	return ds.writer(ctx).ExecContext(ctx,
 		`UPDATE locks SET name = ?, owner = ?, expires_at = ? WHERE expires_at < CURRENT_TIMESTAMP and name = ?`,
 		name, owner, time.Now().Add(expiration), name,
 	)
 }
 
 func (ds *Datastore) Unlock(ctx context.Context, name string, owner string) error {
-	_, err := ds.writer.ExecContext(ctx, `UPDATE locks SET expires_at = CURRENT_TIMESTAMP WHERE name = ? AND owner = ?`, name, owner)
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE locks SET expires_at = CURRENT_TIMESTAMP WHERE name = ? AND owner = ?`, name, owner)
 
 	return err
 }
@@ -77,7 +77,7 @@ func (ds *Datastore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	var locks []*fleet.DBLock
 	// Even though this is a Read, use the writer as we want the db locks from
 	// the primary database (the read replica should have little to no trx locks).
-	if err := ds.writer.SelectContext(ctx, &locks, stmt); err != nil {
+	if err := ds.writer(ctx).SelectContext(ctx, &locks, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select locking information")
 	}
 	return locks, nil
