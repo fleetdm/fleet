@@ -109,29 +109,29 @@ func getMySQLServer(t *testing.T, r dbReader) mysqlServer {
 func testLocksDBLocks(t *testing.T, ds *Datastore) {
 	t.Skip("flaky: https://github.com/fleetdm/fleet/issues/4270")
 
-	if srv := getMySQLServer(t, ds.reader); srv == mysql8 {
+	if srv := getMySQLServer(t, ds.reader(context.Background())); srv == mysql8 {
 		t.Skip("#3626: DBLocks is not supported for mysql 8 yet.")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
-	_, err := ds.writer.ExecContext(ctx, `CREATE TABLE deadlocks(a int primary key)`)
+	_, err := ds.writer(ctx).ExecContext(ctx, `CREATE TABLE deadlocks(a int primary key)`)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		_, err := ds.writer.ExecContext(ctx, `DROP TABLE deadlocks`)
+		_, err := ds.writer(ctx).ExecContext(ctx, `DROP TABLE deadlocks`)
 		require.NoError(t, err)
 	})
 
-	_, err = ds.writer.ExecContext(ctx, `INSERT INTO deadlocks(a) VALUES (0), (1)`)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO deadlocks(a) VALUES (0), (1)`)
 	require.NoError(t, err)
 
 	// cause a deadlock (see https://stackoverflow.com/a/31552794/1094941)
-	tx1, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx1, err := ds.writer(ctx).BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
 	defer tx1.Rollback() //nolint:errcheck
-	tx2, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx2, err := ds.writer(ctx).BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
 	defer tx2.Rollback() //nolint:errcheck
 

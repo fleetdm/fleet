@@ -46,7 +46,7 @@ func testListOSVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 
 	for _, v := range vulns {
-		_, err := ds.writer.Exec(
+		_, err := ds.writer(ctx).Exec(
 			`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
 			v.HostID, v.OSID, v.CVE,
 		)
