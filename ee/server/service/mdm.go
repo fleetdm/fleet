@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -762,6 +763,11 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return nil // nothing to do
 	}
 
+	// force-use the primary DB instance for all the following reads/writes
+	// (we may create a team and need to read it back, but also to get latest
+	// team matching the profiles)
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	// load the host and ensure it is enrolled in Fleet MDM
 	host, err := svc.ds.HostByIdentifier(ctx, profs.HostUUID)
 	if err != nil {
@@ -885,5 +891,5 @@ func teamNameFromPreassignGroups(groups []string) string {
 		groups = []string{defaultName}
 	}
 
-	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05"))
+	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.999"))
 }
