@@ -74,13 +74,18 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, host.ID, got.ID)
 
+		// but from replica still fails
+		ctx = ctxdb.RequirePrimary(ctx, false)
+		_, err = ds.Host(ctx, host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+
 		opts.RunReplication()
 
 		// now it can read it from replica
-		ctx = ctxdb.RequirePrimary(ctx, false)
-		host2, err := ds.Host(ctx, host.ID)
+		got, err = ds.Host(ctx, host.ID)
 		require.NoError(t, err)
-		require.Equal(t, host.ID, host2.ID)
+		require.Equal(t, host.ID, got.ID)
 	})
 }
 
