@@ -1,6 +1,7 @@
 package update
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -78,6 +79,69 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 				}
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
+			}
+		}
+	}
+	return cfg, err
+}
+
+type windowsMDMEnrollmentConfigFetcher struct {
+	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
+	// for actually returning the orbit configuration or an error.
+	Fetcher OrbitConfigFetcher
+	// Frequency is the minimum amount of time that must pass between two
+	// executions of the windows MDM enrollment attempt.
+	Frequency time.Duration
+
+	// for tests, to be able to mock command execution. If nil, will use
+	// runWindowsMDMEnrollment.
+	runCmdFn runCmdFunc
+
+	// ensures only one command runs at a time, protects access to lastRun and
+	// isWindowsServer.
+	mu              sync.Mutex
+	lastRun         time.Time
+	isWindowsServer bool
+}
+
+func ApplyWindowsMDMEnrollmentFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
+	return &windowsMDMEnrollmentConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+}
+
+var errIsWindowsServer = errors.New("device is a Windows Server")
+
+// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
+// server set the "needs windows enrollment" flag to true, executes the command
+// to enroll into Windows MDM (or not, if the device is a Windows Server).
+func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	cfg, err := w.Fetcher.GetConfig()
+
+	if err == nil && cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
+		if w.mu.TryLock() {
+			defer w.mu.Unlock()
+
+			// do not enroll Windows Servers, and do not attempt enrollment if the
+			// last run is not at least Frequency ago.
+			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
+				fn := w.runCmdFn
+				if fn == nil {
+					fn = runWindowsMDMEnrollment
+				}
+				if err := fn(); err != nil {
+					if errors.Is(err, errIsWindowsServer) {
+						w.isWindowsServer = true
+						log.Info().Msg("device is a Windows Server, skipping enrollment")
+					} else {
+						log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
+					}
+				} else {
+					w.lastRun = time.Now()
+					log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
+				}
+			} else if w.isWindowsServer {
+				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			} else {
+				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
 			}
 		}
 	}
