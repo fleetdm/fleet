@@ -38,7 +38,7 @@ If you don't have a CentOS host readily available, Fleet recommends using [Vagra
 
 To install vagrant on a mac run `brew install vagrant`. To install vagrant on a pc [download it here](https://developer.hashicorp.com/vagrant/downloads). To install Vagrant on Linux [follow these instructions](https://developer.hashicorp.com/vagrant/downloads).
 
-Once you have installed Vagrant, run the following to create a vagrant box, start it, and log into it:
+Once you have installed Vagrant, run the following to create a Vagrant box, start it, and log into it:
 
 ```
 echo 'Vagrant.configure("2") do |config|
