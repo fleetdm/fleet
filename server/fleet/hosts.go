@@ -555,6 +555,16 @@ func (h *Host) NeedsDEPEnrollment() bool {
 		h.IsDEPAssignedToFleet()
 }
 
+// IsElegibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if Windows MDM was enabled).
+func (h *Host) IsElegibleForWindowsMDMEnrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		!h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
