@@ -149,7 +149,7 @@ Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a f
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
 
-You can also indicate the [channels you would like Orbit to watch for updates](https://github.com/fleetdm/fleet/tree/main/orbit#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
+You can also indicate the [channels you would like Fleetd to watch for updates](./orbit.md#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
