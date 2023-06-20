@@ -80,9 +80,7 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
 }
 
-func (s *integrationSSOTestSuite) TestSSOLogin() {
-	t := s.T()
-
+func (s *integrationSSOTestSuite) TestSSOValidation() {
 	acResp := appConfigResponse{}
 	// Test we are validating metadata_url
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -93,7 +91,12 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 			"metadata_url": "ssh://localhost:9080/simplesaml/saml2/idp/metadata.php"
 		}
 	}`), http.StatusUnprocessableEntity, &acResp)
+}
 
+func (s *integrationSSOTestSuite) TestSSOLogin() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"sso_settings": {
 			"enable_sso": true,
