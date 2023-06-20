@@ -59,10 +59,26 @@ func readInstallationType() (string, error) {
 func enrollHostToMDM(discoveryURL string) error {
 	userInfo, err := user.Current() // TODO(mna): replace with the actual user we need
 	if err != nil {
-		return err
+		return fmt.Errorf("get current user: %w", err)
 	}
+	fmt.Printf("Current user: %+v\n", userInfo)
+
 	discoveryURLPtr := syscall.StringToUTF16Ptr(discoveryURL)
 	userPtr := syscall.StringToUTF16Ptr(userInfo.Username)
+
+	fmt.Println("Try to load mdm dll in memory...")
+	if err := dllMDMRegistration.Load(); err != nil {
+		fmt.Println("Failed to load mdm dll in memory.")
+		return fmt.Errorf("load MDM dll: %w", err)
+	}
+	fmt.Println("Succeeded to load mdm dll in memory!")
+
+	fmt.Println("Try to find mdm proc in memory...")
+	if err := procRegisterDeviceWithManagement.Find(); err != nil {
+		fmt.Println("Failed to find mdm proc in memory.")
+		return fmt.Errorf("find MDM RegisterDeviceWithManagement procedure: %w", err)
+	}
+	fmt.Println("Succeeded to find mdm proc in memory!")
 
 	// converting go csr string into UTF16 windows string
 	// passing empty value to force MDM OS stack to generate a CSR for us
@@ -77,7 +93,21 @@ func enrollHostToMDM(discoveryURL string) error {
 		uintptr(unsafe.Pointer(discoveryURLPtr)),
 		uintptr(unsafe.Pointer(inputCSRreq)),
 	); code != uintptr(windows.ERROR_SUCCESS) {
-		return fmt.Errorf("RegisterDeviceWithManagement failed: %s (%#x)", err, code)
+		// hexadecimal error code can help identify error here:
+		//   https://learn.microsoft.com/en-us/windows/win32/mdmreg/mdm-registration-constants
+		// decimal error code can help identify error here (look for the ERROR_xxx constants):
+		//   https://pkg.go.dev/golang.org/x/sys/windows#pkg-constants
+		//
+		// Note that the error message may be "The operation completed
+		// successfully." even though there is an error (e.g. if the discovery URL
+		// results in a 404 not found, the error code will be 0x80190194 which
+		// means windows.HTTP_E_STATUS_NOT_FOUND). In this case, translate the
+		// message to something more useful.
+		if httpCode := code - uintptr(windows.HTTP_E_STATUS_BAD_REQUEST); httpCode >= 0 && httpCode < 200 {
+			// status bad request is 400, so if error code is between 400 and < 600.
+			err = fmt.Errorf("using discovery URL %q: HTTP error code %d", discoveryURL, 400+httpCode)
+		}
+		return fmt.Errorf("RegisterDeviceWithManagement failed: %s (%#x - %[2]d)", err, code)
 	}
 
 	return nil
