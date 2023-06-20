@@ -558,7 +558,6 @@ func (h *Host) NeedsDEPEnrollment() bool {
 // IsElegibleForWindowsMDMEnrollment returns true if the host can be enrolled
 // in Fleet's Windows MDM (if Windows MDM was enabled).
 func (h *Host) IsElegibleForWindowsMDMEnrollment() bool {
-	// TODO: double-check those conditions (esp. 3rd party?)
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
