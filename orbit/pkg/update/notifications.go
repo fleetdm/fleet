@@ -85,6 +85,8 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	return cfg, err
 }
 
+type execWinAPIFunc func(string) error
+
 type windowsMDMEnrollmentConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
@@ -95,7 +97,7 @@ type windowsMDMEnrollmentConfigFetcher struct {
 
 	// for tests, to be able to mock command execution. If nil, will use
 	// RunWindowsMDMEnrollment.
-	runCmdFn runCmdFunc
+	execWinAPIFn execWinAPIFunc
 
 	// ensures only one command runs at a time, protects access to lastRun and
 	// isWindowsServer.
@@ -123,11 +125,11 @@ func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, err
 			// do not enroll Windows Servers, and do not attempt enrollment if the
 			// last run is not at least Frequency ago.
 			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
-				fn := w.runCmdFn
+				fn := w.execWinAPIFn
 				if fn == nil {
 					fn = RunWindowsMDMEnrollment
 				}
-				if err := fn(); err != nil {
+				if err := fn(cfg.Notifications.WindowsMDMDiscoveryEndpoint); err != nil {
 					if errors.Is(err, errIsWindowsServer) {
 						w.isWindowsServer = true
 						log.Info().Msg("device is a Windows Server, skipping enrollment")

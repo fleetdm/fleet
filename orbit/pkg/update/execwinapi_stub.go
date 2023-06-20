@@ -2,6 +2,6 @@
 
 package update
 
-func RunWindowsMDMEnrollment() error {
+func RunWindowsMDMEnrollment(discoveryURL string) error {
 	return nil
 }
