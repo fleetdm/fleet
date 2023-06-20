@@ -1658,3 +1658,13 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }
+
+// Undocumented feature flag for Windows MDM, used to determine if the Windows
+// MDM feature is visible in the UI and can be enabled. More details here:
+// https://github.com/fleetdm/fleet/issues/12257
+//
+// TODO: remove this flag once the Windows MDM feature is ready for
+// release.
+func IsMDMFeatureFlagEnabled() bool {
+	return os.Getenv("FLEET_DEV_MDM_ENABLED") == "1"
+}

@@ -69,6 +69,11 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		return fleet.ErrNoContext
 	}
 
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+
 	testMail := fleet.Email{
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
@@ -76,7 +81,8 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
-		Config: config,
+		SMTPSettings: smtpSettings,
+		ServerURL:    config.ServerSettings.ServerURL,
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {

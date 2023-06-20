@@ -318,7 +318,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
 	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying:
+	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying, fleet.MacOSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
@@ -330,6 +330,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	switch fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
 	case
 		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionVerified,
 		fleet.DiskEncryptionActionRequired,
 		fleet.DiskEncryptionEnforcing,
 		fleet.DiskEncryptionFailed,

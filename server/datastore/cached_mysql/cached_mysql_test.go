@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -471,8 +472,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	testMDMConfig := fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "10.10.10",
-			Deadline:       "1992-03-01",
+			MinimumVersion: optjson.SetString("10.10.10"),
+			Deadline:       optjson.SetString("1992-03-01"),
 		},
 	}
 
@@ -508,8 +509,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	// saving a team updates config in cache
 	updateMDMConfig := fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
-			MinimumVersion: "13.13.13",
-			Deadline:       "2022-03-01",
+			MinimumVersion: optjson.SetString("13.13.13"),
+			Deadline:       optjson.SetString("2022-03-01"),
 		},
 	}
 	updateTeam := &fleet.Team{

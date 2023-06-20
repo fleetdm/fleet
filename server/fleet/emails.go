@@ -12,10 +12,11 @@ type Mailer interface {
 }
 
 type Email struct {
-	Subject string
-	To      []string
-	Config  *AppConfig
-	Mailer  Mailer
+	Subject      string
+	To           []string
+	ServerURL    string
+	SMTPSettings SMTPSettings
+	Mailer       Mailer
 }
 
 type MailService interface {

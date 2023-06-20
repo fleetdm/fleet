@@ -1,7 +1,11 @@
 package osquery_utils
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +17,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -257,19 +262,21 @@ func TestGetDetailQueries(t *testing.T) {
 		"battery",
 		"os_windows",
 		"os_unix_like",
+		"os_chrome",
 		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
 		"disk_encryption_darwin",
 		"disk_encryption_linux",
 		"disk_encryption_windows",
+		"chromeos_profile_user_info",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 23)
+	require.Len(t, queriesWithoutWinOSVuln, 25)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
@@ -386,7 +393,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
+	assert.Equal(t, "Windows 11 Enterprise 10.0.22000", host.OSVersion)
 
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -408,7 +415,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
+	assert.Equal(t, "Windows 10 Enterprise LTSC 10.0.17763", host.OSVersion)
 }
 
 func TestDetailQueriesOSVersionChrome(t *testing.T) {
@@ -444,24 +451,100 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
-		require.False(t, enrolled)
-		require.False(t, installedFromDep)
-		require.Empty(t, serverURL)
-		return nil
-	}
-
 	var host fleet.Host
 
-	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	cases := []struct {
+		name       string
+		got        map[string]string
+		wantParams []any
+		wantErr    string
+	}{
 		{
-			"enrolled":           "false",
-			"installed_from_dep": "",
-			"server_url":         "",
+			"empty server URL",
+			map[string]string{
+				"enrolled":           "false",
+				"installed_from_dep": "",
+				"server_url":         "",
+			},
+			[]any{false, false, "", false, fleet.UnknownMDMName},
+			"",
 		},
-	})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		{
+			"with Fleet payload identifier",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://test.example.com",
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
+			"",
+		},
+		{
+			"with a query string on the server URL",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{false, true, "https://jamf.com/1/some/path", true, fleet.WellKnownMDMJamf},
+			"",
+		},
+		{
+			"with invalid installed_from_dep",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "invalid",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{},
+			"parsing installed_from_dep",
+		},
+		{
+			"with invalid enrolled",
+			map[string]string{
+				"enrolled":           "invalid",
+				"installed_from_dep": "false",
+				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
+			},
+			[]any{},
+			"parsing enrolled",
+		},
+		{
+			"with invalid server_url",
+			map[string]string{
+				"enrolled":           "false",
+				"installed_from_dep": "false",
+				"server_url":         "ht tp://foo.com",
+			},
+			[]any{},
+			"parsing server_url",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+				require.Equal(t, isServer, c.wantParams[0])
+				require.Equal(t, enrolled, c.wantParams[1])
+				require.Equal(t, serverURL, c.wantParams[2])
+				require.Equal(t, installedFromDep, c.wantParams[3])
+				require.Equal(t, name, c.wantParams[4])
+				return nil
+			}
+
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+			} else {
+				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+				require.NoError(t, err)
+				ds.SetOrUpdateMDMDataFuncInvoked = false
+			}
+		})
+	}
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -547,7 +630,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				KernelVersion: "10.0.22000.795",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
 			},
 		},
 	}
@@ -927,35 +1010,171 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	wantKey := "OTM5ODRDQTYtOUY1Mi00NERELTkxOUEtMDlBN0ZBOUUzNUY5Cg=="
 	host := &fleet.Host{ID: 1}
 
+	var wantKey string
+
+	mockFileLines := func(wantKey string, wantEncrypted string) []map[string]string {
+		var output []map[string]string
+		scanner := bufio.NewScanner(bytes.NewBuffer([]byte(wantKey)))
+		scanner.Split(bufio.ScanLines)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			item := make(map[string]string)
+			item["hex_line"] = hex.EncodeToString([]byte(line))
+			item["encrypted"] = wantEncrypted
+			output = append(output, item)
+		}
+		return output
+	}
+
+	mockFilevaultPRK := func(wantKey string, wantEncrypted string) []map[string]string {
+		return []map[string]string{
+			{"filevault_key": base64.StdEncoding.EncodeToString([]byte(wantKey)), "encrypted": wantEncrypted},
+		}
+	}
+
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
-		require.Empty(t, encryptedBase64Key)
-		require.Equal(t, host.ID, hostID)
+		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
+			return errors.New("key mismatch")
+		}
+		if host.ID != hostID {
+			return errors.New("host ID mismatch")
+		}
 		return nil
 	}
 
-	err := directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{})
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	t.Run("empty key", func(t *testing.T) {
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
-	ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
-		require.Equal(t, wantKey, encryptedBase64Key)
-		require.Equal(t, host.ID, hostID)
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1"}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1"}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1", "hex_line": ""}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1", "filevault_key": ""}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
+
+	t.Run("key contains new lines and carriage return", func(t *testing.T) {
+		wantKey = "This is only a \n\r\n\n test."
+
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, mockFileLines(wantKey, "1"))
+		// it is a known limitation with the current file_lines implementation that causes this to fail
+		// because it relies on bufio.ScanLines, which drops "\r" from "\r\n"
+		require.ErrorContains(t, err, "key mismatch")
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK(wantKey, "1"))
+		// filevault_prk does not have the scan lines limitation
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
+
+	t.Run("key contains new lines", func(t *testing.T) {
+		wantKey = "This is only a \n\n\n test."
+
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, mockFileLines(wantKey, "1"))
+		// new lines are not a problem if they are not preceded by carriage return
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK(wantKey, "1"))
+		// filevault_prk does not have the scan lines limitation
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
+}
+
+func TestDirectIngestHostMacOSProfiles(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	h := &fleet.Host{ID: 1}
+
+	var expectedProfiles []*fleet.HostMacOSProfile
+	ds.SetVerifiedHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+		require.Equal(t, h.ID, host.ID)
+		require.Len(t, installedProfiles, len(expectedProfiles))
+		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))
+		for _, ep := range expectedProfiles {
+			expectedByIdentifier[ep.Identifier] = ep
+		}
+		for _, ip := range installedProfiles {
+			ep, ok := expectedByIdentifier[ip.Identifier]
+			require.True(t, ok)
+			require.Equal(t, *ep, *ip)
+		}
+
 		return nil
 	}
+	expectedProfiles = []*fleet.HostMacOSProfile{
+		{
+			Identifier:  "com.example.test",
+			DisplayName: "Test Profile",
+			InstallDate: time.Now().Truncate(time.Second),
+		},
+	}
+	toRows := func(profs []*fleet.HostMacOSProfile) []map[string]string {
+		rows := make([]map[string]string, len(profs))
+		for i, p := range profs {
+			rows[i] = map[string]string{
+				"identifier":   p.Identifier,
+				"display_name": p.DisplayName,
+				"install_date": p.InstallDate.Format("2006-01-02 15:04:05 -0700"),
+			}
+		}
+		return rows
+	}
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": wantKey}})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	// expect no error: happy path
+	rows := toRows(expectedProfiles)
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect no error: identifer or display name is empty
+	expectedProfiles = append(expectedProfiles, &fleet.HostMacOSProfile{
+		Identifier:  "",
+		DisplayName: "",
+		InstallDate: time.Now().Truncate(time.Second),
+	})
+	rows = toRows(expectedProfiles)
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect no error: empty rows
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, []map[string]string{}))
+
+	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
+	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
+	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
 }

@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -77,9 +81,35 @@ func runAppNoChecks(args []string) (*bytes.Buffer, error) {
 	args = append([]string{""}, args...)
 
 	w := new(bytes.Buffer)
-	app := createApp(nil, w, noopExitErrHandler)
+	app := createApp(nil, w, os.Stderr, noopExitErrHandler)
+	err := app.Run(args)
+	return w, err
+}
+
+func runWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error) {
+	args = append([]string{""}, args...)
+
+	w := new(bytes.Buffer)
+	app := createApp(nil, w, errWriter, noopExitErrHandler)
 	err := app.Run(args)
 	return w, err
 }
 
 func noopExitErrHandler(c *cli.Context, err error) {}
+
+func serveMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.Server, int) {
+	pkgBytes, err := os.ReadFile(pkgPath)
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(pkgBytes)))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, pkgName))
+		if n, err := w.Write(pkgBytes); err != nil {
+			require.NoError(t, err)
+			require.Equal(t, len(pkgBytes), n)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, len(pkgBytes)
+}

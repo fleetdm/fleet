@@ -79,7 +79,7 @@ const ManagePolicyPage = ({
     filteredPoliciesPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-
+  const { setResetSelectedRows } = useContext(TableContext);
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -112,7 +112,6 @@ const ManagePolicyPage = ({
     },
   });
 
-  const { setResetSelectedRows } = useContext(TableContext);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
@@ -166,18 +165,30 @@ const ManagePolicyPage = ({
   }, []);
 
   useEffect(() => {
+    if (!isRouteOk) {
+      return;
+    }
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
     setInheritedSortHeader(initialInheritedSortHeader);
     setInheritedSortDirection(initialInheritedSortDirection);
-  }, [location]);
+  }, [location, isRouteOk]);
 
   useEffect(() => {
+    if (!isRouteOk) {
+      return;
+    }
     const path = location.pathname + location.search;
     if (location.search && filteredPoliciesPath !== path) {
       setFilteredPoliciesPath(path);
     }
-  }, [location, filteredPoliciesPath, setFilteredPoliciesPath]);
+  }, [
+    location.pathname,
+    location.search,
+    filteredPoliciesPath,
+    setFilteredPoliciesPath,
+    isRouteOk,
+  ]);
 
   const {
     data: globalPolicies,
@@ -280,9 +291,7 @@ const ManagePolicyPage = ({
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      if (!isEmpty(newSearchQuery)) {
-        newQueryParams.query = newSearchQuery;
-      }
+      newQueryParams.query = newSearchQuery;
 
       // Updates main policy table URL params
       // No change to inherited policy table URL params
@@ -329,7 +338,7 @@ const ManagePolicyPage = ({
         }
       }
 
-      if (teamIdForApi !== undefined) {
+      if (isRouteOk && teamIdForApi !== undefined) {
         newQueryParams.team_id = teamIdForApi;
       }
 
@@ -341,6 +350,7 @@ const ManagePolicyPage = ({
       router?.replace(locationPath);
     },
     [
+      isRouteOk,
       teamIdForApi,
       searchQuery,
       showInheritedTable,

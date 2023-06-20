@@ -30,12 +30,17 @@ module.exports = {
 
     require('assert')(sails.config.custom.githubRepoDRIByPath);
     require('assert')(sails.config.custom.confidentialGithubRepoDRIByPath);
+    require('assert')(sails.config.custom.fleetMdmGitopsGithubRepoDRIByPath);
     require('assert')(sails.config.custom.githubAccessToken);
 
     let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
 
     if (repo === 'confidential') {
       DRI_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
+    }
+
+    if (repo === 'fleet-mdm-gitops') {
+      DRI_BY_PATH = sails.config.custom.fleetMdmGitopsGithubRepoDRIByPath;
     }
 
     let owner = 'fleetdm';

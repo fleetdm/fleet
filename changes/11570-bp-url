@@ -1,1 +1,0 @@
-* MDM: try to infer the bootstrap package name from the URL on upload if a content-disposition header is not provided.

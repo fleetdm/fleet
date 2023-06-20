@@ -10,6 +10,87 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func TestIsGlobalObserver(t *testing.T) {
+	testCases := []struct {
+		GlobalRole *string
+		Expected   bool
+	}{
+		{
+			GlobalRole: nil,
+		},
+		{
+			GlobalRole: ptr.String(RoleAdmin),
+		},
+		{
+			GlobalRole: ptr.String(RoleObserver),
+			Expected:   true,
+		},
+		{
+			GlobalRole: ptr.String(RoleObserverPlus),
+			Expected:   true,
+		},
+	}
+
+	for _, tC := range testCases {
+		sut := User{GlobalRole: tC.GlobalRole}
+		require.Equal(t, sut.IsGlobalObserver(), tC.Expected)
+	}
+}
+
+func TestTeamMembership(t *testing.T) {
+	teams := []UserTeam{
+		{
+			Role: RoleAdmin,
+			Team: Team{
+				ID: 1,
+			},
+		},
+		{
+			Role: RoleGitOps,
+			Team: Team{
+				ID: 2,
+			},
+		},
+		{
+			Role: RoleObserver,
+			Team: Team{
+				ID: 3,
+			},
+		},
+		{
+			Role: RoleObserver,
+			Team: Team{
+				ID: 4,
+			},
+		},
+	}
+
+	sut := User{}
+	require.Empty(t, sut.TeamMembership(func(ut UserTeam) bool {
+		return true
+	}))
+
+	sut.Teams = teams
+
+	var result []uint
+	pred := func(ut UserTeam) bool {
+		return ut.Role == RoleGitOps || ut.Role == RoleObserver
+	}
+	for k := range sut.TeamMembership(pred) {
+		result = append(result, k)
+	}
+	require.ElementsMatch(t, result, []uint{2, 3, 4})
+
+	result = make([]uint, 0, len(teams))
+	pred = func(ut UserTeam) bool {
+		return true
+	}
+	for k := range sut.TeamMembership(pred) {
+		result = append(result, k)
+	}
+	require.ElementsMatch(t, result, []uint{1, 2, 3, 4})
+}
+
 func TestValidatePassword(t *testing.T) {
 	passwordTests := []struct {
 		Password, Email      string

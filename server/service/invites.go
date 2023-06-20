@@ -104,10 +104,15 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	if invitedBy == "" {
 		invitedBy = inviter.Email
 	}
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
 	inviteEmail := fleet.Email{
-		Subject: "You are Invited to Fleet",
-		To:      []string{invite.Email},
-		Config:  config,
+		Subject:      "You are Invited to Fleet",
+		To:           []string{invite.Email},
+		ServerURL:    config.ServerSettings.ServerURL,
+		SMTPSettings: smtpSettings,
 		Mailer: &mail.InviteMailer{
 			Invite:    invite,
 			BaseURL:   template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),

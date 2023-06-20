@@ -113,7 +113,6 @@ const NewQueryModal = ({
             Users with the Observer role will be able to run this query on hosts
             where they have access.
           </p>
-          <hr />
           <div className="modal-cta-wrap">
             <Button
               type="submit"

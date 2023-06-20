@@ -163,11 +163,11 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 |:-----------------|:--|:---|:---|:---|:--|
 | 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
 | 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SA            | ✅ | ✅ | ❌ | ✅ | ❌
+| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ✅
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
-| 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
-| Other department | ❌ | ❌ | ❌ | ✅ | ❌
+| ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
+| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
 
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
@@ -753,9 +753,10 @@ template.
 - Update "Equity plan" to reflect updated status and equity grant for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
+## Trust
+Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-## Security
-
+### Security
 Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
@@ -766,6 +767,8 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
+### Vendor questionnaires 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application Security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 
@@ -872,7 +875,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
-| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | BizOps on-call |
+| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
 
 
 
@@ -921,9 +924,9 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
-| `#g-business-operations`                | Business operations on-call
-| `#help-brex`                            | Business operations on-call
-| `#help-classified` _(¶¶)_               | Business operations on-call
+| `#g-business-operations`                | Joanne Stableford
+| `#help-brex`                            | Nathan Holliday
+| `#help-classified` _(¶¶)_               | Joanne Stableford
 | `#help-onboarding`                      | Mike McNeil
 | `#help-manage`                          | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil

@@ -898,7 +898,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, NT SERVICE\WdiServiceHost'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Profile system performance'
   query: |
-    SELECT 1 FROM cis_audit where item = "2.2.35" AND (regex_match(value,".*(?=.*Administrators)(?=.*NT SERVICE\WdiServiceHost).*",0) is not null);
+    SELECT 1 FROM cis_audit where item = "2.2.35" AND (regex_match(value,".*(?=.*Administrators)(?=.*WdiServiceHost).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.35, english-support-only
   contributors: marcosd4h
@@ -914,7 +914,7 @@ spec:
     different security access token, which can be used to modify the security access token of that sub-process and result in the escalation of privileges.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'LOCAL SERVICE, NETWORK SERVICE'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Replace a process level token'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.36" AND (regex_match(value,".*(?=.*LOCAL SERVICE)(?=.*NETWORK SERVICE).*",0) is not null);
@@ -955,7 +955,7 @@ spec:
     environment can shut down the operating system with the Shut Down command. Misuse of this user right can result in a denial of service condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, Users'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Shut down the system'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.38" AND (regex_match(value,".*(?=.*Administrators)(?=.*Users).*",0) is not null);
@@ -2323,7 +2323,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Computer Browser'
   query: |
     SELECT 1 WHERE 
-        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser' )
+        NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' )
         OR 
         EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Browser\\Start' AND data == 4 );
   purpose: Informational
@@ -2385,7 +2385,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\IIS Admin Service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\IISADMIN\\Start' AND data == 4 );
   purpose: Informational
@@ -2407,7 +2407,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Infrared monitor service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\irmon\\Start' AND data == 4 );
   purpose: Informational
@@ -2468,7 +2468,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\LxssManager'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\LxssManager\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LxssManager\\Start' AND data == 4 );
   purpose: Informational
@@ -2491,7 +2491,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Microsoft FTP Service'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\FTPSVC\\Start' AND data == 4 );
   purpose: Informational
@@ -2533,7 +2533,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\OpenSSH SSH Server'
   query: |
     SELECT 1 WHERE 
-    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd' )
+    NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' )
     OR 
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
@@ -7655,7 +7655,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Diagnostic Log Collection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\LimitEnhancedDiagnosticDataWindowsAnalytics' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\\LimitDiagnosticLogCollection' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.6
   contributors: marcosd4h
@@ -8032,9 +8032,9 @@ spec:
   query: |
     # The registry key is not present when policy is disabled, so query below is returning 1 when policy is disabled and registry value does not exist. It also return 1 in case policy is enabled and its registry value is 1 or 2
     SELECT 1 WHERE (
-      NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet' AND name = 'SpynetReporting' )
+      NOT EXISTS ( SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet' COLLATE NOCASE AND name = 'SpynetReporting' )
     ) OR (
-      NOT EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\SpynetReporting' AND data != 0 )
+      NOT EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\SpynetReporting' COLLATE NOCASE AND data != 0 )
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.4.2
@@ -9617,9 +9617,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 180 or more days':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage updates offered from Windows Update\Windows Update for Business\Select when Preview Builds and Feature Updates are received'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdates' AND data = 1)
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdates' AND CAST(data AS INTEGER) = 1)
     AND EXISTS (
-      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdatesPeriodInDays' AND data >= 180)
+      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\DeferFeatureUpdatesPeriodInDays' AND CAST(data AS INTEGER) >= 180)
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.108.4.2
