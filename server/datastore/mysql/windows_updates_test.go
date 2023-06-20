@@ -84,7 +84,7 @@ func testInsertWindowsUpdates(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		var actual []fleet.WindowsUpdate
-		err = sqlx.SelectContext(ctx, ds.reader, &actual, smt, hostID)
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &actual, smt, hostID)
 		require.NoError(t, err)
 
 		require.ElementsMatch(t, updates, actual)
@@ -105,7 +105,7 @@ func testInsertWindowsUpdates(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		var actual []fleet.WindowsUpdate
-		err = sqlx.SelectContext(ctx, ds.reader, &actual, smt, hostID)
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &actual, smt, hostID)
 		require.NoError(t, err)
 
 		require.ElementsMatch(t, updates, actual)

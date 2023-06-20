@@ -153,7 +153,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// Initialize policy violation days for test
 	pvdJSON, err := json.Marshal(PolicyViolationDays{FailingHostCount: 5, TotalHostCount: 10})
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO
 			aggregated_stats (id, global_stats, type, json_value, created_at, updated_at)
 		VALUES (?, ?, ?, CAST(? AS JSON), ?, ?)
