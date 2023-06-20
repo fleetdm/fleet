@@ -31,17 +31,17 @@ This is a document that evolves and will likely always be incomplete. If you fee
 
 Get the database host:
 ```shell
-DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].Endpoint" --output=text)
+DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].Endpoint" --output=text)
 ```
 
 Get the database user:
 ```shell
-DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].MasterUsername" --output=text)
+DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].MasterUsername" --output=text)
 ```
 
 Get the database password:
 ```shell
-DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /fleet/database/password/master --query "SecretString" --output=text)
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id fleet-dogfood-database-password --query "SecretString" --output=text)
 ```
 
 Connect:
