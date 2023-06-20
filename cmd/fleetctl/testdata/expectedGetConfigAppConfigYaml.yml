@@ -18,6 +18,7 @@ spec:
     apple_bm_enabled_and_configured: false
     enabled_and_configured: false
     apple_bm_default_team: ""
+    windows_enabled_and_configured: false
     macos_migration:
       enable: false
       mode: ""
