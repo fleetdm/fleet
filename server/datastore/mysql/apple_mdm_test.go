@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -24,7 +25,6 @@ import (
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -4551,10 +4551,10 @@ func TestMDMProfileVerification(t *testing.T) {
 			return errors.New("expected status to be non-nil")
 		}
 		if *gotProfs[0].Status != expectedStatus {
-			return errors.Errorf("expected status %s, got %s", expectedStatus, *gotProfs[0].Status)
+			return fmt.Errorf("expected status %s, got %s", expectedStatus, *gotProfs[0].Status)
 		}
 		if gotProfs[0].Detail != expectedDetail {
-			return errors.Errorf("expected detail %s, got %s", expectedDetail, gotProfs[0].Detail)
+			return fmt.Errorf("expected detail %s, got %s", expectedDetail, gotProfs[0].Detail)
 		}
 		return nil
 	}
@@ -4592,11 +4592,11 @@ func TestMDMProfileVerification(t *testing.T) {
 			// setup
 			h := test.NewHost(t, ds, tc.name, tc.name, tc.name, tc.name, twoMinutesAgo)
 			cp := setupTestProfile(t, fmt.Sprintf("%s-%d", tc.name, i))
-			var reportedProfiles []*fleet.HostMacOSProfile = nil // no profiles reported
+			var reportedProfiles []*fleet.HostMacOSProfile // no profiles reported for this test
 
 			// initialize
 			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-			checkHostStatus(t, h, tc.initialStatus, "")
+			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 			// within grace period
 			setProfileUpdatedAt(t, cp, twoMinutesAgo)
@@ -4605,7 +4605,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 			// reinitialize
 			upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-			checkHostStatus(t, h, tc.initialStatus, "")
+			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 			// outside grace period
 			setProfileUpdatedAt(t, cp, twoHoursAgo)
@@ -4658,18 +4658,18 @@ func TestMDMProfileVerification(t *testing.T) {
 					},
 				}
 
-				// initial status
+				// initialize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
 				require.NoError(t, ds.UpdateVerificationHostMacOSProfiles(ctx, h, reportedProfiles))
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // outdated profiles are treated similar to missing profiles so status doesn't change if within grace period
 
-				// reset to initial status
+				// reinitalize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
@@ -4723,7 +4723,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// initialize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
@@ -4732,7 +4732,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// reinitialize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
@@ -4791,7 +4791,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// initialize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// within grace period
 				setProfileUpdatedAt(t, cp, twoMinutesAgo)
@@ -4800,7 +4800,7 @@ func TestMDMProfileVerification(t *testing.T) {
 
 				// reinitialize
 				upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &tc.initialStatus, ctx, ds, t)
-				checkHostStatus(t, h, tc.initialStatus, "")
+				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, ""))
 
 				// outside grace period
 				setProfileUpdatedAt(t, cp, twoHoursAgo)
