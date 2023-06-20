@@ -413,7 +413,6 @@ func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
 				EnableSSO: true,
 				SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
-					IssuerURI:   "http://issuer.idp.com",
 					IDPName:     "onelogin",
 					MetadataURL: fmt.Sprintf("%s://somehost", scheme),
 				},
@@ -424,7 +423,7 @@ func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
 
 		require.Equal(t, scheme == "http" || scheme == "https", !actual.HasErrors())
 		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "metadata_url"))
-		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "Metadata URL must be either https or http"))
+		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "must be either https or http"))
 	}
 }
 

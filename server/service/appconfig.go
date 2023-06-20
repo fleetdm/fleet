@@ -673,7 +673,7 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if u, err := url.ParseRequestURI(incoming.MetadataURL); err != nil {
 			invalid.Append("metadata_url", err.Error())
 		} else if u.Scheme != "https" && u.Scheme != "http" {
-			invalid.Append("metadata_url", "Metadata URL must be either https or http")
+			invalid.Append("metadata_url", "must be either https or http")
 		}
 	}
 }
