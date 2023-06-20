@@ -73,7 +73,7 @@ Failed to run docker-compose
 
 You're probably running an old version of Docker. Download the installer for your platform from the [Docker Documentation](https://docs.docker.com/compose/install/).
 
-## What API endpoints do osquery and Orbit need access to?
+## What API endpoints do osquery and Fleetd need access to?
 
 Based on the configuration, osquery running on hosts will need access to these API endpoints:
 
@@ -85,7 +85,7 @@ Based on the configuration, osquery running on hosts will need access to these A
 * `/api/v1/osquery/carve/block`
 * `/api/v1/osquery/log`
 
-If you also have Orbit running on hosts, it will need access to these API endpoints:
+If you also have Fleetd running on hosts, it will need access to these API endpoints:
 
 * `/api/fleet/orbit/enroll`
 * `/api/fleet/orbit/config`
