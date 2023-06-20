@@ -2602,7 +2602,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Orbit installers.
+This is the name of the S3 bucket to store pre-built Fleetd installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`
