@@ -1,19 +1,17 @@
 {
-  "name": "root-fleetdm",
+  "name": "fleetdm-fleetdm",
   "version": "0.1.2",
   "author": "Fleet Device Management Inc",
-  "summary": "",
+  "summary": "MDM management and profile assignment using FleetDM",
   "license": "proprietary",
-  "source": "",
-  "dependencies": [
-
-  ],
+  "source": "https://github.com/fleetdm/fleet/tree/main/ee/tools/puppet/fleetdm",
+  "project_page": "https://github.com/fleetdm/fleet/tree/main/ee/tools/puppet/fleetdm",
+  "issues_url": "https://github.com/fleetdm/fleet",
+  "dependencies": [],
   "operatingsystem_support": [
     {
       "operatingsystem": "Darwin",
-      "operatingsystemrelease": [
-        "16"
-      ]
+      "operatingsystemrelease": ["16"]
     }
   ],
   "requirements": [
