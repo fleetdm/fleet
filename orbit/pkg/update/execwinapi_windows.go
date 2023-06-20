@@ -4,6 +4,7 @@ package update
 
 import (
 	"fmt"
+	"net/http"
 	"os/user"
 	"strings"
 	"syscall"
@@ -57,28 +58,23 @@ func readInstallationType() (string, error) {
 // Perform the host MDM enrollment process using MS-MDE protocol:
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde/5c841535-042e-489e-913c-9d783d741267
 func enrollHostToMDM(discoveryURL string) error {
-	userInfo, err := user.Current() // TODO(mna): replace with the actual user we need
+	// TODO(mna): replace with the actual user we need, see
+	// https://github.com/fleetdm/fleet/issues/12260#issuecomment-1597738545
+	userInfo, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("get current user: %w", err)
 	}
-	fmt.Printf("Current user: %+v\n", userInfo)
 
 	discoveryURLPtr := syscall.StringToUTF16Ptr(discoveryURL)
 	userPtr := syscall.StringToUTF16Ptr(userInfo.Username)
 
-	fmt.Println("Try to load mdm dll in memory...")
 	if err := dllMDMRegistration.Load(); err != nil {
-		fmt.Println("Failed to load mdm dll in memory.")
 		return fmt.Errorf("load MDM dll: %w", err)
 	}
-	fmt.Println("Succeeded to load mdm dll in memory!")
 
-	fmt.Println("Try to find mdm proc in memory...")
 	if err := procRegisterDeviceWithManagement.Find(); err != nil {
-		fmt.Println("Failed to find mdm proc in memory.")
 		return fmt.Errorf("find MDM RegisterDeviceWithManagement procedure: %w", err)
 	}
-	fmt.Println("Succeeded to find mdm proc in memory!")
 
 	// converting go csr string into UTF16 windows string
 	// passing empty value to force MDM OS stack to generate a CSR for us
@@ -105,7 +101,7 @@ func enrollHostToMDM(discoveryURL string) error {
 		// message to something more useful.
 		if httpCode := code - uintptr(windows.HTTP_E_STATUS_BAD_REQUEST); httpCode >= 0 && httpCode < 200 {
 			// status bad request is 400, so if error code is between 400 and < 600.
-			err = fmt.Errorf("using discovery URL %q: HTTP error code %d", discoveryURL, 400+httpCode)
+			err = fmt.Errorf("using discovery URL %q: HTTP error code %d", discoveryURL, http.StatusBadRequest+httpCode)
 		}
 		return fmt.Errorf("RegisterDeviceWithManagement failed: %s (%#x - %[2]d)", err, code)
 	}

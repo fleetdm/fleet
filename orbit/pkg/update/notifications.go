@@ -119,7 +119,9 @@ func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, err
 	cfg, err := w.Fetcher.GetConfig()
 
 	if err == nil && cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
-		if w.mu.TryLock() {
+		if cfg.Notifications.WindowsMDMDiscoveryEndpoint == "" {
+			log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
+		} else if w.mu.TryLock() {
 			defer w.mu.Unlock()
 
 			// do not enroll Windows Servers, and do not attempt enrollment if the
