@@ -13,3 +13,5 @@ variable "oidc_provider_arn" {}
 variable "oidc_provider" {}
 variable "ecr" {}
 variable "license_key" {}
+variable "apm_url" {}
+variable "apm_token" {}

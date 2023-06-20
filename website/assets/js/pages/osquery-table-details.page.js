@@ -11,7 +11,7 @@ parasails.registerPage('osquery-table-details', {
       'darwin': 'macOS',
       'linux': 'Linux',
       'windows': 'Windows',
-      'chromeos': 'ChromeOS',
+      'chrome': 'ChromeOS',
       'all': 'All platforms'
     },
   },
@@ -88,7 +88,7 @@ parasails.registerPage('osquery-table-details', {
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
       $('.hljs-keyword').each((i, el)=>{

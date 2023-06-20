@@ -92,6 +92,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 		}
+		if opts[0].ProfileMatcher != nil {
+			profMatcher = opts[0].ProfileMatcher
+		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
@@ -271,6 +274,7 @@ type TestServerOpts struct {
 	StartCronSchedules  []TestNewScheduleFunc
 	UseMailService      bool
 	APNSTopic           string
+	ProfileMatcher      fleet.ProfileMatcher
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

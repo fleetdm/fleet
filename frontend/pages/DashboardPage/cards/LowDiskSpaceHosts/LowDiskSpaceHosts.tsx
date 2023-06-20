@@ -15,6 +15,7 @@ interface IHostSummaryProps {
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
   isSandboxMode?: boolean;
+  notSupported: boolean;
 }
 
 const LowDiskSpaceHosts = ({
@@ -25,6 +26,7 @@ const LowDiskSpaceHosts = ({
   selectedPlatformLabelId,
   currentTeamId,
   isSandboxMode = false,
+  notSupported = false, // default to supporting this feature
 }: IHostSummaryProps): JSX.Element => {
   // build the manage hosts URL filtered by low disk space only
   // currently backend cannot filter by both low disk space and label
@@ -38,6 +40,10 @@ const LowDiskSpaceHosts = ({
     : PATHS.MANAGE_HOSTS;
   const path = `${endpoint}?${queryString}`;
 
+  const tooltipText = notSupported
+    ? "Disk space info is not available for Chromebooks."
+    : `Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`;
+
   return (
     <div className={baseClass}>
       <SummaryTile
@@ -46,10 +52,11 @@ const LowDiskSpaceHosts = ({
         isLoading={isLoadingHosts}
         showUI={showHostsUI}
         title="Low disk space hosts"
-        tooltip={`Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`}
+        tooltip={tooltipText}
         path={path}
         isSandboxMode={isSandboxMode}
         sandboxPremiumOnlyIcon
+        notSupported={notSupported}
       />
     </div>
   );

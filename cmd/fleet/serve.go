@@ -554,7 +554,7 @@ the way that the Fleet server works.
 			}
 
 			// setup mail service
-			if appCfg.SMTPSettings.SMTPEnabled {
+			if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
 				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
 				if config.Email.EmailBackend != "" {
 					config.Email.EmailBackend = ""
@@ -691,7 +691,11 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage)
+				var commander *apple_mdm.MDMAppleCommander
+				if appCfg.MDM.EnabledAndConfigured {
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				}
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}

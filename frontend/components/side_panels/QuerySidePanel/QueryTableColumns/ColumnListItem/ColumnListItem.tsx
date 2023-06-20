@@ -71,6 +71,15 @@ const createTooltipHtml = (
     );
   }
 
+  if (column.platforms?.length === 3) {
+    const platform1 = PLATFORM_DISPLAY_NAMES[column.platforms[0]];
+    const platform2 = PLATFORM_DISPLAY_NAMES[column.platforms[1]];
+    const platform3 = PLATFORM_DISPLAY_NAMES[column.platforms[2]];
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform1}, ${platform2}, and ${platform3}.</span>`
+    );
+  }
+
   const tooltip = toolTipHtml.join("");
   return tooltip;
 };

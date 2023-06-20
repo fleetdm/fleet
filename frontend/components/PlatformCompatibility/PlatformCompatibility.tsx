@@ -13,7 +13,12 @@ interface IPlatformCompatibilityProps {
 
 const baseClass = "platform-compatibility";
 
-const DISPLAY_ORDER = ["macOS", "Windows", "Linux"] as IOsqueryPlatform[];
+const DISPLAY_ORDER = [
+  "macOS",
+  "Windows",
+  "Linux",
+  "ChromeOS",
+] as IOsqueryPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 

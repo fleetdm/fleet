@@ -27,7 +27,7 @@ We’re just at v1 and Orbit has a long way to go. We want Orbit to be Fleet’s
 
 Orbit will be the one-stop shop for all your agent needs in Fleet. Stay tuned as we deliver improvements to make that vision a reality.
 
-If you have suggestions for Orbit, please share them with us in the osquery Slack [#fleet channel](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) or open an issue in Github.
+If you have suggestions for Orbit, please share them with us in the osquery Slack [#fleet channel](https://fleetdm.com/slack) or open an issue in Github.
 
 
 <meta name="category" value="announcements">

@@ -1,0 +1,1 @@
+- Hide any osquery tables or columns from Fleet UI that has hidden set to true to match Fleet website

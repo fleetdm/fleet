@@ -755,9 +755,10 @@ template.
 - Update "Equity plan" to reflect updated status and equity grant for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
+## Trust
+Fleet is successful because of our customers and community, and those relationships are built on trust.
 
-## Security
-
+### Security
 Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
@@ -768,6 +769,8 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
+### Vendor questionnaires 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [Application Security](https://fleetdm.com/docs/using-fleet/application-security) documentation. In addition to this documentation, please refer to [the Vendor questionnaires page](./vendor-questionnaires.md) 
 
 ## Finance
 

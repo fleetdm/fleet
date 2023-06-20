@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1308,6 +1309,10 @@ func getMDMCommandResultsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range res {
+				if bytes.Contains(r.Result, []byte("\t")) {
+					// tabs in the XML result tends to break the table formatting
+					r.Result = bytes.ReplaceAll(r.Result, []byte("\t"), []byte(" "))
+				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),

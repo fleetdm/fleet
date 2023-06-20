@@ -56,6 +56,8 @@ variable "oidc_provider" {}
 variable "kms_key_arn" {}
 variable "ecr_url" {}
 variable "license_key" {}
+variable "apm_url" {}
+variable "apm_token" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -163,7 +165,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.32.0"
+    value = "v4.33.0"
   }
 
   set {
@@ -197,8 +199,18 @@ resource "helm_release" "main" {
   }
 
   set {
-    name  = "fleet.license_key"
+    name  = "fleet.licenseKey"
     value = var.license_key
+  }
+
+  set {
+    name  = "apm.url"
+    value = var.apm_url
+  }
+
+  set {
+    name  = "apm.token"
+    value = var.apm_token
   }
 }
 

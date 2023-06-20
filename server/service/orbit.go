@@ -11,6 +11,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	windows_mdm "github.com/fleetdm/fleet/v4/server/mdm/windows"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -182,7 +183,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{Notifications: notifs}, err
 	}
 
-	// set the host's orbit notifications
+	// set the host's orbit notifications for macOS MDM
 	if config.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
 		if host.NeedsDEPEnrollment() {
 			notifs.RenewEnrollmentProfile = true
@@ -201,6 +202,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
+		}
+	}
+
+	// set the host's orbit notifications for Windows MDM
+	if config.MDM.WindowsEnabledAndConfigured {
+		if host.IsElegibleForWindowsMDMEnrollment() {
+			discoURL, err := windows_mdm.ResolveWindowsMDMDiscovery(config.ServerSettings.ServerURL)
+			if err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+			notifs.WindowsMDMDiscoveryEndpoint = discoURL
+			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
 		}
 	}
 
@@ -225,8 +238,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		var nudgeConfig *fleet.NudgeConfig
 		if mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.Deadline != "" &&
-			mdmConfig.MacOSUpdates.MinimumVersion != "" {
+			mdmConfig.MacOSUpdates.Deadline.Value != "" &&
+			mdmConfig.MacOSUpdates.MinimumVersion.Value != "" {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
@@ -250,8 +263,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
-	if config.MDM.MacOSUpdates.Deadline != "" &&
-		config.MDM.MacOSUpdates.MinimumVersion != "" {
+	if config.MDM.MacOSUpdates.Deadline.Value != "" &&
+		config.MDM.MacOSUpdates.MinimumVersion.Value != "" {
 		nudgeConfig, err = fleet.NewNudgeConfig(config.MDM.MacOSUpdates)
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err

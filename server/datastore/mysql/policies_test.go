@@ -992,7 +992,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "pass", policies[0].Response)
 
 	// Manually insert a global policy with null resolution.
-	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
+	res, err := ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1760,7 +1760,7 @@ func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*
 		HostID   uint `db:"host_id"`
 	}
 	var rows []polHostIDs
-	err = ds.writer.SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
 	require.NoError(t, err)
 
 	// index the host IDs by policy ID
@@ -1786,7 +1786,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	then := time.Now().Add(-48 * time.Hour)
 
 	setStatsTimestampDB := func(updatedAt time.Time) error {
-		_, err := ds.writer.ExecContext(ctx, `
+		_, err := ds.writer(ctx).ExecContext(ctx, `
 			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND global_stats = ? AND type = ?
 		`, then, updatedAt, 0, true, aggregatedStatsTypePolicyViolationsDays)
 		return err
@@ -1812,7 +1812,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	}
 
 	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
-	res, err := ds.writer.ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
+	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	pol, err := ds.Policy(ctx, uint(id))
@@ -1828,7 +1828,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// setup db for test: starting counts zero, more than 24h since last updated, one outstanding violation
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err := amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 0 -> 1 (+1 outstanding violation)
 	require.Equal(t, 1, actual)
@@ -1840,7 +1840,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// setup for test: starting counts zero, less than 24h since last updated, one outstanding violation
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-1*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// count should not increment from zero
 	require.Equal(t, 0, actual)
@@ -1852,7 +1852,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false))
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 0 -> 2 (+2 outstanding violations)
 	require.Equal(t, 2, actual) // leave count at two for next test
@@ -1864,7 +1864,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	// actual should increment from 2 -> 3 (+1 outstanding violation)
 	require.Equal(t, 3, actual)
@@ -1874,7 +1874,7 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 
 	// attempt again immediately after last update, counts should not increment
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
-	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	require.Equal(t, 3, actual)
 	require.Equal(t, 6, possible)
@@ -1916,7 +1916,7 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	may2020 := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
 	pols := make([]*fleet.Policy, 3)
 	for i, dt := range []time.Time{jan2020, feb2020, mar2020} {
-		res, err := ds.writer.ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
+		res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "p"+strconv.Itoa(i+1), "select 1", user.ID, "", dt, dt)
 		require.NoError(t, err)
 		id, _ := res.LastInsertId()
 		pol, err := ds.Policy(ctx, uint(id))
@@ -2027,7 +2027,7 @@ func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts 
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
 			WHERE id = ?`
-	_, err := ds.writer.ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
+	_, err := ds.writer(context.Background()).ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
 	require.NoError(t, err)
 }
 
@@ -2068,14 +2068,14 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Len(t, hostPolicies, 1)
 
 	var count int
-	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = deleteAllPolicyMemberships(ctx, ds.writer, []uint{host.ID})
+	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
 	require.NoError(t, err)
 
-	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 }
@@ -2095,7 +2095,7 @@ func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
 		Iteration int  `db:"iteration"`
 	}
 	var automations at
-	err = ds.writer.Select(&automations, `SELECT policy_id, iteration FROM policy_automation_iterations;`)
+	err = ds.writer(ctx).Select(&automations, `SELECT policy_id, iteration FROM policy_automation_iterations;`)
 	require.NoError(t, err)
 	require.ElementsMatch(t, automations, at{
 		{pol1.ID, 1},
