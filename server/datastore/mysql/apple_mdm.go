@@ -1544,7 +1544,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               host_uuid,
               status,
               operation_type,
-			  detail,
+              detail,
               command_uuid,
 	      checksum
             )
@@ -1552,7 +1552,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	    ON DUPLICATE KEY UPDATE
               status = VALUES(status),
               operation_type = VALUES(operation_type),
-			  detail = VALUES(detail),
+              detail = VALUES(detail),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
@@ -1655,8 +1655,8 @@ WHERE
 // setMDMProfilesFailedDB sets the status of the given identifiers to failed if the current status
 // is verifying or verified. It also sets the detail to a message indicating that the profile was
 // either verifying or verified. Only profiles with the install operation type are updated.
-func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, failedIdentifiers []string) error {
-	if len(failedIdentifiers) == 0 {
+func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
 		return nil
 	}
 
@@ -1680,7 +1680,7 @@ WHERE
 		host.UUID,
 		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryVerified},
 		fleet.MDMAppleOperationTypeInstall,
-		failedIdentifiers,
+		identifiers,
 	}
 	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {
@@ -1695,8 +1695,8 @@ WHERE
 
 // setMDMProfilesVerifiedDB sets the status of the given identifiers to verified if the current
 // status is verifying. Only profiles with the install operation type are updated.
-func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, verifiedIdentifiers []string) error {
-	if len(verifiedIdentifiers) == 0 {
+func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
 		return nil
 	}
 
@@ -1717,7 +1717,7 @@ WHERE
 		host.UUID,
 		fleet.MDMAppleDeliveryVerifying,
 		fleet.MDMAppleOperationTypeInstall,
-		verifiedIdentifiers,
+		identifiers,
 	}
 	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {
