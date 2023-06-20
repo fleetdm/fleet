@@ -7,7 +7,9 @@ describe 'fleetdm::preassign_profile' do
   let(:device_uuid) { 'device-uuid' }
   let(:template) { 'template' }
   let(:group) { 'group' }
+  let(:node_name) { Puppet[:node_name_value] }
   let(:catalog_uuid) { '827a74c8-cf98-44da-9ff7-18c5e4bee41e' }
+  let(:run_identifier) { "#{catalog_uuid}-#{node_name}" }
   let(:profile_identifier) { 'test.example.com' }
 
   before(:each) do
@@ -20,12 +22,12 @@ describe 'fleetdm::preassign_profile' do
   it { is_expected.to run.with_params(nil).and_raise_error(StandardError) }
 
   it 'performs an API call to Fleet with the right parameters' do
-    expect(fleet_client_mock).to receive(:preassign_profile).with(catalog_uuid, device_uuid, template, group).and_return({ 'error' => '' })
+    expect(fleet_client_mock).to receive(:preassign_profile).with(run_identifier, device_uuid, template, group).and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template, group)
   end
 
   it 'has a default value if group is not provided' do
-    expect(fleet_client_mock).to receive(:preassign_profile).with(catalog_uuid, device_uuid, template, 'default').and_return({ 'error' => '' })
+    expect(fleet_client_mock).to receive(:preassign_profile).with(run_identifier, device_uuid, template, 'default').and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template)
   end
 end

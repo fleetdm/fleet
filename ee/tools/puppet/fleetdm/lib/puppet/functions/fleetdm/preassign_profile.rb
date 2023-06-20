@@ -14,7 +14,7 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     host = call_function('lookup', 'fleetdm::host')
     token = call_function('lookup', 'fleetdm::token')
     client = Puppet::Util::FleetClient.new(host, token)
-    run_identifier = closure_scope.catalog.catalog_uuid || Puppet[:node_name_value]
+    run_identifier = "#{closure_scope.catalog.catalog_uuid}-#{Puppet[:node_name_value]}"
     response = client.preassign_profile(run_identifier, host_uuid, template, group)
 
     if response['error'].empty?
