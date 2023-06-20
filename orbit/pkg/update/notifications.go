@@ -85,7 +85,7 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	return cfg, err
 }
 
-type execWinAPIFunc func(string) error
+type execWinAPIFunc func(WindowsMDMEnrollmentArgs) error
 
 type windowsMDMEnrollmentConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
@@ -94,6 +94,8 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
 	Frequency time.Duration
+	// HostUUID is the current host's UUID.
+	HostUUID string
 
 	// for tests, to be able to mock command execution. If nil, will use
 	// RunWindowsMDMEnrollment.
@@ -106,8 +108,16 @@ type windowsMDMEnrollmentConfigFetcher struct {
 	isWindowsServer bool
 }
 
-func ApplyWindowsMDMEnrollmentFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
-	return &windowsMDMEnrollmentConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+func ApplyWindowsMDMEnrollmentFetcherMiddleware(
+	fetcher OrbitConfigFetcher,
+	frequency time.Duration,
+	hostUUID string,
+) OrbitConfigFetcher {
+	return &windowsMDMEnrollmentConfigFetcher{
+		Fetcher:   fetcher,
+		Frequency: frequency,
+		HostUUID:  hostUUID,
+	}
 }
 
 var errIsWindowsServer = errors.New("device is a Windows Server")
@@ -131,7 +141,11 @@ func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, err
 				if fn == nil {
 					fn = RunWindowsMDMEnrollment
 				}
-				if err := fn(cfg.Notifications.WindowsMDMDiscoveryEndpoint); err != nil {
+				args := WindowsMDMEnrollmentArgs{
+					DiscoveryURL: cfg.Notifications.WindowsMDMDiscoveryEndpoint,
+					HostUUID:     w.HostUUID,
+				}
+				if err := fn(args); err != nil {
 					if errors.Is(err, errIsWindowsServer) {
 						w.isWindowsServer = true
 						log.Info().Msg("device is a Windows Server, skipping enrollment")

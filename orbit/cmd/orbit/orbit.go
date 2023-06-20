@@ -631,7 +631,7 @@ func main() {
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
-			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency)
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
