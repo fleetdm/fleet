@@ -16,7 +16,7 @@ func (ds *Datastore) PendingEmailChange(ctx context.Context, uid uint, newEmail,
       new_email
     ) VALUES( ?, ?, ? )
   `
-	_, err := ds.writer.ExecContext(ctx, sqlStatement, uid, token, newEmail)
+	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, uid, token, newEmail)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting email change record")
 	}

@@ -645,6 +645,14 @@ func (svc *Service) validateMDM(
 			}
 		}
 	}
+
+	// Windows validation
+	if !config.IsMDMFeatureFlagEnabled() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+			return
+		}
+	}
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {

@@ -774,7 +774,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.Len(t, hostProfs, len(profiles))
 
 	var hostID uint
-	err = sqlx.GetContext(context.Background(), ds.reader, &hostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID)
+	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &hostID, `SELECT id  FROM hosts WHERE uuid = ?`, testUUID)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hostID, "asdf")
 	require.NoError(t, err)
@@ -785,14 +785,14 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 
 	// check that an entry in host_mdm exists
 	var count int
-	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, testUUID)
+	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, testUUID)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
 	err = ds.UpdateHostTablesOnMDMUnenroll(ctx, testUUID)
 	require.NoError(t, err)
 
-	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
+	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
@@ -1004,7 +1004,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, globalPfs, len(globalProfiles))
 
-	_, err = ds.writer.Exec(`
+	_, err = ds.writer(ctx).Exec(`
           INSERT INTO nano_commands (command_uuid, request_type, command)
           VALUES ('command-uuid', 'foo', '<?xml')
 	`)
@@ -1279,12 +1279,12 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 // testIngestMDMAppleHostAlreadyExistsInFleet)
 func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expectedSerial string, expectedModel string) {
 	var displayName string
-	err := sqlx.GetContext(context.Background(), ds.reader, &displayName, `SELECT display_name FROM host_display_names WHERE host_id = ?`, hostID)
+	err := sqlx.GetContext(context.Background(), ds.reader(context.Background()), &displayName, `SELECT display_name FROM host_display_names WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
 	require.Equal(t, fmt.Sprintf("%s (%s)", expectedModel, expectedSerial), displayName)
 
 	var labelsOK []bool
-	err = sqlx.SelectContext(context.Background(), ds.reader, &labelsOK, `SELECT 1 FROM label_membership WHERE host_id = ?`, hostID)
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()), &labelsOK, `SELECT 1 FROM label_membership WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
 	require.Len(t, labelsOK, 2)
 	require.True(t, labelsOK[0])
@@ -1293,7 +1293,7 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expecte
 	appCfg, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	var hmdm fleet.HostMDM
-	err = sqlx.GetContext(context.Background(), ds.reader, &hmdm, `SELECT host_id, server_url, mdm_id FROM host_mdm WHERE host_id = ?`, hostID)
+	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &hmdm, `SELECT host_id, server_url, mdm_id FROM host_mdm WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
 	require.Equal(t, hostID, hmdm.HostID)
 	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
@@ -1302,7 +1302,7 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expecte
 	require.NotEmpty(t, hmdm.MDMID)
 
 	var mdmSolution fleet.MDMSolution
-	err = sqlx.GetContext(context.Background(), ds.reader, &mdmSolution, `SELECT name, server_url FROM mobile_device_management_solutions WHERE id = ?`, hmdm.MDMID)
+	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &mdmSolution, `SELECT name, server_url FROM mobile_device_management_solutions WHERE id = ?`, hmdm.MDMID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.WellKnownMDMFleet, mdmSolution.Name)
 	require.Equal(t, serverURL, mdmSolution.ServerURL)
@@ -1348,7 +1348,7 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 // createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be
 // extant for MDM flows
 func createBuiltinLabels(t *testing.T, ds *Datastore) {
-	_, err := ds.writer.Exec(`
+	_, err := ds.writer(context.Background()).Exec(`
 		INSERT INTO labels (
 			name,
 			description,
@@ -1371,10 +1371,10 @@ func createBuiltinLabels(t *testing.T, ds *Datastore) {
 }
 
 func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
-	_, err := ds.writer.Exec(`INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, host.UUID)
+	_, err := ds.writer(context.Background()).Exec(`INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, host.UUID)
 	require.NoError(t, err)
 
-	_, err = ds.writer.Exec(`
+	_, err = ds.writer(context.Background()).Exec(`
 INSERT INTO nano_enrollments
 	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
@@ -1391,7 +1391,7 @@ VALUES
 	require.NoError(t, err)
 
 	if withUser {
-		_, err = ds.writer.Exec(`
+		_, err = ds.writer(context.Background()).Exec(`
 INSERT INTO nano_enrollments
 	(id, device_id, user_id, type, topic, push_magic, token_hex)
 VALUES
@@ -1804,7 +1804,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsVerified, ptr.Uint(0), []*fleet.Host{}))
 
 	// hosts[6] deletes all its profiles
-	tx, err := ds.writer.BeginTxx(ctx, nil)
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, hosts[6].UUID))
 	require.NoError(t, tx.Commit())
@@ -2121,7 +2121,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 
-	tx, err := ds.writer.BeginTxx(ctx, nil)
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, h.UUID))
 	require.NoError(t, tx.Commit())
@@ -4028,7 +4028,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, int64(1), n)
 
 		var depHostID uint
-		err = sqlx.GetContext(ctx, ds.reader, &depHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", depSerial)
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &depHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", depSerial)
 		require.NoError(t, err)
 
 		// host MDM row is created when DEP device is ingested
@@ -4177,7 +4177,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.NoError(t, err)
 
 		var manualHostID uint
-		err = sqlx.GetContext(ctx, ds.reader, &manualHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", manualSerial)
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &manualHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", manualSerial)
 		require.NoError(t, err)
 
 		// host MDM is "On (manual)"
