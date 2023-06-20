@@ -754,6 +754,7 @@
     [purpose='back-to-top-button-container'] {
       position: sticky;
       bottom: 107px;
+      overflow-x: hidden;
     }
     [purpose='back-to-top-button'] {
       display: inline-block;
@@ -782,6 +783,9 @@
       display: inline-block;
       transition: transform 0.5s;
       transform: translateX(0);
+    }
+    [purpose='back-to-top-button'].show::hover {
+      background: #F9FAFC;
     }
   }
 

@@ -120,7 +120,7 @@ parasails.registerPage('basic-handbook', {
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
       if (backToTopButton) {
-        if(scrollTop > 2000) {
+        if(scrollTop > 2500) {
           backToTopButton.classList.add('show');
         } else if (scrollTop === 0) {
           backToTopButton.classList.remove('show');

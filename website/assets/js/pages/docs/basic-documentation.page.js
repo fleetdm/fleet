@@ -279,7 +279,7 @@ parasails.registerPage('basic-documentation', {
           rightNavBar.classList.remove('header-hidden');
         }
       }
-      if (backToTopButton && scrollTop > 2000) {
+      if (backToTopButton && scrollTop > 2500) {
         backToTopButton.classList.add('show');
       } else if (scrollTop === 0) {
         backToTopButton.classList.remove('show');
