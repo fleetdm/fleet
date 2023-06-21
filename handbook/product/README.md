@@ -276,11 +276,11 @@ Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/das
 ## Maintenance
 Fleet's product offerings depend on the capabilities of other platforms. This require the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and our existing capabilities continue to function. The first step to staying up-to-date with our partners is to know when the partner platform changes. 
 
-Every week, a member of the product team (as determined in the [rituals](#rituals) section) should look up whether there are changes to the following platforms:
-1. MacOS
-2. CIS Benchmarks (Windows 10 Enterprise) 
-3. CIS Benchmarks (MacOS Ventura)
-4. CIS Benchmarks (MacOS)
+Every week, a member of the product team (as determined in the [rituals](#rituals) section) should look up whether there is:
+1. a new major or minor version of MacOS
+2. a new major or minor version of CIS Benchmarks (Windows 10 Enterprise) 
+3. a new major or minor version of CIS Benchmarks macOS 13 Ventura
+4. a release of CIS Benchmarks for MacOS 14 Sonoma
 
 If there are changes, the DRI should send a message in the #help-product slack channel, noting whether there is a new item or if nothing has changed.
 
