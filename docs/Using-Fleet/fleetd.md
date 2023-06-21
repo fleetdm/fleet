@@ -38,7 +38,7 @@
 
 ## Overview
 
-Fleetd is the bundle of agents that Fleet provides, which includes:
+Fleetd is the bundle of agents that includes:
 
 - [osquery](https://osquery.io/)
 - [Orbit](#orbit)
