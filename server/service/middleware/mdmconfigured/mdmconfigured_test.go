@@ -99,5 +99,3 @@ func TestMicrosoftMDMNotConfigured(t *testing.T) {
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.False(t, nextCalled)
 }
-
-// mjo todo: add tests

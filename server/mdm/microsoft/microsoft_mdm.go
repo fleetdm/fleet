@@ -2,7 +2,7 @@ package microsoft_mdm
 
 const (
 	// MDMPath is Fleet's HTTP path for the core Microsoft MDM service.
-	MDMPath = "/mdm/microsoft"
+	MDMPath = "/api/mdm/microsoft"
 
 	// DiscoveryPath is the HTTP endpoint path that serves the IDiscoveryService functionality.
 	// This is the endpoint that process the Discover and DiscoverResponse messages
@@ -62,29 +62,27 @@ const (
 // Soap Error constants
 // Details here: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/0a78f419-5fd7-4ddb-bc76-1c0f7e11da23
 
-type SoapError string
-
 const (
 	// Message format is bad
-	SoapErrorMessageFormat SoapError = "s:messageformat"
+	SoapErrorMessageFormat = "s:messageformat"
 
 	// User not recognized
-	SoapErrorAuthentication SoapError = "s:authentication"
+	SoapErrorAuthentication = "s:authentication"
 
 	// User not allowed to enroll
-	SoapErrorAuthorization SoapError = "s:authorization"
+	SoapErrorAuthorization = "s:authorization"
 
 	// Failed to get certificate
-	SoapErrorCertificateRequest SoapError = "s:certificaterequest"
+	SoapErrorCertificateRequest = "s:certificaterequest"
 
 	// Generic failure from management server, such as a database access error
-	SoapErrorEnrollmentServer SoapError = "s:enrollmentserver"
+	SoapErrorEnrollmentServer = "s:enrollmentserver"
 
 	// The server hit an unexpected issue
-	SoapErrorInternalServiceFault SoapError = "s:internalservicefault"
+	SoapErrorInternalServiceFault = "s:internalservicefault"
 
 	// Cannot parse the security header
-	SoapErrorInvalidSecurity SoapError = "a:invalidsecurity"
+	SoapErrorInvalidSecurity = "a:invalidsecurity"
 )
 
 // MS-MDE2 Message constants
@@ -106,4 +104,7 @@ const (
 
 	// SOAP Fault default error locale
 	SoapFaultLocale = "en-us"
+
+	// HTTP Content Type for SOAP responses
+	SoapContentType = "application/soap+xml; charset=utf-8"
 )

@@ -5,11 +5,8 @@ import (
 )
 
 // MS-MDE2 Message request types
-type MDEMessageType int
-
-// MS-MDE2 Message request types
 const (
-	MDEDiscovery MDEMessageType = iota
+	MDEDiscovery = iota
 	MDEPolicy
 	MDEEnrollment
 	MDEFault
@@ -339,8 +336,8 @@ type Reason struct {
 }
 
 type SoapFault struct {
-	XMLName             xml.Name       `xml:"s:fault"`
-	Code                Code           `xml:"s:code"`
-	Reason              Reason         `xml:"s:reason"`
-	OriginalMessageType MDEMessageType `xml:"-"`
+	XMLName             xml.Name `xml:"s:fault"`
+	Code                Code     `xml:"s:code"`
+	Reason              Reason   `xml:"s:reason"`
+	OriginalMessageType int      `xml:"-"`
 }

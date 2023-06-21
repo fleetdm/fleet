@@ -5,9 +5,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -37,9 +41,32 @@ type SoapResponse struct {
 // error returns soap fault error if present
 func (msg SoapResponse) error() error {
 	if msg.Body.SoapFault != nil {
-		return fmt.Errorf("soap fault: %s", msg.Body.SoapFault.Reason.Text.Content)
+		// placeholder to log SoapFault error message if needed
 	}
+
 	return nil
+}
+
+// hijackRender writes the response header and the RAW XML output
+func (msg SoapResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	xmlRes, err := xml.MarshalIndent(msg, "", "\t")
+	if err != nil {
+		logging.WithExtras(ctx, "microsoft MDM SoapResponse", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	xmlRes = append(xmlRes, '\n')
+
+	w.Header().Set("Content-Type", mdm.SoapContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(xmlRes)
+}
+
+// getMessageID returns the message ID from the header
+func (req *SoapRequest) getMessageID() string {
+	return req.Header.MessageID
 }
 
 // isValidHeader checks for required fields in the header
@@ -340,7 +367,7 @@ func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_typ
 }
 
 // NewSoapFault creates a new SoapFault struct based on the error type, original message type, and error message
-func NewSoapFault(errorType mdm.SoapError, origMessage mdm_types.MDEMessageType, errorMessage error) mdm_types.SoapFault {
+func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_types.SoapFault {
 	return mdm_types.SoapFault{
 		OriginalMessageType: origMessage,
 		Code: mdm_types.Code{
@@ -359,8 +386,11 @@ func NewSoapFault(errorType mdm.SoapError, origMessage mdm_types.MDEMessageType,
 }
 
 // getSoapResponseFault Returns a SoapResponse with a SoapFault on its body
-func getSoapResponseFault(relatesTo string, errorType mdm.SoapError, origMessage mdm_types.MDEMessageType, errorMessage error) SoapResponse {
-	soapFault := NewSoapFault(mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, errorMessage)
+func getSoapResponseFault(relatesTo string, soapFault *mdm_types.SoapFault) errorer {
+	if len(relatesTo) == 0 {
+		relatesTo = "invalid_message_id"
+	}
+
 	soapResponse, _ := NewSoapResponse(soapFault, relatesTo)
 	return soapResponse
 }
@@ -405,7 +435,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 	// Set the message specific fields based on the message type
 	switch msg := payload.(type) {
 
-	case mdm_types.DiscoverResponse:
+	case *mdm_types.DiscoverResponse:
 		action = urlDiscovery
 		uuid := uuid.New().String()
 		activityID = &mdm_types.ActivityId{
@@ -413,16 +443,16 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 			CorrelationId: uuid,
 			XmlNS:         urlDiag,
 		}
-		body.DiscoverResponse = &msg
+		body.DiscoverResponse = msg
 
-	case mdm_types.GetPoliciesResponse:
+	case *mdm_types.GetPoliciesResponse:
 		action = urlPolicy
 		headerXsu = &urlXSU
 		body.Xsi = &urlXSI
 		body.Xsd = &urlXSD
-		body.GetPoliciesResponse = &msg
+		body.GetPoliciesResponse = msg
 
-	case mdm_types.RequestSecurityTokenResponseCollection:
+	case *mdm_types.RequestSecurityTokenResponseCollection:
 		action = urlEnroll
 		headerXsu = &urlXSU
 		security = &mdm_types.WsSecurity{
@@ -434,10 +464,10 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 				Expires: getUtcTime(secWindowEndTimeMin),   // minutes from now
 			},
 		}
-		body.RequestSecurityTokenResponseCollection = &msg
+		body.RequestSecurityTokenResponseCollection = msg
 
-	case mdm_types.SoapFault:
 		// Setting the target action
+	case *mdm_types.SoapFault:
 		if msg.OriginalMessageType == mdm_types.MDEDiscovery {
 			action = urlDiscovery
 		} else if msg.OriginalMessageType == mdm_types.MDEPolicy {
@@ -453,7 +483,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 			CorrelationId: uuid,
 			XmlNS:         urlDiag,
 		}
-		body.SoapFault = &msg
+		body.SoapFault = msg
 
 	default:
 		return SoapResponse{}, errors.New("mdm response message not supported")
@@ -477,25 +507,45 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 	}, nil
 }
 
+// MDM SOAP request decoder
+func (req *SoapRequest) DecodeBody(ctx context.Context, r io.Reader) error {
+	// Reading the request bytes
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
+	}
+
+	// Unmarshal the XML data from the request into the SoapRequest struct
+	err = xml.Unmarshal(reqBytes, &req)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+	}
+
+	return nil
+}
+
 // mdmMicrosoftDiscoveryEndpoint is the response struct for the GetDiscovery endpoint
 func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*SoapRequest)
 
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
-		return getSoapResponseFault(req.Header.MessageID, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.getMessageID(), soapFault), nil
 	}
 
 	// Getting the DiscoveryResponse message
 	discoveryMessage, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
 	if err != nil {
-		return getSoapResponseFault(req.Header.MessageID, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.getMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
-	response, err := NewSoapResponse(discoveryMessage, req.Header.MessageID)
+	response, err := NewSoapResponse(discoveryMessage, req.getMessageID())
 	if err != nil {
-		return getSoapResponseFault(req.Header.MessageID, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.getMessageID(), soapFault), nil
 	}
 
 	return response, nil
@@ -524,4 +574,13 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 	}
 
 	return &discoveryMsg, nil
+}
+
+// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
+func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
+	svc.authz.SkipAuthorization(ctx)
+
+	soapFault := NewSoapFault(eType, origMsg, errorMsg)
+
+	return &soapFault
 }
