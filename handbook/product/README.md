@@ -273,6 +273,17 @@ available in Google Drive.
 
 Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
 
+## Maintenance
+Fleet's product offerings depend on the capabilities of other platforms. This require the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and our existing capabilities continue to function. The first step to staying up-to-date with our partners is to know when the partner platform changes. 
+
+Every week, a member of the product team (as determined in the [rituals](#rituals) section) should look up whether there are changes to the following platforms:
+1. MacOS
+2. CIS Benchmarks (Windows 10 Enterprise) 
+3. CIS Benchmarks (MacOS Ventura)
+4. CIS Benchmarks (MacOS)
+
+If there are changes, the DRI should send a message in the #help-product slack channel, noting whether there is a new item or if nothing has changed.
+
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
@@ -293,7 +304,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| New versions check | Weekly (Friday) | The DRI for this ritual checks whether there is a new release of CIS Benchmarks (MacOS or Windows Enterprise) and MacOS at their relevant websites. The DRI should send a message in the #help-product slack channel, noting whether there is a new item or if nothing has changed. | Mo Zhu |
+| New versions check | Weekly (Friday) | The DRI for this ritual checks conducts the maintenance checks as described in the [maintenance](#maintenance) section | Mo Zhu |
 
 ## Slack channels
 
