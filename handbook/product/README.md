@@ -267,11 +267,11 @@ Most requests are not prioritized.  The goal is to narrow our focus and avoid cr
 
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
-Fleet team members can view these statistics in the Google spreadsheet [Fleet
+Fleeties can view these statistics in the Google spreadsheet [Fleet
 usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
 available in Google Drive.
 
-Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleet team members.
+Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
 
 ## Rituals
 
@@ -293,6 +293,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
+| New versions check | Weekly (Friday) | The DRI for this ritual checks whether there is a new release of CIS Benchmarks (MacOS or Windows Enterprise) and MacOS at their relevant websites. The DRI should send a message in the #help-product slack channel, noting whether there is a new item or if nothing has changed. | Mo Zhu |
 
 ## Slack channels
 
