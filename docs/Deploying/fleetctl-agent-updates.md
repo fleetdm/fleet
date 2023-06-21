@@ -1,6 +1,6 @@
 # Self-managed agent updates 
 
-[Fleetd](https://fleetdm.com/docs/using-fleet/orbit) will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
+[Fleetd](https://fleetdm.com/docs/using-fleet/fleetd) will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
 if it detects a later version.
 
 To override this behavior, users can set a channel for each component or disable updates altogether. Visit [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) to learn more.
@@ -128,11 +128,11 @@ Record the root key metadata with a copy of the repository:
 fleetctl updates roots
 ```
 
-This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Fleetd packager](https://fleetdm.com/docs/using-fleet/orbit):
+This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Fleetd packager](https://fleetdm.com/docs/using-fleet/fleetd):
 
 ### Packaging with Fleetd
 
-See the [Fleetd docs](https://fleetdm.com/docs/using-fleet/orbit) for more details
+See the [Fleetd docs](https://fleetdm.com/docs/using-fleet/fleetd) for more details
 
 You can use `fleetctl package` to generate installer packages of Fleetd (Fleet's bundle of agents that includes a bootstrapped osquery wrapper) to integrate with your Fleet instance.
 

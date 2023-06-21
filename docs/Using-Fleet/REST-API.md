@@ -2684,7 +2684,7 @@ Request (`filters` is specified):
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific user by email.
 
-Requires [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 `GET /api/v1/fleet/hosts/{id}/device_mapping`
 

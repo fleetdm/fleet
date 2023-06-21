@@ -15,7 +15,7 @@ Fleet has implemented native support for CIS benchmarks for the following platfo
 Following are the requirements to use the CIS Benchmarks in Fleet:
 
 - Fleet must be Premium or Ultimate licensed.
-- Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.
+- Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet.
 - Devices must be enrolled to an MDM solution.
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
 
