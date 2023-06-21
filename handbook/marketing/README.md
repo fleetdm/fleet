@@ -8,6 +8,8 @@ To show organizations how Fleet is the best way to keep their employees and thei
 
 See [📖Company#Positioning](https://fleetdm.com/handbook/company#positioning).
 
+See [Vulnerabiltiy Management Positioning](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit)
+
 ### Marketing Qualified Opportunities (MQOs)
 
 Marketing's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [talk to an expert](https://fleetdm.com/). When these companies attend this meeting, Fleet considers them Marketing Qualified Opportunities (MQOs).
