@@ -7,6 +7,7 @@ export default class TablePrivacyPreferences extends Table {
   name = "privacy_preferences";
   propertyAPIs = {
     // all of type `types.ChromeSetting<boolean>` with default `true` unless otherwise specified
+
     // though all of these properties are documented, some have not been added to the
     // typings we are using: https://www.npmjs.com/package/@types/chrome and must be `@ts-ignore`d
 
@@ -46,61 +47,79 @@ export default class TablePrivacyPreferences extends Table {
       chrome.privacy.websites.hyperlinkAuditingEnabled,
     // @ts-ignore, DEPRECATED
     privacy_sandbox_enabled: chrome.privacy.websites.privacySandboxEnabled,
-    // WINDOWS AND CHROMEOS ONLY
-    protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
+    // WINDOWS AND CHROMEOS ONLY - if desired, can check the platform via `chrome.runtime.getPlatformInfo`
+    // protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
     referrers_enabled: chrome.privacy.websites.referrersEnabled,
     third_party_cookies_allowed:
       chrome.privacy.websites.thirdPartyCookiesAllowed,
     // @ts-ignore
     topics_enabled: chrome.privacy.websites.topicsEnabled,
   };
+
   columns = Object.keys(this.propertyAPIs);
 
   async generate() {
-    const result = [{}];
+    const result = {};
 
-    for (const property of this.columns) {
-      // Handle API call only for ChromeOS and Windows
-      if (property === "protected_content_enabled") {
-        // check platform
-        // TODO - make sure this is being set correctly
-        let os;
-        await chrome.runtime.getPlatformInfo((info) => {
-          console.log("platform info: ", info);
-          os = info.os;
-        });
+    // for (const property of this.columns) {
+    for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
+      // console.log("cur property: ", property);
 
-        // only call if on ChromeOS or Windows
-        // TODO - confirm string for windows and chromeos platforms
-        console.log("os: ", os);
-        if (os === "windows" || os === "chrome") {
-          // hard to make this modular since can't pass `property` into the callback
-          console.log("calling chrome/windows only api");
-          await this.propertyAPIs[property].get({}, (details) => {
-            if (details.value === null) {
-              result[property] = null; // TODO: how to handle this? should we handle it?
-            } else {
-              // convert bool response to binary flag
-              result[property] = details.value ? 1 : 0;
-            }
-          });
-        }
-      } else {
-        await this.propertyAPIs[property].get({}, (details) => {
-          if (details.value === null) {
-            result[property] = null; // TODO: how to handle this? should we handle it?
+      // // Handle API call only for ChromeOS and Windows
+      // if (property === "protected_content_enabled") {
+      //   console.log("protected content property");
+
+      //   // check platform
+      //   // TODO - make sure this is being set correctly
+      //   let os;
+      //   await chrome.runtime.getPlatformInfo((info) => {
+      //     console.log("platform info: ", info);
+      //     os = info.os;
+      //   });
+
+      //   // only call if on ChromeOS or Windows
+      //   // TODO - confirm string for windows and chromeos platforms
+      //   console.log("os: ", os);
+      //   if (os === "windows" || os === "cros") {
+      //     // hard to make this modular since can't pass `property` into the callback
+      //     console.log("calling chrome/windows only api");
+      //     await this.propertyAPIs[property].get({}, (details) => {
+      //       if (details.value === null) {
+      //         result[property] = null; // TODO: how to handle this? should we handle it?
+      //       } else {
+      //         // convert bool response to binary flag
+      //         result[property] = details.value ? 1 : 0;
+      //       }
+      //     });
+      //   }
+      // } else {
+      try {
+        await propertyAPI.get({}, (details) => {
+          // if (details.value === null) {
+          //   result[property] = null; // TODO: how to handle this? should we handle it?
+          // } else {
+          // result[property] = details.value ? 1 : 0;
+          // only non-bool property
+          if (property === "web_rtc_ip_handling_policy") {
+            result[property] = details.value;
           } else {
-            if (property === "web_rtc_ip_handling_policy") {
-              // only non-bool property
-              result[property] = details.value;
+            // convert bool response to binary flag
+            if (details.value === true) {
+              result[property] = 1;
             } else {
-              // convert bool response to binary flag
-              result[property] = details.value ? 1 : 0;
+              result[property] = 0;
+              // }
             }
+            // }
           }
         });
+      } catch (error) {
+        console.log("error: ", error);
+        console.log("property: ", property);
       }
     }
-    return result;
+    console.log("result row: ", result);
+    return [result];
   }
 }
+// }
