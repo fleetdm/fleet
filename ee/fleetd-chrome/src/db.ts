@@ -1,14 +1,16 @@
 import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
 import * as SQLite from "wa-sqlite";
 
-import TableOSVersion from "./tables/os_version";
-import TableGeolocation from "./tables/geolocation";
-import TableSystemInfo from "./tables/system_info";
-import TableOsqueryInfo from "./tables/osquery_info";
-import TableNetworkInterfaces from "./tables/network_interfaces";
-import TableUsers from "./tables/users";
+// Alphabetical order
 import Table from "./tables/Table";
 import TableChromeExtensions from "./tables/chrome_extensions";
+import TableGeolocation from "./tables/geolocation";
+import TableNetworkInterfaces from "./tables/network_interfaces";
+import TableOsqueryInfo from "./tables/osquery_info";
+import TableOSVersion from "./tables/os_version";
+import TablePrivacyPreferences from "./tables/privacy_preferences";
+import TableSystemInfo from "./tables/system_info";
+import TableUsers from "./tables/users";
 
 export default class VirtualDatabase {
   sqlite3: SQLiteAPI;
@@ -18,21 +20,27 @@ export default class VirtualDatabase {
     this.sqlite3 = sqlite3;
     this.db = db;
 
-    VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
-    VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
-    VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
-    VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
-    VirtualDatabase.register(
-      sqlite3,
-      db,
-      new TableNetworkInterfaces(sqlite3, db)
-    );
-    VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
+    // Alphabetical order
     VirtualDatabase.register(
       sqlite3,
       db,
       new TableChromeExtensions(sqlite3, db)
     );
+    VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
+    VirtualDatabase.register(
+      sqlite3,
+      db,
+      new TableNetworkInterfaces(sqlite3, db)
+    );
+    VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
+    VirtualDatabase.register(
+      sqlite3,
+      db,
+      new TablePrivacyPreferences(sqlite3, db)
+    );
+    VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
   }
 
   public static async init(): Promise<VirtualDatabase> {
