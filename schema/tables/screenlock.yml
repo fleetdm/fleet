@@ -1,0 +1,6 @@
+name: screenlock
+description: >- 
+  macOS screenlock status
+notes: >- 
+  - Only fetches results for osquery's current logged-in user context. If osquery is running as root, this table will return no results. 
+  - The user must also have recently logged in in order to show the latest setting. 
