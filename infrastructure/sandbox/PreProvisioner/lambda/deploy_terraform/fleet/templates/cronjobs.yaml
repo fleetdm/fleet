@@ -10,8 +10,11 @@ metadata:
   name: {{ .Values.fleetName }}
   namespace: {{ .Release.Namespace }}
 spec:
+  # Forbiding concurrency prevents runaway costs on failing cronjobs stacking up.
   concurrencyPolicy: Forbid
   schedule: "{{ .Values.crons.vulnerabilities }}"
+  # EKS Fargate keeps resources running to show the job history.
+  # This saves significantly on compute in AWS.
   successfulJobsHistoryLimit: 0
   jobTemplate:
     spec:

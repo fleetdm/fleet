@@ -10,6 +10,8 @@ metadata:
   name: {{ .Values.fleetName }}-migration
   namespace: {{ .Release.Namespace }}
 spec:
+  # This will clean up the job to prevent excess costs when using
+  # EKS/Fargate.
   ttlSecondsAfterFinished: 100
   template:
     metadata:
