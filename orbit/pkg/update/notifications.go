@@ -129,39 +129,50 @@ func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	cfg, err := w.Fetcher.GetConfig()
 
 	if err == nil && cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
-		if cfg.Notifications.MicrosoftMDMDiscoveryEndpoint == "" {
-			log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
-		} else if w.mu.TryLock() {
-			defer w.mu.Unlock()
-
-			// do not enroll Windows Servers, and do not attempt enrollment if the
-			// last run is not at least Frequency ago.
-			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
-				fn := w.execWinAPIFn
-				if fn == nil {
-					fn = RunMicrosoftMDMEnrollment
-				}
-				args := MicrosoftMDMEnrollmentArgs{
-					DiscoveryURL: cfg.Notifications.MicrosoftMDMDiscoveryEndpoint,
-					HostUUID:     w.HostUUID,
-				}
-				if err := fn(args); err != nil {
-					if errors.Is(err, errIsWindowsServer) {
-						w.isWindowsServer = true
-						log.Info().Msg("device is a Windows Server, skipping enrollment")
-					} else {
-						log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
-					}
-				} else {
-					w.lastRun = time.Now()
-					log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
-				}
-			} else if w.isWindowsServer {
-				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
-			} else {
-				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
-			}
-		}
+		w.attemptEnrollment(cfg.Notifications)
 	}
 	return cfg, err
+}
+
+func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
+	if notifs.MicrosoftMDMDiscoveryEndpoint == "" {
+		log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
+		return
+	}
+
+	if w.mu.TryLock() {
+		defer w.mu.Unlock()
+
+		// do not enroll Windows Servers, and do not attempt enrollment if the last
+		// run is not at least Frequency ago.
+		if w.isWindowsServer {
+			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			return
+		}
+		if time.Since(w.lastRun) <= w.Frequency {
+			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
+			return
+		}
+
+		fn := w.execWinAPIFn
+		if fn == nil {
+			fn = RunMicrosoftMDMEnrollment
+		}
+		args := MicrosoftMDMEnrollmentArgs{
+			DiscoveryURL: notifs.MicrosoftMDMDiscoveryEndpoint,
+			HostUUID:     w.HostUUID,
+		}
+		if err := fn(args); err != nil {
+			if errors.Is(err, errIsWindowsServer) {
+				w.isWindowsServer = true
+				log.Info().Msg("device is a Windows Server, skipping enrollment")
+			} else {
+				log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
+			}
+			return
+		}
+
+		w.lastRun = time.Now()
+		log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
+	}
 }
