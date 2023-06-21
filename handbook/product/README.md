@@ -48,17 +48,17 @@ Once the draft has been approved:
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
-### Emergency drafting
+### Expedited drafting
 
-Emergency drafting is the revision of drafted changes currently being developed by
-the engineering team. Emergency drafting aims to quickly adapt to unknown edge cases and
+Expedited drafting is the revision of drafted changes currently being developed by
+the engineering team. Expedited drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
 
-You'll know it's time for emergency drafting when:
+You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 
-What happens during emergency drafting?
+What happens during expedited drafting?
 1. Everyone on the product and engineering teams know that a drafted change was brought back
    to drafting and prioritized.
 2. Drafts are updated to cover edge cases or reduce functionality.
@@ -77,7 +77,7 @@ Product Managers prioritize all potential product improvements worked on by cont
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [emergency drafting](#emergency-drafting). 
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
 > Anyone can [suggest improvements](#intake).
 
