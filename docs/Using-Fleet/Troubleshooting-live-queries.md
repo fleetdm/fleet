@@ -116,7 +116,7 @@ If you see "(100% responded)" with the dummy query but not with your query, then
   - the query hanging or taking too long to run on some devices.
   - the query returning too many results (that may reach network limits). Try reducing the number of results by using `LIMIT N;` on the query.
 
-To troubleshoot hangs or crashes you should take a look at the Orbit/osquery logs on the devices.
+To troubleshoot hangs or crashes you should take a look at the Fleetd/osquery logs on the devices.
 
 ## 5. Settings
 
