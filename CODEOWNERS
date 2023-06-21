@@ -76,8 +76,8 @@ go.mod @fleetdm/go
 # Handbook
 /handbook/company @mikermcneil
 /handbook/company/* @mikermcneil
-/handbook/business-operations @mikermcneil
-/handbook/business-operations/* @mikermcneil
+/handbook/business-operations @mikermcneil @JoStableford
+/handbook/business-operations/* @mikermcneil @JoStableford
 /handbook/engineering @lukeheath
 /handbook/engineering/* @lukeheath
 /handbook/product @zhumo
