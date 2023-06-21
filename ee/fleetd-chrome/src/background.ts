@@ -129,7 +129,6 @@ const live_query = async () => {
         console.debug(
           `Discovery (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
         );
-
         continue;
       }
     }
