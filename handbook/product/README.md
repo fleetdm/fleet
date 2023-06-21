@@ -98,7 +98,7 @@ On the first day of each release, all estimated issues are moved into the releva
 Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
 ### Sprint numbering
-Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.
+Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint. 
 
 ### Product design conventions
 
