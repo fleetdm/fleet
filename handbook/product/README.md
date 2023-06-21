@@ -281,8 +281,9 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 2. a new major or minor version of CIS Benchmarks (Windows 10 Enterprise) 
 3. a new major or minor version of CIS Benchmarks macOS 13 Ventura
 4. a release of CIS Benchmarks for MacOS 14 Sonoma
+5. a new major or minor version of ChromeOS
 
-If there are changes, the DRI should send a message in the #help-product slack channel, noting whether there is a new item or if nothing has changed.
+If there are changes, the DRI should send a message in the #help-product slack channel, noting the current versions and whether any of the above has changed.
 
 ## Rituals
 
