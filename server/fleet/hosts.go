@@ -538,9 +538,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
-// IsElegibleForDEPMigration returns true if the host fulfills all requirements
+// IsEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
-func (h *Host) IsElegibleForDEPMigration() bool {
+func (h *Host) IsEligibleForDEPMigration() bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
 		h.MDMInfo.IsEnrolledInThirdPartyMDM()
@@ -555,13 +555,24 @@ func (h *Host) NeedsDEPEnrollment() bool {
 		h.IsDEPAssignedToFleet()
 }
 
-// IsElegibleForMicrosoftMDMEnrollment returns true if the host can be enrolled
-// in Fleet's Microsoft MDM (if Microsoft MDM was enabled).
-func (h *Host) IsElegibleForMicrosoftMDMEnrollment() bool {
+// IsEligibleForMicrosoftMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Microsoft Windows MDM (if it was enabled).
+func (h *Host) IsEligibleForMicrosoftMDMEnrollment() bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		!h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
+// IsEligibleForMicrosoftMDMUnenrollment returns true if the host must be
+// unenrolled from Fleet's Microsoft Windows MDM (if it MDM was disabled).
+func (h *Host) IsEligibleForMicrosoftMDMUnenrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		// TODO(mna): should that be only IsManualFleetEnrolled? Other types of
+		// enrollment will possibly require a different type of unenrollment?
+		h.MDMInfo.IsFleetEnrolled() &&
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
 

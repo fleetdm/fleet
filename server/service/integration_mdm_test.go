@@ -5081,6 +5081,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment)
+		require.False(t, resp.Notifications.NeedsProgrammaticMicrosoftMDMUnenrollment)
 		if meta.shouldEnroll {
 			require.Contains(t, resp.Notifications.MicrosoftMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
 		} else {
@@ -5093,6 +5094,21 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+
+	// set the win-no-team host as enrolled in Windows MDM
+	noTeamHost := hostsBySuffix["win-no-team"]
+	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	// get the orbit config for win-no-team should return true for the
+	// unenrollment notification
+	var resp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		http.StatusOK, &resp)
+	require.True(t, resp.Notifications.NeedsProgrammaticMicrosoftMDMUnenrollment)
+	require.False(t, resp.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment)
+	require.Empty(t, resp.Notifications.MicrosoftMDMDiscoveryEndpoint)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
