@@ -16,7 +16,7 @@ examples: >-
 columns:
   - name: capacity
     type: integer
-    description: Capacity on the disk in MB.
+    description: Capacity on the disk in Bytes.
     required: false
   - name: id
     type: string
