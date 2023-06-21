@@ -158,7 +158,7 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 			enrollFetcher := &microsoftMDMEnrollmentConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
-				execWinAPIFn: func(args MicrosoftMDMEnrollmentArgs) error {
+				execEnrollFn: func(args MicrosoftMDMEnrollmentArgs) error {
 					apiGotCalled = true
 					return c.apiErr
 				},
@@ -196,7 +196,7 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 	enrollFetcher := &microsoftMDMEnrollmentConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
-		execWinAPIFn: func(args MicrosoftMDMEnrollmentArgs) error {
+		execEnrollFn: func(args MicrosoftMDMEnrollmentArgs) error {
 			<-chProceed    // will be unblocked only when allowed
 			apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 			return apiErr

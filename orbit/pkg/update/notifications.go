@@ -97,14 +97,16 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	// HostUUID is the current host's UUID.
 	HostUUID string
 
-	// for tests, to be able to mock command execution. If nil, will use
-	// RunMicrosoftMDMEnrollment.
-	execWinAPIFn execWinAPIFunc
+	// for tests, to be able to mock API commands. If nil, will use
+	// RunMicrosoftMDMEnrollment and RunMicrosoftMDMUnenrollment respectively.
+	execEnrollFn   execWinAPIFunc
+	execUnenrollFn execWinAPIFunc
 
-	// ensures only one command runs at a time, protects access to lastRun and
+	// ensures only one command runs at a time, protects access to lastXxxRun and
 	// isWindowsServer.
 	mu              sync.Mutex
-	lastRun         time.Time
+	lastEnrollRun   time.Time
+	lastUnenrollRun time.Time
 	isWindowsServer bool
 }
 
@@ -128,8 +130,12 @@ var errIsWindowsServer = errors.New("device is a Windows Server")
 func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := w.Fetcher.GetConfig()
 
-	if err == nil && cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
-		w.attemptEnrollment(cfg.Notifications)
+	if err == nil {
+		if cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
+			w.attemptEnrollment(cfg.Notifications)
+		} else if cfg.Notifications.NeedsProgrammaticMicrosoftMDMUnenrollment {
+			w.attemptUnenrollment()
+		}
 	}
 	return cfg, err
 }
@@ -149,12 +155,12 @@ func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orb
 			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
 			return
 		}
-		if time.Since(w.lastRun) <= w.Frequency {
+		if time.Since(w.lastEnrollRun) <= w.Frequency {
 			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
 			return
 		}
 
-		fn := w.execWinAPIFn
+		fn := w.execEnrollFn
 		if fn == nil {
 			fn = RunMicrosoftMDMEnrollment
 		}
@@ -172,7 +178,44 @@ func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orb
 			return
 		}
 
-		w.lastRun = time.Now()
+		w.lastEnrollRun = time.Now()
 		log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
+	}
+}
+
+func (w *microsoftMDMEnrollmentConfigFetcher) attemptUnenrollment() {
+	if w.mu.TryLock() {
+		defer w.mu.Unlock()
+
+		// do not unenroll Windows Servers, and do not attempt unenrollment if the
+		// last run is not at least Frequency ago.
+		if w.isWindowsServer {
+			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			return
+		}
+		if time.Since(w.lastUnenrollRun) <= w.Frequency {
+			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, last run was too recent")
+			return
+		}
+
+		fn := w.execUnenrollFn
+		if fn == nil {
+			fn = RunMicrosoftMDMUnenrollment
+		}
+		args := MicrosoftMDMEnrollmentArgs{
+			HostUUID: w.HostUUID,
+		}
+		if err := fn(args); err != nil {
+			if errors.Is(err, errIsWindowsServer) {
+				w.isWindowsServer = true
+				log.Info().Msg("device is a Windows Server, skipping unenrollment")
+			} else {
+				log.Info().Err(err).Msg("calling UnregisterDeviceWithManagement to unenroll Windows device failed")
+			}
+			return
+		}
+
+		w.lastUnenrollRun = time.Now()
+		log.Info().Msg("successfully called UnregisterDeviceWithManagement to unenroll Windows device")
 	}
 }

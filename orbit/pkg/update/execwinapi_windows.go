@@ -39,6 +39,22 @@ func RunMicrosoftMDMEnrollment(args MicrosoftMDMEnrollmentArgs) error {
 	return enrollHostToMDM(args)
 }
 
+// Exported so that it can be used in tools/ (so that it can be built for
+// Windows and tested on a Windows machine). Otherwise not meant to be called
+// from outside this package.
+func RunWindowsMDMUnenrollment(args WindowsMDMEnrollmentArgs) error {
+	installType, err := readInstallationType()
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(installType) == "server" {
+		// do not unenroll, it is a server
+		return errIsWindowsServer
+	}
+	// TODO(mna): implement unenrollment call to UnregisterDeviceWithManagement
+	return nil
+}
+
 func readInstallationType() (string, error) {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
