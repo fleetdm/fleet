@@ -1532,8 +1532,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	var sb strings.Builder
 
 	for _, p := range payload {
-		args = append(args, p.ProfileID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.CommandUUID, p.Checksum)
-		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
+		args = append(args, p.ProfileID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum)
+		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
 	}
 
 	stmt := fmt.Sprintf(`
@@ -1544,6 +1544,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               host_uuid,
               status,
               operation_type,
+              detail,
               command_uuid,
 	      checksum
             )
@@ -1551,6 +1552,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	    ON DUPLICATE KEY UPDATE
               status = VALUES(status),
               operation_type = VALUES(operation_type),
+              detail = VALUES(detail),
               command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
@@ -1578,7 +1580,7 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+func (ds *Datastore) UpdateVerificationHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
 	installedProfsByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(installedProfiles))
 	for _, p := range installedProfiles {
 		installedProfsByIdentifier[p.Identifier] = p
@@ -1601,26 +1603,60 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "listing expected profiles to set verified host macOS profiles")
 	}
 
-	verifiedIdentifiers := make([]string, 0, len(expectedProfs))
+	foundIdentifiers := make([]string, 0, len(expectedProfs))
+	missingIdentifiers := make([]string, 0, len(expectedProfs))
+
 	for _, ep := range expectedProfs {
+		withinGracePeriod := ep.IsWithinGracePeriod(host.DetailUpdatedAt) // Note: The host detail timestamp is updated after the current set is ingested, see https://github.com/fleetdm/fleet/blob/e9fd28717d474668ca626efbacdd0615d42b2e0a/server/service/osquery.go#L950
 		ip, ok := installedProfsByIdentifier[ep.Identifier]
 		if !ok {
-			// TODO: expected profile is not installed on host, skip it for now
+			// expected profile is missing from host
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
 		if ep.UpdatedAt.After(ip.InstallDate) {
-			// TODO: host has an older version of expected profile installed, skip it for now
+			// TODO: host has an older version of expected profile installed, treat it as a missing
+			// profile for now but we should think about an appropriate grace period to account for
+			// clock skew between the host and the server or a checksum comparison instead
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
 		if ep.Name != ip.DisplayName {
-			// TODO: host has a different name for expected profile, skip it for now
+			// TODO: host has a different name for expected profile, treat it as a missing profile
+			// for now but we should think about a checksum comparison instead
+			if !withinGracePeriod {
+				missingIdentifiers = append(missingIdentifiers, ep.Identifier)
+			}
 			continue
 		}
-		verifiedIdentifiers = append(verifiedIdentifiers, ep.Identifier)
+		foundIdentifiers = append(foundIdentifiers, ep.Identifier)
 	}
 
-	if len(verifiedIdentifiers) == 0 {
+	if len(foundIdentifiers) == 0 && len(missingIdentifiers) == 0 {
 		// nothing to update, return early
+		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, host, foundIdentifiers); err != nil {
+			return err
+		}
+		if err := setMDMProfilesFailedDB(ctx, tx, host, missingIdentifiers); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// setMDMProfilesFailedDB sets the status of the given identifiers to failed if the current status
+// is verifying or verified. It also sets the detail to a message indicating that the profile was
+// either verifying or verified. Only profiles with the install operation type are updated.
+func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
 		return nil
 	}
 
@@ -1628,23 +1664,69 @@ WHERE
 UPDATE
 	host_mdm_apple_profiles
 SET
+	detail = if(status = ?, ?, ?),
+	status = ?
+WHERE
+	host_uuid = ?
+	AND status IN(?)
+	AND operation_type = ?
+	AND profile_identifier IN(?)`
+
+	args := []interface{}{
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerified,
+		fleet.MDMAppleDeliveryFailed,
+		host.UUID,
+		[]interface{}{fleet.MDMAppleDeliveryVerifying, fleet.MDMAppleDeliveryVerified},
+		fleet.MDMAppleOperationTypeInstall,
+		identifiers,
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set failed host macOS profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting failed host macOS profiles")
+	}
+	return nil
+}
+
+// setMDMProfilesVerifiedDB sets the status of the given identifiers to verified if the current
+// status is verifying. Only profiles with the install operation type are updated.
+func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiers []string) error {
+	if len(identifiers) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	detail = '',
 	status = ?
 WHERE
 	host_uuid = ?
 	AND status = ?
-	AND operation_type = 'install'
+	AND operation_type = ?
 	AND profile_identifier IN(?)`
 
-	args := []interface{}{fleet.MDMAppleDeliveryVerified, host.UUID, fleet.MDMAppleDeliveryVerifying, verifiedIdentifiers}
+	args := []interface{}{
+		fleet.MDMAppleDeliveryVerified,
+		host.UUID,
+		fleet.MDMAppleDeliveryVerifying,
+		fleet.MDMAppleOperationTypeInstall,
+		identifiers,
+	}
 	stmt, args, err := sqlx.In(stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building sql statement to set verified host macOS profiles")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting verified host macOS profiles")
 	}
-
 	return nil
 }
 
