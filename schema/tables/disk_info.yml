@@ -1,0 +1,33 @@
+name: disk_info
+platforms:
+  - chrome
+description: Returns information about disks found on the system. A separate line for each disk found.
+examples: >-
+  ```
+  capacity:524288000
+  id:"b7cb1990-7b4f-42fe-a5da-f2b9f7848b6e"
+  name:"iSCPreboot"
+  type:"fixed"
+  ```
+
+  ```
+  SELECT * FROM disk_info;
+  ```
+columns:
+  - name: capacity
+    type: integer
+    description: Capacity on the disk in MB.
+    required: false
+  - name: id
+    type: string
+    description: UUID of the disk.
+    required: false
+  - name: name
+    type: string
+    description: Name of the disk.
+    required: false
+  - name: type
+    type: string
+    description: Type of the disk (e.g. fixed).
+    required: false
+evented: false
