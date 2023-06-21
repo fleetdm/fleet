@@ -1,19 +1,12 @@
 # Fleetd
 
-- [Orbit](#orbit)
-  - [Introduction](#introduction)
+
+- [Fleetd](#fleetd)
+  - [Overview](#overview)
     - [Components](#components)
-  - [Try Orbit](#try-orbit)
-      - [With `fleetctl preview` already running:](#with-fleetctl-preview-already-running)
-  - [Capabilities](#capabilities)
-  - [Usage](#usage)
-    - [Permissions](#permissions)
-      - [macOS/Linux](#macoslinux)
-      - [Windows](#windows)
-    - [Osquery shell](#osquery-shell)
-    - [Connect to a Fleet server](#connect-to-a-fleet-server)
-    - [Osquery flags](#osquery-flags)
-    - [Osquery extensions](#osquery-extensions)
+    - [Try Fleetd](#try-fleetd)
+      - [With `fleetctl preview` already running](#with-fleetctl-preview-already-running)
+    - [Capabilities](#capabilities)
   - [Packaging](#packaging)
     - [Dependencies](#dependencies)
     - [Packaging support](#packaging-support)
@@ -22,14 +15,23 @@
       - [Fleet Desktop](#fleet-desktop)
       - [Update channels](#update-channels)
       - [macOS signing \& notarization](#macos-signing--notarization)
-      - [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
-      - [Orbit mTLS support](#orbit-mtls-support)
-      - [Orbit development](#orbit-development)
-        - [Run Orbit from source](#run-orbit-from-source)
-        - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
+      - [Fleetd osquery result and status logs](#fleetd-osquery-result-and-status-logs)
+      - [Fleetd mTLS support](#fleetd-mtls-support)
+      - [Debug](#debug)
+  - [Orbit](#orbit)
+    - [Usage](#usage)
+      - [Permissions](#permissions)
+        - [macOS/Linux](#macoslinux)
+        - [Windows](#windows)
+    - [Osquery shell](#osquery-shell)
+    - [Connect to a Fleet server](#connect-to-a-fleet-server)
+    - [Osquery flags](#osquery-flags)
+    - [Osquery extensions](#osquery-extensions)
+    - [Orbit development](#orbit-development)
+      - [Run Orbit from source](#run-orbit-from-source)
+      - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
     - [Troubleshooting](#troubleshooting)
       - [Logs](#logs)
-      - [Debug](#debug)
     - [Uninstall](#uninstall)
       - [Windows](#windows-1)
       - [Linux](#linux)
@@ -67,7 +69,7 @@ graph LR;
     orbit -- "Auto Update (TLS)" --> tuf;
 ```
 
-### Try fleetd
+### Try Fleetd
 
 #### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):
 
@@ -263,29 +265,29 @@ Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdate
 
 Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
 
-## Usage
+### Usage
 
 General information and flag documentation can be accessed by running `orbit --help`.
 
-### Permissions
+#### Permissions
 
 Orbit generally expects root permissions to be able to create and access its working files.
 
 To get root level permissions:
 
-#### macOS/Linux
+##### macOS/Linux
 
 Prefix `orbit` commands with `sudo` (`sudo orbit ...`) or run in a root shell.
 
-#### Windows
+##### Windows
 
 Run Powershell or cmd.exe with "Run as administrator" and start `orbit` commands from that shell.
 
-### Osquery shell
+#### Osquery shell
 
 Run an `osqueryi` shell with `orbit osqueryi` or `orbit shell`.
 
-### Connect to a Fleet server
+#### Connect to a Fleet server
 
 Use the `--fleet-url` and `--enroll-secret` flags to connect to a Fleet server.
 
@@ -307,7 +309,7 @@ Add the `--insecure` flag for connections using otherwise invalid certificates:
 orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --insecure
 ```
 
-### Osquery flags
+#### Osquery flags
 
 Orbit can be used as a near drop-in replacement for `osqueryd`, enhancing standard osquery with autoupdate capabilities. Orbit passes through any options after `--` directly to the `osqueryd` instance.
 
@@ -317,7 +319,7 @@ For example, the following would be a typical drop-in usage of Orbit:
 orbit -- --flagfile=flags.txt
 ```
 
-### Osquery extensions
+#### Osquery extensions
 
 Orbit can be used to remotely deploy and manage osquery extensions. This saves the time and energy required to maintain extensions using a separate tool like Munki or an MDM solution.
 
@@ -355,9 +357,9 @@ The `fleetctl package` command generates installers by fetching the targets/exec
 To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
 The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](https://github.com/fleetdm/fleet/tree/main/tools/tuf/test/README.md).
 
-### Troubleshooting
+#### Troubleshooting
 
-#### Logs
+##### Logs
 
 Orbit captures and streams osqueryd's stdout/stderr into its own stdout/stderr output.
 These are the log destinations for each platform:
@@ -367,13 +369,13 @@ These are the log destinations for each platform:
  Users will need administrative permissions on the host to access these log destinations.
 
 
-### Uninstall
+#### Uninstall
 
-#### Windows
+##### Windows
 
 Use the "Add or remove programs" dialog to remove Orbit.
 
-#### Linux
+##### Linux
 
 Uninstall the package with the corresponding package manager:
 
@@ -386,11 +388,11 @@ sudo apt remove fleet-osquery -y
 sudo rpm -e fleet-osquery-X.Y.Z.x86_64
 ```
 
-#### macOS
+##### macOS
 
 Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh).
 
-## Bugs
+### Bugs
 
 [Create an issue](https://github.com/fleetdm/fleet/issues) to report a bug or request a feature.
 
