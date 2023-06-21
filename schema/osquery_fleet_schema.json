@@ -26253,71 +26253,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
   },
   {
-    "name": "apfs_physical_stores",
-    "platforms": ["darwin"],
-    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
-    "columns": [
-      {
-        "name": "container_uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the APFS Contianer"
-      },
-      {
-        "name": "container_designated_physical_store",
-        "type": "text",
-        "required": false,
-        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
-      },
-      {
-        "name": "container_reference",
-        "type": "text",
-        "required": false,
-        "description": "The current reference for the APFS container, e.g. \"disk3\""
-      },
-      {
-        "name": "container_fusion",
-        "type": "text",
-        "required": false,
-        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "container_capacity_ceiling",
-        "type": "bigint",
-        "required": false,
-        "description": "The total amount of space in the container"
-      },
-      {
-        "name": "container_capacity_free",
-        "type": "bigint",
-        "required": false,
-        "description": "The amount of remaining free space in the container"
-      },
-      {
-        "name": "uuid",
-        "type": "text",
-        "required": false,
-        "description": "The UUID of the physical store"
-      },
-      {
-        "name": "identifier",
-        "type": "text",
-        "required": false,
-        "description": "The current identifier of the physical store (e.g. disk1s2)"
-      },
-      {
-        "name": "size",
-        "type": "bigint",
-        "required": false,
-        "description": "The size of the physical store in byptes"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/apfs_physical_stores",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
-  },
-  {
     "name": "authdb",
     "platforms": ["darwin"],
     "description": "Returns JSON output for the `authorizationdb read <right_name>` command.",
@@ -26950,12 +26885,6 @@
   {
     "name": "icloud_private_relay",
     "platforms": ["darwin"],
-    "url": "https://fleetdm.com/tables/google_chrome_profiles",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
-  },
-  {
-    "name": "icloud_private_relay",
-    "platforms": ["darwin"],
     "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
     "columns": [
       {
@@ -27416,39 +27345,6 @@
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
     "platforms": ["darwin"],
-    "evented": false,
-    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
-    "columns": [
-      {
-        "name": "end_time",
-        "description": "The end time of the last Munki run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed",
-        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_version",
-        "description": "The version number of installed items.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "name",
-        "description": "The name of items managed by Munki.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
-  },
-  {
-    "name": "network_interfaces",
     "evented": false,
     "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
     "columns": [
