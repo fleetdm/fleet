@@ -199,7 +199,7 @@ resource "helm_release" "main" {
   }
 
   set {
-    name  = "fleet.license_key"
+    name  = "fleet.licenseKey"
     value = var.license_key
   }
 

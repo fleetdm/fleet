@@ -74,7 +74,7 @@ func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal i
 
 	user := &fleet.User{}
 
-	err := sqlx.GetContext(ctx, ds.reader, user, sqlStatement, searchVal)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), user, sqlStatement, searchVal)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("User").
 			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal)))
@@ -112,7 +112,7 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	sqlStatement = appendListOptionsToSQL(sqlStatement, &opt.ListOptions)
 	users := []*fleet.User{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &users, sqlStatement, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, sqlStatement, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list users")
 	}
 
@@ -228,7 +228,7 @@ func (ds *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User)
 		fleet.UserTeam
 		UserID uint `db:"user_id"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &rows, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, sql, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "get loadTeamsForUsers")
 	}
 

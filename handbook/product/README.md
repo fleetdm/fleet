@@ -48,17 +48,17 @@ Once the draft has been approved:
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
-### Emergency drafting
+### Expedited drafting
 
-Emergency drafting is the revision of drafted changes currently being developed by
-the engineering team. Emergency drafting aims to quickly adapt to unknown edge cases and
+Expedited drafting is the revision of drafted changes currently being developed by
+the engineering team. Expedited drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
 
-You'll know it's time for emergency drafting when:
+You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 
-What happens during emergency drafting?
+What happens during expedited drafting?
 1. Everyone on the product and engineering teams know that a drafted change was brought back
    to drafting and prioritized.
 2. Drafts are updated to cover edge cases or reduce functionality.
@@ -77,7 +77,7 @@ Product Managers prioritize all potential product improvements worked on by cont
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [emergency drafting](#emergency-drafting). 
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
 > Anyone can [suggest improvements](#intake).
 
@@ -280,7 +280,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
 | Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
-| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
 | 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
 | 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |

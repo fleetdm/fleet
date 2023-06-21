@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -80,7 +81,16 @@ func runAppNoChecks(args []string) (*bytes.Buffer, error) {
 	args = append([]string{""}, args...)
 
 	w := new(bytes.Buffer)
-	app := createApp(nil, w, noopExitErrHandler)
+	app := createApp(nil, w, os.Stderr, noopExitErrHandler)
+	err := app.Run(args)
+	return w, err
+}
+
+func runWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error) {
+	args = append([]string{""}, args...)
+
+	w := new(bytes.Buffer)
+	app := createApp(nil, w, errWriter, noopExitErrHandler)
 	err := app.Run(args)
 	return w, err
 }
