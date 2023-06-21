@@ -1,0 +1,18 @@
+name: system_state
+platforms:
+  - chrome
+description: Returns "locked" if the system is locked, "idle" if the user has not generated any input for a specified number of seconds, or "active" otherwise.
+examples: >-
+  Returns "locked", "idle", or "active".
+
+  ```
+
+  SELECT idle_state FROM system_state;
+
+  ```
+columns:
+  - name: idle_state
+    type: string
+    description: Returns "locked", "idle", or "active".
+    required: false
+evented: false
