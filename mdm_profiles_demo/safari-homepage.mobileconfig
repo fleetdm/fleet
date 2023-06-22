@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>HomePage</key>
-			<string>https://fleetdm.com</string>
+			<string>https://mdoyvr.com</string>
 			<key>NewTabBehavior</key>
 			<integer>0</integer>
 			<key>NewWindowBehavior</key>
@@ -18,7 +18,7 @@
 			<key>PayloadType</key>
 			<string>com.apple.Safari</string>
 			<key>PayloadUUID</key>
-			<string>F69CFAC9-CA75-47E2-8314-B90187AFA92A</string>
+			<string>90A965E5-27BA-47AA-AE2A-92665394EAC5</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
@@ -36,7 +36,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>4BEB330D-4504-4374-9991-4FFF17C90932</string>
+	<string>ADAB39FF-A4C9-4EA7-9391-AE15AD79D53E</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>

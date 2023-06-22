@@ -12,11 +12,11 @@
 			<key>PayloadType</key>
 			<string>com.apple.desktop</string>
 			<key>PayloadUUID</key>
-			<string>63ED3F35-ED29-4DA1-9C22-F278776C30C0</string>
+			<string>5AD947D5-274E-4DA0-8FD2-2FE3F762B5CB</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>override-picture-path</key>
-			<string>/System/Library/Desktop Pictures/Catalina Graphic.heic</string>
+			<string>/System/Library/Desktop Pictures/Ventura Graphic.heic</string>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
@@ -30,7 +30,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>913465CE-5109-4882-A0CF-C301E5C43571</string>
+	<string>AF45C9FE-7F2C-459B-9875-6D576E2AA9F7</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
