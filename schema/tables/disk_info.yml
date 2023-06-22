@@ -2,7 +2,7 @@ name: disk_info
 platforms:
   - chrome
 description: Returns information about disks found on the system. A separate line for each disk found.
-example: >-
+examples: >-
   ```
   SELECT * FROM disk_info;
   ```
