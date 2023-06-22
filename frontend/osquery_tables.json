@@ -4913,7 +4913,7 @@
     "name": "disk_info",
     "description": "Retrieve basic information about the physical disks of a system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/windows/disk_info.table",
-    "platforms": ["windows"],
+    "platforms": ["windows", "chrome"],
     "evented": false,
     "cacheable": false,
     "columns": [
