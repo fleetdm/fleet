@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Desktop Picture</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.desktop.A762F090-6630-472D-A7B2-EAB746F62CFF</string>
+			<key>PayloadType</key>
+			<string>com.apple.desktop</string>
+			<key>PayloadUUID</key>
+			<string>A762F090-6630-472D-A7B2-EAB746F62CFF</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>override-picture-path</key>
+			<string>/System/Library/Desktop Pictures/Studio Color.heic</string>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Set the desktop background</string>
+	<key>PayloadDisplayName</key>
+	<string>Desktop Background</string>
+	<key>PayloadIdentifier</key>
+	<string>Zachs-MacBook-Pro.73B6CBAA-421E-425B-8DAF-7F862C04F52D</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet Device Management Inc</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>73B6CBAA-421E-425B-8DAF-7F862C04F52D</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

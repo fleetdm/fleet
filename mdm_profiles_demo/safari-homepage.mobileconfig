@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>HomePage</key>
+			<string>https://mdoyvr.com</string>
+			<key>NewTabBehavior</key>
+			<integer>0</integer>
+			<key>NewWindowBehavior</key>
+			<integer>0</integer>
+			<key>PayloadDisplayName</key>
+			<string>Safari</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.Safari.06A2FA3B-5996-4DA4-A5BD-6A867B5DE674</string>
+			<key>PayloadType</key>
+			<string>com.apple.Safari</string>
+			<key>PayloadUUID</key>
+			<string>DED34EF1-8CB4-4519-8774-747571E9D192</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Set the Safari homepage</string>
+	<key>PayloadDisplayName</key>
+	<string>Safari Homepage</string>
+	<key>PayloadIdentifier</key>
+	<string>Zachs-MacBook-Pro.B63B24A6-86DC-461F-A4FF-F80DAF7A942B</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet Device Management Inc</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>26B5DEF0-FBBB-4231-BBD8-B4606962E011</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
