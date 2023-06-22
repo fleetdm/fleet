@@ -376,7 +376,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.SMTPSettings.SMTPEnabled {
 			if oldSMTPSettings != *appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 				if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-					return nil, ctxerr.Wrap(ctx, err)
+					return nil, fleet.NewInvalidArgumentError("SMTP Options", err.Error())
 				}
 			}
 			appConfig.SMTPSettings.SMTPConfigured = true
@@ -674,6 +674,14 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	if incoming.IDPName == "" {
 		if existing.IDPName == "" {
 			invalid.Append("idp_name", "required")
+		}
+	}
+
+	if incoming.MetadataURL != "" {
+		if u, err := url.ParseRequestURI(incoming.MetadataURL); err != nil {
+			invalid.Append("metadata_url", err.Error())
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			invalid.Append("metadata_url", "must be either https or http")
 		}
 	}
 }

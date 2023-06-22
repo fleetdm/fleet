@@ -1124,7 +1124,7 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	h := &fleet.Host{ID: 1}
 
 	var expectedProfiles []*fleet.HostMacOSProfile
-	ds.SetVerifiedHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+	ds.UpdateVerificationHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
 		require.Equal(t, h.ID, host.ID)
 		require.Len(t, installedProfiles, len(expectedProfiles))
 		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))
