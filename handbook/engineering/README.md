@@ -418,7 +418,7 @@ When merging a pull request from a community contributor:
 
 ## Changes to tables' schema
 
-Whenever a PR is proposed for making changes to our tables' schema (e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
+Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
 It should be done by running these commands:
 ```
 cd website
