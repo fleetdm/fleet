@@ -416,7 +416,7 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
-## Changes to tables' Schema
+## Changes to tables' schema
 
 Whenever a PR is proposed for making changes to our tables' schema (e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
 It should be done by running these commands:
