@@ -59,10 +59,13 @@ export default class TablePrivacyPreferences extends Table {
   columns = Object.keys(this.propertyAPIs);
 
   async generate() {
-    const result = {};
-
-    // for (const property of this.columns) {
+    const results = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
+      let callbackResolve;
+      const resultPromise = new Promise((r) => {
+        callbackResolve = r;
+      });
+      results.push(resultPromise);
       // console.log("cur property: ", property);
 
       // // Handle API call only for ChromeOS and Windows
@@ -93,33 +96,39 @@ export default class TablePrivacyPreferences extends Table {
       //     });
       //   }
       // } else {
-      try {
-        await propertyAPI.get({}, (details) => {
-          // if (details.value === null) {
-          //   result[property] = null; // TODO: how to handle this? should we handle it?
-          // } else {
-          // result[property] = details.value ? 1 : 0;
-          // only non-bool property
-          if (property === "web_rtc_ip_handling_policy") {
-            result[property] = details.value;
+      propertyAPI.get({}, (details) => {
+        // if (details.value === null) {
+        //   result[property] = null; // TODO: how to handle this? should we handle it?
+        // } else {
+        // result[property] = details.value ? 1 : 0;
+        // only non-bool property
+        if (property === "web_rtc_ip_handling_policy") {
+          // result[property] = details.value;
+          callbackResolve({ [property]: details.value });
+        } else {
+          // convert bool response to binary flag
+          if (details.value === true) {
+            // result[property] = 1;
+            callbackResolve({ [property]: 1 });
           } else {
-            // convert bool response to binary flag
-            if (details.value === true) {
-              result[property] = 1;
-            } else {
-              result[property] = 0;
-              // }
-            }
+            // result[property] = 0;
+            callbackResolve({ [property]: 0 });
             // }
           }
-        });
-      } catch (error) {
-        console.log("error: ", error);
-        console.log("property: ", property);
-      }
+          // }
+        }
+      });
     }
-    console.log("result row: ", result);
-    return [result];
+    // console.log("result row: ", result);
+    // await new Promise((r) => setTimeout(r, 1));
+    await Promise.all(results);
+    console.log("results (promises): ", results);
+    return [
+      results.reduce(async (resultRow, resultPromise) => {
+        return { ...resultRow, ...(await resultPromise) };
+      }, {}),
+    ];
+    // return results.reduce();
   }
 }
 // }
