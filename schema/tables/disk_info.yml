@@ -2,14 +2,7 @@ name: disk_info
 platforms:
   - chrome
 description: Returns information about disks found on the system. A separate line for each disk found.
-examples: >-
-  ```
-  capacity:524288000
-  id:"b7cb1990-7b4f-42fe-a5da-f2b9f7848b6e"
-  name:"iSCPreboot"
-  type:"fixed"
-  ```
-
+example: >-
   ```
   SELECT * FROM disk_info;
   ```
