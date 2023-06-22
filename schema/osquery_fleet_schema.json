@@ -19869,12 +19869,12 @@
   },
   {
     "name": "screenlock",
-    "description": "Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle. Note: For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.",
+    "description": "Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.",
     "url": "https://fleetdm.com/tables/screenlock",
     "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
-    "notes": "",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.",
     "examples": [],
     "columns": [
       {
