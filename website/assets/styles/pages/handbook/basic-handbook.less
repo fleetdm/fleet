@@ -216,6 +216,21 @@
       padding: 24px 16px;
       margin: auto;
     }
+    a[target='_blank']:not(.btn) {
+      color: @core-vibrant-blue;
+      padding-right: 7px;
+    }
+    a[target='_blank']:not(.btn):after {
+      background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
+      background-size: 7px 7px;
+      display: inline-block;
+      position: relative;
+      top: -4px;
+      left: 4px;
+      width: 7px;
+      height: 7px;
+      content: '';
+    }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
       color: inherit;
       text-decoration: inherit;
