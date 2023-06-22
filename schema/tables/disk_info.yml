@@ -14,7 +14,7 @@ columns:
     required: false
   - name: id
     type: string
-    description: UUID of the disk.
+    description: The unique identifier of the drive on the system.
     required: false
   - name: name
     type: text
