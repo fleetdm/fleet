@@ -1,7 +1,7 @@
 name: system_state
 platforms:
   - chrome
-description: Returns "locked" if the system is locked, "idle" if the user has not generated any input for a specified number of seconds, or "active" otherwise.
+description: Returns "locked" if the system is locked, "idle" if the user has not generated any input for a specified number of seconds, or "active" otherwise. Idle time is set to 20% of the user's autolock time or defaults to 30 seconds if autolock is not set.
 examples: >-
   Returns "locked", "idle", or "active".
 

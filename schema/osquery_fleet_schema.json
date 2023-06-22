@@ -19869,9 +19869,9 @@
   },
   {
     "name": "screenlock",
-    "description": "macOS screenlock status. Note: only fetches results for osquery's current logged-in user context. The user must also have recently logged in.",
+    "description": "Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle. Note: For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.",
     "url": "https://fleetdm.com/tables/screenlock",
-    "platforms": ["darwin"],
+    "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -28012,23 +28012,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
   },
   {
-    "name": "screen_lock",
-    "platforms": ["chrome"],
-    "description": "Gets the time, in seconds, it takes until the screen is locked automatically while idle. Returns a zero duration if the screen is never locked automatically.",
-    "examples": "Gets the time, in seconds, it takes until the screen is locked automatically while idle. \n```\nSELECT delay from screen_lock;\n```",
-    "columns": [
-      {
-        "name": "delay",
-        "type": "integer",
-        "description": "Time, in seconds, it takes until the screen is locked automatically while idle.",
-        "required": false
-      }
-    ],
-    "evented": false,
-    "url": "https://fleetdm.com/tables/screen_lock",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/screen_lock.yml"
-  },
-  {
     "name": "sntp_request",
     "platforms": ["darwin", "windows", "linux"],
     "description": "Allows querying the timestamp and clock offset from a SNTP server (in millisecond precision).",
@@ -28094,7 +28077,7 @@
   {
     "name": "system_state",
     "platforms": ["chrome"],
-    "description": "Returns \"locked\" if the system is locked, \"idle\" if the user has not generated any input for a specified number of seconds, or \"active\" otherwise.",
+    "description": "Returns \"locked\" if the system is locked, \"idle\" if the user has not generated any input for a specified number of seconds, or \"active\" otherwise.  Idle time is set to 20% of the user's autolock time or defaults to 30 seconds if autolock is not set.",
     "examples": "Returns \"locked\", \"idle\", or \"active\".\n```\nSELECT idle_state FROM system_state;\n```",
     "columns": [
       {

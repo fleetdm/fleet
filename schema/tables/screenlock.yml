@@ -1,7 +1,10 @@
 name: screenlock
-description: >- 
-  macOS screenlock status
-notes: >- 
-  - Only fetches results for osquery's current logged-in user context. If osquery is running as root, this table will return no results. 
-  
-  - The user must also have recently logged in in order to show the latest setting. 
+platforms:
+  - darwin
+  - chrome
+description: >-
+  Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.
+notes: >-
+  - For macOS, this only fetches results for osquery's current logged-in user context. If osquery is running as root, this table will return no results. 
+
+  - For macOS, the user must also have recently logged in in order to show the latest setting.
