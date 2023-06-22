@@ -15,7 +15,7 @@ columns:
     platforms:
       - chrome
   - name: id
-    type: string
+    type: text
     description: The unique identifier of the drive on the system.
     required: false
   - name: name
