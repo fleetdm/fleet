@@ -59,13 +59,13 @@ export default class TablePrivacyPreferences extends Table {
   columns = Object.keys(this.propertyAPIs);
 
   async generate() {
-    const results = [];
+    const [resultColumns, resultPromises] = [{}, []];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
       let callbackResolve;
       const resultPromise = new Promise((r) => {
         callbackResolve = r;
       });
-      results.push(resultPromise);
+      resultPromises.push(resultPromise);
       // console.log("cur property: ", property);
 
       // // Handle API call only for ChromeOS and Windows
@@ -103,16 +103,16 @@ export default class TablePrivacyPreferences extends Table {
         // result[property] = details.value ? 1 : 0;
         // only non-bool property
         if (property === "web_rtc_ip_handling_policy") {
-          // result[property] = details.value;
-          callbackResolve({ [property]: details.value });
+          resultColumns[property] = details.value;
+          callbackResolve();
         } else {
           // convert bool response to binary flag
           if (details.value === true) {
-            // result[property] = 1;
-            callbackResolve({ [property]: 1 });
+            resultColumns[property] = 1;
+            callbackResolve();
           } else {
-            // result[property] = 0;
-            callbackResolve({ [property]: 0 });
+            resultColumns[property] = 0;
+            callbackResolve();
             // }
           }
           // }
@@ -121,14 +121,24 @@ export default class TablePrivacyPreferences extends Table {
     }
     // console.log("result row: ", result);
     // await new Promise((r) => setTimeout(r, 1));
-    await Promise.all(results);
-    console.log("results (promises): ", results);
-    return [
-      results.reduce(async (resultRow, resultPromise) => {
-        return { ...resultRow, ...(await resultPromise) };
-      }, {}),
-    ];
+
+    // wait for each API to call the passed in callback function
+    await Promise.all(resultPromises);
+
+    return [resultColumns];
+    // return [
+    //   results.reduce(async (resultRow, resultPromise) => {
+    //     return { ...resultRow, ...(await resultPromise) };
+    //   }, {}),
+    // ];
     // return results.reduce();
   }
 }
 // }
+
+// Ideas:
+// -Promise.resolve (api call)
+// - new Promise ((r) => {
+// API Call (WITHIN promise)
+// resolve
+// })
