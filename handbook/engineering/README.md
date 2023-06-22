@@ -425,8 +425,7 @@ cd website
 ```
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
-NOTE 2: If a table is added to our ChromeOS extension but it does not exist in OSQury, add a note that mentions it.
-As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
+> If a table is added to our ChromeOS extension but it does not exist in osquery, add a note that mentions it. As in this [example (https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
 ## Quality
 
