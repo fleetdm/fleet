@@ -32,7 +32,7 @@ func NewSoapRequest(request []byte) (SoapRequest, error) {
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
 	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
-	sres, err := NewSoapResponse(soapFaultMsg, relatesTo)
+	sres, err := NewSoapResponse(&soapFaultMsg, relatesTo)
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestInvalidSoapResponse(t *testing.T) {
 func TestFaultMessageSoapResponse(t *testing.T) {
 	targetErrorString := "invalid input request"
 	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
-	sres, err := NewSoapResponse(soapFaultMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
+	sres, err := NewSoapResponse(&soapFaultMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	provisionedToken := "provisionedToken"
 	reqSecTokenCollectionMsg, err := NewRequestSecurityTokenResponseCollection(provisionedToken)
 	require.NoError(t, err)
-	sres, err := NewSoapResponse(reqSecTokenCollectionMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
+	sres, err := NewSoapResponse(&reqSecTokenCollectionMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestGetPoliciesResponseSoapResponse(t *testing.T) {
 	minKey := "2048"
 	getPoliciesMsg, err := NewGetPoliciesResponse(minKey, "10", "20")
 	require.NoError(t, err)
-	sres, err := NewSoapResponse(getPoliciesMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
+	sres, err := NewSoapResponse(&getPoliciesMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
 	require.NoError(t, err)

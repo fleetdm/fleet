@@ -2491,6 +2491,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(route.path, tkn)
 		}
+
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error())
