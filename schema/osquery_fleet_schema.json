@@ -27460,6 +27460,127 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
   },
   {
+    "name": "corestorage_logical_volume_families",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
+    "columns": [
+      {
+        "name": "vg_UUID",
+        "type": "text",
+        "required": false,
+        "description": "The unique identifier of the containing volume group"
+      },
+      {
+        "name": "vg_Version",
+        "type": "integer",
+        "required": false,
+        "description": "The version of the volume group, probably 1"
+      },
+      {
+        "name": "vg_FreeSpace",
+        "type": "bigint",
+        "required": false,
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+      },
+      {
+        "name": "vg_FusionDrive",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "vg_Name",
+        "type": "text",
+        "required": false,
+        "description": "The customizable name of the volume group"
+      },
+      {
+        "name": "vg_Sequence",
+        "type": "bigint",
+        "required": false,
+        "description": "Current sequence number of the volume group"
+      },
+      {
+        "name": "vg_Size",
+        "type": "bigint",
+        "required": false,
+        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
+      },
+      {
+        "name": "vg_Sparse",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group allows overcommitting storage"
+      },
+      {
+        "name": "vg_Status",
+        "type": "text",
+        "required": false,
+        "description": "Status of the volume group, e.g. \"Online\""
+      },
+      {
+        "name": "UUID",
+        "type": "text",
+        "required": false,
+        "description": "Unique ID of the logical volume family"
+      },
+      {
+        "name": "EncryptionStatus",
+        "type": "text",
+        "required": false,
+        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
+      },
+      {
+        "name": "EncryptionType",
+        "type": "text",
+        "required": false,
+        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
+      },
+      {
+        "name": "HasVisibleUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "HasVolumeKey",
+        "type": "integer",
+        "required": false,
+        "description": "Whether there is an encryption key assigned for the logical volume"
+      },
+      {
+        "name": "IsAcceptingNewUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Whether new users may be granted access to the logical volume family encryption key"
+      },
+      {
+        "name": "IsFullySecure",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "MayHaveEncryptedEvents",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "RequiresPasswordUnlock",
+        "type": "integer",
+        "required": false,
+        "description": "Whether a password is currently required to unlock the volume"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
+  },
+  {
     "name": "corestorage_logical_volumes",
     "platforms": [
       "darwin"
@@ -27659,127 +27780,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volumes.yml"
   },
   {
-    "name": "corestorage_logical_volume_families",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
-    "columns": [
-      {
-        "name": "vg_UUID",
-        "type": "text",
-        "required": false,
-        "description": "The unique identifier of the containing volume group"
-      },
-      {
-        "name": "vg_Version",
-        "type": "integer",
-        "required": false,
-        "description": "The version of the volume group, probably 1"
-      },
-      {
-        "name": "vg_FreeSpace",
-        "type": "bigint",
-        "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
-      },
-      {
-        "name": "vg_FusionDrive",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "vg_Name",
-        "type": "text",
-        "required": false,
-        "description": "The customizable name of the volume group"
-      },
-      {
-        "name": "vg_Sequence",
-        "type": "bigint",
-        "required": false,
-        "description": "Current sequence number of the volume group"
-      },
-      {
-        "name": "vg_Size",
-        "type": "bigint",
-        "required": false,
-        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
-      },
-      {
-        "name": "vg_Sparse",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group allows overcommitting storage"
-      },
-      {
-        "name": "vg_Status",
-        "type": "text",
-        "required": false,
-        "description": "Status of the volume group, e.g. \"Online\""
-      },
-      {
-        "name": "UUID",
-        "type": "text",
-        "required": false,
-        "description": "Unique ID of the logical volume family"
-      },
-      {
-        "name": "EncryptionStatus",
-        "type": "text",
-        "required": false,
-        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
-      },
-      {
-        "name": "EncryptionType",
-        "type": "text",
-        "required": false,
-        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
-      },
-      {
-        "name": "HasVisibleUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "HasVolumeKey",
-        "type": "integer",
-        "required": false,
-        "description": "Whether there is an encryption key assigned for the logical volume"
-      },
-      {
-        "name": "IsAcceptingNewUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Whether new users may be granted access to the logical volume family encryption key"
-      },
-      {
-        "name": "IsFullySecure",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "MayHaveEncryptedEvents",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "RequiresPasswordUnlock",
-        "type": "integer",
-        "required": false,
-        "description": "Whether a password is currently required to unlock the volume"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
-  },
-  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
@@ -27864,6 +27864,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
+    "name": "filevault_prk",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
+    "columns": [
+      {
+        "name": "base64_encrypted",
+        "type": "text",
+        "required": false,
+        "description": "The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/filevault_prk",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
+  },
+  {
     "name": "filevault_users",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
@@ -27888,25 +27907,6 @@
     ],
     "url": "https://fleetdm.com/tables/filevault_users",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
-  },
-  {
-    "name": "filevault_prk",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
-    "columns": [
-      {
-        "name": "base64_encrypted",
-        "type": "text",
-        "required": false,
-        "description": "The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/filevault_prk",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
   },
   {
     "name": "firmware_eficheck_integrity_check",
@@ -28516,25 +28516,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
-    "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information from nvram system call.",
-    "columns": [
-      {
-        "name": "amfi_enabled",
-        "type": "integer",
-        "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
-  },
-  {
     "name": "orbit_info",
     "platforms": [
       "darwin",
@@ -28590,6 +28571,25 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/orbit_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
+  },
+  {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "pmset",
@@ -28787,6 +28787,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
   },
   {
+    "name": "pwd_policy",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Password Policiy (e.g max failed password attempts).",
+    "columns": [
+      {
+        "name": "max_failed_attempts",
+        "type": "integer",
+        "required": false,
+        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
+      },
+      {
+        "name": "expires_every_n_days",
+        "type": "integer",
+        "required": false,
+        "description": "How many days for a new password to expire.\n"
+      },
+      {
+        "name": "days_to_expiration",
+        "type": "integer",
+        "required": false,
+        "description": "How many days are left for the expiration of the current password.\n"
+      },
+      {
+        "name": "history_depth",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
+      },
+      {
+        "name": "min_mixed_case_characters",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/pwd_policy",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
     "name": "puppet_state",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
@@ -28879,49 +28922,6 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
-  },
-  {
-    "name": "pwd_policy",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Password Policiy (e.g max failed password attempts).",
-    "columns": [
-      {
-        "name": "max_failed_attempts",
-        "type": "integer",
-        "required": false,
-        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
-      },
-      {
-        "name": "expires_every_n_days",
-        "type": "integer",
-        "required": false,
-        "description": "How many days for a new password to expire.\n"
-      },
-      {
-        "name": "days_to_expiration",
-        "type": "integer",
-        "required": false,
-        "description": "How many days are left for the expiration of the current password.\n"
-      },
-      {
-        "name": "history_depth",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
-      },
-      {
-        "name": "min_mixed_case_characters",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/pwd_policy",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
   },
   {
     "name": "sntp_request",
