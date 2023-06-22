@@ -4925,7 +4925,7 @@
         "required": false,
         "platforms": ["windows"],
         "index": false
-        },
+      },
       {
         "name": "disk_index",
         "description": "Physical drive number of the disk.",
