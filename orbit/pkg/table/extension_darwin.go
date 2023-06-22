@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_prk"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
@@ -44,6 +45,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("apfs_physical_stores", apfs.PhysicalStoresColumns(), apfs.PhysicalStoresGenerate),
 		table.NewPlugin("corestorage_logical_volumes", corestorage.LogicalVolumesColumns(), corestorage.LogicalVolumesGenerate),
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
+		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

@@ -24,7 +24,7 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	if !job.NotBefore.IsZero() {
 		notBefore = &job.NotBefore
 	}
-	result, err := ds.writer.ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
+	result, err := ds.writer(ctx).ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ LIMIT ?
 `
 
 	var jobs []*fleet.Job
-	err := sqlx.SelectContext(ctx, ds.reader, &jobs, query, fleet.JobStateQueued, maxNumJobs)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, fleet.JobStateQueued, maxNumJobs)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ WHERE
 	if !job.NotBefore.IsZero() {
 		notBefore = &job.NotBefore
 	}
-	_, err := ds.writer.ExecContext(ctx, query, job.State, job.Retries, job.Error, notBefore, id)
+	_, err := ds.writer(ctx).ExecContext(ctx, query, job.State, job.Retries, job.Error, notBefore, id)
 	if err != nil {
 		return nil, err
 	}

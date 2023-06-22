@@ -608,7 +608,10 @@ const ManageSoftwarePage = ({
   };
 
   const searchable =
-    isSoftwareEnabled && (!!software?.software || searchQuery !== "");
+    isSoftwareEnabled &&
+    (!!software?.software ||
+      searchQuery !== "" ||
+      queryParams.vulnerable === "true");
 
   return !isRouteOk ||
     (isPremiumTier && !userTeams) ||
