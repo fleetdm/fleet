@@ -59,78 +59,39 @@ export default class TablePrivacyPreferences extends Table {
   columns = Object.keys(this.propertyAPIs);
 
   async generate() {
-    const [resultColumns, resultPromises] = [{}, []];
+    const results = []; // Promise<{string: number | string}>[]
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
-      let callbackResolve;
-      const resultPromise = new Promise((r) => {
-        callbackResolve = r;
-      });
-      resultPromises.push(resultPromise);
-      // console.log("cur property: ", property);
-
-      // // Handle API call only for ChromeOS and Windows
-      // if (property === "protected_content_enabled") {
-      //   console.log("protected content property");
-
-      //   // check platform
-      //   // TODO - make sure this is being set correctly
-      //   let os;
-      //   await chrome.runtime.getPlatformInfo((info) => {
-      //     console.log("platform info: ", info);
-      //     os = info.os;
-      //   });
-
-      //   // only call if on ChromeOS or Windows
-      //   // TODO - confirm string for windows and chromeos platforms
-      //   console.log("os: ", os);
-      //   if (os === "windows" || os === "cros") {
-      //     // hard to make this modular since can't pass `property` into the callback
-      //     console.log("calling chrome/windows only api");
-      //     await this.propertyAPIs[property].get({}, (details) => {
-      //       if (details.value === null) {
-      //         result[property] = null; // TODO: how to handle this? should we handle it?
-      //       } else {
-      //         // convert bool response to binary flag
-      //         result[property] = details.value ? 1 : 0;
-      //       }
-      //     });
-      //   }
-      // } else {
-      propertyAPI.get({}, (details) => {
-        // if (details.value === null) {
-        //   result[property] = null; // TODO: how to handle this? should we handle it?
-        // } else {
-        // result[property] = details.value ? 1 : 0;
-        // only non-bool property
-        if (property === "web_rtc_ip_handling_policy") {
-          resultColumns[property] = details.value;
-          callbackResolve();
-        } else {
-          // convert bool response to binary flag
-          if (details.value === true) {
-            resultColumns[property] = 1;
-            callbackResolve();
-          } else {
-            resultColumns[property] = 0;
-            callbackResolve();
-            // }
-          }
-          // }
-        }
-      });
+      results.push(
+        new Promise((resolve) => {
+          propertyAPI.get({}, (details) => {
+            if (property === "web_rtc_ip_handling_policy") {
+              resolve({ [property]: details.value });
+            } else {
+              // convert bool response to binary flag
+              if (details.value === true) {
+                resolve({ [property]: 1 });
+              } else {
+                resolve({ [property]: 0 });
+                // }
+              }
+              // }
+            }
+          });
+        })
+      );
     }
     // console.log("result row: ", result);
     // await new Promise((r) => setTimeout(r, 1));
 
     // wait for each API to call the passed in callback function
-    await Promise.all(resultPromises);
+    const columns = await Promise.all(results);
+    // console.log("results (promises): ", results);
 
-    return [resultColumns];
-    // return [
-    //   results.reduce(async (resultRow, resultPromise) => {
-    //     return { ...resultRow, ...(await resultPromise) };
-    //   }, {}),
-    // ];
+    return [
+      columns.reduce((resultRow, column) => {
+        return { ...resultRow, ...column };
+      }, {}),
+    ];
     // return results.reduce();
   }
 }
