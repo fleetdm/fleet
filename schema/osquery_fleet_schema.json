@@ -5982,9 +5982,10 @@
   },
   {
     "name": "disk_info",
-    "description": "Returns information about disks found on the system. A separate line for each disk found.",
+    "description": "Retrieve basic information about the physical disks of a system.",
     "url": "https://fleetdm.com/tables/disk_info",
     "platforms": [
+      "windows",
       "chrome"
     ],
     "evented": false,
@@ -6012,8 +6013,8 @@
       },
       {
         "name": "type",
-        "description": "Type of the disk (e.g. fixed).",
-        "type": "STRING",
+        "description": "The interface type of the disk..",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6067,7 +6068,7 @@
       {
         "name": "name",
         "description": "Name of the disk.",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -28134,43 +28135,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
   },
   {
-    "name": "macos_rsr",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Returns information about installed Rapid Security Responses (RSRs).",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "columns": [
-      {
-        "name": "full_macos_version",
-        "description": "Full macOS version string (including the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "macos_version",
-        "description": "The macOS version string (excluding the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_supported",
-        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_version",
-        "description": "RSR version string suffix (with parenthesis included)",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macos_rsr",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
-  },
-  {
     "name": "macos_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "High level information on installed profiles enrollment.",
@@ -28233,47 +28197,41 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
   },
   {
-    "name": "mdm_bridge",
+    "name": "macos_rsr",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Returns information about installed Rapid Security Responses (RSRs).",
     "platforms": [
-      "windows"
+      "darwin"
     ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "evented": false,
     "columns": [
       {
-        "name": "enrollment_status",
-        "type": "text",
+        "name": "full_macos_version",
+        "description": "Full macOS version string (including the RSR suffix)",
         "required": false,
-        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+        "type": "text"
       },
       {
-        "name": "enrolled_user",
-        "type": "text",
+        "name": "macos_version",
+        "description": "The macOS version string (excluding the RSR suffix)",
         "required": false,
-        "description": "Contains the enrollment URI of the device."
+        "type": "text"
       },
       {
-        "name": "mdm_command_input",
-        "type": "text",
+        "name": "rsr_supported",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
         "required": false,
-        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+        "type": "text"
       },
       {
-        "name": "mdm_command_output",
-        "type": "text",
+        "name": "rsr_version",
+        "description": "RSR version string suffix (with parenthesis included)",
         "required": false,
-        "description": "Value of the \"Results\" field of the MDM command output."
-      },
-      {
-        "name": "raw_mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "The full raw output of the MDM command execution."
+        "type": "text"
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/mdm_bridge",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+    "url": "https://fleetdm.com/tables/macos_rsr",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
     "name": "mdm",
@@ -28368,6 +28326,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
   },
   {
+    "name": "mdm_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "columns": [
+      {
+        "name": "enrollment_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+      },
+      {
+        "name": "enrolled_user",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment URI of the device."
+      },
+      {
+        "name": "mdm_command_input",
+        "type": "text",
+        "required": false,
+        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+      },
+      {
+        "name": "mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "Value of the \"Results\" field of the MDM command output."
+      },
+      {
+        "name": "raw_mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "The full raw output of the MDM command execution."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/mdm_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+  },
+  {
     "name": "munki_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
@@ -28436,37 +28437,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
-    "name": "network_interfaces",
-    "evented": false,
-    "platforms": [
-      "chrome"
-    ],
-    "description": "Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.",
-    "columns": [
-      {
-        "name": "mac",
-        "type": "text",
-        "required": false,
-        "description": "MAC address (only available to extensions force-installed by enterprise policy)"
-      },
-      {
-        "name": "ipv4",
-        "type": "text",
-        "required": false,
-        "description": "IPv4 address (only available to extensions force-installed by enterprise policy)"
-      },
-      {
-        "name": "ipv6",
-        "type": "text",
-        "required": false,
-        "description": "IPv6 address (only available to extensions force-installed by enterprise policy)"
-      }
-    ],
-    "notes": "- Requires that the fleetd extension is force-installed by enterprise policy",
-    "url": "https://fleetdm.com/tables/network_interfaces",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
-  },
-  {
     "name": "munki_installs",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
@@ -28503,6 +28473,56 @@
     ],
     "url": "https://fleetdm.com/tables/munki_installs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
+  },
+  {
+    "name": "network_interfaces",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.",
+    "columns": [
+      {
+        "name": "mac",
+        "type": "text",
+        "required": false,
+        "description": "MAC address (only available to extensions force-installed by enterprise policy)"
+      },
+      {
+        "name": "ipv4",
+        "type": "text",
+        "required": false,
+        "description": "IPv4 address (only available to extensions force-installed by enterprise policy)"
+      },
+      {
+        "name": "ipv6",
+        "type": "text",
+        "required": false,
+        "description": "IPv6 address (only available to extensions force-installed by enterprise policy)"
+      }
+    ],
+    "notes": "- Requires that the fleetd extension is force-installed by enterprise policy",
+    "url": "https://fleetdm.com/tables/network_interfaces",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
+  },
+  {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "orbit_info",
@@ -28560,25 +28580,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/orbit_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
-  },
-  {
-    "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information from nvram system call.",
-    "columns": [
-      {
-        "name": "amfi_enabled",
-        "type": "integer",
-        "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "pmset",
