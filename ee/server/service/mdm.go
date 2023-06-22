@@ -891,5 +891,5 @@ func teamNameFromPreassignGroups(groups []string) string {
 		groups = []string{defaultName}
 	}
 
-	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.999"))
+	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.000"))
 }
