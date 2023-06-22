@@ -1379,7 +1379,7 @@ Set name of default team to use with Apple Business Manager.
 
 ##### mdm.windows_enabled_and_configured
 
-Enables or disables Windows MDM support.
+Enables or disables Microsoft MDM support.
 
 - Default value: false
 - Config file format:
