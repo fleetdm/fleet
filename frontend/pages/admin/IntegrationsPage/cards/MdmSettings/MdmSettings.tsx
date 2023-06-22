@@ -16,6 +16,7 @@ import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
+import WindowsMdmSection from "./components/WindowsMdmSection/WindowsMdmSection";
 
 const baseClass = "mdm-settings";
 
@@ -127,10 +128,14 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
         <h2>Apple Push Certificates Portal</h2>
         {isLoadingMdmApple ? <Spinner /> : renderMdmAppleSection()}
       </div>
+      <WindowsMdmSection />
       {isPremiumTier && (
-        <div className={`${baseClass}__section`}>
-          <EndUserMigrationSection router={router} />
-        </div>
+        <>
+          {/* TODO: conditionally show with feature flag */}
+          <div className={`${baseClass}__section`}>
+            <EndUserMigrationSection router={router} />
+          </div>
+        </>
       )}
       {showRequestCSRModal && (
         <RequestCSRModal onCancel={toggleRequestCSRModal} />
