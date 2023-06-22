@@ -75,9 +75,13 @@
     }
   }
   [purpose='support-cards'] {
-    [purpose='support-column'] {
-      flex-direction: column;
+    flex-direction: column;
+    [purpose='support-row'] {
+      flex-direction: row;
       width: 100%;
+    }
+    a {
+      width: 50%;
     }
 
     margin-bottom: 30px;
@@ -88,18 +92,19 @@
       max-width: 1200px;
       padding-top: 80px;
       padding-bottom: 80px;
+
     }
 
 
     [purpose='support-cards'] {
       flex-direction: row;
       margin-bottom: 50px;
-      [purpose='support-column'] {
+      [purpose='support-row'] {
         flex-direction: row;
       }
     }
 
-    [purpose='support-column'] {
+    [purpose='support-row'] {
       [purpose='support-card'] {
         width: 282px;
         height: 221px;
@@ -160,9 +165,11 @@
 
     [purpose='support-cards'] {
       flex-direction: column;
-      // margin-bottom: 50px;
-      [purpose='support-column'] {
+      [purpose='support-row'] {
         flex-direction: column;
+      }
+      a {
+        width: 100%;
       }
     }
 
@@ -210,6 +217,7 @@
     }
     [purpose='community-cards'] {
       [purpose='support-card'] {
+        padding-top: 32px;
         margin-bottom: 16px;
       }
     }
