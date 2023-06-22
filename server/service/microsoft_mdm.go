@@ -40,9 +40,8 @@ type SoapResponse struct {
 
 // error returns soap fault error if present
 func (msg SoapResponse) error() error {
-	if msg.Body.SoapFault != nil {
-		// placeholder to log SoapFault error message if needed
-	}
+	// placeholder to log SoapFault error message if needed
+	// msg.Body.SoapFault != nil
 
 	return nil
 }
@@ -61,7 +60,9 @@ func (msg SoapResponse) hijackRender(ctx context.Context, w http.ResponseWriter)
 	w.Header().Set("Content-Type", mdm.SoapContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
-	w.Write(xmlRes)
+	if n, err := w.Write(xmlRes); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
 }
 
 // getMessageID returns the message ID from the header
@@ -406,7 +407,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 		Code: mdm_types.Code{
 			Value: mdm.SoapFaultRecv,
 			Subcode: mdm_types.Subcode{
-				Value: string(errorType),
+				Value: errorType,
 			},
 		},
 		Reason: mdm_types.Reason{
