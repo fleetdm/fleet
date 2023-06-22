@@ -12,16 +12,18 @@ columns:
     type: integer
     description: Capacity on the disk in Bytes.
     required: false
+    platforms:
+      - chrome
   - name: id
     type: string
     description: The unique identifier of the drive on the system.
     required: false
   - name: name
     type: text
-    description: Name of the disk.
+    description: The label of the disk object.
     required: false
   - name: type
     type: text
-    description: The interface type of the disk..
+    description: The interface type of the disk.
     required: false
 evented: false
