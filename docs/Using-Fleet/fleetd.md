@@ -207,7 +207,7 @@ After successful notarization, the generated "ticket" is automatically stapled t
 
 #### Fleetd osquery result and status logs
 
-If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
+If the `logger_path` configuration is set to `filesystem`, Fleetd will store osquery's "result" and
 "status" logs to the following directories:
   - Windows: C:\Program Files\Orbit\osquery_log
   - macOS: /opt/orbit/osquery_log
