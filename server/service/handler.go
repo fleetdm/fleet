@@ -598,8 +598,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Microsoft Device Enrollment Discovery Endpoint
 	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server
-	neMicrosoftMDM.WithAltPaths(microsoft_mdm.MSEnrollEntryPoint).
-		POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequest{})
+	neMicrosoftMDM.POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequest{})
 
 	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
 

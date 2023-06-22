@@ -52,11 +52,11 @@ type appConfigResponseFields struct {
 	// MDMEnabled is true if fleet serve was started with
 	// FLEET_DEV_MDM_ENABLED=1.
 	//
-	// Undocumented feature flag for Windows MDM, used to determine if the
-	// Windows MDM feature is visible in the UI and can be enabled. More details
+	// Undocumented feature flag for Microsoft MDM, used to determine if the
+	// Microsoft MDM feature is visible in the UI and can be enabled. More details
 	// here: https://github.com/fleetdm/fleet/issues/12257
 	//
-	// TODO: remove this flag once the Windows MDM feature is ready for
+	// TODO: remove this flag once the Microsoft MDM feature is ready for
 	// release.
 	MDMEnabled bool `json:"mdm_enabled,omitempty"`
 }
@@ -648,8 +648,8 @@ func (svc *Service) validateMDM(
 
 	// Windows validation
 	if !config.IsMDMFeatureFlagEnabled() {
-		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+		if mdm.MicrosoftEnabledAndConfigured {
+			invalid.Append("mdm.microsoft_enabled_and_configured", "cannot enable Microsoft MDM without the feature flag explicitly enabled")
 			return
 		}
 	}

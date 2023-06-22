@@ -1,5 +1,7 @@
 package microsoft_mdm
 
+import "github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+
 const (
 	// MDMPath is Fleet's HTTP path for the core Microsoft MDM service.
 	MDMPath = "/api/mdm/microsoft"
@@ -108,3 +110,15 @@ const (
 	// HTTP Content Type for SOAP responses
 	SoapContentType = "application/soap+xml; charset=utf-8"
 )
+
+func ResolveMicrosoftMDMDiscovery(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)
+}
+
+func ResolveMicrosoftMDMPolicy(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2PolicyPath, false)
+}
+
+func ResolveMicrosoftMDMEnroll(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
+}

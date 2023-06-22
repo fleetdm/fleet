@@ -74,27 +74,48 @@ func (req *SoapRequest) isValidHeader() error {
 	// Check for required fields
 
 	if len(req.XmlNSS) == 0 {
-		return errors.New("invalid req header: XmlNSS")
+		return errors.New("invalid SOAP header: XmlNSS")
 	}
 
 	if len(req.XmlNSA) == 0 {
-		return errors.New("XmlNSA")
+		return errors.New("invalid SOAP header: XmlNSA")
 	}
 
 	if len(req.Header.MessageID) == 0 {
-		return errors.New("Header.MessageID")
+		return errors.New("invalid SOAP header: Header.MessageID")
 	}
 
 	if len(req.Header.Action.Content) == 0 {
-		return errors.New("Header.Action")
+		return errors.New("invalid SOAP header: Header.Action")
 	}
 
 	if len(req.Header.ReplyTo.Address) == 0 {
-		return errors.New("Header.ReplyTo")
+		return errors.New("invalid SOAP header: Header.ReplyTo")
 	}
 
 	if len(req.Header.To.Content) == 0 {
-		return errors.New("Header.To")
+		return errors.New("invalid SOAP header: Header.To")
+	}
+
+	return nil
+}
+
+// isValidBody checks for the presence of only one message
+func (req *SoapRequest) isValidBody() error {
+	nonNilCount := 0
+
+	if req.Body.Discover != nil {
+		nonNilCount++
+	}
+	if req.Body.GetPolicies != nil {
+		nonNilCount++
+	}
+	if req.Body.RequestSecurityToken != nil {
+		nonNilCount++
+	}
+
+	if nonNilCount != 1 {
+		return errors.New("invalid SOAP body: Multiple messages or no message")
 	}
 
 	return nil
@@ -103,11 +124,15 @@ func (req *SoapRequest) isValidHeader() error {
 // IsValidDiscoveryMsg checks for required fields in the Discover message
 func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid header: %s", err)
+		return fmt.Errorf("invalid discover message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid discover message: %s", err)
 	}
 
 	if req.Body.Discover == nil {
-		return errors.New("invalid body: Discover message not present")
+		return errors.New("invalid discover message: Discover message not present")
 	}
 
 	if len(req.Body.Discover.XmlNS) == 0 {
@@ -144,11 +169,15 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 // IsValidGetPolicyMsg checks for required fields in the GetPolicies message
 func (req *SoapRequest) IsValidGetPolicyMsg() error {
 	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid header: %s", err)
+		return fmt.Errorf("invalid getpolicies message:  %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid getpolicies message: %s", err)
 	}
 
 	if req.Body.GetPolicies == nil {
-		return errors.New("invalid body: GetPolicies message not present")
+		return errors.New("invalid getpolicies message:  GetPolicies message not present")
 	}
 
 	if len(req.Body.GetPolicies.XmlNS) == 0 {
@@ -161,11 +190,15 @@ func (req *SoapRequest) IsValidGetPolicyMsg() error {
 // IsValidRequestSecurityTokenMsg checks for required fields in the RequestSecurityToken message
 func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid header: %s", err)
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
 	}
 
 	if req.Body.RequestSecurityToken == nil {
-		return errors.New("invalid body: RequestSecurityToken message not present")
+		return errors.New("invalid requestsecuritytoken message: RequestSecurityToken message not present")
 	}
 
 	if len(req.Body.RequestSecurityToken.TokenType) == 0 {
@@ -562,11 +595,22 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// We can now craft the crafting DiscoveryResponse message
-	urlMDMServerDomain := appCfg.ServerSettings.ServerURL
-	urlDiscoveryEndpoint := urlMDMServerDomain + mdm.MDE2DiscoveryPath
-	urlPolicyEndpoint := urlMDMServerDomain + mdm.MDE2PolicyPath
-	urlEnrollEndpoint := urlMDMServerDomain + mdm.MDE2EnrollPath
+	// Getting the DiscoveryResponse message content ready
+
+	urlDiscoveryEndpoint, err := mdm.ResolveMicrosoftMDMDiscovery(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	urlPolicyEndpoint, err := mdm.ResolveMicrosoftMDMPolicy(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	urlEnrollEndpoint, err := mdm.ResolveMicrosoftMDMEnroll(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 
 	discoveryMsg, err := NewDiscoverResponse(urlDiscoveryEndpoint, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
