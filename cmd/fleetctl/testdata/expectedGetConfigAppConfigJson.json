@@ -83,7 +83,7 @@
 			"apple_bm_enabled_and_configured": false,
 			"enabled_and_configured": false,
 			"apple_bm_default_team": "",
-			"microsoft_enabled_and_configured": false,
+			"windows_enabled_and_configured": false,
 			"macos_updates": {
 				"minimum_version": null,
 				"deadline": null

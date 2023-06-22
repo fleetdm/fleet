@@ -912,7 +912,7 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
-    microsoft_enabled_and_configured: true
+    windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
