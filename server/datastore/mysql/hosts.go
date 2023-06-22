@@ -1584,17 +1584,18 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      t.name as team_name
     FROM
       hosts h
     LEFT OUTER JOIN
       host_mdm hm
     ON
       hm.host_id = h.id
-	LEFT OUTER JOIN
-	  host_dep_assignments hdep
-	ON
-	  hdep.host_id = h.id
+    LEFT OUTER JOIN
+      host_dep_assignments hdep
+    ON
+      hdep.host_id = h.id
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms
     ON
@@ -1603,6 +1604,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       host_disk_encryption_keys hdek
     ON
       hdek.host_id = h.id
+    LEFT OUTER JOIN
+      teams t
+    ON
+      h.team_id = t.id
     WHERE
       h.orbit_node_key = ?`
 
@@ -1694,13 +1699,13 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       host_disks hd ON hd.host_id = hda.host_id
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
-	LEFT OUTER JOIN
-	  host_dep_assignments hdep
-	ON
-	  hdep.host_id = h.id
+    LEFT OUTER JOIN
+      host_dep_assignments hdep ON hdep.host_id = h.id
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
-    WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    WHERE
+      hda.token = ? AND
+      hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var hostWithMDM hostWithMDMInfo
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {

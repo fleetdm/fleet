@@ -698,8 +698,8 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
-	// SetVerifiedHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	SetVerifiedHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
+	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error

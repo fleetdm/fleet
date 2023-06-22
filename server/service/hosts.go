@@ -899,13 +899,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		policies = &hp
 	}
 
-	// If Fleet MDM is enabled and configured, we want to include MDM profiles
-	// and host's disk encryption status.
-	var profiles []fleet.HostMDMAppleProfile
+	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
+	// disk encryption status, and macOS setup details.
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm profiles")
+		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
 	}
+
+	var profiles []fleet.HostMDMAppleProfile
 	if ac.MDM.EnabledAndConfigured {
 		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
 		if err != nil {
@@ -920,6 +921,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 			}
+			p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 			profiles = append(profiles, p)
 		}
 	}

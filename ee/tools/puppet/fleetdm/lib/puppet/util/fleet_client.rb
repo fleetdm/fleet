@@ -15,15 +15,16 @@ module Puppet::Util
     # Pre-assigns a profile to a host. Note that the profile assignment is not
     # effective until the sibling `match_profiles` method is called.
     #
+    # @param run_identifier [String] Used to identify this run during profile matching.
     # @param uuid [String] The host uuid.
     # @param profile_xml [String] Raw XML with the configuration profile.
     # @param group [String] Used to construct a team name.
     # @return [Hash] The response status code, headers, and body.
-    def preassign_profile(uuid, profile_xml, group)
+    def preassign_profile(run_identifier, uuid, profile_xml, group)
       post(
         '/api/latest/fleet/mdm/apple/profiles/preassign',
         {
-          'external_host_identifier' => Puppet[:node_name_value],
+          'external_host_identifier' => run_identifier,
           'host_uuid' => uuid,
           'profile' => Base64.strict_encode64(profile_xml),
           'group' => group,
@@ -37,11 +38,13 @@ module Puppet::Util
     # It uses `Puppet[:node_name_value]` as the `external_host_identifier`,
     # which is unique per Puppet host.
     #
+    # @param run_identifier [String] Used to identify this run to match
+    # pre-assigned profiles.
     # @return [Hash] The response status code, headers, and body.
-    def match_profiles
+    def match_profiles(run_identifier)
       post('/api/latest/fleet/mdm/apple/profiles/match',
   {
-    'external_host_identifier' => Puppet[:node_name_value],
+    'external_host_identifier' => run_identifier,
   })
     end
 
