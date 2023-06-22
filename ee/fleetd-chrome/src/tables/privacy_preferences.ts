@@ -48,7 +48,7 @@ export default class TablePrivacyPreferences extends Table {
     // @ts-ignore, DEPRECATED
     privacy_sandbox_enabled: chrome.privacy.websites.privacySandboxEnabled,
     // WINDOWS AND CHROMEOS ONLY - if desired, can check the platform via `chrome.runtime.getPlatformInfo`
-    // protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
+    protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
     referrers_enabled: chrome.privacy.websites.referrersEnabled,
     third_party_cookies_allowed:
       chrome.privacy.websites.thirdPartyCookiesAllowed,
@@ -72,34 +72,20 @@ export default class TablePrivacyPreferences extends Table {
                 resolve({ [property]: 1 });
               } else {
                 resolve({ [property]: 0 });
-                // }
               }
-              // }
             }
           });
         })
       );
     }
-    // console.log("result row: ", result);
-    // await new Promise((r) => setTimeout(r, 1));
 
-    // wait for each API to call the passed in callback function
+    // wait for each API to call the passed in resolve
     const columns = await Promise.all(results);
-    // console.log("results (promises): ", results);
 
     return [
       columns.reduce((resultRow, column) => {
         return { ...resultRow, ...column };
       }, {}),
     ];
-    // return results.reduce();
   }
 }
-// }
-
-// Ideas:
-// -Promise.resolve (api call)
-// - new Promise ((r) => {
-// API Call (WITHIN promise)
-// resolve
-// })
