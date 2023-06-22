@@ -6049,11 +6049,15 @@
       {
         "name": "disk_size",
         "description": "Size of the disk.",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "Windows",
+          "ChromeOS"
+        ]
       },
       {
         "name": "manufacturer",
@@ -6103,15 +6107,6 @@
         "hidden": false,
         "required": false,
         "index": false
-      },
-      {
-        "name": "capacity",
-        "type": "integer",
-        "description": "Capacity on the disk in Bytes.",
-        "required": false,
-        "platforms": [
-          "chrome"
-        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_info.yml"
@@ -27440,31 +27435,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
   },
   {
-    "name": "cis_audit",
-    "platforms": [
-      "windows"
-    ],
-    "description": "Enables querying CIS items values.",
-    "columns": [
-      {
-        "name": "item",
-        "type": "text",
-        "required": false,
-        "description": "Contains the input CIS item to query. If empty, no CIS item is queried."
-      },
-      {
-        "name": "value",
-        "type": "text",
-        "required": false,
-        "description": "Contains the value for the queried CIS item."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/cis_audit",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
-  },
-  {
     "name": "corestorage_logical_volume_families",
     "platforms": [
       "darwin"
@@ -27584,6 +27554,31 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
+  },
+  {
+    "name": "cis_audit",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Enables querying CIS items values.",
+    "columns": [
+      {
+        "name": "item",
+        "type": "text",
+        "required": false,
+        "description": "Contains the input CIS item to query. If empty, no CIS item is queried."
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "required": false,
+        "description": "Contains the value for the queried CIS item."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/cis_audit",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
   },
   {
     "name": "corestorage_logical_volumes",
@@ -28034,159 +28029,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
   },
   {
-    "name": "macadmins_unified_log",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.\n```\nSELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = \"1m\";\n```",
-    "columns": [
-      {
-        "name": "trace_id",
-        "description": "The ID of a trace event",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "event_type",
-        "description": "The type of event, this can be logEvent, signpostEvent or stateEvent.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "format_string",
-        "description": "The format string used to convert variable content into a string for output.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "activity_identifier",
-        "description": "The identifier of the log activity.",
-        "required": false,
-        "type": "int"
-      },
-      {
-        "name": "subsystem",
-        "description": "The subsystem responsible for this activity.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "category",
-        "description": "The category of the log activity.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "thread_id",
-        "description": "The ID of the thread that originated the event.",
-        "required": false,
-        "type": "bigint"
-      },
-      {
-        "name": "sender_image_uuid",
-        "description": "The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "sender_image_path",
-        "description": "The full path of the library, framework, kernel extension, or mach-o image, that originated the event.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "boot_uuid",
-        "description": "The boot UUID of the event.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "process_id",
-        "description": "Process ID of the process that generated this log item, which can be joined to multiple other tables including a *PID*.",
-        "required": false,
-        "type": "bigint"
-      },
-      {
-        "name": "process_image_path",
-        "description": "The full path of the process that originated the event.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "timestamp",
-        "description": "Timestamp in [UNIX time format](https://en.wikipedia.org/wiki/Unix_time).",
-        "required": false,
-        "type": "bigint"
-      },
-      {
-        "name": "event_message",
-        "description": "The message of the log entry.",
-        "required": false,
-        "type": "string"
-      },
-      {
-        "name": "sender_program_counter",
-        "description": "The program counter of the library, framework, kernel extension, or mach-o image, that originated the event.",
-        "required": false,
-        "type": "uint"
-      },
-      {
-        "name": "parent_activity_identifier",
-        "description": "ID of the parent activity",
-        "required": false,
-        "type": "uint"
-      },
-      {
-        "name": "log_level",
-        "description": "The log level of this item, such as `default`, `info`, `fault`, etc.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macadmins_unified_log",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
-  },
-  {
-    "name": "macos_rsr",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Returns information about installed Rapid Security Responses (RSRs).",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "columns": [
-      {
-        "name": "full_macos_version",
-        "description": "Full macOS version string (including the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "macos_version",
-        "description": "The macOS version string (excluding the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_supported",
-        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_version",
-        "description": "RSR version string suffix (with parenthesis included)",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macos_rsr",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
-  },
-  {
     "name": "macos_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "High level information on installed profiles enrollment.",
@@ -28247,6 +28089,43 @@
     ],
     "url": "https://fleetdm.com/tables/macos_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
+  },
+  {
+    "name": "macos_rsr",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Returns information about installed Rapid Security Responses (RSRs).",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "full_macos_version",
+        "description": "Full macOS version string (including the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "macos_version",
+        "description": "The macOS version string (excluding the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_supported",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_version",
+        "description": "RSR version string suffix (with parenthesis included)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_rsr",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
     "name": "mdm",
@@ -28384,6 +28263,122 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
+    "name": "macadmins_unified_log",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.\n```\nSELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = \"1m\";\n```",
+    "columns": [
+      {
+        "name": "trace_id",
+        "description": "The ID of a trace event",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "event_type",
+        "description": "The type of event, this can be logEvent, signpostEvent or stateEvent.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "format_string",
+        "description": "The format string used to convert variable content into a string for output.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "activity_identifier",
+        "description": "The identifier of the log activity.",
+        "required": false,
+        "type": "int"
+      },
+      {
+        "name": "subsystem",
+        "description": "The subsystem responsible for this activity.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "category",
+        "description": "The category of the log activity.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "thread_id",
+        "description": "The ID of the thread that originated the event.",
+        "required": false,
+        "type": "bigint"
+      },
+      {
+        "name": "sender_image_uuid",
+        "description": "The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "sender_image_path",
+        "description": "The full path of the library, framework, kernel extension, or mach-o image, that originated the event.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "boot_uuid",
+        "description": "The boot UUID of the event.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "process_id",
+        "description": "Process ID of the process that generated this log item, which can be joined to multiple other tables including a *PID*.",
+        "required": false,
+        "type": "bigint"
+      },
+      {
+        "name": "process_image_path",
+        "description": "The full path of the process that originated the event.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "timestamp",
+        "description": "Timestamp in [UNIX time format](https://en.wikipedia.org/wiki/Unix_time).",
+        "required": false,
+        "type": "bigint"
+      },
+      {
+        "name": "event_message",
+        "description": "The message of the log entry.",
+        "required": false,
+        "type": "string"
+      },
+      {
+        "name": "sender_program_counter",
+        "description": "The program counter of the library, framework, kernel extension, or mach-o image, that originated the event.",
+        "required": false,
+        "type": "uint"
+      },
+      {
+        "name": "parent_activity_identifier",
+        "description": "ID of the parent activity",
+        "required": false,
+        "type": "uint"
+      },
+      {
+        "name": "log_level",
+        "description": "The log level of this item, such as `default`, `info`, `fault`, etc.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macadmins_unified_log",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
+  },
+  {
     "name": "munki_installs",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
@@ -28420,74 +28415,6 @@
     ],
     "url": "https://fleetdm.com/tables/munki_installs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
-  },
-  {
-    "name": "munki_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
-    "columns": [
-      {
-        "name": "console_user",
-        "description": "The username of the user currently logged into the console of the Mac.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "end_time",
-        "description": "The date and time at which the latest Munki run ended.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "errors",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "manifest_name",
-        "description": "The internal manifest name",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "problem_installs",
-        "description": "A list of installs that did not succeed, if any.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "start_time",
-        "description": "The date and time at which the latest Munki run started.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "success",
-        "description": "Shows if the Munki run was a success (true), or not (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "version",
-        "description": "The version of Munki used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "warnings",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
     "name": "network_interfaces",
@@ -28620,6 +28547,74 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
+  },
+  {
+    "name": "munki_info",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
+    "columns": [
+      {
+        "name": "console_user",
+        "description": "The username of the user currently logged into the console of the Mac.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "end_time",
+        "description": "The date and time at which the latest Munki run ended.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "errors",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "manifest_name",
+        "description": "The internal manifest name",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "problem_installs",
+        "description": "A list of installs that did not succeed, if any.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "start_time",
+        "description": "The date and time at which the latest Munki run started.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "success",
+        "description": "Shows if the Munki run was a success (true), or not (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "version",
+        "description": "The version of Munki used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "warnings",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
     "name": "puppet_info",

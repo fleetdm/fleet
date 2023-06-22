@@ -4923,14 +4923,16 @@
         "type": "integer",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
-      },
+        },
       {
         "name": "disk_index",
         "description": "Physical drive number of the disk.",
         "type": "integer",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4939,6 +4941,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4947,6 +4950,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4955,6 +4959,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4963,6 +4968,7 @@
         "type": "bigint",
         "hidden": false,
         "required": false,
+        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4971,6 +4977,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4979,6 +4986,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4987,6 +4995,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4995,6 +5004,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       },
       {
@@ -5003,6 +5013,7 @@
         "type": "text",
         "hidden": false,
         "required": false,
+        "platforms": ["windows"],
         "index": false
       }
     ]

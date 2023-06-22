@@ -8,11 +8,12 @@ examples: >-
   SELECT * FROM disk_info;
   ```
 columns:
-  - name: capacity
-    type: integer
-    description: Capacity on the disk in Bytes.
+  - name: disk_size
+    type: bigint
+    description: Size of the disk.
     required: false
     platforms:
+      - windows
       - chrome
   - name: id
     type: text
