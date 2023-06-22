@@ -345,7 +345,7 @@ func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_typ
 	return mdm_types.RequestSecurityTokenResponseCollection{
 		XmlNS: mdm.EnrollWSTrust,
 		RequestSecurityTokenResponse: mdm_types.RequestSecurityTokenResponse{
-			TokenType: mdm.EnrollTokenType,
+			TokenType: mdm.EnrollTType,
 			DispositionMessage: mdm_types.SecAttr{
 				Content: "",
 				XmlNS:   mdm.EnrollReq,

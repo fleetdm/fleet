@@ -44,7 +44,7 @@ const (
 	PolicyNS          = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy"
 	EnrollWSTrust     = "http://docs.oasis-open.org/ws-sx/ws-trust/200512"
 	EnrollSecExt      = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
-	EnrollTokenType   = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken"
+	EnrollTType       = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken"
 	EnrollPDoc        = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc"
 	EnrollEncode      = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"
 	EnrollReq         = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment"
