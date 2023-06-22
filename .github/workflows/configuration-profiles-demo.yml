@@ -42,7 +42,7 @@ jobs:
           FLEET_URL: $DOGFOOD_URL
           FLEET_TEAM_NAME: MDOYVR Demo
           MDM_CONFIG_REPO: fleetdm/fleet
-          MDM_CONFIG_DIRECTORY: mdm_profiles
+          MDM_CONFIG_DIRECTORY: mdm_profiles_demo
           MAC_OS_MIN_VERSION: "13.4.0"
           MAC_OS_VERSION_DEADLINE: 2023-07-01
           MAC_OS_ENABLE_DISK_ENCRYPTION: true
