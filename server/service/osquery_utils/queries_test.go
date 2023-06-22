@@ -1,7 +1,11 @@
 package osquery_utils
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -541,7 +545,6 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -1007,37 +1010,111 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	wantKey := "OTM5ODRDQTYtOUY1Mi00NERELTkxOUEtMDlBN0ZBOUUzNUY5Cg=="
 	host := &fleet.Host{ID: 1}
 
+	var wantKey string
+
+	mockFileLines := func(wantKey string, wantEncrypted string) []map[string]string {
+		var output []map[string]string
+		scanner := bufio.NewScanner(bytes.NewBuffer([]byte(wantKey)))
+		scanner.Split(bufio.ScanLines)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			item := make(map[string]string)
+			item["hex_line"] = hex.EncodeToString([]byte(line))
+			item["encrypted"] = wantEncrypted
+			output = append(output, item)
+		}
+		return output
+	}
+
+	mockFilevaultPRK := func(wantKey string, wantEncrypted string) []map[string]string {
+		return []map[string]string{
+			{"filevault_key": base64.StdEncoding.EncodeToString([]byte(wantKey)), "encrypted": wantEncrypted},
+		}
+	}
+
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
-		require.Empty(t, encryptedBase64Key)
-		require.Equal(t, host.ID, hostID)
+		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
+			return errors.New("key mismatch")
+		}
+		if host.ID != hostID {
+			return errors.New("host ID mismatch")
+		}
 		return nil
 	}
 
-	err := directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{})
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	t.Run("empty key", func(t *testing.T) {
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
-	ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
-		require.Equal(t, wantKey, encryptedBase64Key)
-		require.Equal(t, host.ID, hostID)
-		return nil
-	}
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "0"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 
-	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": wantKey}})
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1"}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1"}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1", "hex_line": ""}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, []map[string]string{{"encrypted": "1", "filevault_key": ""}})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
+
+	t.Run("key contains new lines and carriage return", func(t *testing.T) {
+		wantKey = "This is only a \n\r\n\n test."
+
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, mockFileLines(wantKey, "1"))
+		// it is a known limitation with the current file_lines implementation that causes this to fail
+		// because it relies on bufio.ScanLines, which drops "\r" from "\r\n"
+		require.ErrorContains(t, err, "key mismatch")
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK(wantKey, "1"))
+		// filevault_prk does not have the scan lines limitation
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
+
+	t.Run("key contains new lines", func(t *testing.T) {
+		wantKey = "This is only a \n\n\n test."
+
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, mockFileLines(wantKey, "1"))
+		// new lines are not a problem if they are not preceded by carriage return
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK(wantKey, "1"))
+		// filevault_prk does not have the scan lines limitation
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+		ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+	})
 }
 
 func TestDirectIngestHostMacOSProfiles(t *testing.T) {
@@ -1047,7 +1124,7 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	h := &fleet.Host{ID: 1}
 
 	var expectedProfiles []*fleet.HostMacOSProfile
-	ds.SetVerifiedHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+	ds.UpdateVerificationHostMacOSProfilesFunc = func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
 		require.Equal(t, h.ID, host.ID)
 		require.Len(t, installedProfiles, len(expectedProfiles))
 		expectedByIdentifier := make(map[string]*fleet.HostMacOSProfile, len(expectedProfiles))

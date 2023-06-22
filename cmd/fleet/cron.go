@@ -269,6 +269,10 @@ func checkWinVulnerabilities(
 	// Analyze all Win OS using the synched MSRC artifact.
 	if !config.DisableWinOSVulnerabilities {
 		for _, o := range os {
+			if !o.IsWindows() {
+				continue
+			}
+
 			start := time.Now()
 			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
 			elapsed := time.Since(start)

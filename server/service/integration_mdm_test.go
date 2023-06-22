@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	windows_mdm "github.com/fleetdm/fleet/v4/server/mdm/windows"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -224,6 +225,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		// ensure global disk encryption is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+  }`), http.StatusOK)
+	}
+	if appCfg.MDM.WindowsEnabledAndConfigured {
+		// ensure windows MDM is disabled on exit
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK)
 	}
 
@@ -591,7 +598,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
-	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\)$`, tm1.Name)
+	require.Regexp(t, `^g1 \(\d+-\d+-\d+:\d+:\d+:\d+\.\d\d\d\)$`, tm1.Name)
 
 	// it create activities for the new team, the profiles assigned to it, and
 	// the host moved to it
@@ -1723,13 +1730,81 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
 
-func (s *integrationMDMTestSuite) TestAppConfigMDMEnabled() {
+func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
+	ctx := context.Background()
 	t := s.T()
 
 	// the feature flag is enabled for the MDM test suite
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDMEnabled)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+
+	// create a couple teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+
+	// create some hosts - a Windows workstation in each team and no-team,
+	// Windows server in no team, Windows workstation enrolled in a 3rd-party in
+	// team 2, Windows workstation already enrolled in Fleet in no team, and a
+	// macOS host in no team.
+	metadataHosts := []struct {
+		os           string
+		suffix       string
+		isServer     bool
+		teamID       *uint
+		enrolledName string
+		shouldEnroll bool
+	}{
+		{"windows", "win-no-team", false, nil, "", true},
+		{"windows", "win-team-1", false, &tm1.ID, "", true},
+		{"windows", "win-team-2", false, &tm2.ID, "", true},
+		{"windows", "win-server", true, nil, "", false},                                    // is a server
+		{"windows", "win-third-party", false, &tm2.ID, fleet.WellKnownMDMSimpleMDM, false}, // is enrolled in 3rd-party
+		{"windows", "win-fleet", false, nil, fleet.WellKnownMDMFleet, false},               // is already Fleet-enrolled
+		{"darwin", "macos-no-team", false, nil, "", false},                                 // is not Windows
+	}
+	hostsBySuffix := make(map[string]*fleet.Host, len(metadataHosts))
+	for _, meta := range metadataHosts {
+		h := createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
+		createDeviceTokenForHost(t, s.ds, h.ID, meta.suffix)
+		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName)
+		require.NoError(t, err)
+		if meta.teamID != nil {
+			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{h.ID})
+			require.NoError(t, err)
+		}
+		hostsBySuffix[meta.suffix] = h
+	}
+
+	// enable Windows MDM
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+
+	// get the orbit config for each host, verify that only the expected ones
+	// receive the "needs enrollment to Windows MDM" notification.
+	for _, meta := range metadataHosts {
+		var resp orbitGetConfigResponse
+		s.DoJSON("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			http.StatusOK, &resp)
+		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		if meta.shouldEnroll {
+			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, windows_mdm.DiscoveryPath)
+		} else {
+			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+		}
+	}
+
+	// disable Windows MDM
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
@@ -2035,7 +2110,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
 
 	// verified status for host 1
-	require.NoError(t, s.ds.SetVerifiedHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
+	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(ctx, hosts[0], []*fleet.HostMacOSProfile{{Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
 	fvsResp = getMDMAppleFileVauleSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, uint(2), fvsResp.Verifying)
@@ -2896,7 +2971,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 
 	// h1 verified one of the profiles
-	require.NoError(t, s.ds.SetVerifiedHostMacOSProfiles(context.Background(), h1, []*fleet.HostMacOSProfile{
+	require.NoError(t, s.ds.UpdateVerificationHostMacOSProfiles(context.Background(), h1, []*fleet.HostMacOSProfile{
 		{Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
 	}))
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{

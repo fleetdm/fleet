@@ -219,7 +219,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = sw
 
-	tx, err := ds.writer.Beginx()
+	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
 	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
@@ -234,7 +234,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = sw
 
-	tx, err = ds.writer.Beginx()
+	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
 	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
@@ -460,7 +460,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	for _, cve := range cveMeta {
 		args = append(args, host.Software[0].ID, cve.CVE)
 	}
-	_, err = ds.writer.ExecContext(context.Background(), query, args...)
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), query, args...)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
@@ -891,7 +891,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	// that method (rightfully) ignores orphaned software counts.
 	checkTableTotalCount := func(want int) {
 		var tableCount int
-		err := ds.writer.Get(&tableCount, "SELECT COUNT(*) FROM software_host_counts")
+		err := ds.writer(context.Background()).Get(&tableCount, "SELECT COUNT(*) FROM software_host_counts")
 		require.NoError(t, err)
 		require.Equal(t, want, tableCount)
 	}
@@ -947,7 +947,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -2190,7 +2190,7 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
-	_, err = ds.writer.ExecContext(ctx, "UPDATE software_cve SET updated_at = '2020-10-10 12:00:00'")
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE software_cve SET updated_at = '2020-10-10 12:00:00'")
 	require.NoError(t, err)
 
 	// This should update the 'updated_at' timestamp.
@@ -2279,7 +2279,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	// Insert an installed_path for a single software entry
 	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
 	args := []interface{}{host.ID, host.Software[0].ID, "/some/path"}
-	_, err = ds.writer.ExecContext(ctx, query, args...)
+	_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
 	actual, err = ds.getHostSoftwareInstalledPaths(ctx, host.ID)
@@ -2443,12 +2443,12 @@ func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
 	for _, s := range software1 {
 		args := []interface{}{host1.ID, s.ID, fmt.Sprintf("/some/path/%d", s.ID)}
-		_, err := ds.writer.ExecContext(ctx, query, args...)
+		_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 		require.NoError(t, err)
 	}
 
 	args := []interface{}{host2.ID, software2[0].ID, fmt.Sprintf("/some/path/%d", software2[0].ID)}
-	_, err := ds.writer.ExecContext(ctx, query, args...)
+	_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
 	storedOnHost1, err := ds.getHostSoftwareInstalledPaths(ctx, host1.ID)
@@ -2470,10 +2470,10 @@ func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.NoError(t, deleteHostSoftwareInstalledPaths(ctx, ds.writer, toDelete))
+	require.NoError(t, deleteHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toDelete))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader, &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
 
 	expected := []fleet.HostSoftwareInstalledPath{
 		{
@@ -2506,10 +2506,10 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 			InstalledPath: "3",
 		},
 	}
-	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer, toInsert))
+	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toInsert))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader, &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
 }

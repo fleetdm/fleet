@@ -293,6 +293,13 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
     }
   },
+  'GET /imagine/rapid-7-alternative': {
+    action: 'imagine/view-rapid-7-alternative',
+    locals: {
+      pageTitleForMeta: 'An open-source alternative to Rapid7',
+      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -459,4 +466,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
+  'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
 };

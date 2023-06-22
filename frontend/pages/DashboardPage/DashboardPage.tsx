@@ -422,12 +422,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
+  const { MANAGE_HOSTS } = paths;
+
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
-    action: {
-      type: "link",
-      text: "View all hosts",
-    },
+    action:
+      selectedPlatform === "all"
+        ? {
+            type: "link",
+            text: "View all hosts",
+          }
+        : undefined,
+    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
     total_host_count: (() => {
       if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
@@ -596,7 +602,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {useInfoCard({
         title: "Mobile device management (MDM)",
         titleDetail: mdmTitleDetail,
-        showTitle: !isMacAdminsFetching,
+        showTitle: !isMdmFetching,
         description: (
           <p>
             MDM is used to change settings and install software on your hosts.

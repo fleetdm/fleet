@@ -376,7 +376,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.SMTPSettings.SMTPEnabled {
 			if oldSMTPSettings != *appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 				if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-					return nil, ctxerr.Wrap(ctx, err)
+					return nil, fleet.NewInvalidArgumentError("SMTP Options", err.Error())
 				}
 			}
 			appConfig.SMTPSettings.SMTPConfigured = true
@@ -643,6 +643,14 @@ func (svc *Service) validateMDM(
 			} else if u.Scheme != "https" && u.Scheme != "http" {
 				invalid.Append("macos_migration.webhook_url", "webhook_url must be https or http")
 			}
+		}
+	}
+
+	// Windows validation
+	if !config.IsMDMFeatureFlagEnabled() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+			return
 		}
 	}
 }

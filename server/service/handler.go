@@ -246,10 +246,11 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn) //nolint:errcheck
 }
 
-// desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
-//
-// Defined as const to be used in tests.
-const desktopRateLimitMaxBurst = 100
+// These are defined as const so that they can be used in tests.
+const (
+	desktopRateLimitMaxBurst        = 100 // Max burst used for device request rate limiting.
+	forgotPasswordRateLimitMaxBurst = 9   // Max burst used for rate limiting on the the forgot_password endpoint.
+)
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
@@ -623,7 +624,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// the handler.
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
-	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 90}
+	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).

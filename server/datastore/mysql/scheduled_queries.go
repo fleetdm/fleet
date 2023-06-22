@@ -44,7 +44,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 	query = appendListOptionsToSQL(query, &opts)
 	results := []*fleet.ScheduledQuery{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &results, query, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
 	}
 
@@ -74,7 +74,7 @@ func (ds *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) (f
 		WHERE sq.pack_id = ?
 	`
 	results := []*fleet.ScheduledQuery{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &results, query, id); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
 	}
 
@@ -82,7 +82,7 @@ func (ds *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) (f
 }
 
 func (ds *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	return insertScheduledQueryDB(ctx, ds.writer, sq)
+	return insertScheduledQueryDB(ctx, ds.writer(ctx), sq)
 }
 
 func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -138,7 +138,7 @@ func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.Sc
 }
 
 func (ds *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	return saveScheduledQueryDB(ctx, ds.writer, sq)
+	return saveScheduledQueryDB(ctx, ds.writer(ctx), sq)
 }
 
 func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
@@ -207,7 +207,7 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 		WHERE sq.id = ?
 	`
 	sq := &fleet.ScheduledQuery{}
-	if err := sqlx.GetContext(ctx, ds.reader, sq, query, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), sq, query, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(id))
 		}
@@ -260,7 +260,7 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int,
 
 		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, max-1))
 		var rows []idxAndID
-		if err := ds.writer.SelectContext(ctx, &rows, stmt, args...); err != nil {
+		if err := ds.writer(ctx).SelectContext(ctx, &rows, stmt, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select scheduled query IDs by name")
 		}
 		for _, row := range rows {
@@ -340,7 +340,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 
 			if batchCount >= batchSize {
 				stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
-				if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
+				if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
 					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
 				}
 				countExecs++
@@ -352,7 +352,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 
 	if batchCount > 0 {
 		stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
-		if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
 			return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
 		}
 		countExecs++
