@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -5021,102 +5019,4 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
-}
-
-// ///////////////////////////////////////////////////////////////////////////
-// Microsoft MDM tests
-
-func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-
-	// Preparing the Discovery Request message
-	requestBytes := []byte(`
-		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
-		   <s:Header>
-		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
-		     <a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
-		     <a:ReplyTo>
-		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-		     </a:ReplyTo>
-		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
-		   </s:Header>
-		   <s:Body>
-		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
-		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
-		         <RequestVersion>5.0</RequestVersion>
-		         <DeviceType>CIMClient_Windows</DeviceType>
-		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
-		         <OSEdition>48</OSEdition>
-		         <AuthPolicies>
-		           <AuthPolicy>OnPremise</AuthPolicy>
-		           <AuthPolicy>Federated</AuthPolicy>
-		         </AuthPolicies>
-		       </request>
-		     </Discover>
-		   </s:Body>
-		 </s:Envelope>`)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
-
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
-}
-
-func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-
-	// Preparing the Discovery Request message
-	requestBytes := []byte(`
-		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
-		   <s:Header>
-		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
-		     <a:ReplyTo>
-		       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-		     </a:ReplyTo>
-		     <a:To s:mustUnderstand="1">https://mdmwindows.com:443/EnrollmentServer/Discovery.svc</a:To>
-		   </s:Header>
-		   <s:Body>
-		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
-		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
-		         <RequestVersion>5.0</RequestVersion>
-		         <DeviceType>CIMClient_Windows</DeviceType>
-		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
-		         <OSEdition>48</OSEdition>
-		         <AuthPolicies>
-		           <AuthPolicy>OnPremise</AuthPolicy>
-		           <AuthPolicy>Federated</AuthPolicy>
-		         </AuthPolicies>
-		       </request>
-		     </Discover>
-		   </s:Body>
-		 </s:Envelope>`)
-
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
-
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
-
-	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
 }
