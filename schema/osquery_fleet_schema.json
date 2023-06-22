@@ -6018,7 +6018,11 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "Windows",
+          "ChromeOS"
+        ]
       },
       {
         "name": "id",
@@ -6027,7 +6031,11 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "Windows",
+          "ChromeOS"
+        ]
       },
       {
         "name": "pnp_device_id",
@@ -6072,7 +6080,11 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "Windows",
+          "ChromeOS"
+        ]
       },
       {
         "name": "serial",
@@ -27453,6 +27465,127 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
   },
   {
+    "name": "corestorage_logical_volume_families",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
+    "columns": [
+      {
+        "name": "vg_UUID",
+        "type": "text",
+        "required": false,
+        "description": "The unique identifier of the containing volume group"
+      },
+      {
+        "name": "vg_Version",
+        "type": "integer",
+        "required": false,
+        "description": "The version of the volume group, probably 1"
+      },
+      {
+        "name": "vg_FreeSpace",
+        "type": "bigint",
+        "required": false,
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+      },
+      {
+        "name": "vg_FusionDrive",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "vg_Name",
+        "type": "text",
+        "required": false,
+        "description": "The customizable name of the volume group"
+      },
+      {
+        "name": "vg_Sequence",
+        "type": "bigint",
+        "required": false,
+        "description": "Current sequence number of the volume group"
+      },
+      {
+        "name": "vg_Size",
+        "type": "bigint",
+        "required": false,
+        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
+      },
+      {
+        "name": "vg_Sparse",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group allows overcommitting storage"
+      },
+      {
+        "name": "vg_Status",
+        "type": "text",
+        "required": false,
+        "description": "Status of the volume group, e.g. \"Online\""
+      },
+      {
+        "name": "UUID",
+        "type": "text",
+        "required": false,
+        "description": "Unique ID of the logical volume family"
+      },
+      {
+        "name": "EncryptionStatus",
+        "type": "text",
+        "required": false,
+        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
+      },
+      {
+        "name": "EncryptionType",
+        "type": "text",
+        "required": false,
+        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
+      },
+      {
+        "name": "HasVisibleUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "HasVolumeKey",
+        "type": "integer",
+        "required": false,
+        "description": "Whether there is an encryption key assigned for the logical volume"
+      },
+      {
+        "name": "IsAcceptingNewUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Whether new users may be granted access to the logical volume family encryption key"
+      },
+      {
+        "name": "IsFullySecure",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "MayHaveEncryptedEvents",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "RequiresPasswordUnlock",
+        "type": "integer",
+        "required": false,
+        "description": "Whether a password is currently required to unlock the volume"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
+  },
+  {
     "name": "corestorage_logical_volumes",
     "platforms": [
       "darwin"
@@ -27671,127 +27804,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/csrutil_info.yml"
   },
   {
-    "name": "corestorage_logical_volume_families",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
-    "columns": [
-      {
-        "name": "vg_UUID",
-        "type": "text",
-        "required": false,
-        "description": "The unique identifier of the containing volume group"
-      },
-      {
-        "name": "vg_Version",
-        "type": "integer",
-        "required": false,
-        "description": "The version of the volume group, probably 1"
-      },
-      {
-        "name": "vg_FreeSpace",
-        "type": "bigint",
-        "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
-      },
-      {
-        "name": "vg_FusionDrive",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "vg_Name",
-        "type": "text",
-        "required": false,
-        "description": "The customizable name of the volume group"
-      },
-      {
-        "name": "vg_Sequence",
-        "type": "bigint",
-        "required": false,
-        "description": "Current sequence number of the volume group"
-      },
-      {
-        "name": "vg_Size",
-        "type": "bigint",
-        "required": false,
-        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
-      },
-      {
-        "name": "vg_Sparse",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group allows overcommitting storage"
-      },
-      {
-        "name": "vg_Status",
-        "type": "text",
-        "required": false,
-        "description": "Status of the volume group, e.g. \"Online\""
-      },
-      {
-        "name": "UUID",
-        "type": "text",
-        "required": false,
-        "description": "Unique ID of the logical volume family"
-      },
-      {
-        "name": "EncryptionStatus",
-        "type": "text",
-        "required": false,
-        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
-      },
-      {
-        "name": "EncryptionType",
-        "type": "text",
-        "required": false,
-        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
-      },
-      {
-        "name": "HasVisibleUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "HasVolumeKey",
-        "type": "integer",
-        "required": false,
-        "description": "Whether there is an encryption key assigned for the logical volume"
-      },
-      {
-        "name": "IsAcceptingNewUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Whether new users may be granted access to the logical volume family encryption key"
-      },
-      {
-        "name": "IsFullySecure",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "MayHaveEncryptedEvents",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "RequiresPasswordUnlock",
-        "type": "integer",
-        "required": false,
-        "description": "Whether a password is currently required to unlock the volume"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
-  },
-  {
     "name": "dscl",
     "platforms": [
       "darwin"
@@ -27829,25 +27841,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
-    "name": "filevault_prk",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
-    "columns": [
-      {
-        "name": "base64_encrypted",
-        "type": "text",
-        "required": false,
-        "description": "The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/filevault_prk",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
-  },
-  {
     "name": "file_lines",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows reading an arbitrary file.",
@@ -27876,6 +27869,51 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
+    "name": "filevault_prk",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
+    "columns": [
+      {
+        "name": "base64_encrypted",
+        "type": "text",
+        "required": false,
+        "description": "The base64-encoded contents of the encrypted FileVault personal recovery key stored at `/var/db/FileVaultPRK.dat` (see also https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow)"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/filevault_prk",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
+  },
+  {
+    "name": "filevault_users",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "columns": [
+      {
+        "name": "username",
+        "description": "Username of the FileVault user.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+  },
+  {
     "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
@@ -27899,6 +27937,42 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
+    "name": "geolocation",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Last reported geolocation",
+    "columns": [
+      {
+        "name": "ip",
+        "type": "text",
+        "required": false,
+        "description": "IP address"
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false,
+        "description": "City"
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "required": false,
+        "description": "Country"
+      },
+      {
+        "name": "region",
+        "type": "text",
+        "required": false,
+        "description": "Region"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/geolocation",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -27939,32 +28013,6 @@
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
-  },
-  {
-    "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
-    "columns": [
-      {
-        "name": "username",
-        "description": "Username of the FileVault user.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
     "name": "icloud_private_relay",
@@ -28102,6 +28150,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
   },
   {
+    "name": "macos_rsr",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Returns information about installed Rapid Security Responses (RSRs).",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "full_macos_version",
+        "description": "Full macOS version string (including the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "macos_version",
+        "description": "The macOS version string (excluding the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_supported",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_version",
+        "description": "RSR version string suffix (with parenthesis included)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_rsr",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
+  },
+  {
     "name": "macos_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "High level information on installed profiles enrollment.",
@@ -28162,86 +28247,6 @@
     ],
     "url": "https://fleetdm.com/tables/macos_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
-  },
-  {
-    "name": "macos_rsr",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Returns information about installed Rapid Security Responses (RSRs).",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "columns": [
-      {
-        "name": "full_macos_version",
-        "description": "Full macOS version string (including the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "macos_version",
-        "description": "The macOS version string (excluding the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_supported",
-        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_version",
-        "description": "RSR version string suffix (with parenthesis included)",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macos_rsr",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
-  },
-  {
-    "name": "mdm_bridge",
-    "platforms": [
-      "windows"
-    ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
-    "columns": [
-      {
-        "name": "enrollment_status",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
-      },
-      {
-        "name": "enrolled_user",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment URI of the device."
-      },
-      {
-        "name": "mdm_command_input",
-        "type": "text",
-        "required": false,
-        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
-      },
-      {
-        "name": "mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "Value of the \"Results\" field of the MDM command output."
-      },
-      {
-        "name": "raw_mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "The full raw output of the MDM command execution."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/mdm_bridge",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
     "name": "mdm",
@@ -28334,6 +28339,87 @@
     ],
     "url": "https://fleetdm.com/tables/mdm",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
+  },
+  {
+    "name": "mdm_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "columns": [
+      {
+        "name": "enrollment_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+      },
+      {
+        "name": "enrolled_user",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment URI of the device."
+      },
+      {
+        "name": "mdm_command_input",
+        "type": "text",
+        "required": false,
+        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+      },
+      {
+        "name": "mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "Value of the \"Results\" field of the MDM command output."
+      },
+      {
+        "name": "raw_mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "The full raw output of the MDM command execution."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/mdm_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+  },
+  {
+    "name": "munki_installs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
+    "columns": [
+      {
+        "name": "end_time",
+        "description": "The end time of the last Munki run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed",
+        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed_version",
+        "description": "The version number of installed items.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "name",
+        "description": "The name of items managed by Munki.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_installs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
     "name": "munki_info",
@@ -28435,42 +28521,23 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
-    "name": "munki_installs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
+    "name": "nvram_info",
     "platforms": [
       "darwin"
     ],
-    "evented": false,
-    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
+    "description": "Information from nvram system call.",
     "columns": [
       {
-        "name": "end_time",
-        "description": "The end time of the last Munki run.",
+        "name": "amfi_enabled",
+        "type": "integer",
         "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed",
-        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_version",
-        "description": "The version number of installed items.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "name",
-        "description": "The name of items managed by Munki.",
-        "required": false,
-        "type": "text"
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
       }
     ],
-    "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "orbit_info",
@@ -28528,61 +28595,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/orbit_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
-  },
-  {
-    "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information from nvram system call.",
-    "columns": [
-      {
-        "name": "amfi_enabled",
-        "type": "integer",
-        "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
-  },
-  {
-    "name": "geolocation",
-    "evented": false,
-    "platforms": [
-      "chrome"
-    ],
-    "description": "Last reported geolocation",
-    "columns": [
-      {
-        "name": "ip",
-        "type": "text",
-        "required": false,
-        "description": "IP address"
-      },
-      {
-        "name": "city",
-        "type": "text",
-        "required": false,
-        "description": "City"
-      },
-      {
-        "name": "country",
-        "type": "text",
-        "required": false,
-        "description": "Country"
-      },
-      {
-        "name": "region",
-        "type": "text",
-        "required": false,
-        "description": "Region"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/geolocation",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
     "name": "pmset",
@@ -28728,100 +28740,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
-    "name": "puppet_state",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
-    "columns": [
-      {
-        "name": "title",
-        "description": "The name of the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file that contains the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line on which the resource is specified.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource",
-        "description": "The resource and its title as `Type[title]`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource_type",
-        "description": "The resource type.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "evaluation_time",
-        "description": "The amount of seconds it took to evaluate the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "failed",
-        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "changed",
-        "description": "If `change_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync",
-        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "skipped",
-        "description": "True if this resource was skipped.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "change_count",
-        "description": "The count of changes to be performed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync_count",
-        "description": "The number of properties that are out of sync",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_state",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
-  },
-  {
     "name": "puppet_logs",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
@@ -28915,6 +28833,100 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pwd_policy",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
+    "name": "puppet_state",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
+    "columns": [
+      {
+        "name": "title",
+        "description": "The name of the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file that contains the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line on which the resource is specified.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource",
+        "description": "The resource and its title as `Type[title]`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource_type",
+        "description": "The resource type.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "evaluation_time",
+        "description": "The amount of seconds it took to evaluate the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "failed",
+        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "changed",
+        "description": "If `change_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync",
+        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "skipped",
+        "description": "True if this resource was skipped.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "change_count",
+        "description": "The count of changes to be performed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync_count",
+        "description": "The number of properties that are out of sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_state",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
   },
   {
     "name": "sntp_request",
