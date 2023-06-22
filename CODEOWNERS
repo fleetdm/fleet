@@ -9,6 +9,9 @@ go.mod @fleetdm/go
 # Compliance
 /ee/cis/ @sharon-fdm @lucasmrod @marcosd4h @rachelElysia
 
+# MDM
+/ee/tools/puppet @roperzh @gillespi314 @mna @georgekarrv
+
 # React engineers are automatically added as reviewers when changes are made to react files
 /frontend/ @fleetdm/frontend
 

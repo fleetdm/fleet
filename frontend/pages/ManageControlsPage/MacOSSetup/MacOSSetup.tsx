@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import PATHS from "router/paths";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 
@@ -14,7 +14,7 @@ import MAC_OS_SETUP_NAV_ITEMS from "./MacOSSetupNavItems";
 const baseClass = "macos-setup";
 
 interface ISetupEmptyState {
-  router: any;
+  router: InjectedRouter;
 }
 
 const SetupEmptyState = ({ router }: ISetupEmptyState) => {
@@ -80,7 +80,11 @@ const MacOSSetup = ({
           }))}
           activeItem={currentFormSection.urlSection}
           CurrentCard={
-            <CurrentCard key={teamIdForApi} currentTeamId={teamIdForApi} />
+            <CurrentCard
+              key={teamIdForApi}
+              currentTeamId={teamIdForApi}
+              router={router}
+            />
           }
         />
       )}

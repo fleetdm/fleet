@@ -92,19 +92,6 @@ var (
 	MDMAppleDeliveryPending   MDMAppleDeliveryStatus = "pending"
 )
 
-func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
-	switch cmdStatus {
-	case MDMAppleStatusAcknowledged:
-		return &MDMAppleDeliveryVerifying
-	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
-		return &MDMAppleDeliveryFailed
-	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
-		return &MDMAppleDeliveryPending
-	default:
-		return nil
-	}
-}
-
 type MDMAppleOperationType string
 
 const (
@@ -335,6 +322,18 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
+// IsWithinGracePeriod returns true if the host is within the grace period for the profile.
+//
+// The grace period is defined as 1 hour after the profile was updated. It is checked against the
+// host's detail_updated_at timestamp to allow for the host to check in at least once before the
+// profile is considered failed. If the host is online, it should report detail queries hourly by
+// default. If the host is offline, it should report detail queries shortly after it comes back
+// online.
+func (cp MDMAppleConfigProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) bool {
+	gracePeriod := 1 * time.Hour
+	return hostDetailUpdatedAt.Before(cp.UpdatedAt.Add(gracePeriod))
+}
+
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
 	HostUUID      string                  `db:"host_uuid" json:"-"`
@@ -358,6 +357,25 @@ func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
 	return false
 }
 
+type HostMDMProfileDetail string
+
+const (
+	HostMDMProfileDetailFailedWasVerified  HostMDMProfileDetail = "Failed, was verified"
+	HostMDMProfileDetailFailedWasVerifying HostMDMProfileDetail = "Failed, was verifying"
+)
+
+// Message returns a human-friendly message for the detail.
+func (d HostMDMProfileDetail) Message() string {
+	switch d {
+	case HostMDMProfileDetailFailedWasVerified:
+		return "This setting had been verified by osquery, but has since been found missing on the host."
+	case HostMDMProfileDetailFailedWasVerifying:
+		return "The MDM protocol returned a success but the setting couldn’t be verified by osquery."
+	default:
+		return string(d)
+	}
+}
+
 type MDMAppleProfilePayload struct {
 	ProfileID         uint   `db:"profile_id"`
 	ProfileIdentifier string `db:"profile_identifier"`
@@ -374,16 +392,21 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+	Detail            string
 	Checksum          []byte
 }
 
 // MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of three mutually-exclusive categories:
-// Failed, Pending, or Verifying.
+// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// Failed, Pending, Verifying, or Verified.
 type MDMAppleConfigProfilesSummary struct {
-	// Verifying includes each host that has successfully applied all of the profiles currently
-	// applicable to the host. If any of the profiles are pending or failed for the host, the host
-	// is not counted as verifying.
+	// Verified includes each host where Fleet has verified the installation of all of the
+	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
+	// subject to verification for the host, the host is not counted as verified.
+	Verified uint `json:"verified" db:"verified"`
+	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// profiles currently applicable to the host. If any of the profiles are pending or failed for
+	// the host, the host is not counted as verifying.
 	Verifying uint `json:"verifying" db:"verifying"`
 	// Pending includes each host that has not yet applied one or more of the profiles currently
 	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
@@ -394,9 +417,10 @@ type MDMAppleConfigProfilesSummary struct {
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
-// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
-// Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+// encryption profiles. Each host may be counted in only one of six mutually-exclusive categories:
+// Verified, Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
 type MDMAppleFileVaultSummary struct {
+	Verified            uint `json:"verified" db:"verified"`
 	Verifying           uint `json:"verifying" db:"verifying"`
 	ActionRequired      uint `json:"action_required" db:"action_required"`
 	Enforcing           uint `json:"enforcing" db:"enforcing"`
@@ -443,7 +467,23 @@ type MDMApplePreassignProfilePayload struct {
 // an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
 func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
 	sum := md5.Sum(p.Profile) //nolint: gosec
-	return hex.EncodeToString(sum[:])
+
+	// mysql's HEX function returns uppercase
+	return strings.ToUpper(hex.EncodeToString(sum[:]))
+}
+
+// MDMApplePreassignHostProfiles represents the set of profiles that were
+// pre-assigned to a given host identified by its UUID.
+type MDMApplePreassignHostProfiles struct {
+	HostUUID string
+	Profiles []MDMApplePreassignProfile
+}
+
+// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
+type MDMApplePreassignProfile struct {
+	Profile    []byte
+	Group      string
+	HexMD5Hash string
 }
 
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
@@ -467,7 +507,7 @@ type MDMAppleSetupPayload struct {
 
 // AuthzType implements authz.AuthzTyper.
 func (p MDMAppleSetupPayload) AuthzType() string {
-	return "mdm_apple_settings" // TODO: add mdm_apple_setup to rego?
+	return "mdm_apple_settings"
 }
 
 // HostDEPAssignment represents a row in the host_dep_assignments table
@@ -556,5 +596,5 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 // implementation is used in production.
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error
+	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }

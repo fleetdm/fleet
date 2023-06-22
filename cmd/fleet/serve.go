@@ -50,6 +50,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/go-kit/log"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push"
@@ -327,7 +328,9 @@ the way that the Fleet server works.
 			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 			ds = redisWrapperDS
 
-			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
+			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+				log.With(logger, "component", "query-results"),
+			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
@@ -551,7 +554,7 @@ the way that the Fleet server works.
 			}
 
 			// setup mail service
-			if appCfg.SMTPSettings.SMTPEnabled {
+			if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
 				// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
 				if config.Email.EmailBackend != "" {
 					config.Email.EmailBackend = ""
@@ -688,7 +691,11 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage)
+				var commander *apple_mdm.MDMAppleCommander
+				if appCfg.MDM.EnabledAndConfigured {
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				}
+				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}

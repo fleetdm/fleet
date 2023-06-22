@@ -1,5 +1,7 @@
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IHost } from "interfaces/host";
+import { useContext } from "react";
+import { NotificationContext } from "context/notification";
 
 interface IResult {
   type: "result";
@@ -10,6 +12,7 @@ interface IResult {
     rows: unknown[];
   };
 }
+
 interface IStatus {
   type: "status";
   data: {
@@ -29,7 +32,12 @@ interface ITotals {
   };
 }
 
-type ISocketData = IResult | IStatus | ITotals;
+interface IError {
+  type: "error";
+  data: string;
+}
+
+type ISocketData = IResult | IStatus | ITotals | IError;
 
 const updateCampaignStateFromTotals = (
   campaign: ICampaign,
@@ -114,6 +122,7 @@ const updateCampaignStateFromStatus = (
 
 export const updateCampaignState = (socketData: ISocketData) => {
   return ({ campaign }: ICampaignState) => {
+    const { renderFlash } = useContext(NotificationContext);
     switch (socketData.type) {
       case "totals":
         return updateCampaignStateFromTotals(campaign, socketData);
@@ -121,6 +130,17 @@ export const updateCampaignState = (socketData: ISocketData) => {
         return updateCampaignStateFromResults(campaign, socketData);
       case "status":
         return updateCampaignStateFromStatus(campaign, socketData);
+      case "error":
+        if (socketData.data.includes("unexpected exit in receiveMessages")) {
+          const campaignID = socketData.data.substring(
+            socketData.data.indexOf("=") + 1
+          );
+          renderFlash(
+            "error",
+            `Fleet's connection to Redis failed (campaign ID ${campaignID}). If this issue persists, please contact your administrator.`
+          );
+        }
+        return { campaign };
       default:
         return { campaign };
     }

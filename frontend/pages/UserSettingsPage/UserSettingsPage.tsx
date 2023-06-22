@@ -232,7 +232,7 @@ const UserSettingsPage = ({
               onCancel={onCancel}
               pendingEmail={pendingEmail}
               serverErrors={errors}
-              smtpConfigured={config?.smtp_settings.configured}
+              smtpConfigured={config?.smtp_settings?.configured || false}
             />
           </div>
           {renderEmailModal()}

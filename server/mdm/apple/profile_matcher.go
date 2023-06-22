@@ -2,6 +2,8 @@ package apple_mdm
 
 import (
 	"context"
+	"encoding/hex"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -97,15 +99,52 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 
 // RetrieveProfiles retrieves the profiles preassigned to this host for
 // matching with a team and assignment.
-func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdentifier string) error {
+func (p *profileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (fleet.MDMApplePreassignHostProfiles, error) {
+	var hostProfs fleet.MDMApplePreassignHostProfiles
+
 	// Note that we do not configure the Redis connection to read from a replica
 	// here as it may be called very soon after the PreassignProfile call and
 	// could miss some unreplicated profiles.
 	conn := redis.ConfigureDoer(p.pool, p.pool.Get())
 	defer conn.Close()
-	// TODO: find all profiles matching the host identifier
-	// TODO: cleanup all retrieved profiles?
-	return nil
+
+	profs, err := redigo.StringMap(conn.Do("HGETALL", keyForExternalHostIdentifier(externalHostIdentifier)))
+	if err != nil {
+		return hostProfs, ctxerr.Wrap(ctx, err, "execute redis HGETALL")
+	}
+	if _, err := conn.Do("UNLINK", keyForExternalHostIdentifier(externalHostIdentifier)); err != nil {
+		return hostProfs, ctxerr.Wrap(ctx, err, "execute redis UNLINK")
+	}
+	_ = conn.Close() // release connection to the pool immediately as we're done with redis
+
+	if hostProfs.HostUUID = profs["host_uuid"]; hostProfs.HostUUID == "" {
+		// unknown host/no profiles to assign, not an error but nothing to do
+		return hostProfs, nil
+	}
+	delete(profs, "host_uuid")
+
+	for k, v := range profs {
+		if strings.HasSuffix(k, "_group") || v == "" {
+			// only look for profiles' hex hashes, the group information will be
+			// retrieved only when a profile is found. Ignore empty values (e.g.
+			// empty profile).
+			continue
+		}
+
+		// if the key is not the group, then it has to be a profile hash, ensure
+		// that it is a valid hex-encoded value.
+		if _, err := hex.DecodeString(k); err != nil {
+			// ignore unknown/invalid fields
+			continue
+		}
+
+		hostProfs.Profiles = append(hostProfs.Profiles, fleet.MDMApplePreassignProfile{
+			Profile:    []byte(v),
+			Group:      profs[k+"_group"],
+			HexMD5Hash: k,
+		})
+	}
+	return hostProfs, nil
 }
 
 func keyForExternalHostIdentifier(externalHostIdentifier string) string {

@@ -1304,6 +1304,14 @@ If the `name` is not already associated with an existing team, this API route cr
 
 `Status: 200`
 
+```json
+{
+  "team_ids_by_name": {
+    "Client Platform Engineering": 123
+  }
+}
+```
+
 ### Apply labels
 
 Adds the supplied labels to Fleet. Each label requires the `name`, and `label_membership_type` properties.
@@ -2470,6 +2478,18 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "failing_policies_count": 3,
   "notifications": {
     "needs_mdm_migration": true
+  },
+  "config": {
+    "org_info": {
+      "org_name": "Fleet",
+      "org_logo_url": "https://example.com/logo.jpg",
+      "contact_url": "https://fleetdm.com/company/contact"
+    },
+    "mdm": {
+      "macos_migration": {
+        "mode": "forced"
+      }
+    }
   }
 }
 ```
@@ -2478,7 +2498,6 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
-
 
 
 #### Get device's policies

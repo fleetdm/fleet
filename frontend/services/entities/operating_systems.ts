@@ -6,7 +6,11 @@ import { IOsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // TODO: add platforms to this constant as new ones are supported
-export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = ["darwin", "windows"];
+export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
+  "darwin",
+  "windows",
+  "chrome",
+];
 
 export interface IGetOSVersionsRequest {
   id?: number;

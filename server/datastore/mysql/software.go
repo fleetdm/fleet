@@ -127,7 +127,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	`
 
 	var result []fleet.HostSoftwareInstalledPath
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostID); err != nil {
 		return nil, err
 	}
 
@@ -303,7 +303,7 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 }
 
 func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
-	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
+	return listSoftwareByHostIDShort(ctx, ds.reader(ctx), hostID)
 }
 
 func listSoftwareByHostIDShort(
@@ -420,7 +420,7 @@ func deleteUninstalledHostSoftwareDB(
 	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
 	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
 	// software.
-	stmt = `DELETE FROM software WHERE id IN (?) AND 
+	stmt = `DELETE FROM software WHERE id IN (?) AND
 	NOT EXISTS (
 		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
 	)`
@@ -849,7 +849,7 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		HostID:           &host.ID,
 		IncludeCVEScores: includeCVEScores,
 	}
-	software, err := listSoftwareDB(ctx, ds.reader, opts)
+	software, err := listSoftwareDB(ctx, ds.reader(ctx), opts)
 	if err != nil {
 		return err
 	}
@@ -916,10 +916,10 @@ func (ds *Datastore) AllSoftwareIterator(
 	var err error
 	var args []interface{}
 
-	stmt := `SELECT 
+	stmt := `SELECT
 		s.* ,
 		COALESCE(sc.cpe, '') AS generated_cpe
-	FROM software s 
+	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
@@ -947,7 +947,7 @@ func (ds *Datastore) AllSoftwareIterator(
 		}
 	}
 
-	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
+	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
@@ -970,7 +970,7 @@ func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 	for _, cpe := range cpes {
 		args = append(args, cpe.SoftwareID, cpe.CPE)
 	}
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software cpes")
 	}
@@ -996,7 +996,7 @@ func (ds *Datastore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 		return 0, ctxerr.Wrap(ctx, err, "error building 'In' query part when deleting software CPEs")
 	}
 
-	res, err := ds.writer.ExecContext(ctx, query, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrapf(ctx, err, "deleting cpes software")
 	}
@@ -1013,7 +1013,7 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	var args []interface{}
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
-	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, args...)
 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
@@ -1022,11 +1022,11 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader, opt)
+	return listSoftwareDB(ctx, ds.reader(ctx), opt)
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	return countSoftwareDB(ctx, ds.reader, opt)
+	return countSoftwareDB(ctx, ds.reader(ctx), opt)
 }
 
 // DeleteSoftwareVulnerabilities deletes the given list of software vulnerabilities
@@ -1043,7 +1043,7 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	for _, vulnerability := range vulnerabilities {
 		args = append(args, vulnerability.SoftwareID, vulnerability.CVE)
 	}
-	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting vulnerable software")
 	}
 	return nil
@@ -1056,7 +1056,7 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	cutPoint := time.Now().UTC().Add(-1 * duration)
 	args = append(args, source, cutPoint)
 
-	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
@@ -1111,7 +1111,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	}
 
 	var results []softwareCVE
-	err = sqlx.SelectContext(ctx, ds.reader, &results, sql, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software")
 	}
@@ -1215,14 +1215,14 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	)
 
 	// first, reset all counts to 0
-	if _, err := ds.writer.ExecContext(ctx, resetStmt, updatedAt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
 	// next get a cursor for the global and team counts for each software
 	stmtLabel := []string{"global", "team"}
 	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
-		rows, err := ds.reader.QueryContext(ctx, countStmt)
+		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
 		}
@@ -1250,7 +1250,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 			if batchCount == batchSize {
 				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-				if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
 				}
 
@@ -1260,7 +1260,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		}
 		if batchCount > 0 {
 			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			if _, err := ds.writer.ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+			if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
 			}
 		}
@@ -1271,17 +1271,17 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	}
 
 	// remove any unused software (global counts = 0)
-	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
 	}
 
 	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer.ExecContext(ctx, cleanupOrphanedStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 
 	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer.ExecContext(ctx, cleanupTeamStmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
@@ -1289,7 +1289,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	stmt := `
-		SELECT DISTINCT 
+		SELECT DISTINCT
 			h.id,
 			h.hostname,
 			if(h.computer_name = '', h.hostname, h.computer_name) display_name,
@@ -1310,7 +1310,7 @@ func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwar
 		DisplayName string `db:"display_name"`
 		SPath       string `db:"software_installed_path"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &qR, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
 	}
 
@@ -1360,7 +1360,7 @@ func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVu
 		DisplayName string `db:"display_name"`
 		SPath       string `db:"software_installed_path"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &qR, stmt, cve); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &qR, stmt, cve); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting hosts by softwareIDs")
 	}
 
@@ -1417,7 +1417,7 @@ ON DUPLICATE KEY UPDATE
 
 		query := fmt.Sprintf(query, valuesFrag)
 
-		_, err := ds.writer.ExecContext(ctx, query, args...)
+		_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert cve scores")
 		}
@@ -1440,7 +1440,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
 	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
 
-	res, err := ds.writer.ExecContext(ctx, stmt, args...)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
@@ -1484,7 +1484,7 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryR, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -1530,7 +1530,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -1557,7 +1557,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 

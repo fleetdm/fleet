@@ -52,7 +52,7 @@ func TestMailService(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			SMTPSettings: fleet.SMTPSettings{
+			SMTPSettings: &fleet.SMTPSettings{
 				SMTPEnabled:              true,
 				SMTPConfigured:           true,
 				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,

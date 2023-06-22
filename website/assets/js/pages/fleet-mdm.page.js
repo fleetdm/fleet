@@ -11,10 +11,8 @@ parasails.registerPage('device-management', {
 
     // Form rules
     formRules: {
-      fullName: {required: true },
       emailAddress: {required: true, isEmail: true},
-      jobTitle: {required: true },
-      numberOfHosts: {required: true },
+      hasOverOneThousandHosts: {required: true },
     },
     cloudError: '',
     // Syncing / loading state
@@ -39,9 +37,13 @@ parasails.registerPage('device-management', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-    clickOpenSignupModal: function() {
-      this.modal = 'beta-signup';
+    clickOpenChatWidget: function() {
+      if(window.HubSpotConversations && window.HubSpotConversations.widget){
+        window.HubSpotConversations.widget.open();
+      }
+    },
+    clickOpenMdmModal: function() {
+      this.modal = 'mdm';
     },
     closeModal: async function () {
       this.modal = '';
