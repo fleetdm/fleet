@@ -38,9 +38,9 @@ func main() {
 
 		if scanner.Text() == "		b == '?' ||" {
 			scanner.Scan()
-			if scanner.Text() != "		b == '!' || // Windows MDM Certificate Parsing Patch" {
-				out.Write([]byte("		b == '!' || // Windows MDM Certificate Parsing Patch\n"))
-				out.Write([]byte("		b == 0   || // Windows MDM Certificate Parsing Patch\n"))
+			if scanner.Text() != "		b == '!' || // Microsoft MDM Certificate Parsing Patch" {
+				out.Write([]byte("		b == '!' || // Microsoft MDM Certificate Parsing Patch\n"))
+				out.Write([]byte("		b == 0   || // Microsoft MDM Certificate Parsing Patch\n"))
 			}
 
 			out.Write(scanner.Bytes())

@@ -4876,7 +4876,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
-	// try to enable windows mdm, impossible without the feature flag
+	// try to enable Microsoft mdm, impossible without the feature flag
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
