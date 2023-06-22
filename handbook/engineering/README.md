@@ -425,7 +425,7 @@ cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
 NOTE: When adding a new table, make sure it does not already exist with the same name.
-If it does consider changing the new table name or merge the two tables if it makes sense.
+If it does, consider changing the new table name or merge the two tables if it makes sense.
 
 ## Quality
 
