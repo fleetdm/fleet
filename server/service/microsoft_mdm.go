@@ -26,13 +26,6 @@ type SoapRequestContainer struct {
 	Err  error
 }
 
-type SoapResponseContainer struct {
-	Data *fleet.SoapResponse
-	Err  error
-}
-
-func (r SoapResponseContainer) error() error { return r.Err }
-
 // MDM SOAP request decoder
 func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader) error {
 	// Reading the request bytes
@@ -50,11 +43,18 @@ func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader) er
 	return nil
 }
 
+type SoapResponseContainer struct {
+	Data *fleet.SoapResponse
+	Err  error
+}
+
+func (r SoapResponseContainer) error() error { return r.Err }
+
 // hijackRender writes the response header and the RAW XML output
 func (msg SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(msg.Data, "", "\t")
 	if err != nil {
-		logging.WithExtras(ctx, "microsoft MDM SoapResponse", err)
+		logging.WithExtras(ctx, "microsoft MDM SoapResponseContainer", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
