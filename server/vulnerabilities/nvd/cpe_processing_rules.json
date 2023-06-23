@@ -1,0 +1,14 @@
+[
+  {
+    "cpe_attributes": {
+      "vendor": "apple",
+      "product": "icloud",
+      "version": ">=7.1",
+      "target_sw": "windows"
+    },
+    "cve": "CVE-2017-13797",
+    "action": {
+      "skip": true
+    }
+  }
+]

@@ -136,7 +136,16 @@ func TranslateCPEToCVE(
 	// NVD feed file.
 	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
-		foundVulns, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
+
+		foundVulns, err := checkCVEs(
+			ctx,
+			ds,
+			logger,
+			parsed,
+			file,
+			collectVulns,
+			nil,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -179,6 +188,7 @@ func checkCVEs(
 	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
 	collectVulns bool,
+	postMatchingRules CPEProcessingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
@@ -216,6 +226,15 @@ func checkCVEs(
 					for _, matches := range cacheHits {
 						if len(matches.CPEs) == 0 {
 							continue
+						}
+
+						if rule, ok := postMatchingRules.FindMatch(
+							softwareCPE,
+							matches.CVE.ID(),
+						); ok {
+							if rule.Action.Skip {
+								continue
+							}
 						}
 
 						vuln := fleet.SoftwareVulnerability{
