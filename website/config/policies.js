@@ -59,4 +59,5 @@ module.exports.policies = {
   'view-osquery-management': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,
+  'view-support': true,
 };
