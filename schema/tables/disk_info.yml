@@ -36,4 +36,25 @@ columns:
     platforms:
       - windows
       - chrome
+  - name: partitions
+    platforms:
+      - windows      
+  - name: disk_index
+    platforms:
+      - windows      
+  - name: pnp_device_id
+    platforms:
+      - windows      
+  - name: manufacturer
+    platforms:
+      - windows      
+  - name: hardware_model
+    platforms:
+      - windows      
+  - name: serial
+    platforms:
+      - windows      
+  - name: description
+    platforms:
+      - windows      
 evented: false
