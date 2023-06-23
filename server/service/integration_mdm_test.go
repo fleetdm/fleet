@@ -5197,7 +5197,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 
 	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("s:text", resSoapMsg))
 }
@@ -5330,12 +5330,9 @@ func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID()
 
 	// Checking if SOAP response contains a valid DiscoveryResponse message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
-	require.True(s.T(), s.isXMLTagPresent("policyOIDReference", resSoapMsg))
-	require.True(s.T(), s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("s:text", resSoapMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
