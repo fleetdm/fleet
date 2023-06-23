@@ -4913,7 +4913,7 @@
     "name": "disk_info",
     "description": "Retrieve basic information about the physical disks of a system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/windows/disk_info.table",
-    "platforms": ["windows", "chrome"],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -4923,7 +4923,6 @@
         "type": "integer",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4932,7 +4931,6 @@
         "type": "integer",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4941,7 +4939,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4950,7 +4947,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4959,7 +4955,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4968,7 +4963,6 @@
         "type": "bigint",
         "hidden": false,
         "required": false,
-        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -4977,7 +4971,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4986,7 +4979,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -4995,7 +4987,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows", "chrome"],
         "index": false
       },
       {
@@ -5004,7 +4995,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       },
       {
@@ -5013,7 +5003,6 @@
         "type": "text",
         "hidden": false,
         "required": false,
-        "platforms": ["windows"],
         "index": false
       }
     ]
