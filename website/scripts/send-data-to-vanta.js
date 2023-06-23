@@ -180,7 +180,7 @@ module.exports = {
           if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
             macOsHostToSyncWithVanta.isManaged = true;
           }
-          // If the host is pending MDM enrollment, then it has not yet been initialized/enrolled in the Fleet instance and we'll exclude it from the hosts we sync with Vanta.
+          // If this host's MDM status is pending (MDM is not yet fully turned on for this host), then it doesn't have comprehensive vitals nor a complete host details page thus we'll exclude it from the hosts we sync with Vanta.
           // More info about pending hosts: https://github.com/fleetdm/fleet/blob/3cc7c971c2c24e28d06323c329475ae32e9a8198/docs/Using-Fleet/MDM-setup.md#pending-hosts
           if(host.mdm.enrollment_status === 'Pending') {
             return;
