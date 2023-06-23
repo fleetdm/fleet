@@ -60,6 +60,7 @@ export default class TablePrivacyPreferences extends Table {
 
   async generate() {
     const results = []; // Promise<{string: number | string}>[]
+    const errors = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
       let skip = false;
       if (property === "protected_content_enabled") {
@@ -72,25 +73,31 @@ export default class TablePrivacyPreferences extends Table {
       !skip &&
         results.push(
           new Promise((resolve) => {
-            propertyAPI.get({}, (details) => {
-              if (property === "web_rtc_ip_handling_policy") {
-                resolve({ [property]: details.value });
-              } else {
-                // convert bool response to binary flag
-                if (details.value === true) {
-                  resolve({ [property]: 1 });
+            try {
+              propertyAPI.get({}, (details) => {
+                if (property === "web_rtc_ip_handling_policy") {
+                  resolve({ [property]: details.value });
                 } else {
-                  resolve({ [property]: 0 });
+                  // convert bool response to binary flag
+                  if (details.value === true) {
+                    resolve({ [property]: 1 });
+                  } else {
+                    resolve({ [property]: 0 });
+                  }
                 }
-              }
-            });
+              });
+            } catch (error) {
+              errors.push({ [property]: error });
+              resolve({ [property]: null });
+            }
           })
         );
     }
 
-    // wait for each API to call the passed in resolve
+    // wait for each API to call to resolve
     const columns = await Promise.all(results);
-
+    errors.length > 0 &&
+      console.log("Caught errors in chrome API calls: ", errors);
     return [
       columns.reduce((resultRow, column) => {
         return { ...resultRow, ...column };
