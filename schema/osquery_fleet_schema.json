@@ -27821,6 +27821,34 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
+    "name": "file_lines",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Allows reading an arbitrary file.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Output the content of `/etc/hosts` line by line. \n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "Output of the file, line by line.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/file_lines",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
+  },
+  {
     "name": "filevault_prk",
     "platforms": [
       "darwin"
@@ -27866,34 +27894,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
-    "name": "file_lines",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Allows reading an arbitrary file.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "Output the content of `/etc/hosts` line by line. \n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
-    "columns": [
-      {
-        "name": "path",
-        "description": "Path of the file to read.",
-        "required": true,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "Output of the file, line by line.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/file_lines",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
-  },
-  {
     "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
@@ -27917,42 +27917,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
-  },
-  {
-    "name": "geolocation",
-    "evented": false,
-    "platforms": [
-      "chrome"
-    ],
-    "description": "Last reported geolocation",
-    "columns": [
-      {
-        "name": "ip",
-        "type": "text",
-        "required": false,
-        "description": "IP address"
-      },
-      {
-        "name": "city",
-        "type": "text",
-        "required": false,
-        "description": "City"
-      },
-      {
-        "name": "country",
-        "type": "text",
-        "required": false,
-        "description": "Country"
-      },
-      {
-        "name": "region",
-        "type": "text",
-        "required": false,
-        "description": "Region"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/geolocation",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -27993,6 +27957,42 @@
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
+  },
+  {
+    "name": "geolocation",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Last reported geolocation",
+    "columns": [
+      {
+        "name": "ip",
+        "type": "text",
+        "required": false,
+        "description": "IP address"
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false,
+        "description": "City"
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "required": false,
+        "description": "Country"
+      },
+      {
+        "name": "region",
+        "type": "text",
+        "required": false,
+        "description": "Region"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/geolocation",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
     "name": "icloud_private_relay",
@@ -28130,6 +28130,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
   },
   {
+    "name": "macos_rsr",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Returns information about installed Rapid Security Responses (RSRs).",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "full_macos_version",
+        "description": "Full macOS version string (including the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "macos_version",
+        "description": "The macOS version string (excluding the RSR suffix)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_supported",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "rsr_version",
+        "description": "RSR version string suffix (with parenthesis included)",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_rsr",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
+  },
+  {
     "name": "macos_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "High level information on installed profiles enrollment.",
@@ -28190,43 +28227,6 @@
     ],
     "url": "https://fleetdm.com/tables/macos_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
-  },
-  {
-    "name": "macos_rsr",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Returns information about installed Rapid Security Responses (RSRs).",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "columns": [
-      {
-        "name": "full_macos_version",
-        "description": "Full macOS version string (including the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "macos_version",
-        "description": "The macOS version string (excluding the RSR suffix)",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_supported",
-        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "rsr_version",
-        "description": "RSR version string suffix (with parenthesis included)",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macos_rsr",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
     "name": "mdm",
@@ -28319,49 +28319,6 @@
     ],
     "url": "https://fleetdm.com/tables/mdm",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
-  },
-  {
-    "name": "mdm_bridge",
-    "platforms": [
-      "windows"
-    ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
-    "columns": [
-      {
-        "name": "enrollment_status",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
-      },
-      {
-        "name": "enrolled_user",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment URI of the device."
-      },
-      {
-        "name": "mdm_command_input",
-        "type": "text",
-        "required": false,
-        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
-      },
-      {
-        "name": "mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "Value of the \"Results\" field of the MDM command output."
-      },
-      {
-        "name": "raw_mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "The full raw output of the MDM command execution."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/mdm_bridge",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
     "name": "munki_info",
@@ -28501,6 +28458,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
+    "name": "mdm_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "columns": [
+      {
+        "name": "enrollment_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+      },
+      {
+        "name": "enrolled_user",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment URI of the device."
+      },
+      {
+        "name": "mdm_command_input",
+        "type": "text",
+        "required": false,
+        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+      },
+      {
+        "name": "mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "Value of the \"Results\" field of the MDM command output."
+      },
+      {
+        "name": "raw_mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "The full raw output of the MDM command execution."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/mdm_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+  },
+  {
     "name": "nvram_info",
     "platforms": [
       "darwin"
@@ -28600,6 +28600,139 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
+  },
+  {
+    "name": "privacy_preferences",
+    "notes": "This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
+    "description": "Information on Chrome features that can affect a user's privacy, available from the [chrome.privacy APIs](https://developer.chrome.com/docs/extensions/reference/privacy/)",
+    "platforms": [
+      "chrome"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "network_prediction_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "web_rtc_ip_handling_policy",
+        "description": "One of \"default\", \"default_public_and_private_interfaces\", \"default_public_interface_only\", or \"disable_non_proxied_udp\"",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "autofill_address_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "autofill_credit_card_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "autofill_enabled",
+        "description": "1 if enabled else 0 - * Deprecated since Chrome 70, please use privacy.services.autofillAddressEnabled and privacy.services.autofillCreditCardEnabled. This currently remains for backward compatibility and will be removed in the future.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "save_passwords_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "safe_browsing_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "safe_browsing_extended_reporting_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "search_suggest_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "spelling_service_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "translation_service_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "ad_measurement_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "do_not_track_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "fledge_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "hyperlink_auditing_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "privacy_sandbox_enabled",
+        "description": "1 if enabled else 0 - * Deprecated since Chrome 111, see notes in the [https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled](Chrome extensions API docs)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "protected_content_enabled",
+        "description": "1 if enabled else 0 - * Windows and ChromeOS only",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "referrers_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "third_party_cookies_allowed",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "topics_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/privacy_preferences",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
   {
     "name": "puppet_info",
@@ -28720,58 +28853,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
-    "name": "puppet_logs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
-    "columns": [
-      {
-        "name": "level",
-        "description": "The level of the log item (info, error, etc).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "message",
-        "description": "The log message content.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "source",
-        "description": "The source of the log item.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time at which this item was logged.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file from which osquery read this log.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line from which this log item was read.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_logs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
-  },
-  {
     "name": "puppet_state",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
@@ -28864,6 +28945,58 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
+  },
+  {
+    "name": "puppet_logs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
+    "columns": [
+      {
+        "name": "level",
+        "description": "The level of the log item (info, error, etc).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "message",
+        "description": "The log message content.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "source",
+        "description": "The source of the log item.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time at which this item was logged.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file from which osquery read this log.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line from which this log item was read.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
   },
   {
     "name": "pwd_policy",
