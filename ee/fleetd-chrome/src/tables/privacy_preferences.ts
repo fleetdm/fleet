@@ -47,7 +47,6 @@ export default class TablePrivacyPreferences extends Table {
       chrome.privacy.websites.hyperlinkAuditingEnabled,
     // @ts-ignore, DEPRECATED
     privacy_sandbox_enabled: chrome.privacy.websites.privacySandboxEnabled,
-    // WINDOWS AND CHROMEOS ONLY
     protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
     referrers_enabled: chrome.privacy.websites.referrersEnabled,
     third_party_cookies_allowed:
@@ -62,36 +61,27 @@ export default class TablePrivacyPreferences extends Table {
     const results = []; // Promise<{string: number | string}>[]
     const errors = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
-      let skip = false;
-      if (property === "protected_content_enabled") {
-        // Only call this API for ChromeOS and Windows
-        const { os } = await chrome.runtime.getPlatformInfo();
-        if (os !== "win" && os !== "cros") {
-          skip = true;
-        }
-      }
-      !skip &&
-        results.push(
-          new Promise((resolve) => {
-            try {
-              propertyAPI.get({}, (details) => {
-                if (property === "web_rtc_ip_handling_policy") {
-                  resolve({ [property]: details.value });
+      results.push(
+        new Promise((resolve) => {
+          try {
+            propertyAPI.get({}, (details) => {
+              if (property === "web_rtc_ip_handling_policy") {
+                resolve({ [property]: details.value });
+              } else {
+                // convert bool response to binary flag
+                if (details.value === true) {
+                  resolve({ [property]: 1 });
                 } else {
-                  // convert bool response to binary flag
-                  if (details.value === true) {
-                    resolve({ [property]: 1 });
-                  } else {
-                    resolve({ [property]: 0 });
-                  }
+                  resolve({ [property]: 0 });
                 }
-              });
-            } catch (error) {
-              errors.push({ [property]: error });
-              resolve({ [property]: null });
-            }
-          })
-        );
+              }
+            });
+          } catch (error) {
+            errors.push({ [property]: error });
+            resolve({ [property]: null });
+          }
+        })
+      );
     }
 
     // wait for each API to call to resolve
