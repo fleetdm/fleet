@@ -66,19 +66,19 @@ Our scrum boards are exclusively composed of three types of scrum items:
 
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
+Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
 
-#### Sample agenda
+#### Agenda
 
 - Announcements
-- “Show and tell”
-  - Each engineer gets two minutes to explain (showing, if desired) what they are working on and why it’s important to the business and/or engineering team.
-- Deeper dive
-  - One or a few engineers go deeper on a topic relevant to all of engineering.
+- Engineering KPIs review
+- “Tech talks”
+  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
 
@@ -98,7 +98,7 @@ Anyone who wishes to participate.
 
 ### Eng leadership weekly 
 
-Engineering leaders discuss topics of importance that week.
+Engineering leaders discuss topics of importance that week. Prepare agenda, announcements, and tech talks before the monthly [Eng Together](#eng-together) meeting.
 
 #### Participants
 
@@ -311,14 +311,13 @@ A Slack reminder should notify the oncall of the handoff. Please do the followin
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
-   thread, and the new oncall should subscribe. The former oncall should explicitly share each of
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the thread, and the new oncall should subscribe. The former oncall should explicitly share each of
    these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
-At the weekly "Eng Together" meeting, the oncall is asked to make a report of how they spent their time. Please answer the following:
+In the Slack reminder thread, the oncall engineer includes their retrospective. Please answer the following:
 
 1. What were the most common support requests over the week? This can potentially give the new oncall an idea of which documentation to focus their efforts on.
 
@@ -415,6 +414,18 @@ When merging a pull request from a community contributor:
 - Merge the PR.
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+## Changes to tables' schema
+
+Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
+It should be done by running these commands:
+```
+cd website
+./node_modules/sails/bin/sails.js run generate-merged-schema
+```
+> When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
+
+> If a table is added to our ChromeOS extension but it does not exist in osquery, add a note that mentions it. As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
 ## Quality
 

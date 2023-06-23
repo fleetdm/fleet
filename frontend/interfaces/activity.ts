@@ -45,6 +45,7 @@ export enum ActivityType {
   DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
   EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
   DisabledMacOSSetupEndUserAuth = "disabled_macos_setup_end_user_auth",
+  TransferredHosts = "transferred_hosts",
 }
 export interface IActivity {
   created_at: string;
@@ -76,6 +77,8 @@ export interface IActivityDetails {
   role?: UserRole;
   host_serial?: string;
   host_display_name?: string;
+  host_display_names?: string[];
+  host_ids?: number[];
   installed_from_dep?: boolean;
   minimum_version?: string;
   deadline?: string;

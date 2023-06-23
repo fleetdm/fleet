@@ -11,8 +11,9 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	windows_mdm "github.com/fleetdm/fleet/v4/server/mdm/windows"
 	"github.com/go-kit/kit/log/level"
+
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 type setOrbitNodeKeyer interface {
@@ -205,15 +206,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// set the host's orbit notifications for Windows MDM
-	if config.MDM.WindowsEnabledAndConfigured {
-		if host.IsElegibleForWindowsMDMEnrollment() {
-			discoURL, err := windows_mdm.ResolveWindowsMDMDiscovery(config.ServerSettings.ServerURL)
+	// set the host's orbit notifications for Microsoft MDM
+	if config.MDM.MicrosoftEnabledAndConfigured {
+		if host.IsElegibleForMicrosoftMDMEnrollment() {
+			discoURL, err := microsoft_mdm.ResolveMicrosoftMDMDiscovery(config.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
-			notifs.WindowsMDMDiscoveryEndpoint = discoURL
-			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+			notifs.MicrosoftMDMDiscoveryEndpoint = discoURL
+			notifs.NeedsProgrammaticMicrosoftMDMEnrollment = true
 		}
 	}
 
