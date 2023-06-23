@@ -24,6 +24,9 @@ parasails.registerPage('basic-handbook', {
 
   mounted: async function() {
 
+    // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
+    window.addEventListener('scroll', this.handleScrollingInHandbook);
+
     // Algolia DocSearch
     if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
       docsearch({
@@ -113,5 +116,25 @@ parasails.registerPage('basic-handbook', {
         .capitalize()
         .value();
     },
+    handleScrollingInHandbook: function () {
+      let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let scrollTop = window.pageYOffset;
+      if (backToTopButton) {
+        if(scrollTop > 2500) {
+          backToTopButton.classList.add('show');
+        } else if (scrollTop === 0) {
+          backToTopButton.classList.remove('show');
+        }
+      }
+
+      this.scrollDistance = scrollTop;
+    },
+    clickScrollToTop: function() {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
+    }
   }
 });

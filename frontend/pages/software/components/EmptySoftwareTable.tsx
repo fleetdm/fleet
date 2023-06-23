@@ -27,9 +27,9 @@ const EmptySoftwareTable = ({
     header: `No ${
       isFilterVulnerable ? "vulnerable " : ""
     }software match the current search criteria`,
-    info: `Try again in about ${
-      isSandboxMode ? "15 minutes" : "1 hour"
-    } as the system catches up.`,
+    info: `This report is updated every ${
+      isSandboxMode ? "15 minutes" : "hour"
+    } to protect the performance of your devices.`,
   };
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";

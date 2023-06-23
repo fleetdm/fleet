@@ -129,3 +129,51 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.False(t, authzCtx.Checked())
 }
+
+// TODO: update this test with the correct config option
+func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	cfg := config.TestConfig()
+	svc, baseCtx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	// mdm not configured
+	authzCtx := &authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(baseCtx, authzCtx)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+	}
+
+	err := svc.VerifyMDMMicrosoftConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// error retrieving app config
+	authzCtx = &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
+	testErr := errors.New("test err")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return nil, testErr
+	}
+
+	err = svc.VerifyMDMMicrosoftConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	// mdm configured
+	authzCtx = &authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{MicrosoftEnabledAndConfigured: true}}, nil
+	}
+
+	err = svc.VerifyMDMMicrosoftConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+}
