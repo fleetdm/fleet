@@ -12,30 +12,18 @@ columns:
     type: bigint
     description: Size of the disk.
     required: false
-    platforms:
-      - windows
-      - chrome
   - name: id
     type: text
     description: The unique identifier of the drive on the system.
     required: false
-    platforms:
-      - windows
-      - chrome
   - name: name
     type: text
     description: The label of the disk object.
     required: false
-    platforms:
-      - windows
-      - chrome
   - name: type
     type: text
     description: The interface type of the disk.
     required: false
-    platforms:
-      - windows
-      - chrome
   - name: partitions
     platforms:
       - windows      
