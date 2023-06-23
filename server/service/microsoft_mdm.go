@@ -51,8 +51,8 @@ type SoapResponseContainer struct {
 func (r SoapResponseContainer) error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW XML output
-func (msg SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	xmlRes, err := xml.MarshalIndent(msg.Data, "", "\t")
+func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
 		logging.WithExtras(ctx, "microsoft MDM SoapResponseContainer", err)
 		w.WriteHeader(http.StatusBadRequest)
