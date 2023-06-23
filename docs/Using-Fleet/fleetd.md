@@ -85,7 +85,7 @@ An installer configured to point at your Fleet instance has now been generated.
 
 Now run that installer (double click, on a Mac) to enroll your own computer as a host in Fleet. Refresh after several seconds (≈30s), and you should now see your local computer as a new host in Fleet.
 
-### Capabilities
+## Capabilities
 
 | Capability                           | Status |
 | ------------------------------------ | ------ |
