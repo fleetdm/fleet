@@ -1,5 +1,3 @@
-// Package mdmconfigured implements a middleware that ensures that MDM is
-// configured.
 package mdmconfigured
 
 import (

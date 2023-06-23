@@ -5142,6 +5142,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 
 	// Checking if SOAP response contains a valid DiscoveryResponse message
 	resSoapMsg := string(resBytes)
+	require.True(s.T(), s.isXMLTagPresent("DiscoverResult", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
@@ -5196,8 +5197,145 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 
 	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
+	require.True(s.T(), s.isXMLTagPresent("DiscoverResult", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(s.T(), s.isXMLTagContentPresent("s:text", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
+	// create a new Host to get the UUID on the DB
+	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "Windows",
+	})
+	require.NoError(s.T(), err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
+	require.NoError(s.T(), err)
+
+	requestBytes := []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:ReplyTo>
+				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+				</a:ReplyTo>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
+				<wsse:Security s:mustUnderstand="1">
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				</wsse:Security>
+			</s:Header>
+			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+				<client>
+					<lastUpdate xsi:nil="true"/>
+					<preferredLanguage xsi:nil="true"/>
+				</client>
+				<requestFilter xsi:nil="true"/>
+				</GetPolicies>
+			</s:Body>
+			</s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(s.T(), err)
+
+	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(s.T(), err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(s.T(), s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID() {
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
+	// create a new Host to get the UUID on the DB
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
+		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "Windows",
+	})
+	require.NoError(s.T(), err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(1, "not_exists")
+	require.NoError(s.T(), err)
+
+	requestBytes := []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:ReplyTo>
+				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+				</a:ReplyTo>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
+				<wsse:Security s:mustUnderstand="1">
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				</wsse:Security>
+			</s:Header>
+			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+				<client>
+					<lastUpdate xsi:nil="true"/>
+					<preferredLanguage xsi:nil="true"/>
+				</client>
+				<requestFilter xsi:nil="true"/>
+				</GetPolicies>
+			</s:Body>
+			</s:Envelope>`)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(s.T(), err)
+
+	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(s.T(), err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(s.T(), s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(s.T(), s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(s.T(), s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -5209,6 +5347,16 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {
+	regex := fmt.Sprintf("<%s.*>", xmlTag)
+	matched, err := regexp.MatchString(regex, payload)
+	if err != nil {
+		return false
+	}
+
+	return matched
 }
 
 func (s *integrationMDMTestSuite) isXMLTagContentPresent(xmlTag string, payload string) bool {

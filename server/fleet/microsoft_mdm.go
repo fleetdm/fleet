@@ -2,7 +2,213 @@ package fleet
 
 import (
 	"encoding/xml"
+	"errors"
+	"fmt"
+
+	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MS-MDE2 XML types used by the SOAP protocol
+// MS-MDE2 is a client-to-server protocol that consists of a SOAP-based Web service.
+// SOAP is a lightweight and XML based protocol that consists of three parts:
+// - An envelope that defines a framework for describing what is in a message and how to process it
+// - A set of encoding rules for expressing instances of application-defined datatypes
+// - And a convention for representing remote procedure calls and responses.
+
+// SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
+// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
+type SoapResponse struct {
+	XMLName xml.Name       `xml:"s:Envelope"`
+	XmlNSS  string         `xml:"xmlns:s,attr"`
+	XmlNSA  string         `xml:"xmlns:a,attr"`
+	XmlNSU  *string        `xml:"xmlns:u,attr,omitempty"`
+	Header  ResponseHeader `xml:"s:Header"`
+	Body    BodyResponse   `xml:"s:Body"`
+}
+
+// SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
+// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
+type SoapRequest struct {
+	XMLName   xml.Name      `xml:"Envelope"`
+	XmlNSS    string        `xml:"s,attr"`
+	XmlNSA    string        `xml:"a,attr"`
+	XmlNSU    *string       `xml:"u,attr,omitempty"`
+	XmlNSWsse *string       `xml:"wsse,attr,omitempty"`
+	XmlNSWST  *string       `xml:"wst,attr,omitempty"`
+	XmlNSAC   *string       `xml:"ac,attr,omitempty"`
+	Header    RequestHeader `xml:"Header"`
+	Body      BodyRequest   `xml:"Body"`
+}
+
+// GetBinarySecurityToken returns the header BinarySecurityToken if present
+func (req *SoapRequest) GetBinarySecurityToken() (string, error) {
+	if req.Header.Security == nil {
+		return "", errors.New("header BinarySecurityToken is not present")
+	}
+
+	return req.Header.Security.Security.Content, nil
+}
+
+// GetMessageID returns the message ID from the header
+func (req *SoapRequest) GetMessageID() string {
+	return req.Header.MessageID
+}
+
+// isValidHeader checks for required fields in the header
+func (req *SoapRequest) isValidHeader() error {
+	// Check for required fields
+
+	if len(req.XmlNSS) == 0 {
+		return errors.New("invalid SOAP header: XmlNSS")
+	}
+
+	if len(req.XmlNSA) == 0 {
+		return errors.New("invalid SOAP header: XmlNSA")
+	}
+
+	if len(req.Header.MessageID) == 0 {
+		return errors.New("invalid SOAP header: Header.MessageID")
+	}
+
+	if len(req.Header.Action.Content) == 0 {
+		return errors.New("invalid SOAP header: Header.Action")
+	}
+
+	if len(req.Header.ReplyTo.Address) == 0 {
+		return errors.New("invalid SOAP header: Header.ReplyTo")
+	}
+
+	if len(req.Header.To.Content) == 0 {
+		return errors.New("invalid SOAP header: Header.To")
+	}
+
+	return nil
+}
+
+// isValidBody checks for the presence of only one message
+func (req *SoapRequest) isValidBody() error {
+	nonNilCount := 0
+
+	if req.Body.Discover != nil {
+		nonNilCount++
+	}
+	if req.Body.GetPolicies != nil {
+		nonNilCount++
+	}
+	if req.Body.RequestSecurityToken != nil {
+		nonNilCount++
+	}
+
+	if nonNilCount != 1 {
+		return errors.New("invalid SOAP body: Multiple messages or no message")
+	}
+
+	return nil
+}
+
+// IsValidDiscoveryMsg checks for required fields in the Discover message
+func (req *SoapRequest) IsValidDiscoveryMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid discover message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid discover message: %s", err)
+	}
+
+	if req.Body.Discover == nil {
+		return errors.New("invalid discover message: Discover message not present")
+	}
+
+	if len(req.Body.Discover.XmlNS) == 0 {
+		return errors.New("invalid discover message: XmlNS")
+	}
+
+	// TODO: add check for valid email address
+	if len(req.Body.Discover.Request.EmailAddress) == 0 {
+		return errors.New("invalid discover message: Request.EmailAddress")
+	}
+
+	// Ensure that only valid versions are supported
+	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
+		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
+		return errors.New("invalid discover message: Request.RequestVersion")
+	}
+
+	// Traverse the AuthPolicies slice and check for valid values
+	isInvalidAuth := true
+	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
+		if authPolicy == mdm.AuthOnPremise {
+			isInvalidAuth = false
+			break
+		}
+	}
+
+	if isInvalidAuth {
+		return errors.New("invalid discover message: Request.AuthPolicies")
+	}
+
+	return nil
+}
+
+// IsValidGetPolicyMsg checks for required fields in the GetPolicies message
+func (req *SoapRequest) IsValidGetPolicyMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid getpolicies message:  %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid getpolicies message: %s", err)
+	}
+
+	if req.Body.GetPolicies == nil {
+		return errors.New("invalid getpolicies message:  GetPolicies message not present")
+	}
+
+	if len(req.Body.GetPolicies.XmlNS) == 0 {
+		return errors.New("invalid getpolicies message: XmlNS")
+	}
+
+	return nil
+}
+
+// IsValidRequestSecurityTokenMsg checks for required fields in the RequestSecurityToken message
+func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
+	}
+
+	if req.Body.RequestSecurityToken == nil {
+		return errors.New("invalid requestsecuritytoken message: RequestSecurityToken message not present")
+	}
+
+	if len(req.Body.RequestSecurityToken.TokenType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: TokenType")
+	}
+
+	if len(req.Body.RequestSecurityToken.RequestType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: RequestType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.ValueType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.EncodingType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.Content")
+	}
+
+	return nil
+}
 
 // MS-MDE2 Message request types
 const (
@@ -13,7 +219,7 @@ const (
 )
 
 ///////////////////////////////////////////////////////////////
-/// Microsoft MS-MDE2 SOAP types
+/// Microsoft MS-MDE2 SOAP messages
 
 // ResponseHeader is the header for MDM responses from the server
 type ResponseHeader struct {
@@ -340,4 +546,36 @@ type SoapFault struct {
 	Code                Code     `xml:"s:code"`
 	Reason              Reason   `xml:"s:reason"`
 	OriginalMessageType int      `xml:"-"`
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// BinarySecurityTokenPayload contains the security token in MS-MDE2 Header
+
+// MS-MDE2 BinarySecurityTokenPayload types
+const (
+	BSProgrammaticEnrollment = 1
+)
+
+type BinarySecurityTokenPayload struct {
+	Type    int `json:"type"`
+	Payload struct {
+		HostUUID string `json:"host_uuid"`
+	} `json:"payload"`
+}
+
+func (t *BinarySecurityTokenPayload) IsValidToken() error {
+	// Only BSProgrammaticEnrollment are supported for now
+	if t.Type != BSProgrammaticEnrollment {
+		return errors.New("invalid binary security payload type")
+	}
+
+	if len(t.Payload.HostUUID) == 0 {
+		return errors.New("invalid binary security payload content")
+	}
+
+	return nil
+}
+
+func (t *BinarySecurityTokenPayload) GetType() int {
+	return t.Type
 }
