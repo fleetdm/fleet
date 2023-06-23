@@ -404,7 +404,7 @@ func GetEncodedBinarySecurityToken(typeID int, hostUUID string) (string, error) 
 		return "", err
 	}
 
-	return base64.URLEncoding.EncodeToString([]byte(rawBytes)), nil
+	return base64.URLEncoding.EncodeToString(rawBytes), nil
 }
 
 // mdmMicrosoftDiscoveryEndpoint handles the Discovery message and returns a valid DiscoveryResponse message
