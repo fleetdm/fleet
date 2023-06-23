@@ -61,22 +61,31 @@ export default class TablePrivacyPreferences extends Table {
   async generate() {
     const results = []; // Promise<{string: number | string}>[]
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
-      results.push(
-        new Promise((resolve) => {
-          propertyAPI.get({}, (details) => {
-            if (property === "web_rtc_ip_handling_policy") {
-              resolve({ [property]: details.value });
-            } else {
-              // convert bool response to binary flag
-              if (details.value === true) {
-                resolve({ [property]: 1 });
+      let skip = false;
+      if (property === "protected_content_enabled") {
+        // Only call this API for ChromeOS and Windows
+        const { os } = await chrome.runtime.getPlatformInfo();
+        if (os !== "win" && os !== "cros") {
+          skip = true;
+        }
+      }
+      !skip &&
+        results.push(
+          new Promise((resolve) => {
+            propertyAPI.get({}, (details) => {
+              if (property === "web_rtc_ip_handling_policy") {
+                resolve({ [property]: details.value });
               } else {
-                resolve({ [property]: 0 });
+                // convert bool response to binary flag
+                if (details.value === true) {
+                  resolve({ [property]: 1 });
+                } else {
+                  resolve({ [property]: 0 });
+                }
               }
-            }
-          });
-        })
-      );
+            });
+          })
+        );
     }
 
     // wait for each API to call the passed in resolve
