@@ -47,7 +47,7 @@ export default class TablePrivacyPreferences extends Table {
       chrome.privacy.websites.hyperlinkAuditingEnabled,
     // @ts-ignore, DEPRECATED
     privacy_sandbox_enabled: chrome.privacy.websites.privacySandboxEnabled,
-    // WINDOWS AND CHROMEOS ONLY - if desired, can check the platform via `chrome.runtime.getPlatformInfo`
+    // WINDOWS AND CHROMEOS ONLY
     protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
     referrers_enabled: chrome.privacy.websites.referrersEnabled,
     third_party_cookies_allowed:
