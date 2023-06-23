@@ -66,7 +66,7 @@ columns:
     required: false
     type: integer
   - name: privacy_sandbox_enabled
-    description: 1 if enabled else 0 - * Deprecated since Chrome 111, see notes in the [https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled](Chrome extensions API docs)
+    description: 1 if enabled else 0 - * Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled
     required: false
     type: integer
   - name: protected_content_enabled
