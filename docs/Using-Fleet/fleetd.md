@@ -4,8 +4,6 @@
 - [Fleetd](#fleetd)
   - [Overview](#overview)
     - [Components](#components)
-    - [Try Fleetd](#try-fleetd)
-      - [With `fleetctl preview` already running](#with-fleetctl-preview-already-running)
     - [Capabilities](#capabilities)
   - [Packaging](#packaging)
     - [Dependencies](#dependencies)
@@ -37,6 +35,8 @@
       - [Linux](#linux)
       - [macOS](#macos)
   - [Bugs](#bugs)
+  - [Try Fleetd](#try-fleetd)
+    - [With `fleetctl preview` already running](#with-fleetctl-preview-already-running)
 
 ## Overview
 
@@ -69,21 +69,6 @@ graph LR;
     orbit -- "Auto Update (TLS)" --> tuf;
 ```
 
-### Try Fleetd
-
-#### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):
-
-```bash
-# With fleetctl in your $PATH
-# Generate a macOS installer pointed at your local Fleet
-fleetctl package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
-```
-
-> With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add new host" button on the Hosts page in the Fleet UI.
-
-An installer configured to point at your Fleet instance has now been generated.
-
-Now run that installer (double click, on a Mac) to enroll your own computer as a host in Fleet. Refresh after several seconds (≈30s), and you should now see your local computer as a new host in Fleet.
 
 ## Capabilities
 
@@ -392,8 +377,24 @@ sudo rpm -e fleet-osquery-X.Y.Z.x86_64
 
 Run the [cleanup script](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh).
 
-### Bugs
+## Bugs
 
 [Create an issue](https://github.com/fleetdm/fleet/issues) to report a bug or request a feature.
+
+## Try Fleetd
+
+### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):
+
+```bash
+# With fleetctl in your $PATH
+# Generate a macOS installer pointed at your local Fleet
+fleetctl package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+```
+
+> With fleetctl preview running, you can find your Fleet enroll secret by selecting the "Add new host" button on the Hosts page in the Fleet UI.
+
+An installer configured to point at your Fleet instance has now been generated.
+
+Now run that installer (double click, on a Mac) to enroll your own computer as a host in Fleet. Refresh after several seconds (≈30s), and you should now see your local computer as a new host in Fleet.
 
 <meta name="pageOrderInSection" value="301">
