@@ -457,9 +457,8 @@ In order to maintain a consistent contributor experience in Salesforce, we log i
 2. Click the accounts tab and check for the following: 
 
 * The default filter is Customers when you click on the accounts tab. Click on an account to continue.
-* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account.
-* "Looking for meeting notes" reminder should appear on the right of the screen.  
-* Useful links section should include links to Purchase Orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer.
+* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account. 
+* Useful links section should appear in the top right section of the account page. It includes links to Purchase Orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer. All meeting notes should be saved in the [Meeting notes](https://drive.google.com/drive/folders/18e-rVadHG0T5w98OKMngM-yv-K9SXaOq) folder in Google drive with the account name and date in the title. We do not use the notes feature on Accounts or Oppoortunities in Salesforce. 
 * Additional information section should include fields for account (customer) name first, account rating, LinkedIn sales navigator URL, LinkedIn company URL, and my LinkedIn overlaps. Make sure the LinkedIn links work.
 * Accounting section should include the following fields: invoice sent (latest), the payment received on (latest), subscription end date (latest), press approval field, license key, total opportunities (#), deals won (#), close date (first deal), cumulative revenue, payment terms, billing address, and shipping address. 
 * Opportunities, meeting notes, and activity feed should appear on the right.  
