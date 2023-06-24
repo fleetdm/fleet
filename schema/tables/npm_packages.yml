@@ -7,12 +7,9 @@ columns:
     platforms:
       - linux
 examples: >-
-  List the author, description and more information about packages made by Fleet. Replace the
-  homepage with any other distributor desired.
+  List the author, description and more information about the NPM package called `webpack`, if installed:
 
-  ```
-
-  SELECT author, description, directory, version FROM npm_packages WHERE homepage='https://fleetdm.com';
-  
+  ```sql
+  SELECT author, description, directory, version FROM npm_packages WHERE name='webpack';
   ```
 
