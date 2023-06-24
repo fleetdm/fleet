@@ -6,9 +6,11 @@ import "encoding/json"
 // fleetd (orbit) so that it can run commands or more generally react to this
 // information.
 type OrbitConfigNotifications struct {
-	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
-	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
-	NeedsMDMMigration       bool `json:"needs_mdm_migration,omitempty"`
+	RenewEnrollmentProfile                  bool   `json:"renew_enrollment_profile,omitempty"`
+	RotateDiskEncryptionKey                 bool   `json:"rotate_disk_encryption_key,omitempty"`
+	NeedsMDMMigration                       bool   `json:"needs_mdm_migration,omitempty"`
+	NeedsProgrammaticMicrosoftMDMEnrollment bool   `json:"needs_programmatic_microsoft_mdm_enrollment,omitempty"`
+	MicrosoftMDMDiscoveryEndpoint           string `json:"microsoft_mdm_discovery_endpoint,omitempty"`
 }
 
 type OrbitConfig struct {

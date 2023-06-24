@@ -103,6 +103,27 @@ const AppleBusinessManagerSection = () => {
   };
 
   const renderAppleBMInfo = () => {
+    // we want to give a more useful error message for 400s.
+    if (errorMdmAppleBm && errorMdmAppleBm.status === 400) {
+      return (
+        <DataError>
+          <span className={`${baseClass}__400-error-info`}>
+            The Apple Business Manager certificate or server token is invalid.
+            Restart Fleet with a valid certificate and token.
+          </span>
+          <span className={`${baseClass}__400-error-info`}>
+            See our{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm"
+              text="ABM documentation"
+              newTab
+            />{" "}
+            for help.
+          </span>
+        </DataError>
+      );
+    }
+
     // The API returns a 404 error if ABM is not configured yet, in that case we
     // want to prompt the user to download the certs and keys to configure the
     // server instead of the default error message.
@@ -113,6 +134,7 @@ const AppleBusinessManagerSection = () => {
       return <DataError />;
     }
 
+    // no error, but no apple bm data yet. TODO: when does this happen?
     if (!mdmAppleBm) {
       return (
         <>
@@ -154,6 +176,7 @@ const AppleBusinessManagerSection = () => {
       );
     }
 
+    // we have the apple bm data and render it
     return (
       <>
         <div className={`${baseClass}__section-description`}>

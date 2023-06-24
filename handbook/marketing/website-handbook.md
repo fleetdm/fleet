@@ -22,7 +22,7 @@ See Marketing [intake](https://fleetdm.com/handbook/marketing#intake) for more i
 
 ## Wireframes
 
-Before committing anything to code, we create wireframes (referred to as ["drafting"](http://localhost:2024/handbook/company/development-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com.
+Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com.
 
 See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
@@ -110,7 +110,7 @@ Once you have the above follow these steps:
 3. Once the script is complete, start the website server. From the `website/` folder:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
-4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024/admin/email-preview)
+4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024)
     
   > **Note:** Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack..
 

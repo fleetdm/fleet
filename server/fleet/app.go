@@ -139,6 +139,10 @@ type MDM struct {
 	// configured with the required APNS and SCEP certificates. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
+	//
+	// TODO: should ideally be renamed to AppleEnabledAndConfigured, but it
+	// implies a lot of changes to existing code across both frontend and
+	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
 	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
@@ -146,6 +150,12 @@ type MDM struct {
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
 	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+
+	// MicrosoftEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
+	// There is no other configuration required for Windows other than enabling
+	// the support, but it is still called "EnabledAndConfigured" for consistency
+	// with the similarly named macOS-specific fields.
+	MicrosoftEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
