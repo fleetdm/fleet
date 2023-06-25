@@ -5118,24 +5118,21 @@ Returns the query specified by ID.
     "id": 31,
     "name": "centos_hosts",
     "description": "",
-    "team_id": null,
     "query": "select 1 from os_version where platform = \"centos\";",
+    "team_id": null,
+    "frequency": 3600,
+    "platform": "",
+    "min_osquery_version": "",
+    "automations": {
+      "logging": "differential",
+      "ignore_removal": true
+    },
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ]
+    "packs": []
   }
 }
 ```
@@ -5174,28 +5171,18 @@ Returns a list of global queries or team queries.
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
     "frequency": 3600,
-    "platform": null,
-    "min_osquery_version": null,
+    "platform": "macos,windows,linux",
+    "min_osquery_version": "",
     "automations": {
-        "logging": "differential",
-        "ignore_removal": true
+      "logging": "differential",
+      "ignore_removal": true
     },
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-05T21:13:04Z",
-        "updated_at": "2021-01-07T19:12:54Z",
-        "id": 1,
-        "name": "Pack",
-        "description": "Pack",
-        "platform": "",
-        "disabled": true
-      }
-    ],
+    "packs": [],
     "stats": {
       "system_time_p50": 1.32,
       "system_time_p95": 4.02,
@@ -5213,28 +5200,18 @@ Returns a list of global queries or team queries.
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "team_id": null,
     "frequency": 3600,
-    "platform": null,
-    "min_osquery_version": null,
+    "platform": "",
+    "min_osquery_version": "",
     "automations": {
-        "logging": "differential",
-        "ignore_removal": true
+      "logging": "differential",
+      "ignore_removal": true
     },
     "saved": true,
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ]
+    "packs": []
   }
 ]}
 ```
@@ -5252,10 +5229,10 @@ Creates a global query or team query.
 | query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description                     | string  | body | The query's description.                                                                                                                               |
 | observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id                         | integer | body | The parent team to which the new query should be added. If not submitted or blank, the query will be global.                                           |
+| team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | frequency                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. Empty value runs on all platforms. Default is `null`.                            |
-| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. Default is `null`, meaning all osqueryd versions are acceptable.                                                                          |
+| platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations                     | object  | body | The set of automation options.                                                                     |
 | automations.logging             | boolean | body | Whether the query's logs show everything in its current state. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
 | automations.ignore_removals     | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.snapshot` is `"differential"`.                 |
@@ -5268,14 +5245,15 @@ Creates a global query or team query.
 
 ```json
 {
-  "description": "This is a new query.",
   "name": "new_query",
+  "description": "This is a new query.",
   "query": "SELECT * FROM osquery_info",
-  "frequency": 3600 // Once per hour,
+  "frequency": 3600, // Once per hour
   "platform": "macos,windows,linux",
-  "min_osquery_version": null,
+  "min_osquery_version": "",
   "automations": {
     "logging": "snapshot",
+    "ignore_removal": true
   }
 }
 ```
@@ -5291,16 +5269,16 @@ Creates a global query or team query.
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 288,
     "name": "new_query",
+    "query": "SELECT * FROM osquery_info",
     "description": "This is a new query.",
     "team_id": null,
     "frequency": 3600,
-    "platform": null,
-    "min_osquery_version": null,
+    "platform": "macos,windows,linux",
+    "min_osquery_version": "",
     "automations": {
-        "logging": "differential",
-        "ignore_removal": true
+      "logging": "differential",
+      "ignore_removal": true
     },
-    "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
     "author_name": "",
@@ -5327,8 +5305,8 @@ Modifies the query specified by ID.
 | description                 | string  | body | The query's description.                                                                                                                               |
 | observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | frequency                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
-| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. Empty value runs on all platforms. Default is `null`.                            |
-| min_osquery_version         | string  | body | The minimum required osqueryd version installed on a host. Default is `null`, meaning all osqueryd versions are acceptable.                                                                          |
+| platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| min_osquery_version         | string  | body | The minimum required osqueryd version installed on a host. If set to "", all osqueryd versions are acceptable.                                                                          |
 | automations                 | object  | body | The set of automation options.                                                                     |
 | automations.logging         | boolean | body | Whether the query's logs show everything in its current state. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
 | automations.ignore_removals | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.snapshot` is `"differential"`.                 |
@@ -5342,11 +5320,11 @@ Modifies the query specified by ID.
 ```json
 {
   "name": "new_title_for_my_query",
-  "frequency": 3600 // Once per hour,
-  "platform": "macos,windows,linux",
-  "min_osquery_version": null,
+  "frequency": 3600, // Once per hour,
+  "platform": "",
+  "min_osquery_version": "",
   "automations": {
-    "logging": "snapshot",
+    "logging": "differential",
   }
 }
 ```
@@ -5363,15 +5341,15 @@ Modifies the query specified by ID.
     "id": 288,
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
+    "query": "SELECT * FROM osquery_info",
     "team_id": null,
     "frequency": 3600,
-    "platform": null,
-    "min_osquery_version": null,
+    "platform": "",
+    "min_osquery_version": "",
     "automations": {
-        "logging": "differential",
-        "ignore_removal": true
+      "logging": "differential",
+      "ignore_removal": true
     },
-    "query": "SELECT * FROM osquery_info",
     "saved": true,
     "author_id": 1,
     "author_name": "noah",
@@ -5392,7 +5370,7 @@ Deletes the query specified by name.
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
 | name | string     | path | **Required.** The name of the query. |
-| team_id | integer | body | The ID of the parent team of the query to be deleted. If not submitted or left blank, then Fleet will search among queries in the global context |
+| team_id | integer | body | The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
 
 #### Example
 
@@ -5547,7 +5525,7 @@ load balancer timeout.
 ## Schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
 - [Add query to schedule (deprecated)](#add-query-to-schedule)
@@ -5561,7 +5539,7 @@ These API routes let you control your scheduled queries.
 ### Get schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
 
@@ -5635,7 +5613,7 @@ None.
 ### Add query to schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
 
@@ -5696,7 +5674,7 @@ None.
 ### Edit query in schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
 
@@ -5752,7 +5730,7 @@ None.
 ### Remove query from schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `DELETE /api/v1/fleet/global/schedule/{id}`
 
@@ -5774,7 +5752,7 @@ None.
 ### Team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 - [Get team schedule (deprecated)](#get-team-schedule)
 - [Add query to team schedule (deprecated)](#add-query-to-team-schedule)
@@ -5786,7 +5764,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Get team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
 
@@ -5866,7 +5844,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Add query to team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `POST /api/v1/fleet/teams/{id}/schedule`
 
@@ -5924,7 +5902,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Edit query in team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
@@ -5981,7 +5959,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Remove query from team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` which enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
 
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
