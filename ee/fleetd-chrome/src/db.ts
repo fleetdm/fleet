@@ -20,6 +20,7 @@ export default class VirtualDatabase {
   private constructor(sqlite3: SQLiteAPI, db: number) {
     this.sqlite3 = sqlite3;
     this.db = db;
+    
     // Alphabetical order
     VirtualDatabase.register(
       sqlite3,
