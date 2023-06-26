@@ -52,11 +52,11 @@ type appConfigResponseFields struct {
 	// MDMEnabled is true if fleet serve was started with
 	// FLEET_DEV_MDM_ENABLED=1.
 	//
-	// Undocumented feature flag for Windows MDM, used to determine if the
-	// Windows MDM feature is visible in the UI and can be enabled. More details
+	// Undocumented feature flag for Microsoft MDM, used to determine if the
+	// Microsoft MDM feature is visible in the UI and can be enabled. More details
 	// here: https://github.com/fleetdm/fleet/issues/12257
 	//
-	// TODO: remove this flag once the Windows MDM feature is ready for
+	// TODO: remove this flag once the Microsoft MDM feature is ready for
 	// release.
 	MDMEnabled bool `json:"mdm_enabled,omitempty"`
 }
@@ -376,7 +376,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.SMTPSettings.SMTPEnabled {
 			if oldSMTPSettings != *appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 				if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-					return nil, ctxerr.Wrap(ctx, err)
+					return nil, fleet.NewInvalidArgumentError("SMTP Options", err.Error())
 				}
 			}
 			appConfig.SMTPSettings.SMTPConfigured = true
@@ -648,7 +648,7 @@ func (svc *Service) validateMDM(
 
 	// Windows validation
 	if !config.IsMDMFeatureFlagEnabled() {
-		if mdm.WindowsEnabledAndConfigured {
+		if mdm.MicrosoftEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
 			return
 		}
@@ -674,6 +674,14 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	if incoming.IDPName == "" {
 		if existing.IDPName == "" {
 			invalid.Append("idp_name", "required")
+		}
+	}
+
+	if incoming.MetadataURL != "" {
+		if u, err := url.ParseRequestURI(incoming.MetadataURL); err != nil {
+			invalid.Append("metadata_url", err.Error())
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			invalid.Append("metadata_url", "must be either https or http")
 		}
 	}
 }

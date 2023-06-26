@@ -66,19 +66,19 @@ Our scrum boards are exclusively composed of three types of scrum items:
 
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
+Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
 
-#### Sample agenda
+#### Agenda
 
 - Announcements
-- “Show and tell”
-  - Each engineer gets two minutes to explain (showing, if desired) what they are working on and why it’s important to the business and/or engineering team.
-- Deeper dive
-  - One or a few engineers go deeper on a topic relevant to all of engineering.
+- Engineering KPIs review
+- “Tech talks”
+  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
 
@@ -98,7 +98,7 @@ Anyone who wishes to participate.
 
 ### Eng leadership weekly 
 
-Engineering leaders discuss topics of importance that week.
+Engineering leaders discuss topics of importance that week. Prepare agenda, announcements, and tech talks before the monthly [Eng Together](#eng-together) meeting.
 
 #### Participants
 
@@ -311,14 +311,13 @@ A Slack reminder should notify the oncall of the handoff. Please do the followin
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
-   thread, and the new oncall should subscribe. The former oncall should explicitly share each of
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the thread, and the new oncall should subscribe. The former oncall should explicitly share each of
    these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
-At the weekly "Eng Together" meeting, the oncall is asked to make a report of how they spent their time. Please answer the following:
+In the Slack reminder thread, the oncall engineer includes their retrospective. Please answer the following:
 
 1. What were the most common support requests over the week? This can potentially give the new oncall an idea of which documentation to focus their efforts on.
 
@@ -415,6 +414,18 @@ When merging a pull request from a community contributor:
 - Merge the PR.
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+## Changes to tables' schema
+
+Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
+It should be done by running these commands:
+```
+cd website
+./node_modules/sails/bin/sails.js run generate-merged-schema
+```
+> When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
+
+> If a table is added to our ChromeOS extension but it does not exist in osquery, add a note that mentions it. As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
 
 ## Quality
 
@@ -562,11 +573,11 @@ When a critical bug is identified, we will then follow the patch release process
 
 ## Measurement
 
-We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
+We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
 The metrics are: 
 * Number of bugs opened this week
 * Total # bugs open 
-* Bugs in each state (inbox, acknowledged, reproduced) 
+* Bugs in each state (inbox, acknowledged, reproduced)
 * Number of bugs closed this week
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
@@ -574,6 +585,50 @@ Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 ### Definitions
 In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
 In the above process, any reference to "QA" refers to: Reed Haynes, Product Quality Specialist
+
+## Infrastructure
+
+- [24/7 on-call](#24-7-on-call)
+
+The [infrastructure product group](https://fleetdm.com/handbook/company/development-groups#infrastructure-group) is responsible for deploying, supporting, and maintaining all Fleet-managed cloud deployments.
+
+### 24/7 on-call
+The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week. The people involved in them will be:
+
+First responders:
+
+- Zachary Winnerman
+- Robert Fairburn
+
+Escalations (in order):
+
+- Luke Heath
+- Zach Wasserman (Fleet app)
+- Eric Shaw (fleetdm.com)
+- Mike McNeil
+
+The first responder on-call will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-infra Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.  
+
+Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
+
+For fleetdm.com and sandbox alarms, if the issue is not user-facing (e.g. provisioner/deprovisioner/temporary errors in osquery/etc), the on-call engineer will proceed to address the issue. If the issue is user-facing (e.g. the user noticed this error first-hand through the Fleet UI), then the on-call engineer will proceed to identify the user and contact them letting them know that we are aware of the issue and working on a resolution. They may also request more information from the user if it is needed. They will cc the EM and PM of the #g-infra group on any user correspondence. 
+
+For Fleet managed cloud alarms that are user-facing, the first responder should collect the email address of the customer and all available information on the error. If the error occurs during business hours, the first responder should make their best effort to understand where in the app the error might have occurred. Assistance can be requested in `#help-engineering` by including the data they know regarding the issue, and when available, a frontend or backend engineer can help identify what might be causing the problem. If the error occurs outside of business hours, the on-call engineer will contact the user letting them know that we are aware of the issue and working on a resolution. It’s more helpful to say something like “we saw that you received an error while trying to create a query” than to say “your POST /api/blah failed”.
+
+Escalation of issues will be done manually by the first responder according to the escalation contacts mentioned above. An outage issue (template available) should be created in the Fleet confidential repo addressing: 
+
+1. Who was affected and for how long? 
+2. What expected behavior occurred? 
+3. How do you know? 
+4. What near-term resolution can be taken to recover the affected user? 
+5. What is the underlying reason or suspected reason for the outage? 
+6. What are the next steps Fleet will take to address the root cause?  
+
+All infrastructure alarms (fleetdm.com, Fleet managed cloud, and sandbox) will go to #help-p1.
+
+The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
+
+When an infrastructure on-call engineer is out of the office, Zach Wasserman will serve as a backup to on-call in #help-p1. All absences must be communicated in advance to Luke Heath and Zach Wasserman.
 
 ## Rituals
 The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -592,37 +647,6 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
 | QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 | Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
-
-## 24/7 on-call
-The 24/7 on-call (aka infrastructure on-call) team is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility  happen in shifts of 1 week. The people involved in them will be:
-
-First responders:
-
-- Zachary Winnerman
-- Robert Fairburn
-
-Escalations (in order):
-
-- Luke Heath
-- Zach Wasserman (Fleet app)
-- Eric Shaw (fleetdm.com)
-- Mike McNeil
-
-The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous weeks oncall will provide a summary in the #g-customer-experience Slack channel with a an update on alarms that came up the week before, open issues with or without direct end user impact, and other things to keep an eye out for.  
-
-Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
-
-For fleetdm.com and sandbox alarms, if the issue is not user facing (e.g. provisioner/deprovisioner/temporary errors in osquery/etc), the oncall engineer will proceed to address the issue. If the issue is user facing (e.g. the user noticed this error first hand through the Fleet UI), then the oncall engineer will proceed to identify the user and contact them letting them know that we are aware of the issue and working on a resolution. They may also request more information from the user if it is needed. They will cc the VP of Customer Success on any user correspondence. 
-
-For Fleet managed cloud alarms that are user facing, the first responder should collect the email address for the customer and all available information on the error. If the error occurs during business hours, the first responder should make a best effort to understand where in the app the error might have occurred. Assistance can be requested in `#help-engineering` by including the data they know regarding the issue, and when available, a frontend or backend engineer can help identify what might be causing the problem. If the error occurs outside of business hours, then the oncall engineer will contact the user letting them know that we are aware of the issue and working on a resolution. It’s more helpful to say something like “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”.
-
-Escalation of issues will be done manually by the first responder according to the escalation contacts mentioned above. An outage issue (template available) should be created in the Fleet confidential repo addressing: who was affected?, for how long?, what expected behavior occurred?, how do you know?, what near-term resolution can be taken to recover the affected user?, what is the underlying reason or suspected reason for the outage?, and what are the next steps Fleet will take to address the root cause?.  
-
-All infrastructure alarms (fleetdm.com, Fleet managed cloud, and sandbox) will go to #help-p1.
-
-The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
-
-When an infrastructure oncall engineer is out of office, Zach Wasserman will serve as a backup to oncall in #help-p1. All absences must be communicated in advance with Luke Heath and Zach Wasserman.
 
 ## Slack channels
 
