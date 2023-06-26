@@ -123,7 +123,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
-  mdm_enabled: true, // TODO: remove after windows MDM is released. This currently used form windows MDM dev.
   mdm: {
     windows_enabled_and_configured: true,
     apple_bm_default_team: "Apples",
