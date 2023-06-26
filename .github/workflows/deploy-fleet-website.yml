@@ -54,7 +54,7 @@ jobs:
 
     # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
-      uses: actions/setup-go@v2.1.3
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: 1.19
 

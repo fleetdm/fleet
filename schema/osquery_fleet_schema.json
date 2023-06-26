@@ -27465,127 +27465,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
   },
   {
-    "name": "corestorage_logical_volume_families",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
-    "columns": [
-      {
-        "name": "vg_UUID",
-        "type": "text",
-        "required": false,
-        "description": "The unique identifier of the containing volume group"
-      },
-      {
-        "name": "vg_Version",
-        "type": "integer",
-        "required": false,
-        "description": "The version of the volume group, probably 1"
-      },
-      {
-        "name": "vg_FreeSpace",
-        "type": "bigint",
-        "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
-      },
-      {
-        "name": "vg_FusionDrive",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
-      },
-      {
-        "name": "vg_Name",
-        "type": "text",
-        "required": false,
-        "description": "The customizable name of the volume group"
-      },
-      {
-        "name": "vg_Sequence",
-        "type": "bigint",
-        "required": false,
-        "description": "Current sequence number of the volume group"
-      },
-      {
-        "name": "vg_Size",
-        "type": "bigint",
-        "required": false,
-        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
-      },
-      {
-        "name": "vg_Sparse",
-        "type": "integer",
-        "required": false,
-        "description": "Whether the volume group allows overcommitting storage"
-      },
-      {
-        "name": "vg_Status",
-        "type": "text",
-        "required": false,
-        "description": "Status of the volume group, e.g. \"Online\""
-      },
-      {
-        "name": "UUID",
-        "type": "text",
-        "required": false,
-        "description": "Unique ID of the logical volume family"
-      },
-      {
-        "name": "EncryptionStatus",
-        "type": "text",
-        "required": false,
-        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
-      },
-      {
-        "name": "EncryptionType",
-        "type": "text",
-        "required": false,
-        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
-      },
-      {
-        "name": "HasVisibleUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "HasVolumeKey",
-        "type": "integer",
-        "required": false,
-        "description": "Whether there is an encryption key assigned for the logical volume"
-      },
-      {
-        "name": "IsAcceptingNewUsers",
-        "type": "integer",
-        "required": false,
-        "description": "Whether new users may be granted access to the logical volume family encryption key"
-      },
-      {
-        "name": "IsFullySecure",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "MayHaveEncryptedEvents",
-        "type": "integer",
-        "required": false,
-        "description": "Undocumented field returned from `diskutil cs info`"
-      },
-      {
-        "name": "RequiresPasswordUnlock",
-        "type": "integer",
-        "required": false,
-        "description": "Whether a password is currently required to unlock the volume"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
-  },
-  {
     "name": "corestorage_logical_volumes",
     "platforms": [
       "darwin"
@@ -27785,6 +27664,127 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volumes.yml"
   },
   {
+    "name": "corestorage_logical_volume_families",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
+    "columns": [
+      {
+        "name": "vg_UUID",
+        "type": "text",
+        "required": false,
+        "description": "The unique identifier of the containing volume group"
+      },
+      {
+        "name": "vg_Version",
+        "type": "integer",
+        "required": false,
+        "description": "The version of the volume group, probably 1"
+      },
+      {
+        "name": "vg_FreeSpace",
+        "type": "bigint",
+        "required": false,
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+      },
+      {
+        "name": "vg_FusionDrive",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group is a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "vg_Name",
+        "type": "text",
+        "required": false,
+        "description": "The customizable name of the volume group"
+      },
+      {
+        "name": "vg_Sequence",
+        "type": "bigint",
+        "required": false,
+        "description": "Current sequence number of the volume group"
+      },
+      {
+        "name": "vg_Size",
+        "type": "bigint",
+        "required": false,
+        "description": "Total (i.e. either allocated or unallocated) size of the volume group"
+      },
+      {
+        "name": "vg_Sparse",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume group allows overcommitting storage"
+      },
+      {
+        "name": "vg_Status",
+        "type": "text",
+        "required": false,
+        "description": "Status of the volume group, e.g. \"Online\""
+      },
+      {
+        "name": "UUID",
+        "type": "text",
+        "required": false,
+        "description": "Unique ID of the logical volume family"
+      },
+      {
+        "name": "EncryptionStatus",
+        "type": "text",
+        "required": false,
+        "description": "Unlock status of the logical volume family, e.g. \"Locked\" or \"Unlocked\""
+      },
+      {
+        "name": "EncryptionType",
+        "type": "text",
+        "required": false,
+        "description": "Encryption algorithm for the logical volume family, normally \"AES-XTS\" or \"None\""
+      },
+      {
+        "name": "HasVisibleUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "HasVolumeKey",
+        "type": "integer",
+        "required": false,
+        "description": "Whether there is an encryption key assigned for the logical volume"
+      },
+      {
+        "name": "IsAcceptingNewUsers",
+        "type": "integer",
+        "required": false,
+        "description": "Whether new users may be granted access to the logical volume family encryption key"
+      },
+      {
+        "name": "IsFullySecure",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "MayHaveEncryptedEvents",
+        "type": "integer",
+        "required": false,
+        "description": "Undocumented field returned from `diskutil cs info`"
+      },
+      {
+        "name": "RequiresPasswordUnlock",
+        "type": "integer",
+        "required": false,
+        "description": "Whether a password is currently required to unlock the volume"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/corestorage_logical_volume_families",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/corestorage_logical_volume_families.yml"
+  },
+  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
@@ -27804,30 +27804,41 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/csrutil_info.yml"
   },
   {
-    "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "name": "dscl",
     "platforms": [
       "darwin"
     ],
-    "evented": false,
-    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "description": "Returns the output of the `dscl . -read` command (local domain).",
     "columns": [
       {
-        "name": "username",
-        "description": "Username of the FileVault user.",
-        "required": false,
-        "type": "text"
+        "name": "command",
+        "type": "text",
+        "required": true,
+        "description": "The dscl command to execute, only \"read\" is currently supported."
       },
       {
-        "name": "uuid",
-        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "name": "path",
+        "type": "text",
+        "required": true,
+        "description": "The path to use in the read command."
+      },
+      {
+        "name": "key",
+        "type": "text",
+        "required": true,
+        "description": "The key to query on the read command and path."
+      },
+      {
+        "name": "value",
+        "type": "text",
         "required": false,
-        "type": "text"
+        "description": "The value of the read path and key. The value is the empty string if the key doesn't exist."
       }
     ],
-    "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/dscl",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
   },
   {
     "name": "file_lines",
@@ -27978,6 +27989,32 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
   {
+    "name": "filevault_users",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "columns": [
+      {
+        "name": "username",
+        "description": "Username of the FileVault user.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+  },
+  {
     "name": "icloud_private_relay",
     "platforms": [
       "darwin"
@@ -27995,105 +28032,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/icloud_private_relay",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
-  },
-  {
-    "name": "dscl",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Returns the output of the `dscl . -read` command (local domain).",
-    "columns": [
-      {
-        "name": "command",
-        "type": "text",
-        "required": true,
-        "description": "The dscl command to execute, only \"read\" is currently supported."
-      },
-      {
-        "name": "path",
-        "type": "text",
-        "required": true,
-        "description": "The path to use in the read command."
-      },
-      {
-        "name": "key",
-        "type": "text",
-        "required": true,
-        "description": "The key to query on the read command and path."
-      },
-      {
-        "name": "value",
-        "type": "text",
-        "required": false,
-        "description": "The value of the read path and key. The value is the empty string if the key doesn't exist."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/dscl",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dscl.yml"
-  },
-  {
-    "name": "macos_profiles",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "High level information on installed profiles enrollment.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
-    "columns": [
-      {
-        "name": "description",
-        "description": "The description of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "display_name",
-        "description": "The display name of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "identifier",
-        "description": "The identifier of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "install_date",
-        "description": "Date and time at which the profile was installed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "organization",
-        "description": "The profile's organization value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "type",
-        "description": "The type of profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "verification_state",
-        "description": "The verification state of the profile.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/macos_profiles",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
   },
   {
     "name": "macadmins_unified_log",
@@ -28210,6 +28148,68 @@
     ],
     "url": "https://fleetdm.com/tables/macadmins_unified_log",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
+  },
+  {
+    "name": "macos_profiles",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "High level information on installed profiles enrollment.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
+    "columns": [
+      {
+        "name": "description",
+        "description": "The description of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "display_name",
+        "description": "The display name of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "identifier",
+        "description": "The identifier of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_date",
+        "description": "Date and time at which the profile was installed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "organization",
+        "description": "The profile's organization value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "type",
+        "description": "The type of profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "verification_state",
+        "description": "The verification state of the profile.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_profiles",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
   },
   {
     "name": "macos_rsr",
@@ -28341,6 +28341,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
   },
   {
+    "name": "mdm_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "columns": [
+      {
+        "name": "enrollment_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+      },
+      {
+        "name": "enrolled_user",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment URI of the device."
+      },
+      {
+        "name": "mdm_command_input",
+        "type": "text",
+        "required": false,
+        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+      },
+      {
+        "name": "mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "Value of the \"Results\" field of the MDM command output."
+      },
+      {
+        "name": "raw_mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "The full raw output of the MDM command execution."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/mdm_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+  },
+  {
     "name": "munki_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
@@ -28447,49 +28490,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
-    "name": "mdm_bridge",
-    "platforms": [
-      "windows"
-    ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
-    "columns": [
-      {
-        "name": "enrollment_status",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
-      },
-      {
-        "name": "enrolled_user",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment URI of the device."
-      },
-      {
-        "name": "mdm_command_input",
-        "type": "text",
-        "required": false,
-        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
-      },
-      {
-        "name": "mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "Value of the \"Results\" field of the MDM command output."
-      },
-      {
-        "name": "raw_mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "The full raw output of the MDM command execution."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/mdm_bridge",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
-  },
-  {
     "name": "network_interfaces",
     "evented": false,
     "platforms": [
@@ -28519,6 +28519,25 @@
     "notes": "- Requires that the fleetd extension is force-installed by enterprise policy",
     "url": "https://fleetdm.com/tables/network_interfaces",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
+  },
+  {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "orbit_info",
@@ -28578,25 +28597,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
   },
   {
-    "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information from nvram system call.",
-    "columns": [
-      {
-        "name": "amfi_enabled",
-        "type": "integer",
-        "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
-  },
-  {
     "name": "pmset",
     "platforms": [
       "darwin"
@@ -28620,124 +28620,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
-  },
-  {
-    "name": "puppet_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
-    "columns": [
-      {
-        "name": "cached_catalog_status",
-        "description": "The status of Puppet catalogs cached on the system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "catalog_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "code_id",
-        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "configuration_version",
-        "description": "The version of the Puppet configuration.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "environment",
-        "description": "The environment name.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "host",
-        "description": "The host on which Puppet is used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "kind",
-        "description": "Kind of Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "master_used",
-        "description": "The Puppet server used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop",
-        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop_prending",
-        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "puppet_version",
-        "description": "The version of Puppet used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "report_format",
-        "description": "The format the Puppet report was exported as.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "status",
-        "description": "The status of Puppet on this system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time of the last Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_completed",
-        "description": "Indicates if the transaction completed or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "puppet_state",
@@ -28927,6 +28809,257 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pwd_policy",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
+    "name": "puppet_info",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
+    "columns": [
+      {
+        "name": "cached_catalog_status",
+        "description": "The status of Puppet catalogs cached on the system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "catalog_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "code_id",
+        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "configuration_version",
+        "description": "The version of the Puppet configuration.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "environment",
+        "description": "The environment name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "host",
+        "description": "The host on which Puppet is used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "kind",
+        "description": "Kind of Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "master_used",
+        "description": "The Puppet server used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop",
+        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop_prending",
+        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "puppet_version",
+        "description": "The version of Puppet used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "report_format",
+        "description": "The format the Puppet report was exported as.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "status",
+        "description": "The status of Puppet on this system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time of the last Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_completed",
+        "description": "Indicates if the transaction completed or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
+  },
+  {
+    "name": "privacy_preferences",
+    "notes": "This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
+    "description": "Information on Chrome features that can affect a user's privacy, available from the [chrome.privacy APIs](https://developer.chrome.com/docs/extensions/reference/privacy/)",
+    "platforms": [
+      "chrome"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "network_prediction_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "web_rtc_ip_handling_policy",
+        "description": "One of \"default\", \"default_public_and_private_interfaces\", \"default_public_interface_only\", or \"disable_non_proxied_udp\"",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "autofill_address_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "autofill_credit_card_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "autofill_enabled",
+        "description": "1 if enabled else 0 - * Deprecated since Chrome 70, please use privacy.services.autofillAddressEnabled and privacy.services.autofillCreditCardEnabled. This currently remains for backward compatibility and will be removed in the future.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "save_passwords_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "safe_browsing_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "safe_browsing_extended_reporting_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "search_suggest_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "spelling_service_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "translation_service_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "ad_measurement_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "do_not_track_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "fledge_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "hyperlink_auditing_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "privacy_sandbox_enabled",
+        "description": "1 if enabled else 0 - * Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "protected_content_enabled",
+        "description": "1 if enabled else 0 - * Windows and ChromeOS only",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "referrers_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "third_party_cookies_allowed",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "topics_enabled",
+        "description": "1 if enabled else 0",
+        "required": false,
+        "type": "integer"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/privacy_preferences",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
   {
     "name": "sntp_request",
