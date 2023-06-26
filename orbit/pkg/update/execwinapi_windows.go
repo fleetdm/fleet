@@ -125,12 +125,6 @@ func enrollHostToMDM(args MicrosoftMDMEnrollmentArgs) error {
 // Perform the host MDM unenrollment process using MS-MDE protocol:
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde/5c841535-042e-489e-913c-9d783d741267
 func unenrollHostFromMDM() error {
-	// we use an empty enrollment ID, it is not required
-	enrollID, err := syscall.UTF16PtrFromString("")
-	if err != nil {
-		return fmt.Errorf("enrollment ID to UTF16 pointer: %w", err)
-	}
-
 	// pre-load the DLL and pre-find the procedure, to return a more meaningful
 	// message if those steps fail and avoid a panic (those are no-ops once
 	// loaded/found).
@@ -141,7 +135,7 @@ func unenrollHostFromMDM() error {
 		return fmt.Errorf("find MDM UnregisterDeviceWithManagement procedure: %w", err)
 	}
 
-	code, _, err := procUnregisterDeviceWithManagement.Call(uintptr(unsafe.Pointer(enrollID)))
+	code, _, err := procUnregisterDeviceWithManagement.Call(0)
 	log.Debug().Msgf("UnregisterDeviceWithManagement returned code: %#x ; message: %v", code, err)
 	if code != uintptr(windows.ERROR_SUCCESS) {
 		return improveWindowsAPIError("UnregisterDeviceWithManagement", "", code, err)
