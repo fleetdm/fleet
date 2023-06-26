@@ -46,7 +46,7 @@ func RunMicrosoftMDMEnrollment(args MicrosoftMDMEnrollmentArgs) error {
 // Exported so that it can be used in tools/ (so that it can be built for
 // Windows and tested on a Windows machine). Otherwise not meant to be called
 // from outside this package.
-func RunWindowsMDMUnenrollment(args WindowsMDMEnrollmentArgs) error {
+func RunMicrosoftMDMUnenrollment(args MicrosoftMDMEnrollmentArgs) error {
 	installType, err := readInstallationType()
 	if err != nil {
 		return err
