@@ -1,0 +1,1 @@
+* Added the `mdm_enabled` feature flag information to the response payload of the `PATCH /config` endpoint.

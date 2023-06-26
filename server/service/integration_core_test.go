@@ -4692,6 +4692,7 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
