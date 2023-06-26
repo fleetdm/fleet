@@ -9,7 +9,9 @@ import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableOsqueryInfo from "./tables/osquery_info";
 import TableOSVersion from "./tables/os_version";
 import TablePrivacyPreferences from "./tables/privacy_preferences";
+import TableScreenLock from "./tables/screenlock";
 import TableSystemInfo from "./tables/system_info";
+import TableSystemState from "./tables/system_state";
 import TableUsers from "./tables/users";
 
 export default class VirtualDatabase {
@@ -32,12 +34,14 @@ export default class VirtualDatabase {
       db,
       new TableNetworkInterfaces(sqlite3, db)
     );
-    VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
     VirtualDatabase.register(
       sqlite3,
       db,
       new TablePrivacyPreferences(sqlite3, db)
     );
+    VirtualDatabase.register(sqlite3, db, new TableScreenLock(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableSystemState(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
