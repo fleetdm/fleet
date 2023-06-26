@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -88,11 +89,13 @@ func enrollHostToMDM(args MicrosoftMDMEnrollmentArgs) error {
 		return fmt.Errorf("find MDM RegisterDeviceWithManagement procedure: %w", err)
 	}
 
-	if code, _, err := procRegisterDeviceWithManagement.Call(
+	code, _, err := procRegisterDeviceWithManagement.Call(
 		uintptr(unsafe.Pointer(userPtr)),
 		uintptr(unsafe.Pointer(discoveryURLPtr)),
 		uintptr(unsafe.Pointer(accessTokPtr)),
-	); code != uintptr(windows.ERROR_SUCCESS) {
+	)
+	log.Debug().Msgf("RegisterDeviceWithManagement returned code: %#x ; message: %v", code, err)
+	if code != uintptr(windows.ERROR_SUCCESS) {
 		// hexadecimal error code can help identify error here:
 		//   https://learn.microsoft.com/en-us/windows/win32/mdmreg/mdm-registration-constants
 		// decimal error code can help identify error here (look for the ERROR_xxx constants):
