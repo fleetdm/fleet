@@ -613,12 +613,7 @@ const ManageSoftwarePage = ({
       searchQuery !== "" ||
       queryParams.vulnerable === "true");
 
-  return !isRouteOk ||
-    (isPremiumTier && !userTeams) ||
-    !globalConfig ||
-    (!softwareConfig && !softwareConfigError) ? (
-    <Spinner />
-  ) : (
+  return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
