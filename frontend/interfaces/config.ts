@@ -284,6 +284,7 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  mdm_enabled: boolean; // TODO: remove when windows MDM is released. Only used for windows MDM dev currently.
 }
 
 export interface IWebhookSettings {

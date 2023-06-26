@@ -1,3 +1,15 @@
 .windows-mdm-page {
 
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+  }
+
+  p {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
 }

@@ -133,10 +133,13 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
         <h2>Apple Push Certificates Portal</h2>
         {isLoadingMdmApple ? <Spinner /> : renderMdmAppleSection()}
       </div>
-      <WindowsMdmSection
-        turnOnWindowsMdm={navigateToWindowsMdm}
-        editWindowsMdm={navigateToWindowsMdm}
-      />
+      {/* TODO: remove conditional rendering when windows MDM is released. */}
+      {config?.mdm_enabled && (
+        <WindowsMdmSection
+          turnOnWindowsMdm={navigateToWindowsMdm}
+          editWindowsMdm={navigateToWindowsMdm}
+        />
+      )}
       {isPremiumTier && (
         <>
           {/* TODO: conditionally show with feature flag */}
