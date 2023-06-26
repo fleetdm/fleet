@@ -1,6 +1,7 @@
 package update
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 type runCmdFunc func() error
 
-// RenewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
+// renewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
 // renew the enrollment profile. If so, it runs the command (as root) to
 // bootstrap the renewal of the profile on the device (the user still needs to
@@ -18,7 +19,7 @@ type runCmdFunc func() error
 //
 // It ensures only one renewal command is executed at any given time, and that
 // it doesn't re-execute the command until a certain amount of time has passed.
-type RenewEnrollmentProfileConfigFetcher struct {
+type renewEnrollmentProfileConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
@@ -36,13 +37,13 @@ type RenewEnrollmentProfileConfigFetcher struct {
 }
 
 func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration) OrbitConfigFetcher {
-	return &RenewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
+	return &renewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency}
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the renew enrollment profile flag to true, executes the command
 // to renew the enrollment profile.
-func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := h.Fetcher.GetConfig()
 
 	// TODO: download and use swiftDialog following the same patterns we
@@ -78,6 +79,87 @@ func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 				}
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
+			}
+		}
+	}
+	return cfg, err
+}
+
+type execWinAPIFunc func(MicrosoftMDMEnrollmentArgs) error
+
+type microsoftMDMEnrollmentConfigFetcher struct {
+	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
+	// for actually returning the orbit configuration or an error.
+	Fetcher OrbitConfigFetcher
+	// Frequency is the minimum amount of time that must pass between two
+	// executions of the windows MDM enrollment attempt.
+	Frequency time.Duration
+	// HostUUID is the current host's UUID.
+	HostUUID string
+
+	// for tests, to be able to mock command execution. If nil, will use
+	// RunMicrosoftMDMEnrollment.
+	execWinAPIFn execWinAPIFunc
+
+	// ensures only one command runs at a time, protects access to lastRun and
+	// isWindowsServer.
+	mu              sync.Mutex
+	lastRun         time.Time
+	isWindowsServer bool
+}
+
+func ApplyMicrosoftMDMEnrollmentFetcherMiddleware(
+	fetcher OrbitConfigFetcher,
+	frequency time.Duration,
+	hostUUID string,
+) OrbitConfigFetcher {
+	return &microsoftMDMEnrollmentConfigFetcher{
+		Fetcher:   fetcher,
+		Frequency: frequency,
+		HostUUID:  hostUUID,
+	}
+}
+
+var errIsWindowsServer = errors.New("device is a Windows Server")
+
+// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
+// server set the "needs windows enrollment" flag to true, executes the command
+// to enroll into Windows MDM (or not, if the device is a Windows Server).
+func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	cfg, err := w.Fetcher.GetConfig()
+
+	if err == nil && cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
+		if cfg.Notifications.MicrosoftMDMDiscoveryEndpoint == "" {
+			log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
+		} else if w.mu.TryLock() {
+			defer w.mu.Unlock()
+
+			// do not enroll Windows Servers, and do not attempt enrollment if the
+			// last run is not at least Frequency ago.
+			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
+				fn := w.execWinAPIFn
+				if fn == nil {
+					fn = RunMicrosoftMDMEnrollment
+				}
+				args := MicrosoftMDMEnrollmentArgs{
+					DiscoveryURL: cfg.Notifications.MicrosoftMDMDiscoveryEndpoint,
+					HostUUID:     w.HostUUID,
+				}
+				if err := fn(args); err != nil {
+					if errors.Is(err, errIsWindowsServer) {
+						w.isWindowsServer = true
+						log.Info().Msg("device is a Windows Server, skipping enrollment")
+					} else {
+						log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
+					}
+				} else {
+					w.lastRun = time.Now()
+					log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
+				}
+			} else if w.isWindowsServer {
+				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			} else {
+				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
 			}
 		}
 	}
