@@ -27888,6 +27888,68 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
   },
   {
+    "name": "filevault_users",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
+    "columns": [
+      {
+        "name": "username",
+        "description": "Username of the FileVault user.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
+  },
+  {
+    "name": "geolocation",
+    "evented": false,
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Last reported geolocation",
+    "columns": [
+      {
+        "name": "ip",
+        "type": "text",
+        "required": false,
+        "description": "IP address"
+      },
+      {
+        "name": "city",
+        "type": "text",
+        "required": false,
+        "description": "City"
+      },
+      {
+        "name": "country",
+        "type": "text",
+        "required": false,
+        "description": "Country"
+      },
+      {
+        "name": "region",
+        "type": "text",
+        "required": false,
+        "description": "Region"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/geolocation",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
+  },
+  {
     "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
@@ -27951,68 +28013,6 @@
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
-  },
-  {
-    "name": "geolocation",
-    "evented": false,
-    "platforms": [
-      "chrome"
-    ],
-    "description": "Last reported geolocation",
-    "columns": [
-      {
-        "name": "ip",
-        "type": "text",
-        "required": false,
-        "description": "IP address"
-      },
-      {
-        "name": "city",
-        "type": "text",
-        "required": false,
-        "description": "City"
-      },
-      {
-        "name": "country",
-        "type": "text",
-        "required": false,
-        "description": "Country"
-      },
-      {
-        "name": "region",
-        "type": "text",
-        "required": false,
-        "description": "Region"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/geolocation",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
-  },
-  {
-    "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
-    "columns": [
-      {
-        "name": "username",
-        "description": "Username of the FileVault user.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "uuid",
-        "description": "UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
     "name": "icloud_private_relay",
@@ -28249,6 +28249,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
+    "name": "mdm_bridge",
+    "platforms": [
+      "windows"
+    ],
+    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "columns": [
+      {
+        "name": "enrollment_status",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
+      },
+      {
+        "name": "enrolled_user",
+        "type": "text",
+        "required": false,
+        "description": "Contains the enrollment URI of the device."
+      },
+      {
+        "name": "mdm_command_input",
+        "type": "text",
+        "required": false,
+        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
+      },
+      {
+        "name": "mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "Value of the \"Results\" field of the MDM command output."
+      },
+      {
+        "name": "raw_mdm_command_output",
+        "type": "text",
+        "required": false,
+        "description": "The full raw output of the MDM command execution."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/mdm_bridge",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
+  },
+  {
     "name": "mdm",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
     "description": "Information on the device's MDM enrollment.",
@@ -28339,49 +28382,6 @@
     ],
     "url": "https://fleetdm.com/tables/mdm",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
-  },
-  {
-    "name": "mdm_bridge",
-    "platforms": [
-      "windows"
-    ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
-    "columns": [
-      {
-        "name": "enrollment_status",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment status of the device, possible values are \"device_enrolled\" and \"device_unenrolled\"."
-      },
-      {
-        "name": "enrolled_user",
-        "type": "text",
-        "required": false,
-        "description": "Contains the enrollment URI of the device."
-      },
-      {
-        "name": "mdm_command_input",
-        "type": "text",
-        "required": false,
-        "description": "The \"get\" command to execute on the device. If empty, no command is executed and the \"enrollment_status\" and \"enrolled_user\" columns are returned."
-      },
-      {
-        "name": "mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "Value of the \"Results\" field of the MDM command output."
-      },
-      {
-        "name": "raw_mdm_command_output",
-        "type": "text",
-        "required": false,
-        "description": "The full raw output of the MDM command execution."
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/mdm_bridge",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
     "name": "munki_info",
@@ -28521,25 +28521,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
-    "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information from nvram system call.",
-    "columns": [
-      {
-        "name": "amfi_enabled",
-        "type": "integer",
-        "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/nvram_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
-  },
-  {
     "name": "orbit_info",
     "platforms": [
       "darwin",
@@ -28597,6 +28578,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/orbit_info.yml"
   },
   {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
+  },
+  {
     "name": "pmset",
     "platforms": [
       "darwin"
@@ -28620,313 +28620,6 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
-  },
-  {
-    "name": "puppet_state",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
-    "columns": [
-      {
-        "name": "title",
-        "description": "The name of the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file that contains the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line on which the resource is specified.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource",
-        "description": "The resource and its title as `Type[title]`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource_type",
-        "description": "The resource type.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "evaluation_time",
-        "description": "The amount of seconds it took to evaluate the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "failed",
-        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "changed",
-        "description": "If `change_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync",
-        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "skipped",
-        "description": "True if this resource was skipped.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "change_count",
-        "description": "The count of changes to be performed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync_count",
-        "description": "The number of properties that are out of sync",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_state",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
-  },
-  {
-    "name": "puppet_logs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
-    "columns": [
-      {
-        "name": "level",
-        "description": "The level of the log item (info, error, etc).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "message",
-        "description": "The log message content.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "source",
-        "description": "The source of the log item.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time at which this item was logged.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file from which osquery read this log.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line from which this log item was read.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_logs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
-  },
-  {
-    "name": "pwd_policy",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Password Policiy (e.g max failed password attempts).",
-    "columns": [
-      {
-        "name": "max_failed_attempts",
-        "type": "integer",
-        "required": false,
-        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
-      },
-      {
-        "name": "expires_every_n_days",
-        "type": "integer",
-        "required": false,
-        "description": "How many days for a new password to expire.\n"
-      },
-      {
-        "name": "days_to_expiration",
-        "type": "integer",
-        "required": false,
-        "description": "How many days are left for the expiration of the current password.\n"
-      },
-      {
-        "name": "history_depth",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
-      },
-      {
-        "name": "min_mixed_case_characters",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/pwd_policy",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
-  },
-  {
-    "name": "puppet_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
-    "columns": [
-      {
-        "name": "cached_catalog_status",
-        "description": "The status of Puppet catalogs cached on the system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "catalog_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "code_id",
-        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "configuration_version",
-        "description": "The version of the Puppet configuration.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "environment",
-        "description": "The environment name.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "host",
-        "description": "The host on which Puppet is used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "kind",
-        "description": "Kind of Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "master_used",
-        "description": "The Puppet server used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop",
-        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop_prending",
-        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "puppet_version",
-        "description": "The version of Puppet used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "report_format",
-        "description": "The format the Puppet report was exported as.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "status",
-        "description": "The status of Puppet on this system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time of the last Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_completed",
-        "description": "Indicates if the transaction completed or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "privacy_preferences",
@@ -29060,6 +28753,313 @@
     ],
     "url": "https://fleetdm.com/tables/privacy_preferences",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
+  },
+  {
+    "name": "puppet_info",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
+    "columns": [
+      {
+        "name": "cached_catalog_status",
+        "description": "The status of Puppet catalogs cached on the system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "catalog_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "code_id",
+        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "configuration_version",
+        "description": "The version of the Puppet configuration.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "environment",
+        "description": "The environment name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "host",
+        "description": "The host on which Puppet is used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "kind",
+        "description": "Kind of Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "master_used",
+        "description": "The Puppet server used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop",
+        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop_prending",
+        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "puppet_version",
+        "description": "The version of Puppet used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "report_format",
+        "description": "The format the Puppet report was exported as.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "status",
+        "description": "The status of Puppet on this system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time of the last Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_completed",
+        "description": "Indicates if the transaction completed or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
+  },
+  {
+    "name": "puppet_logs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
+    "columns": [
+      {
+        "name": "level",
+        "description": "The level of the log item (info, error, etc).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "message",
+        "description": "The log message content.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "source",
+        "description": "The source of the log item.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time at which this item was logged.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file from which osquery read this log.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line from which this log item was read.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
+  },
+  {
+    "name": "pwd_policy",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Password Policiy (e.g max failed password attempts).",
+    "columns": [
+      {
+        "name": "max_failed_attempts",
+        "type": "integer",
+        "required": false,
+        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
+      },
+      {
+        "name": "expires_every_n_days",
+        "type": "integer",
+        "required": false,
+        "description": "How many days for a new password to expire.\n"
+      },
+      {
+        "name": "days_to_expiration",
+        "type": "integer",
+        "required": false,
+        "description": "How many days are left for the expiration of the current password.\n"
+      },
+      {
+        "name": "history_depth",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
+      },
+      {
+        "name": "min_mixed_case_characters",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/pwd_policy",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
+    "name": "puppet_state",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
+    "columns": [
+      {
+        "name": "title",
+        "description": "The name of the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file that contains the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line on which the resource is specified.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource",
+        "description": "The resource and its title as `Type[title]`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource_type",
+        "description": "The resource type.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "evaluation_time",
+        "description": "The amount of seconds it took to evaluate the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "failed",
+        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "changed",
+        "description": "If `change_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync",
+        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "skipped",
+        "description": "True if this resource was skipped.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "change_count",
+        "description": "The count of changes to be performed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync_count",
+        "description": "The number of properties that are out of sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_state",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
   },
   {
     "name": "sntp_request",
