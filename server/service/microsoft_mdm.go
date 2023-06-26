@@ -375,28 +375,28 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 }
 
 // NewBinarySecurityTokenPayload returns the BinarySecurityTokenPayload type
-func NewBinarySecurityTokenPayload(encodedToken string) (fleet.BinarySecurityTokenPayload, error) {
+func NewBinarySecurityTokenPayload(encodedToken string) (fleet.MicrosoftMDMAccessTokenPayload, error) {
 	if len(encodedToken) == 0 {
-		return fleet.BinarySecurityTokenPayload{}, errors.New("binary security token: token is empty")
+		return fleet.MicrosoftMDMAccessTokenPayload{}, errors.New("binary security token: token is empty")
 	}
 
 	rawBytes, err := base64.StdEncoding.DecodeString(encodedToken)
 	if err != nil {
-		return fleet.BinarySecurityTokenPayload{}, fmt.Errorf("binary security token: %v", err)
+		return fleet.MicrosoftMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
 	}
 
-	var tokenPayload fleet.BinarySecurityTokenPayload
+	var tokenPayload fleet.MicrosoftMDMAccessTokenPayload
 	err = json.Unmarshal(rawBytes, &tokenPayload)
 	if err != nil {
-		return fleet.BinarySecurityTokenPayload{}, fmt.Errorf("binary security token: %v", err)
+		return fleet.MicrosoftMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
 	}
 
 	return tokenPayload, nil
 }
 
 // GetEncodedBinarySecurityToken returns the base64 form of a BinarySecurityTokenPayload
-func GetEncodedBinarySecurityToken(typeID int, hostUUID string) (string, error) {
-	var pld fleet.BinarySecurityTokenPayload
+func GetEncodedBinarySecurityToken(typeID fleet.MicrosoftMDMEnrollmentType, hostUUID string) (string, error) {
+	var pld fleet.MicrosoftMDMAccessTokenPayload
 	pld.Type = typeID
 	pld.Payload.HostUUID = hostUUID
 	rawBytes, err := json.Marshal(pld)
@@ -493,7 +493,7 @@ func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken stri
 	}
 
 	// Validating the Binary Security Token Type used on Programmatic Enrollments
-	if binSecToken.Type == mdm_types.BSProgrammaticEnrollment {
+	if binSecToken.Type == mdm_types.MicrosoftMDMProgrammaticEnrollmentType {
 		host, err := svc.HostByIdentifier(ctx, binSecToken.Payload.HostUUID, fleet.HostDetailOptions{})
 		if err != nil {
 			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)

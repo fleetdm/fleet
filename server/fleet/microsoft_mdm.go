@@ -551,21 +551,26 @@ type SoapFault struct {
 /////////////////////////////////////////////////////////////////////////////
 /// BinarySecurityTokenPayload contains the security token in MS-MDE2 Header
 
-// MS-MDE2 BinarySecurityTokenPayload types
-const (
-	BSProgrammaticEnrollment = 1
-)
-
-type BinarySecurityTokenPayload struct {
-	Type    int `json:"type"`
+// MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
+// provided as opaque access token to the RegisterDeviceWithManagement API.
+type MicrosoftMDMAccessTokenPayload struct {
+	// Type is the enrollment type, such as "programmatic".
+	Type    MicrosoftMDMEnrollmentType `json:"type"`
 	Payload struct {
 		HostUUID string `json:"host_uuid"`
 	} `json:"payload"`
 }
 
-func (t *BinarySecurityTokenPayload) IsValidToken() error {
+type MicrosoftMDMEnrollmentType int
+
+// List of supported Microsoft MDM enrollment types.
+const (
+	MicrosoftMDMProgrammaticEnrollmentType MicrosoftMDMEnrollmentType = 1
+)
+
+func (t *MicrosoftMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != BSProgrammaticEnrollment {
+	if t.Type != MicrosoftMDMProgrammaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
@@ -576,6 +581,6 @@ func (t *BinarySecurityTokenPayload) IsValidToken() error {
 	return nil
 }
 
-func (t *BinarySecurityTokenPayload) GetType() int {
+func (t *MicrosoftMDMAccessTokenPayload) GetType() MicrosoftMDMEnrollmentType {
 	return t.Type
 }
