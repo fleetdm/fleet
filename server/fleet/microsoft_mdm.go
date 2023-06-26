@@ -341,3 +341,20 @@ type SoapFault struct {
 	Reason              Reason   `xml:"s:reason"`
 	OriginalMessageType int      `xml:"-"`
 }
+
+// MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
+// provided as opaque access token to the RegisterDeviceWithManagement API.
+type MicrosoftMDMAccessTokenPayload struct {
+	// Type is the enrollment type, such as "programmatic".
+	Type    MicrosoftMDMEnrollmentType `json:"type"`
+	Payload struct {
+		HostUUID string `json:"host_uuid"`
+	} `json:"payload"`
+}
+
+type MicrosoftMDMEnrollmentType int
+
+// List of supported Microsoft MDM enrollment types.
+const (
+	MicrosoftMDMProgrammaticEnrollmentType MicrosoftMDMEnrollmentType = 1
+)
