@@ -419,7 +419,7 @@ When merging a pull request from a community contributor:
 
 Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
 
-The website team will update the json file with the latest changes periodically. If the changes should be deployed soon, you can generate the new json file yourself by running these commands:
+The website team will [periodically](https://fleetdm.com/handbook/marketing/website-handbook#rituals) update the json file with the latest changes. If the changes should be deployed sooner, you can generate the new json file yourself by running these commands:
 ```
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
