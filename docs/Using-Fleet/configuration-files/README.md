@@ -28,23 +28,44 @@ The following example file includes several queries:
 apiVersion: v1
 kind: query
 spec:
-  name: osquery_schedule
-  description: Report performance stats for each file in the query schedule.
-  query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
----
-apiVersion: v1
-kind: query
-spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
+  team_id: null
+  frequency: 3600
+  observer_can_run: true
 ---
-apiVersion: v1
-kind: query
-spec:
-  name: osquery_events
-  description: Report event publisher health and track event counters.
-  query: select name, publisher, type, subscriptions, events, active from osquery_events;
+apiVersion: v1 
+kind: query 
+spec: 
+  name: Get serial number of a laptop 
+  description: Returns the serial number of a laptop, which can be useful for asset tracking.
+  query: SELECT hardware_serial FROM system_info; 
+  team_id: 2
+  frequency: 0
+  observer_can_run: true
+--- 
+apiVersion: v1 
+kind: query 
+spec: 
+  name: Get recently added or removed USB drives 
+  description: Report event publisher health and track event counters. 
+  query: |-
+    SELECT action, DATETIME(time, 'unixepoch') AS datetime, vendor, mounts.path 
+    FROM disk_events 
+    LEFT JOIN mounts 
+      ON mounts.device = disk_events.device
+    ;
+  team_id: 2
+  frequency: 86400
+  observer_can_run: false
+  min_osquery_version: "5.4.0"
+  platforms: 
+    - macos
+    - windows
+  automations:
+    logging: differential
+    ignore_removals: true
 ```
 
 Continued edits and applications to this file will update the queries.
