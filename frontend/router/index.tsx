@@ -68,6 +68,7 @@ import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAd
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
+import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -136,6 +137,7 @@ const routes = (
                 </Route>
               </Route>
             </Route>
+            <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />

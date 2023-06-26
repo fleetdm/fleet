@@ -9,7 +9,10 @@ import { NotificationContext } from "context/notification";
 
 const baseClass = "windows-mdm-section";
 
-const TurnOnWindowsMdm = () => {
+interface ITurnOnWindowsMdmProps {
+  onClickTurnOn: () => void;
+}
+const TurnOnWindowsMdm = ({ onClickTurnOn }: ITurnOnWindowsMdmProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const onTurnOnMdm = async () => {
@@ -29,26 +32,38 @@ const TurnOnWindowsMdm = () => {
         <h3>Turn on Windows MDM</h3>
         <p>Turn MDM on for Windows hosts with fleetd.</p>
       </div>
-      <Button onClick={onTurnOnMdm}>Turn on</Button>
+      <Button onClick={onClickTurnOn}>Turn on</Button>
     </div>
   );
 };
 
-const TurnOffWindowsMdm = () => {
+interface ITurnOffWindowsMdmProps {
+  onClickEdit: () => void;
+}
+
+const TurnOffWindowsMdm = ({ onClickEdit }: ITurnOffWindowsMdmProps) => {
   return (
     <div className={`${baseClass}__turn-off-windows`}>
       <Icon name="success" />
       <p>Windows MDM turned on (servers excluded).</p>
+      <Button onClick={onClickEdit}>Edit</Button>
     </div>
   );
 };
 
-const WindowsMdmSection = () => {
+interface IWindowsMdmSectionProps {
+  turnOnWindowsMdm: () => void;
+  editWindowsMdm: () => void;
+}
+
+const WindowsMdmSection = ({
+  turnOnWindowsMdm,
+  editWindowsMdm,
+}: IWindowsMdmSectionProps) => {
   return (
     <Card className={baseClass} color="purple">
-      <TurnOnWindowsMdm />
-      <p>this is something</p>
-      {/* <TurnOffWindowsMdm /> */}
+      <TurnOnWindowsMdm onClickTurnOn={turnOnWindowsMdm} />
+      {/* <TurnOffWindowsMdm onClickEdit={editWindowsMdm} /> */}
     </Card>
   );
 };
