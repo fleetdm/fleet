@@ -548,11 +548,9 @@ type SoapFault struct {
 	OriginalMessageType int      `xml:"-"`
 }
 
-/////////////////////////////////////////////////////////////////////////////
-/// BinarySecurityTokenPayload contains the security token in MS-MDE2 Header
-
-// MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
-// provided as opaque access token to the RegisterDeviceWithManagement API.
+// ///////////////////////////////////////////////////////////////////////////
+// / MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
+// / provided as opaque access token to the RegisterDeviceWithManagement API.
 type MicrosoftMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    MicrosoftMDMEnrollmentType `json:"type"`
