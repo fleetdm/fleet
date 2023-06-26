@@ -67,7 +67,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
@@ -281,6 +281,8 @@ module.exports.routes = {
     }
   },
 
+  'GET /support': { action: 'view-support' },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
@@ -380,7 +382,6 @@ module.exports.routes = {
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /support':                    '/company/contact',
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
