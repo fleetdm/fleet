@@ -1,0 +1,1 @@
+* Fleet now parses the `stats` in `distributed/write` requests (stats for distributed queries were added to osquery in v5.8.1).

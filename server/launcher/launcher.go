@@ -130,9 +130,11 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 		osqueryResults[result.QueryName] = result.Rows
 	}
 
-	// TODO can Launcher expose the error messages?
+	// TODO can Launcher expose the error messages or stats?
 	messages := make(map[string]string)
-	err = svc.tls.SubmitDistributedQueryResults(newCtx, osqueryResults, statuses, messages)
+	stats := make(map[string]fleet.OsqueryStats)
+
+	err = svc.tls.SubmitDistributedQueryResults(newCtx, osqueryResults, statuses, messages, stats)
 	return "", "", false, ctxerr.Wrap(ctx, err, "submit launcher results")
 }
 

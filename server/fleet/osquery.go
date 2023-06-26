@@ -8,6 +8,30 @@ type OsqueryDistributedQueryResults map[string][]map[string]string
 // failure)
 type OsqueryStatus int
 
+// QueryExcessiveCPUUsageThreshMs is the currently agreed upon value to
+// consider a query to be "excessive" in CPU usage.
+//
+// This time includes both system_time (kernel space code) +
+// user_time (user space code).
+//
+// NOTE(lucas): The value must match what we use in
+// frontend/utilities/helpers.ts:performanceIndicator.
+const QueryExcessiveCPUUsageThreshMs = 4000
+
+// OsqueryStats are stats of a executed distributed query reported by a host.
+type OsqueryStats struct {
+	// WallTimeMs is the time in milliseconds that a clock on the wall
+	// would measure as having elapsed between the start of the
+	// process and 'now'.
+	WallTimeMs uint64 `json:"wall_time_ms"`
+	// UserTimeMs is the time in milliseconds spent in user space code.
+	UserTimeMs uint64 `json:"user_time"`
+	// SystemTimeMs is the time in milliseconds spent in kernel space code.
+	SystemTimeMs uint64 `json:"system_time"`
+	// Memory is the memory footprint in bytes.
+	Memory uint64 `json:"memory"`
+}
+
 const (
 	// StatusOK is the success code returned by osquery
 	StatusOK OsqueryStatus = 0

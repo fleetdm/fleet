@@ -736,6 +736,10 @@ type submitDistributedQueryResultsRequestShim struct {
 	Results  map[string]json.RawMessage `json:"queries"`
 	Statuses map[string]interface{}     `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
+	// Stats are statistics (CPU and memory) of the executed queries.
+	//
+	// Stats for distributed queries were added in osquery 5.8.1.
+	Stats map[string]fleet.OsqueryStats `json:"stats"`
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
@@ -777,6 +781,7 @@ func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Cont
 		Results:  results,
 		Statuses: statuses,
 		Messages: shim.Messages,
+		Stats:    shim.Stats,
 	}, nil
 }
 
@@ -785,6 +790,10 @@ type SubmitDistributedQueryResultsRequest struct {
 	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
 	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
 	Messages map[string]string                    `json:"messages"`
+	// Stats are statistics (CPU and memory) of the executed queries.
+	//
+	// Stats for distributed queries were added in osquery 5.8.1.
+	Stats map[string]fleet.OsqueryStats `json:"stats"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -800,7 +809,7 @@ func submitDistributedQueryResultsEndpoint(ctx context.Context, request interfac
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
 
-	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
+	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages, req.Stats)
 	if err != nil {
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
@@ -836,6 +845,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
+	stats map[string]fleet.OsqueryStats,
 ) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -877,6 +887,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		detailUpdated = detailUpdated || ingestedDetailUpdated
 		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
+
+		if stats, ok := stats[query]; ok {
+			queryTime := stats.UserTimeMs + stats.SystemTimeMs
+			if queryTime >= fleet.QueryExcessiveCPUUsageThreshMs {
+				level.Warn(svc.logger).Log(
+					"msg", "distributed query CPU usage is excessive",
+					"hostID", host.ID,
+					"platform", host.Platform,
+					"query", query,
+					"queryTimeMs", queryTime,
+					"memoryMB", stats.Memory,
+				)
+			}
+		}
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
