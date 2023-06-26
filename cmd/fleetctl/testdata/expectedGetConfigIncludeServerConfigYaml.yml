@@ -18,7 +18,7 @@ spec:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: false
-    microsoft_enabled_and_configured: false
+    windows_enabled_and_configured: false
     macos_migration:
       enable: false
       mode: ""

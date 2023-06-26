@@ -151,11 +151,11 @@ type MDM struct {
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
 	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
 
-	// MicrosoftEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
+	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	MicrosoftEnabledAndConfigured bool `json:"microsoft_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into

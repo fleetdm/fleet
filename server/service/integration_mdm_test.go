@@ -229,10 +229,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
   }`), http.StatusOK)
 	}
-	if appCfg.MDM.MicrosoftEnabledAndConfigured {
+	if appCfg.MDM.WindowsEnabledAndConfigured {
 		// ensure microsoft MDM is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "microsoft_enabled_and_configured": false }
+		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK)
 	}
 
@@ -5024,7 +5024,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDMEnabled)
-	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 
 	// create a couple teams
 	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
@@ -5068,9 +5068,9 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 	// enable Microsoft MDM
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "microsoft_enabled_and_configured": true }
+		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
 
 	// get the orbit config for each host, verify that only the expected ones
@@ -5091,9 +5091,9 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "microsoft_enabled_and_configured": false }
+		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 
 	// set the win-no-team host as enrolled in Windows MDM
 	noTeamHost := hostsBySuffix["win-no-team"]
@@ -5114,7 +5114,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -5169,7 +5169,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 

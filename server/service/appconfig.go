@@ -649,8 +649,8 @@ func (svc *Service) validateMDM(
 
 	// Windows validation
 	if !config.IsMDMFeatureFlagEnabled() {
-		if mdm.MicrosoftEnabledAndConfigured {
-			invalid.Append("mdm.microsoft_enabled_and_configured", "cannot enable Microsoft Windows MDM without the feature flag explicitly enabled")
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Microsoft Windows MDM without the feature flag explicitly enabled")
 			return
 		}
 	}

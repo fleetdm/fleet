@@ -396,7 +396,7 @@ func (svc *Service) VerifyMDMMicrosoftConfigured(ctx context.Context) error {
 	}
 
 	// Microsoft MDM configuration setting
-	if !appCfg.MDM.MicrosoftEnabledAndConfigured {
+	if !appCfg.MDM.WindowsEnabledAndConfigured {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrMDMNotConfigured

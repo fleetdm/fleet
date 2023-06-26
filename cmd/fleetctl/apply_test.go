@@ -912,7 +912,7 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
-    microsoft_enabled_and_configured: true
+    windows_enabled_and_configured: true
 `, mobileConfigPath, emptySetupAsst))
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
@@ -929,7 +929,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
-		MicrosoftEnabledAndConfigured: true,
+		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
@@ -962,7 +962,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
-		MicrosoftEnabledAndConfigured: true,
+		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
 	// Apply team config.
