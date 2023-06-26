@@ -53,6 +53,7 @@ import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/
 import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
+import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
 
 import PATHS from "router/paths";
 
@@ -68,7 +69,6 @@ import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAd
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
-import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
 
 interface IAppWrapperProps {
   children: JSX.Element;
