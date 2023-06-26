@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -25,7 +26,7 @@ var (
 // Exported so that it can be used in tools/ (so that it can be built for
 // Windows and tested on a Windows machine). Otherwise not meant to be called
 // from outside this package.
-func RunMicrosoftMDMEnrollment(args WindowsMDMEnrollmentArgs) error {
+func RunMicrosoftMDMEnrollment(args MicrosoftMDMEnrollmentArgs) error {
 	installType, err := readInstallationType()
 	if err != nil {
 		return err
@@ -57,7 +58,7 @@ func readInstallationType() (string, error) {
 
 // Perform the host MDM enrollment process using MS-MDE protocol:
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde/5c841535-042e-489e-913c-9d783d741267
-func enrollHostToMDM(args WindowsMDMEnrollmentArgs) error {
+func enrollHostToMDM(args MicrosoftMDMEnrollmentArgs) error {
 	discoveryURLPtr, err := syscall.UTF16PtrFromString(args.DiscoveryURL)
 	if err != nil {
 		return fmt.Errorf("discovery URL to UTF16 pointer: %w", err)
@@ -112,28 +113,10 @@ func enrollHostToMDM(args WindowsMDMEnrollmentArgs) error {
 	return nil
 }
 
-// TODO(mna): move this to fleet/server/fleet package once
-// https://github.com/fleetdm/fleet/pull/12387 merged as it will be needed by
-// the server too.
+func generateWindowsMDMAccessTokenPayload(args MicrosoftMDMEnrollmentArgs) ([]byte, error) {
+	var pld fleet.MicrosoftMDMAccessTokenPayload
 
-type accessTokenPayload struct {
-	// Type is the enrollment type, such as "programmatic".
-	Type    windowsMDMEnrollmentType `json:"type"`
-	Payload struct {
-		HostUUID string `json:"host_uuid"`
-	} `json:"payload"`
-}
-
-type windowsMDMEnrollmentType int
-
-const (
-	windowsMDMProgrammaticEnrollmentType windowsMDMEnrollmentType = 1
-)
-
-func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte, error) {
-	var pld accessTokenPayload
-
-	pld.Type = windowsMDMProgrammaticEnrollmentType // always programmatic for now
+	pld.Type = fleet.MicrosoftMDMProgrammaticEnrollmentType // always programmatic for now
 	pld.Payload.HostUUID = args.HostUUID
 	return json.Marshal(pld)
 }
