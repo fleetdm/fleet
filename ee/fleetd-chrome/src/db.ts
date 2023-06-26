@@ -4,6 +4,7 @@ import * as SQLite from "wa-sqlite";
 // Alphabetical order
 import Table from "./tables/Table";
 import TableChromeExtensions from "./tables/chrome_extensions";
+import TableDiskInfo from "./tables/disk_info";
 import TableGeolocation from "./tables/geolocation";
 import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableOsqueryInfo from "./tables/osquery_info";
@@ -28,6 +29,7 @@ export default class VirtualDatabase {
       db,
       new TableChromeExtensions(sqlite3, db)
     );
+    VirtualDatabase.register(sqlite3, db, new TableDiskInfo(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
     VirtualDatabase.register(
       sqlite3,

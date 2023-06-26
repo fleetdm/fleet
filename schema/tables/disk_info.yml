@@ -1,0 +1,48 @@
+name: disk_info
+platforms:
+  - windows
+  - chrome
+description: Retrieve basic information about the physical disks of a system.
+examples: >-
+  ```
+  SELECT * FROM disk_info;
+  ```
+columns:
+  - name: disk_size
+    type: bigint
+    description: Size of the disk.
+    required: false
+  - name: id
+    type: text
+    description: The unique identifier of the drive on the system.
+    required: false
+  - name: name
+    type: text
+    description: The label of the disk object.
+    required: false
+  - name: type
+    type: text
+    description: The interface type of the disk.
+    required: false
+  - name: partitions
+    platforms:
+      - windows      
+  - name: disk_index
+    platforms:
+      - windows      
+  - name: pnp_device_id
+    platforms:
+      - windows      
+  - name: manufacturer
+    platforms:
+      - windows      
+  - name: hardware_model
+    platforms:
+      - windows      
+  - name: serial
+    platforms:
+      - windows      
+  - name: description
+    platforms:
+      - windows      
+evented: false
