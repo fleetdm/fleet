@@ -406,7 +406,7 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_team: ""
-    windows_enabled_and_configured: false
+    microsoft_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
       deadline: ""
@@ -1377,7 +1377,7 @@ Set name of default team to use with Apple Business Manager.
     apple_bm_default_team: "Workstations"
   ```
 
-##### mdm.windows_enabled_and_configured
+##### mdm.microsoft_enabled_and_configured
 
 Enables or disables Microsoft MDM support.
 
@@ -1385,7 +1385,7 @@ Enables or disables Microsoft MDM support.
 - Config file format:
   ```yaml
   mdm:
-    windows_enabled_and_configured: true
+    microsoft_enabled_and_configured: true
   ```
 
 ##### mdm.macos_updates

@@ -232,7 +232,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	if appCfg.MDM.MicrosoftEnabledAndConfigured {
 		// ensure microsoft MDM is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": false }
+		"mdm": { "microsoft_enabled_and_configured": false }
   }`), http.StatusOK)
 	}
 
@@ -5068,7 +5068,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 	// enable Microsoft MDM
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": true }
+		"mdm": { "microsoft_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MicrosoftEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
@@ -5091,7 +5091,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": false }
+		"mdm": { "microsoft_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
 
