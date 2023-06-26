@@ -12,11 +12,19 @@ import BackLink from "components/BackLink/BackLink";
 
 const baseClass = "windows-mdm-page";
 
-interface IWindowsMdmOnContentProps {
+interface ISetWindowsMdmOptions {
+  enable: boolean;
+  successMessage: string;
+  errorMessage: string;
   router: InjectedRouter;
 }
 
-const WindowsMdmOnContent = ({ router }: IWindowsMdmOnContentProps) => {
+const useSetWindowsMdm = ({
+  enable,
+  successMessage,
+  errorMessage,
+  router,
+}: ISetWindowsMdmOptions) => {
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -24,21 +32,36 @@ const WindowsMdmOnContent = ({ router }: IWindowsMdmOnContentProps) => {
     try {
       const updatedConfig = await configAPI.update({
         mdm: {
-          windows_enabled_and_configured: true,
+          windows_enabled_and_configured: enable,
         },
       });
       setConfig(updatedConfig);
-      renderFlash("success", "Windows MDM turned on (servers excluded).");
+      renderFlash("success", successMessage);
     } catch {
-      renderFlash("error", "Unable to turn on Windows MDM. Please try again.");
+      renderFlash("error", errorMessage);
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     }
   };
 
+  return turnOnWindowsMdm;
+};
+
+interface IWindowsMdmOnContentProps {
+  router: InjectedRouter;
+}
+
+const WindowsMdmOnContent = ({ router }: IWindowsMdmOnContentProps) => {
+  const turnOnWindowsMdm = useSetWindowsMdm({
+    enable: true,
+    successMessage: "Windows MDM turned on (servers excluded).",
+    errorMessage: "Unable to turn on Windows MDM. Please try again.",
+    router,
+  });
+
   return (
     <>
-      <h1>Turn on Windwos MDM</h1>
+      <h1>Turn on Windows MDM</h1>
       <p>
         This will turn MDM on for Windows hosts with fleetd, overriding existing
         MDM solutions.
@@ -54,30 +77,18 @@ interface IWindowsMdmOffContentProps {
 }
 
 const WindowsMdmOffContent = ({ router }: IWindowsMdmOffContentProps) => {
-  const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
-
-  const turnOnWindowsMdm = async () => {
-    try {
-      const updatedConfig = await configAPI.update({
-        mdm: {
-          windows_enabled_and_configured: false,
-        },
-      });
-      setConfig(updatedConfig);
-      renderFlash("success", "Windows MDM turned off.");
-    } catch {
-      renderFlash("error", "Unable to turn off Windows MDM. Please try again.");
-    } finally {
-      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-    }
-  };
+  const turnOffWindowsMdm = useSetWindowsMdm({
+    enable: false,
+    successMessage: "Windows MDM turned off.",
+    errorMessage: "Unable to turn off Windows MDM. Please try again.",
+    router,
+  });
 
   return (
     <>
       <h1>Turn off Windows MDM</h1>
       <p>This will turn off MDM on each Windows host.</p>
-      <Button onClick={turnOnWindowsMdm}>Turn off MDM</Button>
+      <Button onClick={turnOffWindowsMdm}>Turn off MDM</Button>
     </>
   );
 };
@@ -88,6 +99,12 @@ interface IWindowsMdmPageProps {
 
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const { config } = useContext(AppContext);
+
+  // TODO: remove when windows MDM is fully released. This is a temporary redirect
+  // when the feature is not enabled.
+  if (!config?.mdm_enabled) {
+    router.replace(PATHS.ADMIN_INTEGRATIONS_MDM);
+  }
 
   const isWindowsMdmEnabled =
     config?.mdm?.windows_enabled_and_configured ?? false;
