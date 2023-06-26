@@ -19874,7 +19874,7 @@
     "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
-    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.   - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
     "examples": [],
     "columns": [
       {
