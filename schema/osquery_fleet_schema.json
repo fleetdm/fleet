@@ -19874,7 +19874,7 @@
     "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
-    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.   - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
     "examples": [],
     "columns": [
       {
@@ -28076,6 +28076,7 @@
   },
   {
     "name": "system_state",
+    "notes": "This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
     "platforms": ["chrome"],
     "description": "Returns \"locked\" if the system is locked, \"idle\" if the user has not generated any input for a specified number of seconds, or \"active\" otherwise.  Idle time is set to 20% of the user's autolock time or defaults to 30 seconds if autolock is not set.",
     "examples": "Returns \"locked\", \"idle\", or \"active\".\n```\nSELECT idle_state FROM system_state;\n```",

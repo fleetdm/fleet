@@ -16,3 +16,5 @@ columns:
     description: Returns "locked", "idle", or "active".
     required: false
 evented: false
+notes: >-
+  - This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.
