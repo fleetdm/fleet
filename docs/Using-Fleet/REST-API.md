@@ -5149,7 +5149,8 @@ Returns a list of global queries or team queries.
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| team_id         | integer | query | The ID of the parent team for the queries to be listed. When not submitted or blank, returns global queries.                  |
+| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+
 
 #### Example
 
