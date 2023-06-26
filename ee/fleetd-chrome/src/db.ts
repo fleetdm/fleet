@@ -27,6 +27,7 @@ export default class VirtualDatabase {
       db,
       new TableChromeExtensions(sqlite3, db)
     );
+    VirtualDatabase.register(sqlite3, db, new TableDiskInfo(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
     VirtualDatabase.register(
       sqlite3,
