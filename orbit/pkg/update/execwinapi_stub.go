@@ -2,6 +2,6 @@
 
 package update
 
-func RunWindowsMDMEnrollment(args WindowsMDMEnrollmentArgs) error {
+func RunMicrosoftMDMEnrollment(args MicrosoftMDMEnrollmentArgs) error {
 	return nil
 }

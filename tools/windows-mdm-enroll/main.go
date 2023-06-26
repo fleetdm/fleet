@@ -14,7 +14,7 @@ func main() {
 	)
 	flag.Parse()
 
-	err := update.RunWindowsMDMEnrollment(update.WindowsMDMEnrollmentArgs{
+	err := update.RunMicrosoftMDMEnrollment(update.MicrosoftMDMEnrollmentArgs{
 		DiscoveryURL: *discoveryURL,
 		HostUUID:     *hostUUID,
 	})

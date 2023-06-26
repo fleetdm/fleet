@@ -616,7 +616,7 @@ func main() {
 		// (must be shared by all runners that use a ConfigFetcher).
 		const (
 			renewEnrollmentProfileCommandFrequency = time.Hour
-			windowsMDMEnrollmentCommandFrequency   = time.Hour
+			microsoftMDMEnrollmentCommandFrequency = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
@@ -631,7 +631,7 @@ func main() {
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
-			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
+			configFetcher = update.ApplyMicrosoftMDMEnrollmentFetcherMiddleware(configFetcher, microsoftMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
