@@ -3673,3 +3673,34 @@ func (s *integrationEnterpriseTestSuite) setTokenForTest(t *testing.T, email, pa
 
 	s.token = s.getCachedUserToken(email, password)
 }
+
+func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {
+	t := s.T()
+
+	token := "abcd123"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	// Create an 'invalid' global policy for host
+	admin := s.users["admin1@example.com"]
+	err := s.ds.SaveUser(context.Background(), &admin)
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewGlobalPolicy(context.Background(), &admin.ID, fleet.PolicyPayload{
+		Query:       "SELECT 1 FROM table",
+		Name:        "test",
+		Description: "Some invalid Query",
+		Resolution:  "",
+		Platform:    host.Platform,
+		Critical:    false,
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false))
+
+	// Any 'invalid' policies should be counted as failed.
+	desktopRes := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&desktopRes))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, desktopRes.Err)
+	require.Equal(t, *desktopRes.FailingPolicies, uint(1))
+}
