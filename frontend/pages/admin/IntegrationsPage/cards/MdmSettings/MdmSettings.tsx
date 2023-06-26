@@ -142,7 +142,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       )}
       {isPremiumTier && (
         <>
-          {/* TODO: conditionally show with feature flag */}
           <div className={`${baseClass}__section`}>
             <EndUserMigrationSection router={router} />
           </div>
