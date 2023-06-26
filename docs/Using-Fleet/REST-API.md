@@ -5235,8 +5235,8 @@ Creates a global query or team query.
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations                     | object  | body | The set of automation options.                                                                     |
-| automations.logging             | boolean | body | Whether the query's logs show everything in its current state. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
-| automations.ignore_removals     | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.snapshot` is `"differential"`.                 |
+| automations.logging             | string  | body | The log format for this query. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
+| automations.ignore_removals     | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.logging` is `"differential"`.                 |
 
 #### Example
 
