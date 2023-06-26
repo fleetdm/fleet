@@ -20762,14 +20762,15 @@
   },
   {
     "name": "screenlock",
-    "description": "macOS screenlock status",
+    "description": "Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.  For macOS, this table will return no results if osquery is running as root.",
     "url": "https://fleetdm.com/tables/screenlock",
     "platforms": [
-      "darwin"
+      "darwin",
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- Only fetches results for osquery's current logged-in user context. If osquery is running as root, this table will return no results. \n- The user must also have recently logged in in order to show the latest setting. ",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in. - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
     "examples": [],
     "columns": [
       {
@@ -24968,7 +24969,7 @@
   },
   {
     "name": "wifi_networks",
-    "description": "macOS known/remembered Wi-Fi networks list.",
+    "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
     "platforms": [
       "darwin"
@@ -28755,6 +28756,195 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
   {
+    "name": "puppet_logs",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
+    "columns": [
+      {
+        "name": "level",
+        "description": "The level of the log item (info, error, etc).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "message",
+        "description": "The log message content.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "source",
+        "description": "The source of the log item.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time at which this item was logged.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file from which osquery read this log.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line from which this log item was read.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
+  },
+  {
+    "name": "puppet_state",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
+    "columns": [
+      {
+        "name": "title",
+        "description": "The name of the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file that contains the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line on which the resource is specified.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource",
+        "description": "The resource and its title as `Type[title]`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "resource_type",
+        "description": "The resource type.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "evaluation_time",
+        "description": "The amount of seconds it took to evaluate the resource.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "failed",
+        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "changed",
+        "description": "If `change_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync",
+        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "skipped",
+        "description": "True if this resource was skipped.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "change_count",
+        "description": "The count of changes to be performed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "out_of_sync_count",
+        "description": "The number of properties that are out of sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_state",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
+  },
+  {
+    "name": "pwd_policy",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Password Policiy (e.g max failed password attempts).",
+    "columns": [
+      {
+        "name": "max_failed_attempts",
+        "type": "integer",
+        "required": false,
+        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
+      },
+      {
+        "name": "expires_every_n_days",
+        "type": "integer",
+        "required": false,
+        "description": "How many days for a new password to expire.\n"
+      },
+      {
+        "name": "days_to_expiration",
+        "type": "integer",
+        "required": false,
+        "description": "How many days are left for the expiration of the current password.\n"
+      },
+      {
+        "name": "history_depth",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
+      },
+      {
+        "name": "min_mixed_case_characters",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/pwd_policy",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
     "name": "puppet_info",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
@@ -28873,214 +29063,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
-    "name": "puppet_logs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
-    "columns": [
-      {
-        "name": "level",
-        "description": "The level of the log item (info, error, etc).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "message",
-        "description": "The log message content.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "source",
-        "description": "The source of the log item.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time at which this item was logged.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file from which osquery read this log.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line from which this log item was read.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_logs",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
-  },
-  {
-    "name": "pwd_policy",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Password Policiy (e.g max failed password attempts).",
-    "columns": [
-      {
-        "name": "max_failed_attempts",
-        "type": "integer",
-        "required": false,
-        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
-      },
-      {
-        "name": "expires_every_n_days",
-        "type": "integer",
-        "required": false,
-        "description": "How many days for a new password to expire.\n"
-      },
-      {
-        "name": "days_to_expiration",
-        "type": "integer",
-        "required": false,
-        "description": "How many days are left for the expiration of the current password.\n"
-      },
-      {
-        "name": "history_depth",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
-      },
-      {
-        "name": "min_mixed_case_characters",
-        "type": "integer",
-        "required": false,
-        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/pwd_policy",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
-  },
-  {
-    "name": "puppet_state",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
-    "evented": false,
-    "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
-    "columns": [
-      {
-        "name": "title",
-        "description": "The name of the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file that contains the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line on which the resource is specified.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource",
-        "description": "The resource and its title as `Type[title]`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "resource_type",
-        "description": "The resource type.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "evaluation_time",
-        "description": "The amount of seconds it took to evaluate the resource.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "failed",
-        "description": "If Puppet failed to evaluate this resource, this column is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "changed",
-        "description": "If `change_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync",
-        "description": "If `out_of_sync_count` is above `0`, this is `true`.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "skipped",
-        "description": "True if this resource was skipped.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "change_count",
-        "description": "The count of changes to be performed.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "out_of_sync_count",
-        "description": "The number of properties that are out of sync",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "True if a change on the system caused unexpected changes between two Puppet runs.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_state",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
-  },
-  {
-    "name": "software_update",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about available Apple software updates.",
-    "columns": [
-      {
-        "name": "software_update_required",
-        "type": "integer",
-        "required": false,
-        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/software_update",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
-  },
-  {
     "name": "sntp_request",
     "platforms": [
       "darwin",
@@ -29131,6 +29113,45 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/sudo_info",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sudo_info.yml"
+  },
+  {
+    "name": "system_state",
+    "platforms": [
+      "chrome"
+    ],
+    "description": "Returns \"locked\" if the system is locked, \"idle\" if the user has not generated any input for a specified number of seconds, or \"active\" otherwise. Idle time is set to 20% of the user's autolock time or defaults to 30 seconds if autolock is not set.",
+    "examples": "Returns \"locked\", \"idle\", or \"active\".\n```\nSELECT idle_state FROM system_state;\n```",
+    "columns": [
+      {
+        "name": "idle_state",
+        "type": "string",
+        "description": "Returns \"locked\", \"idle\", or \"active\".",
+        "required": false
+      }
+    ],
+    "evented": false,
+    "notes": "- This table is not a core osquery table. It is included as part of the Fleetd Chrome extension.",
+    "url": "https://fleetdm.com/tables/system_state",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_state.yml"
+  },
+  {
+    "name": "software_update",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about available Apple software updates.",
+    "columns": [
+      {
+        "name": "software_update_required",
+        "type": "integer",
+        "required": false,
+        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/software_update",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
   },
   {
     "name": "user_login_settings",
