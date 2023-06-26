@@ -2621,6 +2621,9 @@ spec:
     SELECT 1 WHERE NOT EXISTS (
       SELECT apps.path FROM apps
       LEFT JOIN file on file.path = apps.path
+      -- file.mode's last character are the permissions for 'other',
+      -- bitwise && with '0x2' selects the write permission,
+      -- which we do not want here.
       WHERE CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
     );
   purpose: Informational
