@@ -1,5 +1,5 @@
 
-# Windows MDM Server Demo
+# Microsoft MDM Server Demo
 
 This project is a working and minimal implementation of the Windows device enrollment and management protocols. It was based on an initial implementation of the MS-MDE enrollment protocols [here](https://github.com/oscartbeaumont/windows_mdm).
 

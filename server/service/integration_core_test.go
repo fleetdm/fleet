@@ -4692,6 +4692,7 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
@@ -4876,7 +4877,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
-	// try to enable windows mdm, impossible without the feature flag
+	// try to enable Microsoft mdm, impossible without the feature flag
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }

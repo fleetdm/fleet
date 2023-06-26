@@ -398,7 +398,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", err, returnCode)
 	}
 
-	// converting windows MDM UTF16 output string into go string
+	// converting Microsoft MDM UTF16 output string into go string
 	outputCmd, err := localUTF16toString(unsafe.Pointer(outputStrBuffer))
 	if err != nil {
 		return "", err

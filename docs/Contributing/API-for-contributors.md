@@ -701,7 +701,7 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 
 _Available in Fleet Premium_
 
-This endpoint uses the profiles stored by the [Preassign profiles to devices][#preassign-profiles-to-devices] endpoint to match the set of profiles to an existing team if possible, creating one if none exists. It then assigns the host to that team so that it receives the associated profiles. It is meant to be called only once all desired profiles have been pre-assigned to the host.
+This endpoint uses the profiles stored by the [Preassign profiles to devices](#preassign-profiles-to-devices) endpoint to match the set of profiles to an existing team if possible, creating one if none exists. It then assigns the host to that team so that it receives the associated profiles. It is meant to be called only once all desired profiles have been pre-assigned to the host.
 
 `POST /api/v1/fleet/mdm/apple/profiles/match`
 
