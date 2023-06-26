@@ -54,7 +54,7 @@ func (r SoapResponseContainer) error() error { return r.Err }
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
-		logging.WithExtras(ctx, "microsoft MDM SoapResponseContainer", err)
+		logging.WithExtras(ctx, "Windows MDM SoapResponseContainer", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -375,28 +375,28 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 }
 
 // NewBinarySecurityTokenPayload returns the BinarySecurityTokenPayload type
-func NewBinarySecurityTokenPayload(encodedToken string) (fleet.MicrosoftMDMAccessTokenPayload, error) {
+func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessTokenPayload, error) {
 	if len(encodedToken) == 0 {
-		return fleet.MicrosoftMDMAccessTokenPayload{}, errors.New("binary security token: token is empty")
+		return fleet.WindowsMDMAccessTokenPayload{}, errors.New("binary security token: token is empty")
 	}
 
 	rawBytes, err := base64.StdEncoding.DecodeString(encodedToken)
 	if err != nil {
-		return fleet.MicrosoftMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
+		return fleet.WindowsMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
 	}
 
-	var tokenPayload fleet.MicrosoftMDMAccessTokenPayload
+	var tokenPayload fleet.WindowsMDMAccessTokenPayload
 	err = json.Unmarshal(rawBytes, &tokenPayload)
 	if err != nil {
-		return fleet.MicrosoftMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
+		return fleet.WindowsMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
 	}
 
 	return tokenPayload, nil
 }
 
 // GetEncodedBinarySecurityToken returns the base64 form of a BinarySecurityTokenPayload
-func GetEncodedBinarySecurityToken(typeID fleet.MicrosoftMDMEnrollmentType, hostUUID string) (string, error) {
-	var pld fleet.MicrosoftMDMAccessTokenPayload
+func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, hostUUID string) (string, error) {
+	var pld fleet.WindowsMDMAccessTokenPayload
 	pld.Type = typeID
 	pld.Payload.HostUUID = hostUUID
 	rawBytes, err := json.Marshal(pld)
@@ -493,7 +493,7 @@ func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken stri
 	}
 
 	// Validating the Binary Security Token Type used on Programmatic Enrollments
-	if binSecToken.Type == mdm_types.MicrosoftMDMProgrammaticEnrollmentType {
+	if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
 		host, err := svc.HostByIdentifier(ctx, binSecToken.Payload.HostUUID, fleet.HostDetailOptions{})
 		if err != nil {
 			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
@@ -524,17 +524,17 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 
 	// Getting the DiscoveryResponse message content ready
 
-	urlDiscoveryEndpoint, err := mdm.ResolveMicrosoftMDMDiscovery(appCfg.ServerSettings.ServerURL)
+	urlDiscoveryEndpoint, err := mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	urlPolicyEndpoint, err := mdm.ResolveMicrosoftMDMPolicy(appCfg.ServerSettings.ServerURL)
+	urlPolicyEndpoint, err := mdm.ResolveWindowsMDMPolicy(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	urlEnrollEndpoint, err := mdm.ResolveMicrosoftMDMEnroll(appCfg.ServerSettings.ServerURL)
+	urlEnrollEndpoint, err := mdm.ResolveWindowsMDMEnroll(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}

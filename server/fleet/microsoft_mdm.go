@@ -549,26 +549,26 @@ type SoapFault struct {
 }
 
 // ///////////////////////////////////////////////////////////////////////////
-// / MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
+// / WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
 // / provided as opaque access token to the RegisterDeviceWithManagement API.
-type MicrosoftMDMAccessTokenPayload struct {
+type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
-	Type    MicrosoftMDMEnrollmentType `json:"type"`
+	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
 		HostUUID string `json:"host_uuid"`
 	} `json:"payload"`
 }
 
-type MicrosoftMDMEnrollmentType int
+type WindowsMDMEnrollmentType int
 
-// List of supported Microsoft MDM enrollment types.
+// List of supported Windows MDM enrollment types.
 const (
-	MicrosoftMDMProgrammaticEnrollmentType MicrosoftMDMEnrollmentType = 1
+	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
 )
 
-func (t *MicrosoftMDMAccessTokenPayload) IsValidToken() error {
+func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != MicrosoftMDMProgrammaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
@@ -579,6 +579,6 @@ func (t *MicrosoftMDMAccessTokenPayload) IsValidToken() error {
 	return nil
 }
 
-func (t *MicrosoftMDMAccessTokenPayload) GetType() MicrosoftMDMEnrollmentType {
+func (t *WindowsMDMAccessTokenPayload) GetType() WindowsMDMEnrollmentType {
 	return t.Type
 }

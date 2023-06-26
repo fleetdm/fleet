@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	// MDMPath is Fleet's HTTP path for the core Microsoft MDM service.
+	// MDMPath is Fleet's HTTP path for the core Windows MDM service.
 	MDMPath = "/api/mdm/microsoft"
 
 	// DiscoveryPath is the HTTP endpoint path that serves the IDiscoveryService functionality.
@@ -122,14 +122,14 @@ const (
 	PolicyCertRenewalPeriodInSecs = "15552000"
 )
 
-func ResolveMicrosoftMDMDiscovery(serverURL string) (string, error) {
+func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)
 }
 
-func ResolveMicrosoftMDMPolicy(serverURL string) (string, error) {
+func ResolveWindowsMDMPolicy(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2PolicyPath, false)
 }
 
-func ResolveMicrosoftMDMEnroll(serverURL string) (string, error) {
+func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
 }

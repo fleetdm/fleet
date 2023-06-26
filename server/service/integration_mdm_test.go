@@ -229,8 +229,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
   }`), http.StatusOK)
 	}
-	if appCfg.MDM.MicrosoftEnabledAndConfigured {
-		// ensure microsoft MDM is disabled on exit
+	if appCfg.MDM.WindowsEnabledAndConfigured {
+		// ensure Windows MDM is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK)
@@ -5014,9 +5014,9 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 }
 
 // ///////////////////////////////////////////////////////////////////////////
-// Microsoft MDM tests
+// Windows MDM tests
 
-func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
+func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -5024,7 +5024,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDMEnabled)
-	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 
 	// create a couple teams
 	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "1"})
@@ -5065,40 +5065,40 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 		hostsBySuffix[meta.suffix] = h
 	}
 
-	// enable Microsoft MDM
+	// enable Windows MDM
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
 
 	// get the orbit config for each host, verify that only the expected ones
-	// receive the "needs enrollment to Microsoft MDM" notification.
+	// receive the "needs enrollment to Windows MDM" notification.
 	for _, meta := range metadataHosts {
 		var resp orbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
-		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment)
+		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		if meta.shouldEnroll {
-			require.Contains(t, resp.Notifications.MicrosoftMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
+			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
 		} else {
-			require.Empty(t, resp.Notifications.MicrosoftMDMDiscoveryEndpoint)
+			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 		}
 	}
 
-	// disable Microsoft MDM
+	// disable Windows MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -5154,7 +5154,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -5207,7 +5207,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -5275,7 +5275,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
-	appConf.MDM.MicrosoftEnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 

@@ -168,7 +168,7 @@ func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{MicrosoftEnabledAndConfigured: true}}, nil
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
 	}
 
 	err = svc.VerifyMDMMicrosoftConfigured(ctx)

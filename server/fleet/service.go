@@ -697,7 +697,7 @@ type Service interface {
 	VerifyMDMAppleConfigured(ctx context.Context) error
 
 	// VerifyMDMMicrosoftConfigured verifies that the server is configured for
-	// Microsoft MDM. If an error is returned, authorization is skipped so the
+	// Windows MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
 	VerifyMDMMicrosoftConfigured(ctx context.Context) error
 
@@ -753,7 +753,7 @@ type Service interface {
 	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Microsoft MDM
+	// Windows MDM
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)

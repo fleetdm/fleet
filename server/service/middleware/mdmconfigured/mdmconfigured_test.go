@@ -66,7 +66,7 @@ func TestMDMNotConfigured(t *testing.T) {
 	require.False(t, nextCalled)
 }
 
-func TestMicrosoftMDMConfigured(t *testing.T) {
+func TestWindowsMDMConfigured(t *testing.T) {
 	svc := mockService{}
 	svc.msMdmConfigured.Store(true)
 	mw := NewMDMConfigMiddleware(&svc)
@@ -77,13 +77,13 @@ func TestMicrosoftMDMConfigured(t *testing.T) {
 		return struct{}{}, nil
 	}
 
-	f := mw.VerifyMicrosoftMDM()(next)
+	f := mw.VerifyWindowsMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.NoError(t, err)
 	require.True(t, nextCalled)
 }
 
-func TestMicrosoftMDMNotConfigured(t *testing.T) {
+func TestWindowsMDMNotConfigured(t *testing.T) {
 	svc := mockService{}
 	svc.msMdmConfigured.Store(false)
 	mw := NewMDMConfigMiddleware(&svc)
@@ -94,7 +94,7 @@ func TestMicrosoftMDMNotConfigured(t *testing.T) {
 		return struct{}{}, nil
 	}
 
-	f := mw.VerifyMicrosoftMDM()(next)
+	f := mw.VerifyWindowsMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.False(t, nextCalled)

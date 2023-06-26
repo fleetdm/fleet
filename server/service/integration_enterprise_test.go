@@ -2794,13 +2794,13 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
-	// nudge config is empty if macos_updates is not set, and Microsoft mdm notifications are unset
+	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
-	require.False(t, resp.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment)
-	require.Empty(t, resp.Notifications.MicrosoftMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 
 	// set macos_updates
 	s.applyConfig([]byte(`

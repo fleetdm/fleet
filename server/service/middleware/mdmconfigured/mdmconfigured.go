@@ -27,7 +27,7 @@ func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 	}
 }
 
-func (m *Middleware) VerifyMicrosoftMDM() endpoint.Middleware {
+func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			if err := m.svc.VerifyMDMMicrosoftConfigured(ctx); err != nil {
