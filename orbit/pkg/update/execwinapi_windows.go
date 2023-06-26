@@ -135,6 +135,8 @@ func unenrollHostFromMDM() error {
 		return fmt.Errorf("find MDM UnregisterDeviceWithManagement procedure: %w", err)
 	}
 
+	// must explicitly pass 0 here, see for details:
+	// https://github.com/fleetdm/fleet/issues/12342#issuecomment-1608190367
 	code, _, err := procUnregisterDeviceWithManagement.Call(0)
 	log.Debug().Msgf("UnregisterDeviceWithManagement returned code: %#x ; message: %v", code, err)
 	if code != uintptr(windows.ERROR_SUCCESS) {
