@@ -499,7 +499,7 @@ func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken stri
 			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
 		}
 
-		// This ensures  that only hosts that are elegible for Windows enrollment can be enrolled
+		// This ensures that only hosts that are elegible for Windows enrollment can be enrolled
 		if !host.IsElegibleForWindowsMDMEnrollment() {
 			return fmt.Errorf("binarySecurityTokenValidation: host is not elegible for Windows MDM enrollment %v", err)
 		}
