@@ -824,6 +824,18 @@ This activity contains the following fields:
 }
 ```
 
+### Type `enabled_windows_mdm`
+
+Generated when a user turns on Windows MDM.
+
+This activity does not contain any detail fields.
+
+### Type `disabled_windows_mdm`
+
+Generated when a user turns off Windows MDM.
+
+This activity does not contain any detail fields.
+
 
 
 <meta name="pageOrderInSection" value="1400">
