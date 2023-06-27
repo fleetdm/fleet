@@ -190,7 +190,7 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 		// do not unenroll Windows Servers, and do not attempt unenrollment if the
 		// last run is not at least Frequency ago.
 		if w.isWindowsServer {
-			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to enroll Windows device, device is a server")
+			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, device is a server")
 			return
 		}
 		if time.Since(w.lastUnenrollRun) <= w.Frequency {
