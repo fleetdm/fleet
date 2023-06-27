@@ -131,7 +131,7 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 }
 
 // TODO: update this test with the correct config option
-func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
+func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	cfg := config.TestConfig()
