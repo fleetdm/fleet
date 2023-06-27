@@ -19880,7 +19880,7 @@
     "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
-    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in. - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.  Available for Chrome 73+.",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.  Available for Chrome 73+.",
     "examples": [],
     "columns": [
       {
@@ -27419,10 +27419,9 @@
     "columns": [
       {
         "name": "network_prediction_enabled",
-        "description": "1 if enabled else 0",
+        "description": "1 if enabled else 0 * Available for Chrome 48+",
         "required": false,
-        "type": "integer",
-        "notes": "Available for Chrome 48+"
+        "type": "integer"
       },
       {
         "name": "web_rtc_ip_handling_policy",
@@ -27438,10 +27437,9 @@
       },
       {
         "name": "autofill_credit_card_enabled",
-        "description": "1 if enabled else 0",
+        "description": "1 if enabled else 0 * Available for Chrome 70+",
         "required": false,
-        "type": "integer",
-        "notes": "Available for Chrome 70+"
+        "type": "integer"
       },
       {
         "name": "autofill_enabled",
@@ -27500,10 +27498,9 @@
       },
       {
         "name": "fledge_enabled",
-        "description": "1 if enabled else 0",
+        "description": "1 if enabled else 0 * Available for Chrome 111+",
         "required": false,
-        "type": "integer",
-        "notes": "Available for Chrome 111+"
+        "type": "integer"
       },
       {
         "name": "hyperlink_auditing_enabled",
@@ -27513,10 +27510,9 @@
       },
       {
         "name": "privacy_sandbox_enabled",
-        "description": "1 if enabled else 0 - * Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled",
+        "description": "1 if enabled else 0 - * Available for Chrome 90+; Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled",
         "required": false,
-        "type": "integer",
-        "notes": "Available for Chrome 90+; Deprecated since Chrome 111"
+        "type": "integer"
       },
       {
         "name": "protected_content_enabled",
@@ -27538,10 +27534,9 @@
       },
       {
         "name": "topics_enabled",
-        "description": "1 if enabled else 0",
+        "description": "1 if enabled else 0 * Available for Chrome 111+",
         "required": false,
-        "type": "integer",
-        "notes": "Available for Chrome 111+"
+        "type": "integer"
       }
     ],
     "url": "https://fleetdm.com/tables/privacy_preferences",
