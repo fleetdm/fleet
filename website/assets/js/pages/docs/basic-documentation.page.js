@@ -265,12 +265,13 @@ parasails.registerPage('basic-documentation', {
     },
 
     handleScrollingInDocumentation: function () {
+      // Don't show the back to top button on the docs landing page.
       if(!this.isDocsLandingPage) {
         let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
         let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
         let scrollTop = window.pageYOffset;
         let windowHeight = window.innerHeight;
-
+        // If the right nav bar exists, add and remove a class based on the current scroll position.
         if (rightNavBar) {
           if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
             rightNavBar.classList.add('header-hidden', 'scrolled');
@@ -280,6 +281,7 @@ parasails.registerPage('basic-documentation', {
             rightNavBar.classList.remove('header-hidden');
           }
         }
+        // If back to top button exists, add and remove a class based on the current scroll position.
         if (backToTopButton){
           if (scrollTop > 2500) {
             backToTopButton.classList.add('show');
