@@ -6,4 +6,4 @@ description: >-
   Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.  For macOS, this table will return no results if osquery is running as root.
 notes: >-
   - For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.
-  - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension.
+  - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension. Available for Chrome 73+.
