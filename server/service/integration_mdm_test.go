@@ -214,7 +214,6 @@ func (s *integrationMDMTestSuite) TearDownSuite() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = false
-	appConf.MDM.WindowsEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }
@@ -233,12 +232,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	s.token = s.getTestAdminToken()
 	appCfg := s.getConfig()
-	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
-		// ensure global disk encryption is disabled on exit
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
-  }`), http.StatusOK)
-	}
+	// ensure windows mdm is always enabled for the next test
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	// ensure global disk encryption is disabled on exit
+	appCfg.MDM.MacOSSettings.EnableDiskEncryption = false
+	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
+	require.NoError(t, err)
 
 	s.withServer.commonTearDownTest(t)
 

@@ -527,9 +527,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// if Windows MDM was enabled or disabled, create the corresponding activity
-	if oldAppConfig.MDM.MicrosoftEnabledAndConfigured != appConfig.MDM.MicrosoftEnabledAndConfigured {
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.MicrosoftEnabledAndConfigured {
+		if appConfig.MDM.WindowsEnabledAndConfigured {
 			act = fleet.ActivityTypeEnabledWindowsMDM{}
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
