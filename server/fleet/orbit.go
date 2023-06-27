@@ -9,8 +9,8 @@ type OrbitConfigNotifications struct {
 	RenewEnrollmentProfile                bool   `json:"renew_enrollment_profile,omitempty"`
 	RotateDiskEncryptionKey               bool   `json:"rotate_disk_encryption_key,omitempty"`
 	NeedsMDMMigration                     bool   `json:"needs_mdm_migration,omitempty"`
-	NeedsProgrammaticWindowsMDMEnrollment bool   `json:"needs_programmatic_windows_mdm_enrollment,omitempty"`
-	WindowsMDMDiscoveryEndpoint           string `json:"windows_mdm_discovery_endpoint,omitempty"`
+	NeedsProgrammaticWindowsMDMEnrollment bool   `json:"needs_programmatic_microsoft_mdm_enrollment,omitempty"`
+	WindowsMDMDiscoveryEndpoint           string `json:"microsoft_mdm_discovery_endpoint,omitempty"`
 }
 
 type OrbitConfig struct {
