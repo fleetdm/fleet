@@ -196,7 +196,7 @@ type modifyAppConfigRequest struct {
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyAppConfigRequest)
-	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
+	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})
@@ -212,10 +212,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return nil, err
 	}
 	response := appConfigResponse{
-		AppConfig: *config,
+		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: license,
-			Logging: loggingConfig,
+			License:    license,
+			Logging:    loggingConfig,
+			MDMEnabled: config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 

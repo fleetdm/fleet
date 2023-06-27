@@ -5066,10 +5066,12 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 	}
 
 	// enable Microsoft MDM
+	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	assert.True(t, acResp.MDMEnabled)
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Microsoft MDM" notification.
