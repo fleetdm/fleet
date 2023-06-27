@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -548,6 +549,23 @@ the way that the Fleet server works.
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
+			// register the Microsoft MDM services
+			var (
+				wstepDepot *microsoft_mdm.WSTEPDepot
+			)
+			// TODO: check if MicrosoftMDM is enabled?
+			if config.MDM.IsMicrosoftWSTEPSet() {
+				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
+				if err != nil {
+					initFatal(err, "validate Microsoft WSTEP certificate and key")
+				}
+				wstepDepot, err = microsoft_mdm.NewWSTEPDepot(crtPEM, keyPEM)
+				if err != nil {
+					initFatal(err, "initialize mdm microsoft wstep depot")
+				}
+
+			}
+
 			// save the app config with the updated MDM.Enabled value
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
@@ -599,6 +617,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				mdmPushCertTopic,
 				cronSchedules,
+				wstepDepot,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")

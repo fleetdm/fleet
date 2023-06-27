@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -10,8 +15,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -176,4 +184,76 @@ func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.False(t, authzCtx.Checked())
+}
+
+func TestMicrosoftWSTEPConfig(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+
+	certPath := "testdata/server.pem"
+	keyPath := "testdata/server.key"
+
+	// sanity check that the test data is valid
+	wantCertPEM, err := os.ReadFile(certPath)
+	require.NoError(t, err)
+	wantKeyPEM, err := os.ReadFile(keyPath)
+	require.NoError(t, err)
+	wantDepot, err := microsoft_mdm.NewWSTEPDepot(wantCertPEM, wantKeyPEM)
+	require.NoError(t, err)
+	wantCert, err := cryptoutil.DecodePEMCertificate(wantCertPEM)
+	require.NoError(t, err)
+	wantFP := microsoft_mdm.CertFingerprintHexStr(wantCert)
+	require.Equal(t, wantFP, *wantDepot.IdentityFingerprint)
+
+	// specify the test data in the server config
+	cfg := config.TestConfig()
+	cfg.MDM.MicrosoftWSTEPIdentityCert = certPath
+	cfg.MDM.MicrosoftWSTEPIdentityKey = keyPath
+
+	// check that config.MDM.MicrosoftWSTEP() returns the expected values
+	_, cfgCertPEM, cfgKeyPEM, err := cfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	require.NotEmpty(t, cfgCertPEM)
+	require.Equal(t, wantCertPEM, cfgCertPEM)
+	require.NotEmpty(t, cfgKeyPEM)
+	require.Equal(t, wantKeyPEM, cfgKeyPEM)
+
+	// start the test service
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	// test CSR signing
+	clienPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	csrTemplate := x509util.CertificateRequest{
+		CertificateRequest: x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName: "test-cient",
+			},
+			SignatureAlgorithm: x509.SHA256WithRSA,
+		},
+	}
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, clienPrivateKey)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDerBytes)
+	require.NoError(t, err)
+
+	// test the service method
+	rawDER, _, err := svc.SignMDMMicrosoftClientCSR(ctx, "test-client", csr)
+	require.NoError(t, err)
+	parsedCert, err := x509.ParseCertificate(rawDER)
+	require.NoError(t, err)
+	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
+	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
+	// TODO: additional assertions on the signed certificate
+
+	// test the depot method (to ensure the service method is using the depot)
+	rawDER2, _, err := wantDepot.SignClientCSR("test-client", csr)
+	require.NoError(t, err)
+	require.NotEqual(t, rawDER, rawDER2) // serial numbers are random and timestamps will be different
+	parsedCert2, err := x509.ParseCertificate(rawDER2)
+	require.NoError(t, err)
+	require.Equal(t, "test-client", parsedCert2.Subject.CommonName)
+	require.Equal(t, "FleetDM", parsedCert2.Subject.OrganizationalUnit[0])
+	require.NotEqual(t, parsedCert.Raw, parsedCert2.Raw) // serial numbers are random and timestamps will be different
 }

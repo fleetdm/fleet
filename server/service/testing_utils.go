@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -133,6 +135,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPushCertTopic = opts[0].APNSTopic
 	}
 
+	var wstepDepot microsoft_mdm.CertDepot
+	if len(opts) > 0 && opts[0].WSTEPDepot != nil {
+		wstepDepot = opts[0].WSTEPDepot
+	} else if fleetConfig.MDM.MicrosoftWSTEPIdentityCert != "" && fleetConfig.MDM.MicrosoftWSTEPIdentityKey != "" {
+		rawCert, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityCert)
+		require.NoError(t, err)
+		rawKey, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityKey)
+		require.NoError(t, err)
+		wstepDepot, err = microsoft_mdm.NewWSTEPDepot(rawCert, rawKey)
+		require.NoError(t, err)
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -155,6 +169,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		mdmPushCertTopic,
 		cronSchedulesService,
+		wstepDepot,
 	)
 	if err != nil {
 		panic(err)
@@ -275,6 +290,7 @@ type TestServerOpts struct {
 	UseMailService      bool
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
+	WSTEPDepot          microsoft_mdm.CertDepot
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -612,6 +628,16 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 	}
+}
+
+type nopWSTEPDepot struct{}
+
+func (nopWSTEPDepot) SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
+	return nil, "", nil
+}
+
+func NewNopWSTEPDepot() microsoft_mdm.CertDepot {
+	return &nopWSTEPDepot{}
 }
 
 // getURLSchemas returns a list of all valid URI schemas

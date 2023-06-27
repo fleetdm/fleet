@@ -464,6 +464,20 @@ type MDMConfig struct {
 	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
 	// certificates.
 	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
+
+	// MicrosoftWSTEPIdentityCert is the path to the certificate used to sign
+	// WSTEP responses.
+	MicrosoftWSTEPIdentityCert string `yaml:"microsoft_wstep_identity_cert"`
+	// MicrosoftWSTEPIdentityKey is the path to the private key used to sign
+	// WSTEP responses.
+	MicrosoftWSTEPIdentityKey string `yaml:"microsoft_wstep_identity_key"`
+
+	// the following fields hold the parsed, validated TLS certificate set the
+	// first time Microsoft WSTEP is called, as well as the PEM-encoded
+	// bytes for the certificate and private key.
+	microsoftWSTEP        *tls.Certificate
+	microsoftWSTEPCertPEM []byte
+	microsoftWSTEPKeyPEM  []byte
 }
 
 type x509KeyPairConfig struct {
@@ -652,6 +666,38 @@ func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
 		tokBytes = b
 	}
 	return tokBytes, nil
+}
+
+// MicrosoftWSTEP returns the parsed and validated TLS certificate for Microsoft WSTEP.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) MicrosoftWSTEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	// TODO: should we also implement support for setting raw bytes in the config (like we do for Apple MDM)?
+	if m.microsoftWSTEP == nil {
+		pair := x509KeyPairConfig{
+			m.MicrosoftWSTEPIdentityCert,
+			nil,
+			m.MicrosoftWSTEPIdentityKey,
+			nil,
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Microsoft MDM WSTEP configuration: %w", err)
+		}
+		m.microsoftWSTEP = cert
+		m.microsoftWSTEPCertPEM = pair.certBytes
+		m.microsoftWSTEPKeyPEM = pair.keyBytes
+	}
+	return m.microsoftWSTEP, m.microsoftWSTEPCertPEM, m.microsoftWSTEPKeyPEM, nil
+}
+
+func (m *MDMConfig) IsMicrosoftWSTEPSet() bool {
+	pair := x509KeyPairConfig{
+		m.MicrosoftWSTEPIdentityCert,
+		nil,
+		m.MicrosoftWSTEPIdentityKey,
+		nil,
+	}
+	return pair.IsSet()
 }
 
 type TLS struct {
