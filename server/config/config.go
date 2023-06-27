@@ -1090,6 +1090,8 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigString("mdm.microsoft_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
+	man.addConfigString("mdm.microsoft_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1350,6 +1352,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			MicrosoftWSTEPIdentityCert:      man.getConfigString("mdm.microsoft_wstep_identity_cert"),
+			MicrosoftWSTEPIdentityKey:       man.getConfigString("mdm.microsoft_wstep_identity_key"),
 		},
 	}
 

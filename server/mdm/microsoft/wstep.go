@@ -75,6 +75,9 @@ func NewWSTEPDepot(certPEM []byte, privKeyPEM []byte) (*WSTEPDepot, error) {
 
 func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(key)
+	if block == nil {
+		return nil, errors.New("failed to decode PEM private key")
+	}
 	if block.Type != "RSA PRIVATE KEY" {
 		return nil, errors.New("PEM type is not RSA PRIVATE KEY")
 	}
@@ -87,6 +90,8 @@ func CertFingerprintHexStr(cert *x509.Certificate) string {
 }
 
 // GetClientCSR returns the client certificate signing request from the BinarySecurityToken
+//
+// TODO: Marcos to update the POC implementation of this function
 func GetClientCSR(binSecTokenData string, tokenType BinSecTokenType) (*x509.CertificateRequest, error) {
 	// Verify the token padding type
 	if (tokenType != MDETokenPKCS7) && (tokenType != MDETokenPKCS10) {
@@ -145,6 +150,8 @@ func GetClientCSR(binSecTokenData string, tokenType BinSecTokenType) (*x509.Cert
 
 // SignClientCSR returns a signed certificate from the client certificate signing request and the
 // certificate fingerprint. The certificate common name should be passed in the subject parameter.
+//
+// TODO: Marcos to update the POC implementation of this function
 func (d WSTEPDepot) SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
 	if d.identityCert == nil || d.identityPrivateKey == nil {
 		return nil, "", errors.New("invalid identity certificate or private key")
@@ -157,7 +164,7 @@ func (d WSTEPDepot) SignClientCSR(subject string, clientCSR *x509.CertificateReq
 
 	// Time durations
 	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
-	yearDuration := time.Duration(365 * 24 * time.Hour)
+	yearDuration := 365 * 24 * time.Hour
 
 	certSubject := pkix.Name{
 		OrganizationalUnit: []string{DocProvisioningAppProviderID},
