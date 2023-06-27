@@ -526,6 +526,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if Windows MDM was enabled or disabled, create the corresponding activity
+	if oldAppConfig.MDM.MicrosoftEnabledAndConfigured != appConfig.MDM.MicrosoftEnabledAndConfigured {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MicrosoftEnabledAndConfigured {
+			act = fleet.ActivityTypeEnabledWindowsMDM{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDM{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 

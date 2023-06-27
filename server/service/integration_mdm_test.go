@@ -5072,6 +5072,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MicrosoftEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Microsoft MDM" notification.
@@ -5093,6 +5094,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMicrosoftMDM() {
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.MicrosoftEnabledAndConfigured)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
