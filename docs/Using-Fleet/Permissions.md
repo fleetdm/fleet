@@ -58,7 +58,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
 | Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            |            | ✅    | ✅      |
-| Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
+| Create, edit, view, and delete users\****                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team members\*                                                                                                              |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            | ✅         | ✅    | ✅      |
@@ -94,6 +94,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \*** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
+\**** Global admins can neither demote their own role nor change themselves to be a Team-specific user.
 ## Team member permissions
 
 `Applies only to Fleet Premium`
