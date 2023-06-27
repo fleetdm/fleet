@@ -378,16 +378,8 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
-  vulnerabilities:
-    databases_path: "/tmp/vulndbs"
-    periodicity: 1h
-    cpe_database_url: ""
-    cpe_translations_url: ""
-    cve_feed_prefix_url: ""
-    current_instance_checks: "auto"
-    disable_data_sync: false
-    recent_vulnerability_max_age: 30d
-    disable_win_os_vulnerabilities: false
+  vulnerability_settings:
+    databases_path: "/tmp/vulndb"
   webhook_settings:
     failing_policies_webhook:
       destination_url: ""
