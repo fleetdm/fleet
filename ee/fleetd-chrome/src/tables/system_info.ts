@@ -33,53 +33,26 @@ export default class TableSystemInfo extends Table {
     const uuid = (await chrome.instanceID.getID()) as string;
 
     // TODO should it default to UUID or should Fleet handle it somehow?
-    let hostname = "";
-    try {
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
-    } catch (err) {
-      console.warn("get hostname:", err);
-    }
+    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+    const hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
 
-    let hwSerial = "";
-    try {
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hwSerial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
-    } catch (err) {
-      console.warn("get serial number:", err);
-    }
+    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+    const hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
 
-    let hwVendor = "",
-      hwModel = "";
-    try {
-      // This throws "Not allowed" error if
-      // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
-      // not configured to enabled for the device.
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
-      hwVendor = platformInfo.manufacturer;
-      hwModel = platformInfo.model;
-    } catch (err) {
-      console.warn("get platform info:", err);
-    }
+    // This throws "Not allowed" error if
+    // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
+    // not configured to enabled for the device.
+    // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+    const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
+    const hwVendor = platformInfo.manufacturer;
+    const hwModel = platformInfo.model;
 
-    let cpuBrand = "",
-      cpuType = "";
-    try {
-      const cpuInfo = await chrome.system.cpu.getInfo();
-      cpuBrand = cpuInfo.modelName;
-      cpuType = cpuInfo.archName;
-    } catch (err) {
-      console.warn("get cpu info:", err);
-    }
+    const cpuInfo = await chrome.system.cpu.getInfo();
+    const cpuBrand = cpuInfo.modelName;
+    const cpuType = cpuInfo.archName;
 
-    let physicalMemory = "";
-    try {
-      const memoryInfo = await chrome.system.memory.getInfo();
-      physicalMemory = memoryInfo.capacity.toString();
-    } catch (err) {
-      console.warn("get memory info:", err);
-    }
+    const memoryInfo = await chrome.system.memory.getInfo();
+    const physicalMemory = memoryInfo.capacity.toString();
 
     return [
       {

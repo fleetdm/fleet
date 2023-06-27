@@ -25,10 +25,10 @@
     &::before {
       content: "";
       position: absolute;
-      width: 197px;
+      width: 198px;
       height: 2px;
       background-color: $core-vibrant-blue;
-      bottom: 46px;
+      bottom: 78px;
       left: 90px;
 
       @include breakpoint(tablet) {
