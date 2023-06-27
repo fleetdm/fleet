@@ -162,21 +162,21 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 			)
 			fetcher := &dummyConfigFetcher{
 				cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-					NeedsProgrammaticMicrosoftMDMEnrollment:   enroll,
-					NeedsProgrammaticMicrosoftMDMUnenrollment: unenroll,
-					MicrosoftMDMDiscoveryEndpoint:             c.discoveryURL,
+					NeedsProgrammaticWindowsMDMEnrollment:   enroll,
+					NeedsProgrammaticWindowsMDMUnenrollment: unenroll,
+					WindowsMDMDiscoveryEndpoint:             c.discoveryURL,
 				}},
 			}
 
 			var enrollGotCalled, unenrollGotCalled bool
-			enrollFetcher := &microsoftMDMEnrollmentConfigFetcher{
+			enrollFetcher := &windowsMDMEnrollmentConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
-				execEnrollFn: func(args MicrosoftMDMEnrollmentArgs) error {
+				execEnrollFn: func(args WindowsMDMEnrollmentArgs) error {
 					enrollGotCalled = true
 					return c.apiErr
 				},
-				execUnenrollFn: func(args MicrosoftMDMEnrollmentArgs) error {
+				execUnenrollFn: func(args WindowsMDMEnrollmentArgs) error {
 					unenrollGotCalled = true
 					return c.apiErr
 				},
@@ -207,11 +207,11 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 
 	cfgs := []fleet.OrbitConfigNotifications{
 		{
-			NeedsProgrammaticMicrosoftMDMEnrollment: true,
-			MicrosoftMDMDiscoveryEndpoint:           "http://example.com",
+			NeedsProgrammaticWindowsMDMEnrollment: true,
+			WindowsMDMDiscoveryEndpoint:           "http://example.com",
 		},
 		{
-			NeedsProgrammaticMicrosoftMDMUnenrollment: true,
+			NeedsProgrammaticWindowsMDMUnenrollment: true,
 		},
 	}
 	for _, cfg := range cfgs {
@@ -225,26 +225,26 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 				apiErr       error
 			)
 			chProceed := make(chan struct{})
-			fetcher := &microsoftMDMEnrollmentConfigFetcher{
+			fetcher := &windowsMDMEnrollmentConfigFetcher{
 				Fetcher:   baseFetcher,
 				Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
 			}
-			if cfg.NeedsProgrammaticMicrosoftMDMEnrollment {
-				fetcher.execEnrollFn = func(args MicrosoftMDMEnrollmentArgs) error {
+			if cfg.NeedsProgrammaticWindowsMDMEnrollment {
+				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					<-chProceed    // will be unblocked only when allowed
 					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 					return apiErr
 				}
-				fetcher.execUnenrollFn = func(args MicrosoftMDMEnrollmentArgs) error {
+				fetcher.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					panic("should not be called")
 				}
 			} else {
-				fetcher.execUnenrollFn = func(args MicrosoftMDMEnrollmentArgs) error {
+				fetcher.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					<-chProceed    // will be unblocked only when allowed
 					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 					return apiErr
 				}
-				fetcher.execEnrollFn = func(args MicrosoftMDMEnrollmentArgs) error {
+				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					panic("should not be called")
 				}
 			}

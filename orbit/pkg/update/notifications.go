@@ -85,9 +85,9 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	return cfg, err
 }
 
-type execWinAPIFunc func(MicrosoftMDMEnrollmentArgs) error
+type execWinAPIFunc func(WindowsMDMEnrollmentArgs) error
 
-type microsoftMDMEnrollmentConfigFetcher struct {
+type windowsMDMEnrollmentConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
@@ -98,7 +98,7 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	HostUUID string
 
 	// for tests, to be able to mock API commands. If nil, will use
-	// RunMicrosoftMDMEnrollment and RunMicrosoftMDMUnenrollment respectively.
+	// RunWindowsMDMEnrollment and RunWindowsMDMUnenrollment respectively.
 	execEnrollFn   execWinAPIFunc
 	execUnenrollFn execWinAPIFunc
 
@@ -110,12 +110,12 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	isWindowsServer bool
 }
 
-func ApplyMicrosoftMDMEnrollmentFetcherMiddleware(
+func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
 ) OrbitConfigFetcher {
-	return &microsoftMDMEnrollmentConfigFetcher{
+	return &windowsMDMEnrollmentConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: frequency,
 		HostUUID:  hostUUID,
@@ -127,21 +127,21 @@ var errIsWindowsServer = errors.New("device is a Windows Server")
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the "needs windows enrollment" flag to true, executes the command
 // to enroll into Windows MDM (or not, if the device is a Windows Server).
-func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := w.Fetcher.GetConfig()
 
 	if err == nil {
-		if cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
+		if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
 			w.attemptEnrollment(cfg.Notifications)
-		} else if cfg.Notifications.NeedsProgrammaticMicrosoftMDMUnenrollment {
+		} else if cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment {
 			w.attemptUnenrollment()
 		}
 	}
 	return cfg, err
 }
 
-func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
-	if notifs.MicrosoftMDMDiscoveryEndpoint == "" {
+func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
+	if notifs.WindowsMDMDiscoveryEndpoint == "" {
 		log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
 		return
 	}
@@ -162,10 +162,10 @@ func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orb
 
 		fn := w.execEnrollFn
 		if fn == nil {
-			fn = RunMicrosoftMDMEnrollment
+			fn = RunWindowsMDMEnrollment
 		}
-		args := MicrosoftMDMEnrollmentArgs{
-			DiscoveryURL: notifs.MicrosoftMDMDiscoveryEndpoint,
+		args := WindowsMDMEnrollmentArgs{
+			DiscoveryURL: notifs.WindowsMDMDiscoveryEndpoint,
 			HostUUID:     w.HostUUID,
 		}
 		if err := fn(args); err != nil {
@@ -183,14 +183,14 @@ func (w *microsoftMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orb
 	}
 }
 
-func (w *microsoftMDMEnrollmentConfigFetcher) attemptUnenrollment() {
+func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 	if w.mu.TryLock() {
 		defer w.mu.Unlock()
 
 		// do not unenroll Windows Servers, and do not attempt unenrollment if the
 		// last run is not at least Frequency ago.
 		if w.isWindowsServer {
-			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to enroll Windows device, device is a server")
 			return
 		}
 		if time.Since(w.lastUnenrollRun) <= w.Frequency {
@@ -200,9 +200,9 @@ func (w *microsoftMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 
 		fn := w.execUnenrollFn
 		if fn == nil {
-			fn = RunMicrosoftMDMUnenrollment
+			fn = RunWindowsMDMUnenrollment
 		}
-		args := MicrosoftMDMEnrollmentArgs{
+		args := WindowsMDMEnrollmentArgs{
 			HostUUID: w.HostUUID,
 		}
 		if err := fn(args); err != nil {

@@ -124,6 +124,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: {
+    windows_enabled_and_configured: true,
     apple_bm_default_team: "Apples",
     apple_bm_enabled_and_configured: true,
     apple_bm_terms_expired: false,

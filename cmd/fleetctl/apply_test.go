@@ -898,7 +898,7 @@ spec:
 	emptySetupAsst := writeTmpJSON(t, map[string]any{})
 
 	// Apply global config with custom setting and macos setup assistant, and enable
-	// Microsoft MDM.
+	// Windows MDM.
 	name = writeTmpYml(t, fmt.Sprintf(`---
 apiVersion: v1
 kind: config

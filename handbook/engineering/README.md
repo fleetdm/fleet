@@ -630,7 +630,28 @@ The information needed to evaluate and potentially fix any issues is documented 
 
 When an infrastructure on-call engineer is out of the office, Zach Wasserman will serve as a backup to on-call in #help-p1. All absences must be communicated in advance to Luke Heath and Zach Wasserman.
 
+## Accounts
+
+Engineering is responsible for managing third-party accounts required to support engineering infrastructure. 
+
+### Apple developer account
+
+We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
+
+When this occurs, we will begin receiving the following error message when attempting to notarize packages: "You must first sign the relevant contracts online." To resolve this error, follow the steps below.
+
+1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+
+2. Log in using the credentials stored in 1Password under "Apple developer account". 
+
+3. Contact the Head of Business Operations to determine which phone number to use for 2FA. 
+
+4. Complete the 2FA process to log in. 
+
+5. Accept the new terms of service.
+
 ## Rituals
+
 The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
 
 | Ritual                        | Frequency           | Description                                                                                                                            | DRI            |

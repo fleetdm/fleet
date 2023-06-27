@@ -16,12 +16,12 @@ func main() {
 	flag.Parse()
 
 	if *unenroll {
-		err := update.RunMicrosoftMDMUnenrollment(update.MicrosoftMDMEnrollmentArgs{})
+		err := update.RunWindowsMDMUnenrollment(update.WindowsMDMEnrollmentArgs{})
 		fmt.Println("unenrollment: ", err)
 		return
 	}
 
-	err := update.RunMicrosoftMDMEnrollment(update.MicrosoftMDMEnrollmentArgs{
+	err := update.RunWindowsMDMEnrollment(update.WindowsMDMEnrollmentArgs{
 		DiscoveryURL: *discoveryURL,
 		HostUUID:     *hostUUID,
 	})
