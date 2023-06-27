@@ -73,16 +73,17 @@ Many open source contributions that start as a small, seemingly innocuous pull r
 Thus, to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from, Fleet will still follow the standard process for [prioritizing](#prioritizing-improvements) and [drafting](https://fleetdm.com/handbook/company/development-groups#drafting) a feature when it comes from the community.
 
 ## Prioritizing improvements
-Product Managers prioritize all potential product improvements worked on by contributors inside the company. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
+Product Managers prioritize all potential product improvements worked on by Fleeties. Anyone (Fleeties, customers, and community members) are invited to suggest improvements. See [the intake section](#intake) for more information on how Fleet's product team intakes new feature requests.
 
-Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
+## Prioritizing bugs
+Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-> Anyone can [suggest improvements](#intake).
+If a bug is not addressed within 6 weeks, [it is automatically sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual (TODO Mo confirm w/ Luke re: timing and ritual), each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The head of product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
 
 ## Writing user stories
-Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).  The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
+Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 ## Drafting user stories
 Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting).
@@ -91,11 +92,11 @@ Product Designers [draft user stories](https://fleetdm.com/handbook/company/deve
 Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
 ## Sprints
-Sprints (aka "iterations") align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence).
+Sprints align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence).
 
 On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
 
-Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
+Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible). To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
 ### Sprint numbering
 Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint. 
@@ -293,6 +294,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
+| Bug de-prioritization | Sprintly (TODO Mo to check w/ Luke on timing) | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
 
 ## Slack channels
 
