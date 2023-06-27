@@ -455,7 +455,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	// Getting the GetPoliciesResponse message
-	discoveryMessage, err := svc.GetMDMMicrosoftPolicyResponse(ctx, binSecTokenData)
+	discoveryMessage, err := svc.GetMDMWindowsPolicyResponse(ctx, binSecTokenData)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -526,37 +526,37 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 
 	urlDiscoveryEndpoint, err := mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve discovery endpoint")
 	}
 
 	urlPolicyEndpoint, err := mdm.ResolveWindowsMDMPolicy(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve policy endpoint")
 	}
 
 	urlEnrollEndpoint, err := mdm.ResolveWindowsMDMEnroll(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
 	discoveryMsg, err := NewDiscoverResponse(urlDiscoveryEndpoint, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
 
 	return &discoveryMsg, nil
 }
 
-// GetMDMMicrosoftPolicyResponse returns a valid GetPoliciesResponse message
-func (svc *Service) GetMDMMicrosoftPolicyResponse(ctx context.Context, authToken string) (*fleet.GetPoliciesResponse, error) {
+// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
+func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*fleet.GetPoliciesResponse, error) {
 	if len(authToken) == 0 {
-		return nil, ctxerr.Wrap(ctx, errors.New("invalid parameters"), "authToken is empty")
+		return nil, fleet.NewInvalidArgumentError("policy response", "authToken is empty")
 	}
 
 	// Validate the binary security token
 	err := validateBinarySecurityToken(ctx, authToken, svc)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
 	// Token is authorized
@@ -565,7 +565,7 @@ func (svc *Service) GetMDMMicrosoftPolicyResponse(ctx context.Context, authToken
 	// Getting the GetPoliciesResponse message content ready
 	policyMsg, err := NewGetPoliciesResponse(mdm.PolicyMinKeyLength, mdm.PolicyCertValidityPeriodInSecs, mdm.PolicyCertRenewalPeriodInSecs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "creation of GetPoliciesResponse message")
 	}
 
 	return &policyMsg, nil

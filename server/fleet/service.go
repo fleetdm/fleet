@@ -758,8 +758,8 @@ type Service interface {
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)
 
-	// GetMDMMicrosoftPolicyResponse returns a valid GetPoliciesResponse message
-	GetMDMMicrosoftPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
+	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
+	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
 
 	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
