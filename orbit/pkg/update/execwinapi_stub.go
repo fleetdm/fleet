@@ -6,6 +6,6 @@ func RunWindowsMDMEnrollment(args WindowsMDMEnrollmentArgs) error {
 	return nil
 }
 
-func RunWindowsMDMUnenrollment(args MicrosoftMDMEnrollmentArgs) error {
+func RunWindowsMDMUnenrollment(args WindowsMDMEnrollmentArgs) error {
 	return nil
 }
