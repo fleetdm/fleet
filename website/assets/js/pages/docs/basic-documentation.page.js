@@ -267,7 +267,6 @@ parasails.registerPage('basic-documentation', {
     },
 
     handleScrollingInDocumentation: function () {
-      // Don't show the back to top button on the docs landing page.
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
