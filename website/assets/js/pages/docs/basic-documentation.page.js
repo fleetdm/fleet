@@ -265,27 +265,31 @@ parasails.registerPage('basic-documentation', {
     },
 
     handleScrollingInDocumentation: function () {
-      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
-      let scrollTop = window.pageYOffset;
-      let windowHeight = window.innerHeight;
+      if(!this.isDocsLandingPage) {
+        let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+        let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+        let scrollTop = window.pageYOffset;
+        let windowHeight = window.innerHeight;
 
-      if (rightNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
-          rightNavBar.classList.add('header-hidden', 'scrolled');
-        } else if (scrollTop === 0) {
-          rightNavBar.classList.remove('header-hidden', 'scrolled');
-        } else {
-          rightNavBar.classList.remove('header-hidden');
+        if (rightNavBar) {
+          if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+            rightNavBar.classList.add('header-hidden', 'scrolled');
+          } else if (scrollTop === 0) {
+            rightNavBar.classList.remove('header-hidden', 'scrolled');
+          } else {
+            rightNavBar.classList.remove('header-hidden');
+          }
         }
-      }
-      if (backToTopButton && scrollTop > 2500) {
-        backToTopButton.classList.add('show');
-      } else if (scrollTop === 0) {
-        backToTopButton.classList.remove('show');
-      }
+        if (backToTopButton){
+          if (scrollTop > 2500) {
+            backToTopButton.classList.add('show');
+          } else if (scrollTop === 0) {
+            backToTopButton.classList.remove('show');
+          }
+        }
 
-      this.scrollDistance = scrollTop;
+        this.scrollDistance = scrollTop;
+      }
     },
     clickScrollToTop: function() {
       window.scrollTo({
