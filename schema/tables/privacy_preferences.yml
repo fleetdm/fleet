@@ -13,6 +13,7 @@ columns:
     description: One of "default", "default_public_and_private_interfaces", "default_public_interface_only", or "disable_non_proxied_udp"
     required: false
     type: text
+    notes: Available for Chrome 48+
   - name: autofill_address_enabled
     description: 1 if enabled else 0
     required: false
@@ -21,10 +22,12 @@ columns:
     description: 1 if enabled else 0
     required: false
     type: integer
+    notes: Available for Chrome 70+
   - name: autofill_enabled
     description: 1 if enabled else 0 - * Deprecated since Chrome 70, please use privacy.services.autofillAddressEnabled and privacy.services.autofillCreditCardEnabled. This currently remains for backward compatibility and will be removed in the future.
     required: false
     type: integer
+    notes: Deprecated since Chrome 70
   - name: save_passwords_enabled
     description: 1 if enabled else 0
     required: false
@@ -61,6 +64,7 @@ columns:
     description: 1 if enabled else 0
     required: false
     type: integer
+    notes: Available for Chrome 111+
   - name: hyperlink_auditing_enabled
     description: 1 if enabled else 0
     required: false
@@ -69,6 +73,7 @@ columns:
     description: 1 if enabled else 0 - * Deprecated since Chrome 111, see https://developer.chrome.com/docs/extensions/reference/privacy/#property-websites-privacySandboxEnabled
     required: false
     type: integer
+    notes: Available for Chrome 90+; Deprecated since Chrome 111
   - name: protected_content_enabled
     description: 1 if enabled else 0 - * Windows and ChromeOS only
     required: false
@@ -85,3 +90,4 @@ columns:
     description: 1 if enabled else 0
     required: false
     type: integer
+    notes: Available for Chrome 111+
