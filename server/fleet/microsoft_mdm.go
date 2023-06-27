@@ -2,7 +2,213 @@ package fleet
 
 import (
 	"encoding/xml"
+	"errors"
+	"fmt"
+
+	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MS-MDE2 XML types used by the SOAP protocol
+// MS-MDE2 is a client-to-server protocol that consists of a SOAP-based Web service.
+// SOAP is a lightweight and XML based protocol that consists of three parts:
+// - An envelope that defines a framework for describing what is in a message and how to process it
+// - A set of encoding rules for expressing instances of application-defined datatypes
+// - And a convention for representing remote procedure calls and responses.
+
+// SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
+// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
+type SoapResponse struct {
+	XMLName xml.Name       `xml:"s:Envelope"`
+	XMLNSS  string         `xml:"xmlns:s,attr"`
+	XMLNSA  string         `xml:"xmlns:a,attr"`
+	XMLNSU  *string        `xml:"xmlns:u,attr,omitempty"`
+	Header  ResponseHeader `xml:"s:Header"`
+	Body    BodyResponse   `xml:"s:Body"`
+}
+
+// SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
+// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
+type SoapRequest struct {
+	XMLName   xml.Name      `xml:"Envelope"`
+	XMLNSS    string        `xml:"s,attr"`
+	XMLNSA    string        `xml:"a,attr"`
+	XMLNSU    *string       `xml:"u,attr,omitempty"`
+	XMLNSWsse *string       `xml:"wsse,attr,omitempty"`
+	XMLNSWST  *string       `xml:"wst,attr,omitempty"`
+	XMLNSAC   *string       `xml:"ac,attr,omitempty"`
+	Header    RequestHeader `xml:"Header"`
+	Body      BodyRequest   `xml:"Body"`
+}
+
+// GetBinarySecurityToken returns the header BinarySecurityToken if present
+func (req *SoapRequest) GetBinarySecurityToken() (string, error) {
+	if req.Header.Security == nil {
+		return "", errors.New("header BinarySecurityToken is not present")
+	}
+
+	return req.Header.Security.Security.Content, nil
+}
+
+// GetMessageID returns the message ID from the header
+func (req *SoapRequest) GetMessageID() string {
+	return req.Header.MessageID
+}
+
+// isValidHeader checks for required fields in the header
+func (req *SoapRequest) isValidHeader() error {
+	// Check for required fields
+
+	if len(req.XMLNSS) == 0 {
+		return errors.New("invalid SOAP header: XMLNSS")
+	}
+
+	if len(req.XMLNSA) == 0 {
+		return errors.New("invalid SOAP header: XMLNSA")
+	}
+
+	if len(req.Header.MessageID) == 0 {
+		return errors.New("invalid SOAP header: Header.MessageID")
+	}
+
+	if len(req.Header.Action.Content) == 0 {
+		return errors.New("invalid SOAP header: Header.Action")
+	}
+
+	if len(req.Header.ReplyTo.Address) == 0 {
+		return errors.New("invalid SOAP header: Header.ReplyTo")
+	}
+
+	if len(req.Header.To.Content) == 0 {
+		return errors.New("invalid SOAP header: Header.To")
+	}
+
+	return nil
+}
+
+// isValidBody checks for the presence of only one message
+func (req *SoapRequest) isValidBody() error {
+	nonNilCount := 0
+
+	if req.Body.Discover != nil {
+		nonNilCount++
+	}
+	if req.Body.GetPolicies != nil {
+		nonNilCount++
+	}
+	if req.Body.RequestSecurityToken != nil {
+		nonNilCount++
+	}
+
+	if nonNilCount != 1 {
+		return errors.New("invalid SOAP body: Multiple messages or no message")
+	}
+
+	return nil
+}
+
+// IsValidDiscoveryMsg checks for required fields in the Discover message
+func (req *SoapRequest) IsValidDiscoveryMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid discover message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid discover message: %s", err)
+	}
+
+	if req.Body.Discover == nil {
+		return errors.New("invalid discover message: Discover message not present")
+	}
+
+	if len(req.Body.Discover.XMLNS) == 0 {
+		return errors.New("invalid discover message: XMLNS")
+	}
+
+	// TODO: add check for valid email address
+	if len(req.Body.Discover.Request.EmailAddress) == 0 {
+		return errors.New("invalid discover message: Request.EmailAddress")
+	}
+
+	// Ensure that only valid versions are supported
+	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
+		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
+		return errors.New("invalid discover message: Request.RequestVersion")
+	}
+
+	// Traverse the AuthPolicies slice and check for valid values
+	isInvalidAuth := true
+	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
+		if authPolicy == mdm.AuthOnPremise {
+			isInvalidAuth = false
+			break
+		}
+	}
+
+	if isInvalidAuth {
+		return errors.New("invalid discover message: Request.AuthPolicies")
+	}
+
+	return nil
+}
+
+// IsValidGetPolicyMsg checks for required fields in the GetPolicies message
+func (req *SoapRequest) IsValidGetPolicyMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid getpolicies message:  %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid getpolicies message: %s", err)
+	}
+
+	if req.Body.GetPolicies == nil {
+		return errors.New("invalid getpolicies message:  GetPolicies message not present")
+	}
+
+	if len(req.Body.GetPolicies.XMLNS) == 0 {
+		return errors.New("invalid getpolicies message: XMLNS")
+	}
+
+	return nil
+}
+
+// IsValidRequestSecurityTokenMsg checks for required fields in the RequestSecurityToken message
+func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
+	if err := req.isValidHeader(); err != nil {
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
+	}
+
+	if err := req.isValidBody(); err != nil {
+		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
+	}
+
+	if req.Body.RequestSecurityToken == nil {
+		return errors.New("invalid requestsecuritytoken message: RequestSecurityToken message not present")
+	}
+
+	if len(req.Body.RequestSecurityToken.TokenType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: TokenType")
+	}
+
+	if len(req.Body.RequestSecurityToken.RequestType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: RequestType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.ValueType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.EncodingType) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType")
+	}
+
+	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.Content")
+	}
+
+	return nil
+}
 
 // MS-MDE2 Message request types
 const (
@@ -13,7 +219,7 @@ const (
 )
 
 ///////////////////////////////////////////////////////////////
-/// Microsoft MS-MDE2 SOAP types
+/// Microsoft MS-MDE2 SOAP messages
 
 // ResponseHeader is the header for MDM responses from the server
 type ResponseHeader struct {
@@ -62,7 +268,7 @@ type Action struct {
 type ActivityId struct {
 	Content       string `xml:",chardata"`
 	CorrelationId string `xml:"CorrelationId,attr"`
-	XmlNS         string `xml:"xmlns,attr"`
+	XMLNS         string `xml:"xmlns,attr"`
 }
 
 // Timestamp for certificate authentication
@@ -74,7 +280,7 @@ type Timestamp struct {
 
 // Security token container
 type WsSecurity struct {
-	XmlNS          string    `xml:"xmlns:o,attr"`
+	XMLNS          string    `xml:"xmlns:o,attr"`
 	MustUnderstand string    `xml:"s:mustUnderstand,attr"`
 	Timestamp      Timestamp `xml:"u:Timestamp"`
 }
@@ -108,7 +314,7 @@ type ReplyTo struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/36e33def-59ab-484f-b0bc-701496346925
 
 type Discover struct {
-	XmlNS   string          `xml:"xmlns,attr"`
+	XMLNS   string          `xml:"xmlns,attr"`
 	Request DiscoverRequest `xml:"request"`
 }
 
@@ -117,7 +323,7 @@ type AuthPolicies struct {
 }
 
 type DiscoverRequest struct {
-	XmlNS              string       `xml:"i,attr"`
+	XMLNS              string       `xml:"i,attr"`
 	EmailAddress       string       `xml:"EmailAddress"`
 	RequestVersion     string       `xml:"RequestVersion"`
 	DeviceType         string       `xml:"DeviceType"`
@@ -131,7 +337,7 @@ type DiscoverRequest struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/02b080e4-d1d8-4e0c-af14-b77931cec404
 
 type GetPolicies struct {
-	XmlNS         string        `xml:"xmlns,attr"`
+	XMLNS         string        `xml:"xmlns,attr"`
 	Client        Client        `xml:"client"`
 	RequestFilter RequestFilter `xml:"requestFilter"`
 }
@@ -163,7 +369,7 @@ type RequestSecurityToken struct {
 
 type BinarySecurityToken struct {
 	Content      string  `xml:",chardata"`
-	XmlNS        *string `xml:"xmlns,attr"`
+	XMLNS        *string `xml:"xmlns,attr"`
 	ValueType    string  `xml:"ValueType,attr"`
 	EncodingType string  `xml:"EncodingType,attr"`
 }
@@ -174,7 +380,7 @@ type ContextItem struct {
 }
 
 type AdditionalContext struct {
-	XmlNS       string        `xml:"xmlns,attr"`
+	XMLNS       string        `xml:"xmlns,attr"`
 	ContextItem []ContextItem `xml:"ContextItem"`
 }
 
@@ -184,7 +390,7 @@ type AdditionalContext struct {
 
 type DiscoverResponse struct {
 	XMLName        xml.Name       `xml:"DiscoverResponse"`
-	XmlNS          string         `xml:"xmlns,attr"`
+	XMLNS          string         `xml:"xmlns,attr"`
 	DiscoverResult DiscoverResult `xml:"DiscoverResult"`
 }
 
@@ -201,7 +407,7 @@ type DiscoverResult struct {
 
 type GetPoliciesResponse struct {
 	XMLName  xml.Name `xml:"GetPoliciesResponse"`
-	XmlNS    string   `xml:"xmlns,attr"`
+	XMLNS    string   `xml:"xmlns,attr"`
 	Response Response `xml:"response"`
 	OIDs     OIDs     `xml:"oIDs"`
 }
@@ -209,7 +415,7 @@ type GetPoliciesResponse struct {
 type ContentAttr struct {
 	Content string `xml:",chardata"`
 	Xsi     string `xml:"xsi:nil,attr"`
-	XmlNS   string `xml:"xmlns:xsi,attr"`
+	XMLNS   string `xml:"xmlns:xsi,attr"`
 }
 
 type GenericAttr struct {
@@ -293,13 +499,13 @@ type OIDs struct {
 
 type RequestSecurityTokenResponseCollection struct {
 	XMLName                      xml.Name                     `xml:"RequestSecurityTokenResponseCollection"`
-	XmlNS                        string                       `xml:"xmlns,attr"`
+	XMLNS                        string                       `xml:"xmlns,attr"`
 	RequestSecurityTokenResponse RequestSecurityTokenResponse `xml:"RequestSecurityTokenResponse"`
 }
 
 type SecAttr struct {
 	Content string `xml:",chardata"`
-	XmlNS   string `xml:"xmlns,attr"`
+	XMLNS   string `xml:"xmlns,attr"`
 }
 
 type RequestedSecurityToken struct {
@@ -342,19 +548,37 @@ type SoapFault struct {
 	OriginalMessageType int      `xml:"-"`
 }
 
-// MicrosoftMDMAccessTokenPayload is the payload that gets encoded as JSON and
-// provided as opaque access token to the RegisterDeviceWithManagement API.
-type MicrosoftMDMAccessTokenPayload struct {
+// ///////////////////////////////////////////////////////////////////////////
+// / WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
+// / provided as opaque access token to the RegisterDeviceWithManagement API.
+type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
-	Type    MicrosoftMDMEnrollmentType `json:"type"`
+	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
 		HostUUID string `json:"host_uuid"`
 	} `json:"payload"`
 }
 
-type MicrosoftMDMEnrollmentType int
+type WindowsMDMEnrollmentType int
 
-// List of supported Microsoft MDM enrollment types.
+// List of supported Windows MDM enrollment types.
 const (
-	MicrosoftMDMProgrammaticEnrollmentType MicrosoftMDMEnrollmentType = 1
+	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
 )
+
+func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
+	// Only BSProgrammaticEnrollment are supported for now
+	if t.Type != WindowsMDMProgrammaticEnrollmentType {
+		return errors.New("invalid binary security payload type")
+	}
+
+	if len(t.Payload.HostUUID) == 0 {
+		return errors.New("invalid binary security payload content")
+	}
+
+	return nil
+}
+
+func (t *WindowsMDMAccessTokenPayload) GetType() WindowsMDMEnrollmentType {
+	return t.Type
+}

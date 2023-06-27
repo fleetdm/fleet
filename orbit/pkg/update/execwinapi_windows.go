@@ -27,7 +27,7 @@ var (
 // Exported so that it can be used in tools/ (so that it can be built for
 // Windows and tested on a Windows machine). Otherwise not meant to be called
 // from outside this package.
-func RunMicrosoftMDMEnrollment(args MicrosoftMDMEnrollmentArgs) error {
+func RunWindowsMDMEnrollment(args WindowsMDMEnrollmentArgs) error {
 	installType, err := readInstallationType()
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func readInstallationType() (string, error) {
 
 // Perform the host MDM enrollment process using MS-MDE protocol:
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde/5c841535-042e-489e-913c-9d783d741267
-func enrollHostToMDM(args MicrosoftMDMEnrollmentArgs) error {
+func enrollHostToMDM(args WindowsMDMEnrollmentArgs) error {
 	discoveryURLPtr, err := syscall.UTF16PtrFromString(args.DiscoveryURL)
 	if err != nil {
 		return fmt.Errorf("discovery URL to UTF16 pointer: %w", err)
@@ -116,10 +116,10 @@ func enrollHostToMDM(args MicrosoftMDMEnrollmentArgs) error {
 	return nil
 }
 
-func generateWindowsMDMAccessTokenPayload(args MicrosoftMDMEnrollmentArgs) ([]byte, error) {
-	var pld fleet.MicrosoftMDMAccessTokenPayload
+func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte, error) {
+	var pld fleet.WindowsMDMAccessTokenPayload
 
-	pld.Type = fleet.MicrosoftMDMProgrammaticEnrollmentType // always programmatic for now
+	pld.Type = fleet.WindowsMDMProgrammaticEnrollmentType // always programmatic for now
 	pld.Payload.HostUUID = args.HostUUID
 	return json.Marshal(pld)
 }
