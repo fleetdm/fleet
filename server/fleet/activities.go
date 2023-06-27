@@ -67,6 +67,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosSetupEndUserAuth{},
 	ActivityTypeDisabledMacosSetupEndUserAuth{},
+
+	ActivityTypeEnabledWindowsMDM{},
+	ActivityTypeDisabledWindowsMDM{},
 }
 
 type ActivityDetails interface {
@@ -1004,6 +1007,28 @@ func (a ActivityTypeDisabledMacosSetupEndUserAuth) Documentation() (activity, de
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledWindowsMDM struct{}
+
+func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
+	return "enabled_windows_mdm"
+}
+
+func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns on Windows MDM.`,
+		`This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledWindowsMDM struct{}
+
+func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
+	return "disabled_windows_mdm"
+}
+
+func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off Windows MDM.`,
+		`This activity does not contain any detail fields.`, ``
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
