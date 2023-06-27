@@ -1,6 +1,5 @@
 // Package mdmconfigured implements middleware functions for the supported platform-specific MDM
 // solutions to ensure MDM is configured and fail fast before reaching the handler if that is not the case.
-
 package mdmconfigured
 
 import (
