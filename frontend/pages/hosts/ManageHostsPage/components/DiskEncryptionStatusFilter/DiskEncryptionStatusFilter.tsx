@@ -11,28 +11,33 @@ const baseClass = "disk-encryption-status-filter";
 const DISK_ENCRYPTION_STATUS_OPTIONS: IDropdownOption[] = [
   {
     disabled: false,
+    label: "Verified",
+    value: "verified",
+  },
+  {
+    disabled: false,
     label: "Verifying",
-    value: FileVaultProfileStatus.VERIFYING,
+    value: "verifying",
   },
   {
     disabled: false,
     label: "Action required",
-    value: FileVaultProfileStatus.ACTION_REQUIRED,
+    value: "action_required",
   },
   {
     disabled: false,
     label: "Enforcing",
-    value: FileVaultProfileStatus.ENFORCING,
+    value: "enforcing",
   },
   {
     disabled: false,
     label: "Failed",
-    value: FileVaultProfileStatus.FAILED,
+    value: "failed",
   },
   {
     disabled: false,
     label: "Removing enforcement",
-    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
+    value: "removing_enforcement",
   },
 ];
 

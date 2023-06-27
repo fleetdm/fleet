@@ -1,8 +1,15 @@
 # CEO handbook
-This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
+This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant (EA) collaborates with the CEO. 
+
+## Responsibilities
+The CEO is the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, and various other aspects of the company.
+
+> When the CEO is out of office, these responsibiliies should be delegated so they can be handled promptly.  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## The CEO support team
-### EA to the CEO
+### Executive Assistant (EA) to the CEO
+
+#### Rituals
 
 | Task | Description | Frequency | 
 | ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
@@ -11,9 +18,17 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 | Schedule internal and external meetings for the CEO         | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Meeting requests in #-meetings and #help-ceo slack channels | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
 | Preparing agendas and content for CEO's meetings            | Create and edit agenda, provide context, and contact information | PRN                   |
-| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
+
+
+
+
+#### Other responsibilities
+
+| Task | Description | Frequency | 
+| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
 | Ad-hoc requests from the CEO                                | Triage requests, prioritize actions, flag actions for further review | PRN               |
 | Total travel coordination for the CEO    | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
+| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
 | Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
@@ -47,48 +62,59 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 ### CEO email management
 
-> TODO: let's rethink this.  -Mike, March 2023
-
- - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
- - Emails that need the CEO's attention should be "starred" 
- - EA should prepare draft responses, move drafts to the Inbox, and label
+TODO: Document
 
 ### Travel preferences
-Current preferences for flights are:
- - Non-middle seat, anywhere
- - Direct flight whenever possible
- - Check a bag for all trips longer than five nights
- - Add Brex card information for pre-flight snacks and drinks forms
- - Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
+Preferences for flights, in descending order of importance are:
+  - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
+  - Select a non-middle seat, whenever possible
+  - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
+  - The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
+  - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
+  - Use the Brex card.
+  - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
-### `#Help Mission Control` slack channel
-This channel is for the CEO to drop ideas and tasks for his executive leadership team. The name of this channel was carefully chosen to reflect how we'll work together to help visualize and execute the plans for Fleet.
- - Labels: TODO, DOTO, FYI
- - Mark requests with 👀 to indicate that you are working on the task
- - Mark requests with ✅ to indicate that you completed the task
+### `#g-ceo` slack channel
+This channel is for the CEO to drop ideas and tasks when on the go.
+ - Prefixes: TODO, DOTO, FYI
+ - Mark requests with 👀 (emoji reaction) to indicate that you are working on the task
+ - Mark requests with ✅ (emoji reaction) to indicate that you completed or filed away the task
 
 
 ## Contacting the CEO
-Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
 
-- Non-urgent
-  - "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
-  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
-- Urgent
-  - “Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
-- Emergency
-  - “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
+If you mention the CEO from within a Slack thread, he will not read your message.
+
+Please find a different way to get in touch:
+- If urgent, send a Slack direct message (DM) right away.
+- If it can wait, add your message to the "CEO office minutes" agenda (see "Office hours" calendar)
+- Ask: who is the directly responsible individual (DRI) for this decision?  Is it the CEO?
+- Unsure?  Ask your manager for help.  (Add it to your 1:1 agenda, or send your manager a DM.)
 
 
-<!--
-## OKR planning
-OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
-At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
-- Review topdown and departmental OKRs as they are turned in.
-- OKRs are finalized one week from when topdown OKRs were initially reviewed.
-- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
-- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
--->
+### Why not mention the CEO in Slack threads?
+Everyone else who works at Fleet is expected to read and reply (or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+
+So why not the CEO?
+
+From Mike:
+
+> Staying on top of your Slack mentions (including in threads!) is very important.  Please use them.
+> 
+> But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.  [Too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit).
+>
+> I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.  
+> 
+> What do I still read?
+> - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
+> - If you send me a direct message, I'll see and read that ASAP.
+>
+> Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+> 
+> When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+>
+> Thank you so much! 🙇
+
 
 ## Prep work
 
@@ -96,7 +122,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 > DISCUSS -mike, 2023-03
 
-Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+Every month the EA to the CEO will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -112,7 +138,7 @@ Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐
 The day before the All Hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 ### Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+As Fleet grows, time management for the CEO is more essential. The EA to the CEO will audit the CEOs calendar and set meeting notes for calls with external attendees. 
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
@@ -123,19 +149,16 @@ In the notes document include:
 
 **The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the `#-meetings` channel in Slack.**
 
-### 💻 Sid : Mike document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The CEO's EA (Tee) completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Tee makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 💻 Sid : Mike," and moves it to a private folder. 
- - Tee will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Tee will comment in the backup copy to assign them to Mike.
- - Tee prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Tee will update the monthly "All Hands" link and grant Sid viewing access. 
- - Tee will send Mike links to the new document and the backup copy in a direct message in Slack. 
- 
-The day before the meeting, Mike will prepare the "Vision" section of the original document. Mike will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+### 💻 Sid : Mike
+Every two weeks, our CEO Mike has a 1:1 meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
+
+After each meeting, the CEO's apprentice makes a copy of the original document and moves it into a particular folder in the "Fleet" shared drive, with a particular naming convention:
+<img width="364" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/2781ec0c-4f8b-49ca-9586-87ebdc2c71dc">
+
 
 ### Investor and advisor updates
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+  - CEO (TODO: who?) tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
 
 ### Document preparation 
 At Fleet, document prep steps are determined by the type of meeting. 
@@ -154,7 +177,7 @@ Whereas agendas are good when it's all about action items / decisions / discussi
 ## Tasks as assigned
 
 ### Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the EA to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.

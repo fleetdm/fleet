@@ -73,7 +73,7 @@ const Sso = ({
         if (!metadataUrl) {
           errors.metadata_url = "Metadata or Metadata URL must be present";
           errors.metadata = "Metadata or Metadata URL must be present";
-        } else if (!validUrl({ url: metadataUrl })) {
+        } else if (!validUrl({ url: metadataUrl, protocol: "http" })) {
           errors.metadata_url = `${metadataUrl} is not a valid URL`;
         }
       }
@@ -224,7 +224,7 @@ const Sso = ({
               parseTarget
             >
               <>
-                Automatically create Observer user on login{" "}
+                Create user and sync permissions on login{" "}
                 <CustomLink
                   url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
                   text="Learn more"

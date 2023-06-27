@@ -7,11 +7,11 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
+import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
   generateDataSet,
 } from "./PackQueriesTable/PackQueriesTableConfig";
-import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "pack-queries-table";
 
@@ -90,14 +90,20 @@ const PackQueriesTable = ({
             })
           }
           showMarkAllPages={false}
-          actionButtonText={"Add query"}
-          actionButtonIcon={AddQueryIcon}
-          actionButtonVariant={"text-icon"}
-          onActionButtonClick={onAddPackQuery}
-          onPrimarySelectActionClick={onRemovePackQueries}
-          primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="close"
-          primarySelectActionButtonText={"Remove"}
+          actionButton={{
+            name: "add query",
+            buttonText: "Add query",
+            iconSvg: "plus",
+            variant: "text-icon",
+            onActionButtonClick: onAddPackQuery,
+          }}
+          primarySelectAction={{
+            name: "remove query",
+            buttonText: "Remove",
+            iconSvg: "ex",
+            variant: "text-icon",
+            onActionButtonClick: onRemovePackQueries,
+          }}
           searchable
           disablePagination
           isAllPagesSelected={false}
@@ -112,7 +118,7 @@ const PackQueriesTable = ({
           >
             <>
               Add query
-              <img src={AddQueryIcon} alt={`Add query icon`} />
+              <Icon name="plus" />
             </>
           </Button>
         </div>

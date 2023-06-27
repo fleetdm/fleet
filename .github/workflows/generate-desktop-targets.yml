@@ -35,9 +35,9 @@ jobs:
     steps:
 
       - name: Install Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
-          go-version: '^1.19.8'
+          go-version: '^1.19.10'
 
       - name: Checkout
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
@@ -83,9 +83,9 @@ jobs:
     steps:
 
       - name: Install Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
-          go-version: '^1.19.8'
+          go-version: '^1.19.10'
 
       - name: Checkout
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
@@ -106,9 +106,9 @@ jobs:
     steps:
 
       - name: Install Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+        uses: actions/setup-go@v4.0.1
         with:
-          go-version: '^1.19.8'
+          go-version: '^1.19.10'
 
       - name: Checkout
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2

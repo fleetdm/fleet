@@ -48,17 +48,21 @@ type failingPolicyArgs struct {
 // vulnArgs are the args common to all integrations that can process
 // vulnerabilities.
 type vulnArgs struct {
-	CVE              string     `json:"cve,omitempty"`
-	EPSSProbability  *float64   `json:"epss_probability,omitempty"`   // Premium feature only
-	CVSSScore        *float64   `json:"cvss_score,omitempty"`         // Premium feature only
-	CISAKnownExploit *bool      `json:"cisa_known_exploit,omitempty"` // Premium feature only
-	CVEPublished     *time.Time `json:"cve_published,omitempty"`      // Premium feature only
+	CVE                 string     `json:"cve,omitempty"`
+	AffectedSoftwareIDs []uint     `json:"affected_software,omitempty"`
+	EPSSProbability     *float64   `json:"epss_probability,omitempty"`   // Premium feature only
+	CVSSScore           *float64   `json:"cvss_score,omitempty"`         // Premium feature only
+	CISAKnownExploit    *bool      `json:"cisa_known_exploit,omitempty"` // Premium feature only
+	CVEPublished        *time.Time `json:"cve_published,omitempty"`      // Premium feature only
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
 type Worker struct {
 	ds  fleet.Datastore
 	log kitlog.Logger
+
+	// For tests only, allows ignoring unknown jobs instead of failing them.
+	TestIgnoreUnknownJobs bool
 
 	registry map[string]Job
 }
@@ -104,7 +108,7 @@ func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interfa
 // but we want to ensure a minimum delay before retries to give a chance to
 // e.g. transient network issues to resolve themselves.
 var delayPerRetry = []time.Duration{
-	1: 0, // i.e. for the first retry, do it ASAP (on the next cron run)
+	1: 0, // i.e. for the first retry, do it ASAP (on the next worker run)
 	2: 5 * time.Minute,
 	3: 10 * time.Minute,
 	4: 1 * time.Hour,
@@ -176,6 +180,9 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	j, ok := w.registry[job.Name]
 	if !ok {
+		if w.TestIgnoreUnknownJobs {
+			return nil
+		}
 		return ctxerr.Errorf(ctx, "unknown job: %s", job.Name)
 	}
 

@@ -12,6 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
+
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 type setOrbitNodeKeyer interface {
@@ -177,10 +179,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
 	}
 
-	// set the host's orbit notifications
-	if host.IsOsqueryEnrolled() {
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.OrbitConfig{Notifications: notifs}, err
+	}
+
+	// set the host's orbit notifications for macOS MDM
+	if config.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
+		if host.NeedsDEPEnrollment() {
 			notifs.RenewEnrollmentProfile = true
+		}
+
+		if config.MDM.MacOSMigration.Enable &&
+			host.IsElegibleForDEPMigration() {
+			notifs.NeedsMDMMigration = true
 		}
 
 		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
@@ -191,6 +203,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
+		}
+	}
+
+	// set the host's orbit notifications for Microsoft MDM
+	if config.MDM.MicrosoftEnabledAndConfigured {
+		if host.IsElegibleForMicrosoftMDMEnrollment() {
+			discoURL, err := microsoft_mdm.ResolveMicrosoftMDMDiscovery(config.ServerSettings.ServerURL)
+			if err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+			notifs.MicrosoftMDMDiscoveryEndpoint = discoURL
+			notifs.NeedsProgrammaticMicrosoftMDMEnrollment = true
 		}
 	}
 
@@ -215,8 +239,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 		var nudgeConfig *fleet.NudgeConfig
 		if mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.Deadline != "" &&
-			mdmConfig.MacOSUpdates.MinimumVersion != "" {
+			mdmConfig.MacOSUpdates.Deadline.Value != "" &&
+			mdmConfig.MacOSUpdates.MinimumVersion.Value != "" {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
@@ -232,10 +256,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// team ID is nil, get global flags and options
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return fleet.OrbitConfig{Notifications: notifs}, err
-	}
 	var opts fleet.AgentOptions
 	if config.AgentOptions != nil {
 		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
@@ -244,8 +264,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	var nudgeConfig *fleet.NudgeConfig
-	if config.MDM.MacOSUpdates.Deadline != "" &&
-		config.MDM.MacOSUpdates.MinimumVersion != "" {
+	if config.MDM.MacOSUpdates.Deadline.Value != "" &&
+		config.MDM.MacOSUpdates.MinimumVersion.Value != "" {
 		nudgeConfig, err = fleet.NewNudgeConfig(config.MDM.MacOSUpdates)
 		if err != nil {
 			return fleet.OrbitConfig{Notifications: notifs}, err

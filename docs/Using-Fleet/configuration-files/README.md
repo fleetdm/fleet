@@ -257,6 +257,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+
 ### Modify an existing team
 
 You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it.
@@ -405,6 +406,7 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_team: ""
+    windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
       deadline: ""
@@ -703,18 +705,8 @@ For additional information on SSO configuration, including just-in-time (JIT) us
 
 ##### sso_settings.enable_jit_role_sync
 
-**Available in Fleet Premium**.
-
-If set to `true` Fleet account roles will be updated to match those set in the SAML custom attributes at every login. See [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles).
-This flag only has effect if `sso_settings.enable_jit_provisioning` is set to `true`.
-
-- Optional setting (boolean)
-- Default value: `false`
-- Config file format:
-  ```yaml
-  sso_settings:
-    enable_jit_role_sync: true
-  ```
+> This setting is now deprecated and will be removed soon.
+> For more information on how SSO login and role syncing works see [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles)
 
 ##### sso_settings.enable_sso
 
@@ -1385,6 +1377,17 @@ Set name of default team to use with Apple Business Manager.
     apple_bm_default_team: "Workstations"
   ```
 
+##### mdm.windows_enabled_and_configured
+
+Enables or disables Microsoft MDM support.
+
+- Default value: false
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enabled_and_configured: true
+  ```
+
 ##### mdm.macos_updates
 
 **Applies only to Fleet Premium**.
@@ -1427,7 +1430,7 @@ The following settings are macOS-specific settings for Fleet's MDM solution.
 
 ##### mdm.macos_settings.custom_settings
 
-List of configuration profile files to apply to all hosts. 
+List of configuration profile files to apply to all hosts.
 
 If you're using Fleet Premium, these profiles apply to all hosts assigned to no team.
 

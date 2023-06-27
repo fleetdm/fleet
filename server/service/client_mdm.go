@@ -11,7 +11,9 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -48,11 +50,16 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 	return responseBody.AppleCSR, err
 }
 
-func (c *Client) GetBootstrapPackageMetadata(teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	var err error
+	if forUpdate {
+		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")
+	} else {
+		err = c.authenticatedRequest(request, verb, path, &responseBody)
+	}
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
@@ -108,7 +115,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
 	isFirstTime := false
-	oldMeta, err := c.GetBootstrapPackageMetadata(teamID)
+	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
 		if !errors.Is(err, notFoundErr{}) {
@@ -146,8 +153,32 @@ func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBoo
 	return downloadRemoteMacosBootstrapPackage(url)
 }
 
-func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPackage, error) {
-	resp, err := http.Get(url) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
+func extractFilenameFromPath(p string) string {
+	u, err := url.Parse(p)
+	if err != nil {
+		return ""
+	}
+
+	invalid := map[string]struct{}{
+		"":  {},
+		".": {},
+		"/": {},
+	}
+
+	b := path.Base(u.Path)
+	if _, ok := invalid[b]; ok {
+		return ""
+	}
+
+	if _, ok := invalid[path.Ext(b)]; ok {
+		return b + ".pkg"
+	}
+
+	return b
+}
+
+func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstrapPackage, error) {
+	resp, err := http.Get(pkgURL) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
 	if err != nil {
 		return nil, fmt.Errorf("downloading bootstrap package: %w", err)
 	}
@@ -166,6 +197,13 @@ func downloadRemoteMacosBootstrapPackage(url string) (*fleet.MDMAppleBootstrapPa
 			filename = params["filename"]
 		}
 	}
+
+	// if it fails, try to extract it from the URL
+	if filename == "" {
+		filename = extractFilenameFromPath(pkgURL)
+	}
+
+	// if all else fails, use a default name
 	if filename == "" {
 		filename = "bootstrap-package.pkg"
 	}

@@ -7,20 +7,28 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
 	"net/url"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	depclient "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -64,6 +72,20 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
+		var authErr *depclient.AuthError
+		if errors.As(err, &authErr) {
+			// authentication failure with 401 unauthorized means that the configured
+			// Apple BM certificate and/or token are invalid. Fail with a 400 Bad
+			// Request.
+			msg := err.Error()
+			if authErr.StatusCode == http.StatusUnauthorized {
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help."
+			}
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     msg,
+				InternalErr: err,
+			}, "apple GET /account request failed with authentication error")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
 	}
 
@@ -202,15 +224,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	// // TODO: Call Apple Business Manager API to define new enrollment profile (depends on
-	// // https://github.com/fleetdm/fleet/issues/10995)
-	// //
-	// // modify the method signature of the syncer to include a team config pointer
-	// // and check enable_end_user_authenthication in the team config if not nil
-	// // otherwise check enable_end_user_authenthication the app config.
-	// if err := svc.mdmAppleSyncDEPProfiles(ctx); err != nil {
-	// 	return err
-	// }
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
+	}
+
 	var act fleet.ActivityDetails
 	if enable {
 		act = fleet.ActivityTypeEnabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
@@ -304,8 +321,12 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	return pkg, nil
 }
 
-func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionRead); err != nil {
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
+	act := fleet.ActionRead
+	if forUpdate {
+		act = fleet.ActionWrite
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, act); err != nil {
 		return nil, err
 	}
 
@@ -463,16 +484,14 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	deniedFields := map[string]string{
-		"configuration_web_url":   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"await_device_configured": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include await_device_configured.`,
-		"url":                     `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
+		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
 	}
 	for k, msg := range deniedFields {
 		if _, ok := m[k]; ok {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
 		}
 	}
-	// TODO(mna): enqueue job to Define/Assign profile svc.depService.RegisterProfileWithAppleDEPServer()
 
 	// must read the existing setup assistant first to detect if it did change
 	// (so that the changed activity is not created if the same assistant was
@@ -488,6 +507,15 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileChanged,
+			newAsst.TeamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
+		}
+
 		var teamName *string
 		if newAsst.TeamID != nil {
 			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
@@ -531,6 +559,15 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
+		if err := worker.QueueMacosSetupAssistantJob(
+			ctx,
+			svc.ds,
+			svc.logger,
+			worker.MacosSetupAssistantProfileDeleted,
+			teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
+		}
+
 		var teamName *string
 		if teamID != nil {
 			tm, err := svc.ds.Team(ctx, *teamID)
@@ -610,16 +647,41 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
+	var ssoSettings fleet.SSOSettings
+	if appConfig.SSOSettings != nil {
+		ssoSettings = *appConfig.SSOSettings
+	}
+
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		appConfig.SSOSettings.EntityID,
+		ssoSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
 
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating sso response")
+	}
+
+	// Store information for automatic account population/creation
+	//
+	// For now, we just grab whatever comes before the `@` in UserID, which
+	// must be an email.
+	//
+	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username, _, found := strings.Cut(auth.UserID(), "@")
+	if !found {
+		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
+		username = auth.UserID()
+	}
+	idpAcc := fleet.MDMIdPAccount{
+		UUID:     uuid.New().String(),
+		Username: username,
+		Fullname: auth.UserDisplayName(),
+	}
+	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
 	}
 
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
@@ -637,7 +699,12 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
-	q := url.Values{"profile_token": {depProf.Token}}
+	q := url.Values{
+		"profile_token": {depProf.Token},
+		// using the idp token as a reference just because that's the
+		// only thing we're referencing later on during enrollment.
+		"enrollment_reference": {idpAcc.UUID},
+	}
 	if eula != nil {
 		q.Add("eula_token", eula.Token)
 	}
@@ -646,22 +713,10 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	// TODO(mna): all profiles must be updated: this gets called when the ServerURL or MDM
-	// SSO got modified. And then all devices part of the profile's team must be re-assigned
-	// the updated profile. Enqueue a worker job to take care of this.
-
-	// get the automatic enrollment profile to re-define it with Apple.
-	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching enrollment profile")
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
-
-	if depProf == nil {
-		// CreateDefaultProfile takes care of registering the profile with Apple.
-		return svc.depService.CreateDefaultProfile(ctx)
-	}
-
-	return svc.depService.RegisterProfileWithAppleDEPServer(ctx, nil)
+	return nil
 }
 
 // returns the default automatic enrollment profile, or nil (without error) if none exists.
@@ -671,4 +726,170 @@ func (svc *Service) getAutomaticEnrollmentProfile(ctx context.Context) (*fleet.M
 		return nil, ctxerr.Wrap(ctx, err, "get automatic profile")
 	}
 	return prof, nil
+}
+
+func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.profileMatcher.PreassignProfile(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "preassign profile")
+	}
+	return nil
+}
+
+func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
+	// for the preassign and match features, we don't know yet what team(s) will
+	// be affected, so we authorize only users with write-access to the no-team
+	// config profiles and with team-write access.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	profs, err := svc.profileMatcher.RetrieveProfiles(ctx, externalHostIdentifier)
+	if err != nil {
+		return err
+	}
+	if len(profs.Profiles) == 0 || profs.HostUUID == "" {
+		return nil // nothing to do
+	}
+
+	// force-use the primary DB instance for all the following reads/writes
+	// (we may create a team and need to read it back, but also to get latest
+	// team matching the profiles)
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	// load the host and ensure it is enrolled in Fleet MDM
+	host, err := svc.ds.HostByIdentifier(ctx, profs.HostUUID)
+	if err != nil {
+		return err // will return a not found error if host does not exist
+	}
+
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil || !hostMDM.IsFleetEnrolled() {
+		if err == nil || fleet.IsNotFound(err) {
+			err = errors.New("host is not enrolled in Fleet MDM")
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     err.Error(),
+				InternalErr: err,
+			})
+		}
+		return err
+	}
+
+	// Collect the profiles' hashes and look for a team with exactly that set.
+	// Also collect the profiles' groups in case we need to create a new team,
+	// and the list of raw profiles bytes.
+	hashes, groups, rawProfiles := make([]string, 0, len(profs.Profiles)),
+		make([]string, 0, len(profs.Profiles)),
+		make([][]byte, 0, len(profs.Profiles))
+	for _, prof := range profs.Profiles {
+		hashes = append(hashes, prof.HexMD5Hash)
+		rawProfiles = append(rawProfiles, prof.Profile)
+		if prof.Group != "" {
+			groups = append(groups, prof.Group)
+		}
+	}
+
+	// find a team with exactly that set of profiles
+	teamIDs, err := svc.ds.MatchMDMAppleConfigProfiles(ctx, hashes)
+	if err != nil {
+		return err
+	}
+
+	var targetTeamID uint
+	if len(teamIDs) > 0 {
+		// if the host is already in one of those valid teams, nothing to do.
+		if host.TeamID != nil {
+			for _, tmID := range teamIDs {
+				if *host.TeamID == tmID {
+					return nil
+				}
+			}
+		}
+		// else assign the host to the first valid team
+		targetTeamID = teamIDs[0]
+
+	} else {
+		// Create a new team with this set of profiles. Creating via the service
+		// call so that it properly assigns the agent options and creates audit
+		// activities, etc.
+		teamName := teamNameFromPreassignGroups(groups)
+		payload := fleet.TeamPayload{Name: &teamName}
+		tm, err := svc.NewTeam(ctx, payload)
+		if err != nil {
+			return err
+		}
+
+		// teams created by the match endpoint have disk encryption
+		// enabled by default.
+		// TODO: maybe make this configurable?
+		payload.MDM = &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{
+				EnableDiskEncryption: true,
+			},
+		}
+
+		// TODO: seems like we don't support enabling disk encryption
+		// on team creation?
+		// see https://github.com/fleetdm/fleet/issues/12220
+		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
+		if err != nil {
+			return err
+		}
+
+		// create profiles for that team via the service call, so that uniqueness
+		// of profile identifier/name is verified, activity created, etc.
+		// NOTE: this will use the read replica to load the team, which was just
+		// created above, could lead to not found issues with slow replication.
+		if err := svc.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil, rawProfiles, false); err != nil {
+			return err
+		}
+
+		targetTeamID = tm.ID
+	}
+
+	// assign host to that team via the service call, which will trigger
+	// deployment of the profiles.
+	if err := svc.AddHostsToTeam(ctx, &targetTeamID, []uint{host.ID}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// teamNameFromPreassignGroups returns the team name to use for a new team
+// created to match the set of profiles preassigned to a host. The team name is
+// derived from the "group" field provided with each request to pre-assign a
+// profile to a host (in fleet.MDMApplePreassignProfilePayload). That field is
+// optional, and empty groups are ignored. The current timestamp is appended to
+// the team's name to help avoid duplicates.
+func teamNameFromPreassignGroups(groups []string) string {
+	const defaultName = "default"
+
+	dedupeGroups := make(map[string]struct{}, len(groups))
+	for _, group := range groups {
+		if group != "" {
+			dedupeGroups[group] = struct{}{}
+		}
+	}
+	groups = groups[:0]
+	for group := range dedupeGroups {
+		groups = append(groups, group)
+	}
+	sort.Strings(groups)
+
+	if len(groups) == 0 {
+		groups = []string{defaultName}
+	}
+
+	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.000"))
 }

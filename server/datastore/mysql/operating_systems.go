@@ -11,7 +11,7 @@ import (
 )
 
 func (ds *Datastore) ListOperatingSystems(ctx context.Context) ([]fleet.OperatingSystem, error) {
-	return listOperatingSystemsDB(ctx, ds.reader)
+	return listOperatingSystemsDB(ctx, ds.reader(ctx))
 }
 
 func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]fleet.OperatingSystem, error) {
@@ -134,7 +134,7 @@ func (ds *Datastore) CleanupHostOperatingSystems(ctx context.Context) error {
 	LEFT JOIN host_operating_system hop ON op.id = hop.os_id
 	WHERE hop.os_id IS NULL
 	`
-	if _, err := ds.writer.ExecContext(ctx, stmt); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "clean up host operating systems")
 	}
 

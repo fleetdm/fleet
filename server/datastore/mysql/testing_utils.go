@@ -80,8 +80,8 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		// immediately so that RunReplication is unblocked too.
 		defer cancel()
 
-		primary := ds.writer
-		replica := ds.reader.(*sqlx.DB)
+		primary := ds.primary
+		replica := ds.replica.(*sqlx.DB)
 		replicaDB := testName + testReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
@@ -275,7 +275,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
-	err := fn(ds.writer)
+	err := fn(ds.primary)
 	require.NoError(tb, err)
 }
 

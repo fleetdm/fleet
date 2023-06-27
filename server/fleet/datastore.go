@@ -195,7 +195,19 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+
+	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
+	// the provided uuids and filtered according to the provided team filters.
+	// The "lite" version is a subset of the fields related to the host. See
+	// documentation of Datastore.HostLite for more information, or the
+	// implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
+
+	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
+	// the provided ids. The "lite" version is a subset of the fields related to
+	// the host. See documentation of Datastore.HostLite for more information, or
+	// the implementation for the exact list.
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -430,8 +442,13 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
-	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
+	// specified Software installed. Includes the path were the software was installed.
+	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
+	// *DEPRECATED use HostVulnSummariesBySoftwareIDs instead* HostsByCVE
+	// returns a list of all hosts that have at least one software suceptible to the provided CVE.
+	// Includes the path were the software was installed.
+	HostsByCVE(ctx context.Context, cve string) ([]HostVulnerabilitySummary, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
@@ -616,7 +633,17 @@ type Datastore interface {
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
+	// Returns a struct with the current installed software on the host (pre-mutations) plus all
+	// mutations performed: what was inserted and what was removed.
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+
+	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
+	// 'reported', either inserts or deletes the corresponding entries in the
+	// 'host_software_installed_paths' table. 'reported' is a set of
+	// 'software.ToUniqueStr()--installed_path' strings. 'mutationResults' contains the software inventory of
+	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
+	// it is used as DB optimization.
+	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
@@ -670,6 +697,10 @@ type Datastore interface {
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
+
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
+	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -745,6 +776,11 @@ type Datastore interface {
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
+	// MatchMDMAppleConfigProfiles returns the list of team ids that have the
+	// exact set of configuration profiles as those specified by their
+	// hex-encoded md5 hashes.
+	MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error)
+
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile id.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
@@ -814,6 +850,24 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// ResetMDMAppleNanoEnrollment resets the
+	// `nano_enrollments.token_update_tally` if a matching row for the host
+	// exists.
+	ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error
+
+	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
+	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
+	// specified team (or no team if teamID is nil).
+	ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error)
+
+	// ListMDMAppleDEPSerialsInHostIDs returns a list of serial numbers of hosts
+	// that are enrolled or pending enrollment in Fleet's MDM via DEP in the
+	// specified list of host IDs.
+	ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs []uint) ([]string, error)
+
+	// GetHostDEPAssignment returns the DEP assignment for the host.
+	GetHostDEPAssignment(ctx context.Context, hostID uint) (*HostDEPAssignment, error)
+
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
@@ -863,6 +917,9 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
+	// GetMDMIdPAccount returns MDM IdP account that matches the given token.
+	GetMDMIdPAccount(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
@@ -908,6 +965,26 @@ type Datastore interface {
 	// Set the profile UUID generated by the call to Apple's DefineProfile API of
 	// the setup assistant for a team or no team.
 	SetMDMAppleSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error
+
+	// Set the profile UUID generated by the call to Apple's DefineProfile API
+	// of the default setup assistant for a team or no team. The default
+	// profile is the same regardless of the team, except for the enabling of
+	// the end-user authentication which may be configured per-team and affects
+	// the JSON registered with Apple's API, possibly resulting in different
+	// profile UUIDs for the same profile depending on the team.
+	SetMDMAppleDefaultSetupAssistantProfileUUID(ctx context.Context, teamID *uint, profileUUID string) error
+
+	// Get the profile UUID and last update timestamp for the default setup
+	// assistant for a team or no team.
+	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+
+	// GetMatchingHostSerials receives a list of serial numbers and returns
+	// a map with all the matching serial numbers in the database.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+
+	// DeleteHostDEPAssignments marks as deleted entries in
+	// host_dep_assignments for host with matching serials.
+	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 }
 
 const (

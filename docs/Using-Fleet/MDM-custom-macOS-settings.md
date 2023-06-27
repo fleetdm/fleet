@@ -16,7 +16,7 @@ How to create a configuration profile with iMazing Profile Creator:
 
 1. Download and install [iMazing Profile Creator](https://imazing.com/profile-editor).
 
-2. Open iMazing Profile Creator and select macOS in the top bar. Fleet only supports enforcing settings on macOS hosts.
+2. Open iMazing Profile Creator and select macOS in the top bar.
 
 3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings a single profile: only include settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
 

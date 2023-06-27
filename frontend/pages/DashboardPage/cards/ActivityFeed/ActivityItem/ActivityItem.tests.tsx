@@ -570,4 +570,142 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "required end user authentication for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacOSSetupEndUserAuth,
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed end user authentication requirement for macOS hosts that automatically enroll to no team.",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for one host transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1],
+        host_display_names: ["foo"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred host", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.TransferredHosts,
+      details: {
+        host_ids: [1, 2, 3],
+        host_display_names: ["foo", "bar", "baz"],
+        team_name: "Alphas",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("transferred 3 hosts", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("foo")).toBeNull();
+    expect(screen.queryByText("bar")).toBeNull();
+    expect(screen.queryByText("baz")).toBeNull();
+    expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
 });
