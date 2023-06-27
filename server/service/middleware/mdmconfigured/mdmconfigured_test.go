@@ -25,7 +25,7 @@ func (m *mockService) VerifyMDMAppleConfigured(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockService) VerifyMDMMicrosoftConfigured(ctx context.Context) error {
+func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	if !m.msMdmConfigured.Load() {
 		return fleet.ErrMDMNotConfigured
 	}

@@ -87,7 +87,7 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 	}
 
 	return mdm_types.DiscoverResponse{
-		XmlNS: mdm.DiscoverNS,
+		XMLNS: mdm.DiscoverNS,
 		DiscoverResult: mdm_types.DiscoverResult{
 			AuthPolicy:                 authPolicy,
 			EnrollmentVersion:          mdm.MinEnrollmentVersion,
@@ -104,19 +104,19 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 	}
 
 	return mdm_types.GetPoliciesResponse{
-		XmlNS: mdm.PolicyNS,
+		XMLNS: mdm.PolicyNS,
 		Response: mdm_types.Response{
 			PolicyFriendlyName: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			NextUpdateHours: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			PoliciesNotChanged: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			Policies: mdm_types.Policies{
 				Policy: mdm_types.GPPolicy{
@@ -207,21 +207,21 @@ func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_typ
 
 	enrollSecExtVal := mdm.EnrollSecExt
 	return mdm_types.RequestSecurityTokenResponseCollection{
-		XmlNS: mdm.EnrollWSTrust,
+		XMLNS: mdm.EnrollWSTrust,
 		RequestSecurityTokenResponse: mdm_types.RequestSecurityTokenResponse{
 			TokenType: mdm.EnrollTType,
 			DispositionMessage: mdm_types.SecAttr{
 				Content: "",
-				XmlNS:   mdm.EnrollReq,
+				XMLNS:   mdm.EnrollReq,
 			},
 			RequestID: mdm_types.SecAttr{
 				Content: "0",
-				XmlNS:   mdm.EnrollReq,
+				XMLNS:   mdm.EnrollReq,
 			},
 			RequestedSecurityToken: mdm_types.RequestedSecurityToken{
 				BinarySecurityToken: mdm_types.BinarySecurityToken{
 					Content:      provisionedToken,
-					XmlNS:        &enrollSecExtVal,
+					XMLNS:        &enrollSecExtVal,
 					ValueType:    mdm.EnrollPDoc,
 					EncodingType: mdm.EnrollEncode,
 				},
@@ -308,7 +308,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 		activityID = &mdm_types.ActivityId{
 			Content:       uuid,
 			CorrelationId: uuid,
-			XmlNS:         urlDiag,
+			XMLNS:         urlDiag,
 		}
 		body.DiscoverResponse = msg
 
@@ -324,7 +324,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 		headerXsu = &urlXSU
 		security = &mdm_types.WsSecurity{
 			MustUnderstand: MUValue,
-			XmlNS:          urlSecExt,
+			XMLNS:          urlSecExt,
 			Timestamp: mdm_types.Timestamp{
 				ID:      timestampID,
 				Created: getUtcTime(secWindowStartTimeMin), // minutes ago
@@ -348,7 +348,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 		activityID = &mdm_types.ActivityId{
 			Content:       uuid,
 			CorrelationId: uuid,
-			XmlNS:         urlDiag,
+			XMLNS:         urlDiag,
 		}
 		body.SoapFault = msg
 
@@ -358,9 +358,9 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 
 	// Return the SoapRequest type with the appropriate fields set
 	return fleet.SoapResponse{
-		XmlNSS: urlNSS,
-		XmlNSA: urlNSA,
-		XmlNSU: headerXsu,
+		XMLNSS: urlNSS,
+		XMLNSA: urlNSA,
+		XMLNSU: headerXsu,
 		Header: mdm_types.ResponseHeader{
 			Action: mdm_types.Action{
 				Content:        action,

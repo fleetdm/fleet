@@ -1,3 +1,6 @@
+// Package mdmconfigured implements middleware functions for the supported platform-specific MDM
+// solutions to ensure MDM is configured and fail fast before reaching the handler if that is not the case.
+
 package mdmconfigured
 
 import (
@@ -30,7 +33,7 @@ func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			if err := m.svc.VerifyMDMMicrosoftConfigured(ctx); err != nil {
+			if err := m.svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 				return nil, err
 			}
 

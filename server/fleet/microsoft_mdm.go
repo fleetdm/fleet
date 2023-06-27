@@ -20,9 +20,9 @@ import (
 // This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
 type SoapResponse struct {
 	XMLName xml.Name       `xml:"s:Envelope"`
-	XmlNSS  string         `xml:"xmlns:s,attr"`
-	XmlNSA  string         `xml:"xmlns:a,attr"`
-	XmlNSU  *string        `xml:"xmlns:u,attr,omitempty"`
+	XMLNSS  string         `xml:"xmlns:s,attr"`
+	XMLNSA  string         `xml:"xmlns:a,attr"`
+	XMLNSU  *string        `xml:"xmlns:u,attr,omitempty"`
 	Header  ResponseHeader `xml:"s:Header"`
 	Body    BodyResponse   `xml:"s:Body"`
 }
@@ -31,12 +31,12 @@ type SoapResponse struct {
 // This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
 type SoapRequest struct {
 	XMLName   xml.Name      `xml:"Envelope"`
-	XmlNSS    string        `xml:"s,attr"`
-	XmlNSA    string        `xml:"a,attr"`
-	XmlNSU    *string       `xml:"u,attr,omitempty"`
-	XmlNSWsse *string       `xml:"wsse,attr,omitempty"`
-	XmlNSWST  *string       `xml:"wst,attr,omitempty"`
-	XmlNSAC   *string       `xml:"ac,attr,omitempty"`
+	XMLNSS    string        `xml:"s,attr"`
+	XMLNSA    string        `xml:"a,attr"`
+	XMLNSU    *string       `xml:"u,attr,omitempty"`
+	XMLNSWsse *string       `xml:"wsse,attr,omitempty"`
+	XMLNSWST  *string       `xml:"wst,attr,omitempty"`
+	XMLNSAC   *string       `xml:"ac,attr,omitempty"`
 	Header    RequestHeader `xml:"Header"`
 	Body      BodyRequest   `xml:"Body"`
 }
@@ -59,12 +59,12 @@ func (req *SoapRequest) GetMessageID() string {
 func (req *SoapRequest) isValidHeader() error {
 	// Check for required fields
 
-	if len(req.XmlNSS) == 0 {
-		return errors.New("invalid SOAP header: XmlNSS")
+	if len(req.XMLNSS) == 0 {
+		return errors.New("invalid SOAP header: XMLNSS")
 	}
 
-	if len(req.XmlNSA) == 0 {
-		return errors.New("invalid SOAP header: XmlNSA")
+	if len(req.XMLNSA) == 0 {
+		return errors.New("invalid SOAP header: XMLNSA")
 	}
 
 	if len(req.Header.MessageID) == 0 {
@@ -121,8 +121,8 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: Discover message not present")
 	}
 
-	if len(req.Body.Discover.XmlNS) == 0 {
-		return errors.New("invalid discover message: XmlNS")
+	if len(req.Body.Discover.XMLNS) == 0 {
+		return errors.New("invalid discover message: XMLNS")
 	}
 
 	// TODO: add check for valid email address
@@ -166,8 +166,8 @@ func (req *SoapRequest) IsValidGetPolicyMsg() error {
 		return errors.New("invalid getpolicies message:  GetPolicies message not present")
 	}
 
-	if len(req.Body.GetPolicies.XmlNS) == 0 {
-		return errors.New("invalid getpolicies message: XmlNS")
+	if len(req.Body.GetPolicies.XMLNS) == 0 {
+		return errors.New("invalid getpolicies message: XMLNS")
 	}
 
 	return nil
@@ -268,7 +268,7 @@ type Action struct {
 type ActivityId struct {
 	Content       string `xml:",chardata"`
 	CorrelationId string `xml:"CorrelationId,attr"`
-	XmlNS         string `xml:"xmlns,attr"`
+	XMLNS         string `xml:"xmlns,attr"`
 }
 
 // Timestamp for certificate authentication
@@ -280,7 +280,7 @@ type Timestamp struct {
 
 // Security token container
 type WsSecurity struct {
-	XmlNS          string    `xml:"xmlns:o,attr"`
+	XMLNS          string    `xml:"xmlns:o,attr"`
 	MustUnderstand string    `xml:"s:mustUnderstand,attr"`
 	Timestamp      Timestamp `xml:"u:Timestamp"`
 }
@@ -314,7 +314,7 @@ type ReplyTo struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/36e33def-59ab-484f-b0bc-701496346925
 
 type Discover struct {
-	XmlNS   string          `xml:"xmlns,attr"`
+	XMLNS   string          `xml:"xmlns,attr"`
 	Request DiscoverRequest `xml:"request"`
 }
 
@@ -323,7 +323,7 @@ type AuthPolicies struct {
 }
 
 type DiscoverRequest struct {
-	XmlNS              string       `xml:"i,attr"`
+	XMLNS              string       `xml:"i,attr"`
 	EmailAddress       string       `xml:"EmailAddress"`
 	RequestVersion     string       `xml:"RequestVersion"`
 	DeviceType         string       `xml:"DeviceType"`
@@ -337,7 +337,7 @@ type DiscoverRequest struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/02b080e4-d1d8-4e0c-af14-b77931cec404
 
 type GetPolicies struct {
-	XmlNS         string        `xml:"xmlns,attr"`
+	XMLNS         string        `xml:"xmlns,attr"`
 	Client        Client        `xml:"client"`
 	RequestFilter RequestFilter `xml:"requestFilter"`
 }
@@ -369,7 +369,7 @@ type RequestSecurityToken struct {
 
 type BinarySecurityToken struct {
 	Content      string  `xml:",chardata"`
-	XmlNS        *string `xml:"xmlns,attr"`
+	XMLNS        *string `xml:"xmlns,attr"`
 	ValueType    string  `xml:"ValueType,attr"`
 	EncodingType string  `xml:"EncodingType,attr"`
 }
@@ -380,7 +380,7 @@ type ContextItem struct {
 }
 
 type AdditionalContext struct {
-	XmlNS       string        `xml:"xmlns,attr"`
+	XMLNS       string        `xml:"xmlns,attr"`
 	ContextItem []ContextItem `xml:"ContextItem"`
 }
 
@@ -390,7 +390,7 @@ type AdditionalContext struct {
 
 type DiscoverResponse struct {
 	XMLName        xml.Name       `xml:"DiscoverResponse"`
-	XmlNS          string         `xml:"xmlns,attr"`
+	XMLNS          string         `xml:"xmlns,attr"`
 	DiscoverResult DiscoverResult `xml:"DiscoverResult"`
 }
 
@@ -407,7 +407,7 @@ type DiscoverResult struct {
 
 type GetPoliciesResponse struct {
 	XMLName  xml.Name `xml:"GetPoliciesResponse"`
-	XmlNS    string   `xml:"xmlns,attr"`
+	XMLNS    string   `xml:"xmlns,attr"`
 	Response Response `xml:"response"`
 	OIDs     OIDs     `xml:"oIDs"`
 }
@@ -415,7 +415,7 @@ type GetPoliciesResponse struct {
 type ContentAttr struct {
 	Content string `xml:",chardata"`
 	Xsi     string `xml:"xsi:nil,attr"`
-	XmlNS   string `xml:"xmlns:xsi,attr"`
+	XMLNS   string `xml:"xmlns:xsi,attr"`
 }
 
 type GenericAttr struct {
@@ -499,13 +499,13 @@ type OIDs struct {
 
 type RequestSecurityTokenResponseCollection struct {
 	XMLName                      xml.Name                     `xml:"RequestSecurityTokenResponseCollection"`
-	XmlNS                        string                       `xml:"xmlns,attr"`
+	XMLNS                        string                       `xml:"xmlns,attr"`
 	RequestSecurityTokenResponse RequestSecurityTokenResponse `xml:"RequestSecurityTokenResponse"`
 }
 
 type SecAttr struct {
 	Content string `xml:",chardata"`
-	XmlNS   string `xml:"xmlns,attr"`
+	XMLNS   string `xml:"xmlns,attr"`
 }
 
 type RequestedSecurityToken struct {

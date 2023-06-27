@@ -85,6 +85,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -209,6 +210,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 
+func (s *integrationMDMTestSuite) TearDownSuite() {
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+}
+
 func (s *integrationMDMTestSuite) FailNextCSRRequestWith(status int) {
 	s.fleetDMNextCSRStatus.Store(status)
 }
@@ -227,12 +237,6 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		// ensure global disk encryption is disabled on exit
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
-  }`), http.StatusOK)
-	}
-	if appCfg.MDM.WindowsEnabledAndConfigured {
-		// ensure Windows MDM is disabled on exit
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK)
 	}
 
@@ -5020,6 +5024,12 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	ctx := context.Background()
 	t := s.T()
 
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.WindowsEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
 	// the feature flag is enabled for the MDM test suite
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -5087,20 +5097,10 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 		}
 	}
-
-	// disable Windows MDM
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": false }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	t := s.T()
 
 	// Preparing the Discovery Request message
 	requestBytes := []byte(`
@@ -5133,30 +5133,26 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
 	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Checking if SOAP response contains a valid DiscoveryResponse message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("DiscoverResult", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	t := s.T()
 
 	// Preparing the Discovery Request message
 	requestBytes := []byte(`
@@ -5188,28 +5184,24 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
 
 	// Checking if response can be unmarshalled to an golang type
 	var xmlType interface{}
 	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Checking if SOAP response contains a valid SoapFault message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	t := s.T()
 
 	// create a new Host to get the UUID on the DB
 	windowsHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -5220,11 +5212,11 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
 		Platform:      "Windows",
 	})
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Preparing the GetPolicies Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	requestBytes := []byte(`
 			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
@@ -5253,34 +5245,30 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
 	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Checking if SOAP response contains a valid DiscoveryResponse message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
-	require.True(s.T(), s.isXMLTagPresent("policyOIDReference", resSoapMsg))
-	require.True(s.T(), s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("GetPoliciesResponse", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("policyOIDReference", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("oIDReferenceID", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("validityPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("renewalPeriodSeconds", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID() {
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	t := s.T()
 
 	// create a new Host to get the UUID on the DB
-	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            1,
 		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
 		NodeKey:       ptr.String("Desktop-ABCQWE"),
@@ -5288,11 +5276,11 @@ func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID()
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
 		Platform:      "Windows",
 	})
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Preparing the GetPolicies Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, "not_exists")
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	requestBytes := []byte(`
 			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
@@ -5321,20 +5309,20 @@ func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID()
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
-	require.Contains(s.T(), resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
 	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	// Checking if SOAP response contains a valid DiscoveryResponse message
 	resSoapMsg := string(resBytes)
-	require.True(s.T(), s.isXMLTagPresent("s:fault", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("s:value", resSoapMsg))
-	require.True(s.T(), s.isXMLTagContentPresent("s:text", resSoapMsg))
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////

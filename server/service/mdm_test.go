@@ -144,7 +144,7 @@ func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
 	}
 
-	err := svc.VerifyMDMMicrosoftConfigured(ctx)
+	err := svc.VerifyMDMWindowsConfigured(ctx)
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -158,7 +158,7 @@ func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
 		return nil, testErr
 	}
 
-	err = svc.VerifyMDMMicrosoftConfigured(ctx)
+	err = svc.VerifyMDMWindowsConfigured(ctx)
 	require.ErrorIs(t, err, testErr)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -171,7 +171,7 @@ func TestVerifyMDMMicrosoftConfigured(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
 	}
 
-	err = svc.VerifyMDMMicrosoftConfigured(ctx)
+	err = svc.VerifyMDMWindowsConfigured(ctx)
 	require.NoError(t, err)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
