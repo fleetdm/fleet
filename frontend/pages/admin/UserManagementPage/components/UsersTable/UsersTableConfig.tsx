@@ -240,7 +240,7 @@ const generateActionDropdownOptions = (
     {
       label: "Edit",
       disabled: false,
-      value: isCurrentUser ? "editMyAccount" : "edit",
+      value: "edit",
     },
     {
       label: "Require password reset",
