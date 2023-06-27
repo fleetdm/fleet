@@ -7,6 +7,14 @@ The purpose is to know the impact of Fleet provided queries on real devices.
 > are under review: https://github.com/osquery/osquery/pull/8070.
 > You will have to build osqueryd from source code.
 
+## Requirements
+
+- Install gnuplot and ripgrep:
+```sh
+brew install gnuplot ripgrep
+```
+- Tooling to build osqueryd from source (at the time of writing this is needed), see https://osquery.readthedocs.io/en/stable/development/building/.
+
 ## Build fleetd_tables
 
 We are going to use the fleetd tables as an extension so that it is also monitored by the watchdog.
