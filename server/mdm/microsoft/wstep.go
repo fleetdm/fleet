@@ -36,7 +36,12 @@ const (
 	MDETokenPKCSInvalid
 )
 
-// WSTEPDepot implements certificate management associated with MS-WSTEP messages in the MS-MDE2 protocol.
+// WSTEPDepot implements certificate management tasks associated with MS-WSTEP messages in the MS-MDE2
+// protocol.
+//
+// Note: The current implementation does not persist certificates it issues; however, it could
+// be extended to do so in the future. In that case, the depot would need to be initialized with a
+// datastore connection and extended to include datastore operations (similar to the SCEP depot).
 type WSTEPDepot struct {
 	// identityCert holds the identity certificate of the depot.
 	identityCert *x509.Certificate
@@ -49,6 +54,8 @@ type WSTEPDepot struct {
 	maxSerialNumber *big.Int
 }
 
+// CertDepot is an interface for certificate management tasks associated with Microsoft MDM (e.g.,
+// signing CSRs). It is implemented by *WSTEPDepot.
 type CertDepot interface {
 	SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error)
 }
