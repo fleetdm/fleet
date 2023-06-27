@@ -32,7 +32,6 @@ go.mod @fleetdm/go
 
 # Fleet documentation (who is auto-requested as reviewer for changes to docs?)
 /docs/ @rachaelshaw
-/schema/tables @rachaelshaw
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @rachaelshaw
@@ -43,6 +42,7 @@ go.mod @fleetdm/go
 
 # Expanded table documentation
 /schema @eashaw
+/schema/tables @rachaelshaw
 
 # Articles
 /articles @jarodreyes
