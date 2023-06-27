@@ -6858,3 +6858,43 @@ const (
   }
 }`
 )
+
+func (s *integrationTestSuite) TestDistributedWriteWithStats() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	distributedWriteResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write",
+		SubmitDistributedQueryResultsRequest{
+			NodeKey: *host.NodeKey,
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_users": fleet.OsqueryStatus(0),
+			},
+			Results: fleet.OsqueryDistributedQueryResults{
+				"fleet_detail_query_users": []map[string]string{},
+			},
+			Stats: map[string]fleet.OsqueryStats{
+				"fleet_detail_query_users": {
+					WallTimeMs:   1000,
+					UserTimeMs:   700,
+					SystemTimeMs: 100,
+					Memory:       1024,
+				},
+			},
+		},
+		http.StatusOK,
+		&distributedWriteResp,
+	)
+}

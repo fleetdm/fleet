@@ -829,6 +829,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -848,6 +849,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -885,6 +887,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -1045,7 +1048,12 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx,
+		results,
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]fleet.OsqueryStats{}),
+	)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1333,7 +1341,12 @@ func TestDetailQueries(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx,
+		results,
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]fleet.OsqueryStats{}),
+	)
 	require.NotNil(t, gotHost)
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
@@ -1675,7 +1688,12 @@ func TestDistributedQueryResults(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(hostCtx,
+		results,
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]fleet.OsqueryStats{},
+	)
 	require.NoError(t, err)
 }
 
@@ -2233,6 +2251,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 
@@ -2274,6 +2293,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	assert.True(t, ds.UpdateHostFuncInvoked)
@@ -2486,6 +2506,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 2)
@@ -2535,6 +2556,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 2)
@@ -2573,6 +2595,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.NotNil(t, recordedResults[1])
@@ -2694,6 +2717,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
@@ -2797,6 +2821,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
@@ -2841,6 +2866,7 @@ func TestPolicyWebhooks(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]fleet.OsqueryStats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
