@@ -50,7 +50,7 @@ sudo ENROLL_SECRET=<...> ./osquery/osqueryd \
     --carver_block_size=2000000 \
     --extensions_autoload=/tmp/extensions.load
     --allow_unsafe \
-    --enable_watchdog_logging \
+    --enable_watchdog_debug \
     --distributed_denylist_duration 0 \
     --enable_extensions_watchdog 2>&1 | tee /tmp/osqueryd.log
 ```
