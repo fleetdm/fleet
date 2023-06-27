@@ -33,8 +33,12 @@ export default {
   // The test environment that will be used for testing
   testEnvironment: "./jsdomwithfetch.ts",
   // Define additional global variables
-  globals: {
-    // Neither jest nor jsdom include the chrome global, so we need to define it here.
-    chrome: { runtime: {} },
-  },
+  // Using jest-chrome library instead of defining variables here
+  // globals: {
+  //   // Neither jest nor jsdom include the chrome global, so we need to define it here.
+  //   chrome: {
+  //     runtime: {},
+  //     privacy: { network: {}, services: {}, websites: {} },
+  //   },
+  // },
 };
