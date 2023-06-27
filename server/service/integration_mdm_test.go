@@ -5210,7 +5210,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 		NodeKey:       ptr.String("Desktop-ABCQWE"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "Windows",
+		Platform:      "windows",
 	})
 	require.NoError(t, err)
 
@@ -5218,29 +5218,8 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
 	require.NoError(t, err)
 
-	requestBytes := []byte(`
-			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
-			<s:Header>
-				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
-				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
-				<a:ReplyTo>
-				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-				</a:ReplyTo>
-				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
-				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
-				</wsse:Security>
-			</s:Header>
-			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
-				<client>
-					<lastUpdate xsi:nil="true"/>
-					<preferredLanguage xsi:nil="true"/>
-				</client>
-				<requestFilter xsi:nil="true"/>
-				</GetPolicies>
-			</s:Body>
-			</s:Envelope>`)
+	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
+	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
 
@@ -5264,7 +5243,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
 	require.True(t, s.isXMLTagContentPresent("minimalKeyLength", resSoapMsg))
 }
 
-func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID() {
+func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	t := s.T()
 
 	// create a new Host to get the UUID on the DB
@@ -5274,7 +5253,7 @@ func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID()
 		NodeKey:       ptr.String("Desktop-ABCQWE"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
-		Platform:      "Windows",
+		Platform:      "windows",
 	})
 	require.NoError(t, err)
 
@@ -5282,29 +5261,48 @@ func (s *integrationMDMTestSuite) TestInvalidGetPoliciesRequestWithInvalidUUID()
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, "not_exists")
 	require.NoError(t, err)
 
-	requestBytes := []byte(`
-			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
-			<s:Header>
-				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
-				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
-				<a:ReplyTo>
-				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
-				</a:ReplyTo>
-				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
-				<wsse:Security s:mustUnderstand="1">
-				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
-				</wsse:Security>
-			</s:Header>
-			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
-				<client>
-					<lastUpdate xsi:nil="true"/>
-					<preferredLanguage xsi:nil="true"/>
-				</client>
-				<requestFilter xsi:nil="true"/>
-				</GetPolicies>
-			</s:Body>
-			</s:Envelope>`)
+	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
+
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+
+	// Checking if SOAP response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if SOAP response contains a valid DiscoveryResponse message
+	resSoapMsg := string(resBytes)
+	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
+	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
+	t := s.T()
+
+	// create a new Host to get the UUID on the DB
+	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("Ubuntu01"),
+		NodeKey:       ptr.String("Ubuntu01"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// Preparing the GetPolicies Request message
+	encodedBinToken, err := GetEncodedBinarySecurityToken(1, linuxHost.UUID)
+	require.NoError(t, err)
+
+	requestBytes, err := s.newGetPoliciesMsg(encodedBinToken)
+	require.NoError(t, err)
 
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2PolicyPath, requestBytes, http.StatusOK)
 
@@ -5354,4 +5352,34 @@ func (s *integrationMDMTestSuite) isXMLTagContentPresent(xmlTag string, payload 
 	}
 
 	return matched
+}
+
+func (s *integrationMDMTestSuite) newGetPoliciesMsg(encodedBinToken string) ([]byte, error) {
+	if len(encodedBinToken) == 0 {
+		return nil, errors.New("encodedBinToken is empty")
+	}
+
+	return []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:ReplyTo>
+				<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+				</a:ReplyTo>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>
+				<wsse:Security s:mustUnderstand="1">
+				<wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + encodedBinToken + `</wsse:BinarySecurityToken>
+				</wsse:Security>
+			</s:Header>
+			<s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+				<GetPolicies xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+				<client>
+					<lastUpdate xsi:nil="true"/>
+					<preferredLanguage xsi:nil="true"/>
+				</client>
+				<requestFilter xsi:nil="true"/>
+				</GetPolicies>
+			</s:Body>
+			</s:Envelope>`), nil
 }
