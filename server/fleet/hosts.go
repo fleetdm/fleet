@@ -570,8 +570,6 @@ func (h *Host) IsEligibleForMicrosoftMDMEnrollment() bool {
 func (h *Host) IsEligibleForMicrosoftMDMUnenrollment() bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
-		// TODO(mna): should that be only IsManualFleetEnrolled? Other types of
-		// enrollment will possibly require a different type of unenrollment?
 		h.MDMInfo.IsFleetEnrolled() &&
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
