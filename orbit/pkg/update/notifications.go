@@ -85,9 +85,9 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	return cfg, err
 }
 
-type execWinAPIFunc func(MicrosoftMDMEnrollmentArgs) error
+type execWinAPIFunc func(WindowsMDMEnrollmentArgs) error
 
-type microsoftMDMEnrollmentConfigFetcher struct {
+type windowsMDMEnrollmentConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
@@ -98,7 +98,7 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	HostUUID string
 
 	// for tests, to be able to mock command execution. If nil, will use
-	// RunMicrosoftMDMEnrollment.
+	// RunWindowstMDMEnrollment.
 	execWinAPIFn execWinAPIFunc
 
 	// ensures only one command runs at a time, protects access to lastRun and
@@ -108,12 +108,12 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	isWindowsServer bool
 }
 
-func ApplyMicrosoftMDMEnrollmentFetcherMiddleware(
+func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
 ) OrbitConfigFetcher {
-	return &microsoftMDMEnrollmentConfigFetcher{
+	return &windowsMDMEnrollmentConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: frequency,
 		HostUUID:  hostUUID,
@@ -125,11 +125,11 @@ var errIsWindowsServer = errors.New("device is a Windows Server")
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the "needs windows enrollment" flag to true, executes the command
 // to enroll into Windows MDM (or not, if the device is a Windows Server).
-func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := w.Fetcher.GetConfig()
 
-	if err == nil && cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
-		if cfg.Notifications.MicrosoftMDMDiscoveryEndpoint == "" {
+	if err == nil && cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
+		if cfg.Notifications.WindowsMDMDiscoveryEndpoint == "" {
 			log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
 		} else if w.mu.TryLock() {
 			defer w.mu.Unlock()
@@ -139,10 +139,10 @@ func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
 				fn := w.execWinAPIFn
 				if fn == nil {
-					fn = RunMicrosoftMDMEnrollment
+					fn = RunWindowsMDMEnrollment
 				}
-				args := MicrosoftMDMEnrollmentArgs{
-					DiscoveryURL: cfg.Notifications.MicrosoftMDMDiscoveryEndpoint,
+				args := WindowsMDMEnrollmentArgs{
+					DiscoveryURL: cfg.Notifications.WindowsMDMDiscoveryEndpoint,
 					HostUUID:     w.HostUUID,
 				}
 				if err := fn(args); err != nil {
