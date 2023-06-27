@@ -16,7 +16,9 @@ var pdfMagic = []byte{0x25, 0x50, 0x44, 0x46}
 func CheckPDF(pdf io.Reader) error {
 	buf := make([]byte, len(pdfMagic))
 	if _, err := io.ReadFull(pdf, buf); err != nil {
-		if errors.Is(err, io.ErrUnexpectedEOF) {
+		// ReadFull returns ErrUnexpectedEOF if it can't read enough bytes, or EOF
+		// if it cannot read a single byte.
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
 			return ErrInvalidType
 		}
 		return fmt.Errorf("reading magic bytes: %w", err)
