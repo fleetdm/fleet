@@ -82,6 +82,6 @@ columns:
     required: false
     type: integer
   - name: topics_enabled
-    description: 1 if enabled else 0 *Available for Chrome 111+
+    description: 1 if enabled else 0 * Available for Chrome 111+
     required: false
     type: integer
