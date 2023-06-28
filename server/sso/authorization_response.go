@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -108,7 +109,7 @@ func (r resp) UserID() string {
 func (r resp) UserDisplayName() string {
 	if r.response != nil {
 		for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
-			if _, ok := validDisplayNameAttrs[attr.Name]; ok {
+			if _, ok := validDisplayNameAttrs[strings.ToLower(attr.Name)]; ok {
 				for _, v := range attr.AttributeValues {
 					if v.Value != "" {
 						return v.Value

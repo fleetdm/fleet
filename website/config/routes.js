@@ -67,7 +67,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
@@ -281,6 +281,8 @@ module.exports.routes = {
     }
   },
 
+  'GET /support': { action: 'view-support' },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
@@ -291,6 +293,13 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Fleet for higher education',
       pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
+    }
+  },
+  'GET /imagine/rapid-7-alternative': {
+    action: 'imagine/view-rapid-7-alternative',
+    locals: {
+      pageTitleForMeta: 'An open-source alternative to Rapid7',
+      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
     }
   },
 
@@ -373,7 +382,6 @@ module.exports.routes = {
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /support':                    '/company/contact',
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
@@ -459,4 +467,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
+  'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
 };

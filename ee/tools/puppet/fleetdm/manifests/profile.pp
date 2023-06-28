@@ -36,6 +36,15 @@ define fleetdm::profile (
     }
 
     $host_uuid = $facts['system_profiler']['hardware_uuid']
-    fleetdm::preassign_profile($host_uuid, $template, $group)
+    $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group)
+    $err = $response['error']
+
+    if $err != '' {
+      notify { "error pre-assigning profile ${$name}: ${$err}":
+        loglevel => 'err',
+      }
+    } else {
+      notify { "successfully pre-assigned profile ${$name}": }
+    }
   }
 }

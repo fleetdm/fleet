@@ -23,7 +23,7 @@ parasails.registerPage('articles', {
     } else {
       switch(this.category) {
         // If a specific category was provided, we'll set the articleCategory and categoryDescription.
-        case 'device-management':
+        case 'success-stories':
           this.articleCategory = 'Success stories';
           this.categoryDescription = 'Read about how others are using Fleet and osquery.';
           break;

@@ -76,8 +76,10 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
-    // Adding scroll event listener for scrolling sidebars with the header.
-    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
+    // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
+    if(!this.isDocsLandingPage){
+      window.addEventListener('scroll', this.handleScrollingInDocumentation);
+    }
   },
 
   mounted: async function() {
@@ -132,7 +134,7 @@ parasails.registerPage('basic-documentation', {
     // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
     (function highlightThatSyntax(){
       $('pre code').each((i, block) => {
-        window.hljs.highlightBlock(block);
+        window.hljs.highlightElement(block);
       });
 
       // Make sure the <pre> tags whose code isn't being highlighted
@@ -264,23 +266,38 @@ parasails.registerPage('basic-documentation', {
       this.searchString = this.inputTextValue;
     },
 
-    scrollSideNavigationWithHeader: function () {
-      var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if(rightNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+    handleScrollingInDocumentation: function () {
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden', 'scrolled');
+        } else if (scrollTop === 0) {
+          rightNavBar.classList.remove('header-hidden', 'scrolled');
         } else {
-          if(scrollTop === 0) {
-            rightNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            rightNavBar.classList.remove('header-hidden');
-          }
+          rightNavBar.classList.remove('header-hidden');
+        }
+      }
+      // If back to top button exists, add and remove a class based on the current scroll position.
+      if (backToTopButton){
+        if (scrollTop > 2500) {
+          backToTopButton.classList.add('show');
+        } else if (scrollTop === 0) {
+          backToTopButton.classList.remove('show');
         }
       }
       this.scrollDistance = scrollTop;
+    },
+    clickScrollToTop: function() {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
     }
-
   }
 
 });

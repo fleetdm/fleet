@@ -1,0 +1,1 @@
+- When creating a PolicySpec, return the proper HTTP status code if the Team is not found.

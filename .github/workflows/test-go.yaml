@@ -50,7 +50,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2.1.3
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -107,7 +107,7 @@ jobs:
 
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
-      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
           {

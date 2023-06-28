@@ -614,10 +614,14 @@ func main() {
 
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
-		const renewEnrollmentProfileCommandFrequency = time.Hour
+		const (
+			renewEnrollmentProfileCommandFrequency = time.Hour
+			windowsMDMEnrollmentCommandFrequency   = time.Hour
+		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
-		if runtime.GOOS == "darwin" {
+		switch runtime.GOOS {
+		case "darwin":
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
@@ -626,6 +630,8 @@ func main() {
 
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
+		case "windows":
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second

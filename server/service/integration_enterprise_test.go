@@ -2491,6 +2491,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(route.path, tkn)
 		}
+
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error())
@@ -2793,11 +2794,14 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
 
-	// nudge config is empty if macos_updates is not set
+	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 
 	// set macos_updates
 	s.applyConfig([]byte(`
