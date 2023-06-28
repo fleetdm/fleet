@@ -24,7 +24,18 @@
       .display_name__cell {
         white-space: nowrap;
       }
+
+      // Required to remove few pixel dead space on bottom of table
+      &__data-table-block {
+        height: 0;
+      }
+      // Required to see dropshadow after removing few pixel dead space on bottom of table
+      .data-table-block {
+        box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+        border-radius: 0 0 8px 8px;
+      }
     }
+
     .empty-search,
     .error-search {
       padding-top: 72px;
