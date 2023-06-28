@@ -94,7 +94,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \*** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\**** Global admins can neither demote their own role nor change themselves to be a Team-specific user.
+\**** Global admins can neither demote their own role nor change themselves to be a team-specific user.
 ## Team member permissions
 
 `Applies only to Fleet Premium`
