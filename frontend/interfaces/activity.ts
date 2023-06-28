@@ -46,8 +46,8 @@ export enum ActivityType {
   EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
   DisabledMacOSSetupEndUserAuth = "disabled_macos_setup_end_user_auth",
   TransferredHosts = "transferred_hosts",
-  EnableWindowsMdm = "enable_windows_mdm",
-  DisableWindowsMdm = "disable_windows_mdm",
+  EnabledWindowsMdm = "enabled_windows_mdm",
+  DisabledWindowsMdm = "disabled_windows_mdm",
 }
 export interface IActivity {
   created_at: string;
