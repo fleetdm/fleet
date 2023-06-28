@@ -108,7 +108,7 @@ func (rule CPEProcessingRule) Validate() error {
 	cveMap := make(map[string]bool, len(rule.CVEs))
 	for _, cve := range rule.CVEs {
 		if strings.TrimSpace(cve) == "" {
-			return fmt.Errorf("CVE can't be empty")
+			return errors.New("CVE can't be empty")
 		}
 		if isDup := cveMap[cve]; isDup {
 			return fmt.Errorf("duplicated CVE '%s'", cve)
