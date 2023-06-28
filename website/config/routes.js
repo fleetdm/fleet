@@ -247,7 +247,7 @@ module.exports.routes = {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'Device management | Fleet for osquery',
-      pageDescriptionForMeta: 'Read about Fleet\'s device management features.',
+      pageDescriptionForMeta: 'GitOps-driven MDM. Automate the management of your fleet of devices with increased visibility, control, and improved stability.',
       currentSection: 'platform',
     }
   },
