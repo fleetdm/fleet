@@ -1,6 +1,11 @@
 package nvd
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/Masterminds/semver"
 	"github.com/facebookincubator/nvdtools/wfn"
 )
@@ -10,28 +15,25 @@ type CPEProcessingRuleAction struct {
 	Skip bool `json:"skip"`
 }
 
-// versionRange represents an inclusive version range
-type versionRange struct {
-	lower *semver.Version
-	upper *semver.Version
-}
-
-// CPEProcessingRule specifies an action that needs to take place if both
-// the CVE and the CPE attributes match
+// CPEProcessingRule specifies an action that will be executed if the rule matches a CPE and a CVE.
 type CPEProcessingRule struct {
-	Vendor      string                  `json:"vendor"`
-	Product     string                  `json:"product"`
-	TargetSW    string                  `json:"target_sw"`
-	SemVerLower string                  `json:"sem_ver_lower"`
-	SemVerUpper string                  `json:"sem_ver_upper"`
-	CVE         string                  `json:"cve"`
-	Action      CPEProcessingRuleAction `json:"action"`
+	Vendor   string `json:"vendor"`    // Software vendor.
+	Product  string `json:"product"`   // Software product name.
+	TargetSW string `json:"target_sw"` // Target software, this usually corresponds to the target OS.
+
+	// Specifies a version constraint. See https://pkg.go.dev/github.com/Masterminds/semver@v1.5.0#hdr-Checking_Version_Constraints
+	// for reference.
+	SemVerConstraint string `json:"sem_ver_constraint"`
+
+	// Set of CVEs that this rule targets
+	CVEs []string `json:"cves"`
+
+	// What to do if the rule matches
+	Action CPEProcessingRuleAction `json:"action"`
 }
 
-type CPEProcessingRules []CPEProcessingRule
-
-// getCPEAttrs maps the processing rule to its CPE attributes
-func (rule CPEProcessingRule) getCPEAttrs() *wfn.Attributes {
+// getCPEMeta maps the processing rule to its CPE attributes
+func (rule CPEProcessingRule) getCPEMeta() *wfn.Attributes {
 	return &wfn.Attributes{
 		Vendor:   rule.Vendor,
 		Product:  rule.Product,
@@ -39,50 +41,107 @@ func (rule CPEProcessingRule) getCPEAttrs() *wfn.Attributes {
 	}
 }
 
-// getVerRange returns a inclusive version range based
-func (rule CPEProcessingRule) getVerRange() (versionRange, error) {
-	lower, err := semver.NewVersion(rule.SemVerLower)
-	if err != nil {
-		return versionRange{}, err
+// containsCVE returns whether the rule contains the cve
+func (rule CPEProcessingRule) containsCVE(cve string) bool {
+	for _, rCVE := range rule.CVEs {
+		if rCVE == cve {
+			return true
+		}
 	}
-
-	upper, err := semver.NewVersion(rule.SemVerUpper)
-	if err != nil {
-		return versionRange{}, err
-	}
-
-	return versionRange{
-		lower: lower,
-		upper: upper,
-	}, nil
+	return false
 }
 
-// Matches returns true if both the provided software and CVE match the rule.
-func (rule CPEProcessingRule) Matches(software softwareCPEWithNVDMeta, cve string) bool {
-	if cve != rule.CVE {
+// Matches returns true if both the provided CPE and CVE match the rule.
+func (rule CPEProcessingRule) Matches(cpeMeta *wfn.Attributes, cve string) bool {
+	if cpeMeta == nil || !cpeMeta.MatchWithoutVersion(rule.getCPEMeta()) {
 		return false
 	}
 
-	if software.meta == nil || !software.meta.MatchWithoutVersion(rule.getCPEAttrs()) {
+	if ok := rule.containsCVE(cve); !ok {
 		return false
 	}
 
-	// Check if versions match
-	verRange, err := rule.getVerRange()
+	// The SemVer constraint is validated at instantiation time, so it should be ok to ignore the error.
+	constraint, _ := semver.NewConstraint(rule.SemVerConstraint)
+
+	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
 	if err != nil {
+		return false
+	}
+	return constraint.Check(ver)
+}
+
+// Validate validates the rule, returns an error if there's something wrong.
+func (rule CPEProcessingRule) Validate() error {
+	validateCPEPart := func(errPrefix, val string) error {
+		switch strings.TrimSpace(val) {
+		case "":
+			return fmt.Errorf("%s can't be empty", errPrefix)
+		case "*":
+			return fmt.Errorf("%s can't be 'ANY'", errPrefix)
+		case "-":
+			return fmt.Errorf("%s can't be 'NA'", errPrefix)
+		default:
+			return nil
+		}
 	}
 
-	softwareVer, _ := semver.NewVersion(software.meta.Version)
-	return (verRange.lower.GreaterThan(softwareVer) || verRange.lower.Equal(softwareVer)) &&
-		(verRange.upper.LessThan(softwareVer) || verRange.lower.Equal(softwareVer))
+	// Validate CPE parts
+	if err := validateCPEPart("Vendor", rule.Vendor); err != nil {
+		return err
+	}
+	if err := validateCPEPart("Product", rule.Product); err != nil {
+		return err
+	}
+	if err := validateCPEPart("TargetSW", rule.TargetSW); err != nil {
+		return err
+	}
+
+	// Validate SemVerConstraint
+	if _, err := semver.NewConstraint(rule.SemVerConstraint); err != nil {
+		return err
+	}
+
+	// Validate CVEs have no dups
+	if len(rule.CVEs) == 0 {
+		return errors.New("At least one CVE is required")
+	}
+	cveMap := make(map[string]bool, len(rule.CVEs))
+	for _, cve := range rule.CVEs {
+		if strings.TrimSpace(cve) == "" {
+			return fmt.Errorf("CVE can't be empty")
+		}
+		if isDup := cveMap[cve]; isDup {
+			return fmt.Errorf("duplicated CVE '%s'", cve)
+		}
+		cveMap[cve] = true
+	}
+
+	return nil
+}
+
+type CPEProcessingRules []CPEProcessingRule
+
+func (rules *CPEProcessingRules) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, rules); err != nil {
+		return err
+	}
+
+	for i, rule := range *rules {
+		if err := rule.Validate(); err != nil {
+			return fmt.Errorf("invalid rule %d: %w", i, err)
+		}
+	}
+
+	return nil
 }
 
 // FindMatch returns the first matching rule
-func (rules CPEProcessingRules) FindMatch(software softwareCPEWithNVDMeta, cve string) (CPEProcessingRule, bool) {
+func (rules CPEProcessingRules) FindMatch(cpeMeta *wfn.Attributes, cve string) (*CPEProcessingRule, bool) {
 	for _, rule := range rules {
-		if rule.Matches(software, cve) {
-			return rule, true
+		if rule.Matches(cpeMeta, cve) {
+			return &rule, true
 		}
 	}
-	return CPEProcessingRule{}, false
+	return nil, false
 }

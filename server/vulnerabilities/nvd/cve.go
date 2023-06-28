@@ -229,7 +229,7 @@ func checkCVEs(
 						}
 
 						if rule, ok := postMatchingRules.FindMatch(
-							softwareCPE,
+							softwareCPE.meta,
 							matches.CVE.ID(),
 						); ok {
 							if rule.Action.Skip {
