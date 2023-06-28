@@ -1,9 +1,11 @@
 package microsoft_mdm
 
-import "github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+import (
+	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+)
 
 const (
-	// MDMPath is Fleet's HTTP path for the core Microsoft MDM service.
+	// MDMPath is Fleet's HTTP path for the core Windows MDM service.
 	MDMPath = "/api/mdm/microsoft"
 
 	// DiscoveryPath is the HTTP endpoint path that serves the IDiscoveryService functionality.
@@ -109,16 +111,25 @@ const (
 
 	// HTTP Content Type for SOAP responses
 	SoapContentType = "application/soap+xml; charset=utf-8"
+
+	// Minimal Key Length for SHA1WithRSA encryption
+	PolicyMinKeyLength = "2048"
+
+	// Certificate Validity Period in seconds (365 days)
+	PolicyCertValidityPeriodInSecs = "31536000"
+
+	// Certificate Renewal Period in seconds (180 days)
+	PolicyCertRenewalPeriodInSecs = "15552000"
 )
 
-func ResolveMicrosoftMDMDiscovery(serverURL string) (string, error) {
+func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)
 }
 
-func ResolveMicrosoftMDMPolicy(serverURL string) (string, error) {
+func ResolveWindowsMDMPolicy(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2PolicyPath, false)
 }
 
-func ResolveMicrosoftMDMEnroll(serverURL string) (string, error) {
+func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
 }

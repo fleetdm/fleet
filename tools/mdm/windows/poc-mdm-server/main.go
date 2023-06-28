@@ -26,7 +26,7 @@ var (
 )
 
 func main() {
-	fmt.Println("Starting Microsoft MDM Demo Server")
+	fmt.Println("Starting Windows MDM Demo Server")
 
 	// Parse CMD flags. This populates the varibles defined above
 	flag.StringVar(&domain, "domain", "mdmwindows.com", "Your servers primary domain")
@@ -74,7 +74,7 @@ func main() {
 	// Static root endpoint
 	r.Path("/").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		w.Write([]byte(`<center><h1>FleetDM Microsoft MDM Demo Server<br></h1>.<center>`))
+		w.Write([]byte(`<center><h1>FleetDM Windows MDM Demo Server<br></h1>.<center>`))
 		w.Write([]byte(`<br><center><img src="https://fleetdm.com/images/press-kit/fleet-logo-dark-rgb.png"></center>`))
 	})
 

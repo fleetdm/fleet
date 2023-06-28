@@ -149,16 +149,16 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 
 			fetcher := &dummyConfigFetcher{
 				cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-					NeedsProgrammaticMicrosoftMDMEnrollment: c.enrollFlag,
-					MicrosoftMDMDiscoveryEndpoint:           c.discoveryURL,
+					NeedsProgrammaticWindowsMDMEnrollment: c.enrollFlag,
+					WindowsMDMDiscoveryEndpoint:           c.discoveryURL,
 				}},
 			}
 
 			var apiGotCalled bool
-			enrollFetcher := &microsoftMDMEnrollmentConfigFetcher{
+			enrollFetcher := &windowsMDMEnrollmentConfigFetcher{
 				Fetcher:   fetcher,
 				Frequency: time.Hour, // doesn't matter for this test
-				execWinAPIFn: func(args MicrosoftMDMEnrollmentArgs) error {
+				execWinAPIFn: func(args WindowsMDMEnrollmentArgs) error {
 					apiGotCalled = true
 					return c.apiErr
 				},
@@ -183,8 +183,8 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 
 	fetcher := &dummyConfigFetcher{
 		cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-			NeedsProgrammaticMicrosoftMDMEnrollment: true,
-			MicrosoftMDMDiscoveryEndpoint:           "http://example.com",
+			NeedsProgrammaticWindowsMDMEnrollment: true,
+			WindowsMDMDiscoveryEndpoint:           "http://example.com",
 		}},
 	}
 
@@ -193,10 +193,10 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 		apiErr       error
 	)
 	chProceed := make(chan struct{})
-	enrollFetcher := &microsoftMDMEnrollmentConfigFetcher{
+	enrollFetcher := &windowsMDMEnrollmentConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
-		execWinAPIFn: func(args MicrosoftMDMEnrollmentArgs) error {
+		execWinAPIFn: func(args WindowsMDMEnrollmentArgs) error {
 			<-chProceed    // will be unblocked only when allowed
 			apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
 			return apiErr
