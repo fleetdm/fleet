@@ -59,4 +59,4 @@ Learn more about the company and [why you should join us here](https://fleetdm.c
 
 Want to join the team?
 
-Reach out to Mo Zhu on linkedin.
+Reach out to [Mo Zhu on LinkedIn](https://www.linkedin.com/in/mo-zhu/).
