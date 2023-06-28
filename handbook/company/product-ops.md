@@ -1,4 +1,4 @@
-# 🎬 Product Ops
+# ⚗️ Product Ops
 
 ## Let's start with why we exist. 📡
 
