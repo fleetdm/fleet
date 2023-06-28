@@ -11,11 +11,18 @@
     border-radius: 0px 0px 8px 8px;
 
     .table-container {
-      min-height: 225px;
       box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
       border-radius: 0px 0px 8px 8px;
       .data-table__wrapper {
         overflow: auto;
+      }
+
+      &__data-table-block > div {
+        min-height: 89px;
+      }
+
+      .display_name__cell {
+        white-space: nowrap;
       }
     }
     .empty-search,
