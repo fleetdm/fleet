@@ -5083,6 +5083,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
@@ -5105,6 +5106,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		"mdm": { "windows_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// set the win-no-team host as enrolled in Windows MDM
 	noTeamHost := hostsBySuffix["win-no-team"]
