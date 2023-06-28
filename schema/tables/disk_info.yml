@@ -26,23 +26,25 @@ columns:
     required: false
   - name: partitions
     platforms:
-      - windows      
+      - windows
   - name: disk_index
     platforms:
-      - windows      
+      - windows
   - name: pnp_device_id
     platforms:
-      - windows      
+      - windows
   - name: manufacturer
     platforms:
-      - windows      
+      - windows
   - name: hardware_model
     platforms:
-      - windows      
+      - windows
   - name: serial
     platforms:
-      - windows      
+      - windows
   - name: description
     platforms:
-      - windows      
+      - windows
 evented: false
+notes: >-
+  - For ChromeOS, this table is not a core osquery table. It is included as part of the Fleetd Chrome extension. Available for Chrome 91+.
