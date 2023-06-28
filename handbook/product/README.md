@@ -276,7 +276,7 @@ Some of the data is forwarded to [DataDog](https://us5.datadoghq.com/dashboard/7
 ## Maintenance
 Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
 
-Every week, a member of the product team (as determined in the [rituals](#rituals) section) should look up whether there is:
+Every week, a member of the product team (as determined in the [rituals](#rituals) section) looks up whether there is:
 1. a new major or minor version of MacOS (https://support.apple.com/en-us/HT201260)
 2. a new major or minor version of CIS Benchmarks Windows 10 Enterprise (https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
 3. a new major or minor version of CIS Benchmarks macOS 13 Ventura (https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
