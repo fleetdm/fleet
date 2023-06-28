@@ -66,7 +66,7 @@ module.exports = {
         break;
       case 'deploy':
         pageTitleForMeta = 'Deployment guides | Fleet for osquery';
-        pageDescriptionForMeta = 'Learn more about how to deploy Fleet.';
+        pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';
         currentSection = 'documentation';
         break;
       case 'releases':
