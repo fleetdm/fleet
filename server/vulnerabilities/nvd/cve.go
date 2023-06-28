@@ -133,7 +133,7 @@ func TranslateCPEToCVE(
 	}
 
 	// Load the CPE Post Processing rules
-	postProcessingRules, err := GetCPEProcessingRules()
+	postProcessingRules, err := GetCPEMatchingRules()
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func checkCVEs(
 	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
 	collectVulns bool,
-	postMatchingRules CPEProcessingRules,
+	matchingRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
@@ -234,11 +234,10 @@ func checkCVEs(
 							continue
 						}
 
-						if rule, ok := postMatchingRules.FindMatch(
-							softwareCPE.meta,
+						if rule, ok := matchingRules.FindMatch(
 							matches.CVE.ID(),
 						); ok {
-							if rule.Action.Skip {
+							if !rule.CPEMatches(softwareCPE.meta) {
 								continue
 							}
 						}
