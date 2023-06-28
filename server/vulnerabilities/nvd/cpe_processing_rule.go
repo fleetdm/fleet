@@ -1,7 +1,6 @@
 package nvd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -118,30 +117,4 @@ func (rule CPEProcessingRule) Validate() error {
 	}
 
 	return nil
-}
-
-type CPEProcessingRules []CPEProcessingRule
-
-func (rules *CPEProcessingRules) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, rules); err != nil {
-		return err
-	}
-
-	for i, rule := range *rules {
-		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("invalid rule %d: %w", i, err)
-		}
-	}
-
-	return nil
-}
-
-// FindMatch returns the first matching rule
-func (rules CPEProcessingRules) FindMatch(cpeMeta *wfn.Attributes, cve string) (*CPEProcessingRule, bool) {
-	for _, rule := range rules {
-		if rule.Matches(cpeMeta, cve) {
-			return &rule, true
-		}
-	}
-	return nil, false
 }

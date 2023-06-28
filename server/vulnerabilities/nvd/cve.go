@@ -132,6 +132,12 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	// Load the CPE Post Processing rules
+	postProcessingRules, err := GetCPEProcessingRules()
+	if err != nil {
+		return nil, err
+	}
+
 	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
 	// NVD feed file.
 	vulns := make(map[string]fleet.SoftwareVulnerability)
@@ -144,7 +150,7 @@ func TranslateCPEToCVE(
 			parsed,
 			file,
 			collectVulns,
-			nil,
+			postProcessingRules,
 		)
 		if err != nil {
 			return nil, err
