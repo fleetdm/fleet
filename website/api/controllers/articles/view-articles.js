@@ -76,7 +76,7 @@ module.exports = {
         break;
       case 'guides':
         pageTitleForMeta = 'Guides | Fleet for osquery';
-        pageDescriptionForMeta = 'Learn how to use Fleet to accomplish your goals.';
+        pageDescriptionForMeta = 'A collection of how-to guides for Fleet and osquery.';
         currentSection = 'documentation';
         break;
       case 'securing':
