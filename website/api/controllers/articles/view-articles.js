@@ -53,7 +53,7 @@ module.exports = {
     let pageTitleForMeta = 'Fleet blog | Fleet for osquery';
     let pageDescriptionForMeta = 'Read the latest articles written by Fleet';
     // Create a currentSection variable, this will be used to highlight the header dropdown that this article category lives under.
-    // There are three possible values for this (docuementation, community, and platform), so we'll default to the one with the most article categories (community), and set the value to another section if needed.
+    // There are three possible values for this (documentation, community, and platform), so we'll default to the one with the most article categories (community) and set the value to another section if needed.
     // If the category is deploy, guides, or releases, currentSection will be set to 'documentation', and if the category is 'success-stories', currentSection will be set to 'platform'.
     let currentSection = 'community';
 
