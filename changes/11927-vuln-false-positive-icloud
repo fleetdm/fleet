@@ -1,0 +1,2 @@
+- Added CPEMatchingRule type, used for correcting false positives caused by incorrect entries in the
+NVD dataset.
