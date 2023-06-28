@@ -32,7 +32,7 @@ Over time, this Product Ops role will expand to:
 - Recommend and define improvements to product processes and tools
 - Maintain and update the product section of the handbook
 - Implement and drive change management for any new or modified product processes and tools across the team and/or the organization
-- Collect and report product team KPI metrics
+- Collect and report product team KPI
 - Record and communicate relevant information and decisions to product team and other departments
 - Act as secondary/backup point of contact for other departments for product initiatives. 
 - Ensure product team decisions are made in a timely manner to unblock other departments
