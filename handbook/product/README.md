@@ -302,7 +302,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-cx`                             | Zay Hanlon                                                          |
+| `#g-cx`                             | Mo Zhu                                                              |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">
