@@ -71,7 +71,7 @@ module.exports = {
         break;
       case 'releases':
         pageTitleForMeta = 'Releases | Fleet for osquery';
-        pageDescriptionForMeta = 'Read about the latest release of Fleet.';
+        pageDescriptionForMeta = 'Fleet releases new and updated features every three weeks. Read about the latest product improvements here.';
         currentSection = 'documentation';
         break;
       case 'guides':
