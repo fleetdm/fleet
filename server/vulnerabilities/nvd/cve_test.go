@@ -109,25 +109,26 @@ var firefox93WindowsVulnerabilities = []string{
 }
 
 var cvetests = []struct {
-	cpe  string
-	cves []string
+	cpe          string
+	excludedCVEs []string
+	includedCVEs []string
 	// continuesToUpdate indicates if the product/software
 	// continues to register new CVE vulnerabilities.
 	continuestoUpdate bool
 }{
 	{
 		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*",
-		cves:              []string{"CVE-2012-6369"},
+		includedCVEs:      []string{"CVE-2012-6369"},
 		continuestoUpdate: false,
 	},
 	{
 		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
-		cves:              []string{"CVE-2012-6369"},
+		includedCVEs:      []string{"CVE-2012-6369"},
 		continuestoUpdate: false,
 	},
 	{
 		cpe: "cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
-		cves: []string{
+		includedCVEs: []string{
 			"CVE-2019-20916",
 			"CVE-2021-3572",
 		},
@@ -135,12 +136,49 @@ var cvetests = []struct {
 	},
 	{
 		cpe:               "cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
-		cves:              firefox93WindowsVulnerabilities,
+		includedCVEs:      firefox93WindowsVulnerabilities,
 		continuestoUpdate: true,
 	},
 	{
 		cpe:               "cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*",
-		cves:              firefox93WindowsVulnerabilities,
+		includedCVEs:      firefox93WindowsVulnerabilities,
+		continuestoUpdate: true,
+	},
+	{
+		cpe: "cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*",
+		excludedCVEs: []string{
+			"CVE-2017-13797",
+			"CVE-2017-2383",
+			"CVE-2017-2366",
+			"CVE-2016-4613",
+			"CVE-2016-4692",
+			"CVE-2016-4743",
+			"CVE-2016-7578",
+			"CVE-2016-7583",
+			"CVE-2016-7586",
+			"CVE-2016-7587",
+			"CVE-2016-7589",
+			"CVE-2016-7592",
+			"CVE-2016-7598",
+			"CVE-2016-7599",
+			"CVE-2016-7610",
+			"CVE-2016-7611",
+			"CVE-2016-7614",
+			"CVE-2016-7632",
+			"CVE-2016-7635",
+			"CVE-2016-7639",
+			"CVE-2016-7640",
+			"CVE-2016-7641",
+			"CVE-2016-7642",
+			"CVE-2016-7645",
+			"CVE-2016-7646",
+			"CVE-2016-7648",
+			"CVE-2016-7649",
+			"CVE-2016-7652",
+			"CVE-2016-7654",
+			"CVE-2016-7656",
+			"CVE-2017-2383",
+		},
 		continuestoUpdate: true,
 	},
 }
@@ -219,12 +257,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				// Given that new vulnerabilities can be found on these
 				// packages/products, we check that at least the
 				// known ones are found.
-				for _, cve := range tt.cves {
+				for _, cve := range tt.includedCVEs {
 					require.Contains(t, cvesFound, cve, tt.cpe)
 				}
 			} else {
 				// Check for exact match of CVEs found.
-				require.ElementsMatch(t, cvesFound, tt.cves, tt.cpe)
+				require.ElementsMatch(t, cvesFound, tt.includedCVEs, tt.cpe)
+			}
+
+			for _, cve := range tt.excludedCVEs {
+				require.NotContains(t, cvesFound, cve, tt.cpe)
 			}
 
 			require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
