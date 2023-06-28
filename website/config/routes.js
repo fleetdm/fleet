@@ -289,7 +289,7 @@ module.exports.routes = {
     action: 'view-support',
     locals: {
       pageTitleForMeta: 'Support | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn how to get support for Fleet. Find community resources, report a bug, suggest a new feature, or ask us a question.',
+      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
       currentSection: 'documentation',
     }
   },
