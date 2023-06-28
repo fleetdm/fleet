@@ -280,7 +280,7 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 1. a new major or minor version of macOS (https://support.apple.com/en-us/HT201260)
 2. a new major or minor version of CIS Benchmarks Windows 10 Enterprise (https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
 3. a new major or minor version of CIS Benchmarks macOS 13 Ventura (https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
-4. a release of CIS Benchmarks for MacOS 14 Sonoma (https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
+4. a release of CIS Benchmarks for macOS 14 Sonoma (https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
 5. a new major or minor version of ChromeOS (https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
 If there are changes, the DRI should send a message in the #help-product slack channel, noting the current versions and whether any of the above has changed.
