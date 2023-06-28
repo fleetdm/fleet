@@ -28,7 +28,7 @@ Over time, this Product Ops role will expand to:
 - Contribute to improvements in the product
 
 ## Your primary responsibilities 🔭
-- Execute product processes as described in fleetdm.com/handbook/product 
+- Execute product processes as described in https://fleetdm.com/handbook/product 
 - Recommend and define improvements to product processes and tools
 - Maintain and update the product section of the handbook
 - Implement and drive change management for any new or modified product processes and tools across the team and/or the organization
