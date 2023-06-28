@@ -28,15 +28,13 @@
 
 
     [purpose='search'] {
-      width: 260px;
-
-
-      // border: 1px solid @core-vibrant-blue-15;
-      // background: #FFF;
-      border-radius: 8px;
       // Note: We're using classes here to override the default Docsearch styles;
+      width: 260px;
+      border-radius: 8px;
       button {
         width: 260px;
+        cursor: text;
+        margin: 0;
       }
       .DocSearch-Button {
         border-top-left-radius: 6px;
@@ -48,24 +46,48 @@
         height: 42px;
         padding: 8px 15px;
         margin: 0;
-
       }
       .DocSearch-Button:hover {
         box-shadow: none;
-        border: 1px solid @core-vibrant-blue;
+        border: 1px solid @core-fleet-black-25;
         color: @core-fleet-black-50;
       }
       .DocSearch-Search-Icon {
-        margin-right: 8px;
-        margin-left: 8px;
         height: 16px;
         width: 16px;
+        color: @core-fleet-black-50;
+        stroke-width: 3px;
       }
       .DocSearch-Button-Keys {
         display: none;
       }
+      .DocSearch-Button-Placeholder {
+        font-size: 16px;
+        font-weight: 400;
+        padding-left: 12px;
+      }
       .DocSearch-Button-Placeholder::after {
         content: ' tables';
+      }
+      [purpose='disabled-search'] {
+        padding: 8px 15px;
+        border-radius: 8px;
+        border: 1px solid @core-vibrant-blue-15;
+        background: #FFF;
+        width: 100%;
+        display: flex;
+        input {
+          border: 0;
+          padding: 0;
+          width: 100%;
+        }
+        input::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+        }
+        input:focus {
+          outline: rgba(0, 0, 0, 0);
+        }
       }
     }
     [purpose='search']:focus-within {
