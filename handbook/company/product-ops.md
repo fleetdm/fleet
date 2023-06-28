@@ -20,7 +20,7 @@ tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com
 Fleet is hiring our first Product Operations (Product Ops) team member to increase the team’s efficiency and coordination with other departments. A successful Product Ops contributor will serve as an enabling force for the product team: removing time-consuming, output-focused work from product managers so they can focus on delivering value to customers and outcomes for the business.
 
 Over time, this Product Ops role will expand to:
-- Recommend and implement new processes that improve the efficiency of the team, the quality of the team’s output, and the team communication with internal and external partners
+- Recommend and implement new processes that improve the efficiency of the team, the quality of the team’s output, and the team's communication with internal and external partners
 - Become an expert in the product processes of a high-performing team
 - Ensure timely and high-quality outputs from the product team
 - Understand the product and customers with sufficient depth to serve as secondary/backup point of contact
