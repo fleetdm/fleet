@@ -32,33 +32,75 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-//go:embed *.tmpl
-var templatesFS embed.FS
+var (
+	//go:embed *.tmpl
+	templatesFS embed.FS
 
-//go:embed *.software
-var softwareFS embed.FS
+	//go:embed *.software
+	macOSVulnerableSoftwareFS embed.FS
 
-var vulnerableSoftware []fleet.Software
+	//go:embed *-software.json.bz2
+	softwareFS embed.FS
 
-func init() {
-	vulnerableSoftwareData, err := softwareFS.ReadFile("vulnerable.software")
+	macosVulnerableSoftware []fleet.Software
+	windowsSoftware         []map[string]string
+	ubuntuSoftware          []map[string]string
+)
+
+func loadMacOSVulnerableSoftware() {
+	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable.software")
 	if err != nil {
-		log.Fatal("reading vulnerable software file: ", err)
+		log.Fatal("reading vulnerable macOS software file: ", err)
 	}
-	lines := bytes.Split(vulnerableSoftwareData, []byte("\n"))
+	lines := bytes.Split(macOSVulnerableSoftwareData, []byte("\n"))
 	for _, line := range lines {
 		parts := bytes.Split(line, []byte("##"))
 		if len(parts) < 2 {
 			fmt.Println("skipping", string(line))
 			continue
 		}
-		vulnerableSoftware = append(vulnerableSoftware, fleet.Software{
+		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
 			Name:    strings.TrimSpace(string(parts[0])),
 			Version: strings.TrimSpace(string(parts[1])),
 			Source:  "apps",
 		})
 	}
-	log.Printf("Loaded %d vulnerable software\n", len(vulnerableSoftware))
+	log.Printf("Loaded %d vulnerable macOS software\n", len(macosVulnerableSoftware))
+}
+
+func loadSoftwareItems(path string) []map[string]string {
+	bz2, err := softwareFS.Open(path)
+	if err != nil {
+		panic(err)
+	}
+
+	type softwareJSON struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Release string `json:"release,omitempty"`
+		Arch    string `json:"arch,omitempty"`
+	}
+	var softwareList []softwareJSON
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&softwareList); err != nil { //nolint:gosec
+		panic(err)
+	}
+
+	softwareRows := make([]map[string]string, 0, len(softwareList))
+	for _, s := range softwareList {
+		softwareRows = append(softwareRows, map[string]string{
+			"name":    s.Name,
+			"version": s.Version,
+			"source":  "programs",
+		})
+	}
+	return softwareRows
+}
+
+func init() {
+	loadMacOSVulnerableSoftware()
+	windowsSoftware = loadSoftwareItems("windows_11-software.json.bz2")
+	ubuntuSoftware = loadSoftwareItems("ubuntu_2204-software.json.bz2")
 }
 
 type Stats struct {
@@ -833,14 +875,6 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	return r
 }
 
-func (a *agent) softwareWindows11() []map[string]string {
-	return loadSoftware("windows", "11")
-}
-
-func (a *agent) softwareUbuntu2204() []map[string]string {
-	return loadSoftware("ubuntu", "2204")
-}
-
 func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
@@ -887,7 +921,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
+		sw := macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))]
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
@@ -1245,7 +1279,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.softwareWindows11()
+			results = windowsSoftware
 		}
 		return true, results, &ss, nil
 	case name == hostDetailQueryPrefix+"software_linux":
@@ -1253,7 +1287,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		if ss == fleet.StatusOK {
 			switch a.os {
 			case "ubuntu_22.04":
-				results = a.softwareUbuntu2204()
+				results = ubuntuSoftware
 			}
 		}
 		return true, results, &ss, nil
