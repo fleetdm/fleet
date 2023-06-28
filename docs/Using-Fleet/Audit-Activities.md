@@ -826,13 +826,13 @@ This activity contains the following fields:
 
 ### Type `enabled_windows_mdm`
 
-Generated when a user turns on Windows MDM.
+Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ### Type `disabled_windows_mdm`
 
-Generated when a user turns off Windows MDM.
+Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 

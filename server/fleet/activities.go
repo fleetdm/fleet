@@ -1016,7 +1016,7 @@ func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a user turns on Windows MDM.`,
+	return `Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1027,7 +1027,7 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a user turns off Windows MDM.`,
+	return `Generated when a user turns off MDM features for all Windows hosts.`,
 		`This activity does not contain any detail fields.`, ``
 }
 
