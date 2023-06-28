@@ -51,7 +51,7 @@ graph LR;
     tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
     fleet_server[Fleet<br>Server];
 
-    subgraph Orbit Agent
+    subgraph Fleetd agent
         orbit[orbit];
         desktop[Fleet Desktop<br>Tray App];
         osqueryd[osqueryd];
