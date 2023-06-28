@@ -93,10 +93,8 @@ parasails.registerPage('basic-documentation', {
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
-        // inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
         container: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
         debug: true,
-        // maxResultsPerGroup: 20,
         searchParameters: {
           'facetFilters': ['section:docs']
         },
