@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -19,38 +21,40 @@ import (
 	"github.com/google/uuid"
 )
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MS-MDE2 XML types used by the SOAP protocol
-// MS-MDE2 is a client-to-server protocol that consists of a SOAP-based Web service.
-// SOAP is a lightweight and XML based protocol that consists of three parts:
-// - An envelope that defines a framework for describing what is in a message and how to process it
-// - A set of encoding rules for expressing instances of application-defined datatypes
-// - And a convention for representing remote procedure calls and responses.
-
-// SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
-// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
-type SoapResponse struct {
-	XMLName xml.Name                 `xml:"s:Envelope"`
-	XmlNSS  string                   `xml:"xmlns:s,attr"`
-	XmlNSA  string                   `xml:"xmlns:a,attr"`
-	XmlNSU  *string                  `xml:"xmlns:u,attr,omitempty"`
-	Header  mdm_types.ResponseHeader `xml:"s:Header"`
-	Body    mdm_types.BodyResponse   `xml:"s:Body"`
+type SoapRequestContainer struct {
+	Data *fleet.SoapRequest
+	Err  error
 }
 
-// error returns soap fault error if present
-func (msg SoapResponse) error() error {
-	// placeholder to log SoapFault error message if needed
-	// msg.Body.SoapFault != nil
+// MDM SOAP request decoder
+func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader) error {
+	// Reading the request bytes
+	reqBytes, err := io.ReadAll(r)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
+	}
+
+	// Unmarshal the XML data from the request into the SoapRequest struct
+	err = xml.Unmarshal(reqBytes, &req.Data)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+	}
 
 	return nil
 }
 
+type SoapResponseContainer struct {
+	Data *fleet.SoapResponse
+	Err  error
+}
+
+func (r SoapResponseContainer) error() error { return r.Err }
+
 // hijackRender writes the response header and the RAW XML output
-func (msg SoapResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	xmlRes, err := xml.MarshalIndent(msg, "", "\t")
+func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
-		logging.WithExtras(ctx, "microsoft MDM SoapResponse", err)
+		logging.WithExtras(ctx, "Windows MDM SoapResponseContainer", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -63,180 +67,6 @@ func (msg SoapResponse) hijackRender(ctx context.Context, w http.ResponseWriter)
 	if n, err := w.Write(xmlRes); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
-}
-
-// getMessageID returns the message ID from the header
-func (req *SoapRequest) getMessageID() string {
-	return req.Header.MessageID
-}
-
-// isValidHeader checks for required fields in the header
-func (req *SoapRequest) isValidHeader() error {
-	// Check for required fields
-
-	if len(req.XmlNSS) == 0 {
-		return errors.New("invalid SOAP header: XmlNSS")
-	}
-
-	if len(req.XmlNSA) == 0 {
-		return errors.New("invalid SOAP header: XmlNSA")
-	}
-
-	if len(req.Header.MessageID) == 0 {
-		return errors.New("invalid SOAP header: Header.MessageID")
-	}
-
-	if len(req.Header.Action.Content) == 0 {
-		return errors.New("invalid SOAP header: Header.Action")
-	}
-
-	if len(req.Header.ReplyTo.Address) == 0 {
-		return errors.New("invalid SOAP header: Header.ReplyTo")
-	}
-
-	if len(req.Header.To.Content) == 0 {
-		return errors.New("invalid SOAP header: Header.To")
-	}
-
-	return nil
-}
-
-// isValidBody checks for the presence of only one message
-func (req *SoapRequest) isValidBody() error {
-	nonNilCount := 0
-
-	if req.Body.Discover != nil {
-		nonNilCount++
-	}
-	if req.Body.GetPolicies != nil {
-		nonNilCount++
-	}
-	if req.Body.RequestSecurityToken != nil {
-		nonNilCount++
-	}
-
-	if nonNilCount != 1 {
-		return errors.New("invalid SOAP body: Multiple messages or no message")
-	}
-
-	return nil
-}
-
-// IsValidDiscoveryMsg checks for required fields in the Discover message
-func (req *SoapRequest) IsValidDiscoveryMsg() error {
-	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid discover message: %s", err)
-	}
-
-	if err := req.isValidBody(); err != nil {
-		return fmt.Errorf("invalid discover message: %s", err)
-	}
-
-	if req.Body.Discover == nil {
-		return errors.New("invalid discover message: Discover message not present")
-	}
-
-	if len(req.Body.Discover.XmlNS) == 0 {
-		return errors.New("invalid discover message: XmlNS")
-	}
-
-	// TODO: add check for valid email address
-	if len(req.Body.Discover.Request.EmailAddress) == 0 {
-		return errors.New("invalid discover message: Request.EmailAddress")
-	}
-
-	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
-		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
-		return errors.New("invalid discover message: Request.RequestVersion")
-	}
-
-	// Traverse the AuthPolicies slice and check for valid values
-	isInvalidAuth := true
-	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
-		if authPolicy == mdm.AuthOnPremise {
-			isInvalidAuth = false
-			break
-		}
-	}
-
-	if isInvalidAuth {
-		return errors.New("invalid discover message: Request.AuthPolicies")
-	}
-
-	return nil
-}
-
-// IsValidGetPolicyMsg checks for required fields in the GetPolicies message
-func (req *SoapRequest) IsValidGetPolicyMsg() error {
-	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid getpolicies message:  %s", err)
-	}
-
-	if err := req.isValidBody(); err != nil {
-		return fmt.Errorf("invalid getpolicies message: %s", err)
-	}
-
-	if req.Body.GetPolicies == nil {
-		return errors.New("invalid getpolicies message:  GetPolicies message not present")
-	}
-
-	if len(req.Body.GetPolicies.XmlNS) == 0 {
-		return errors.New("invalid getpolicies message: XmlNS")
-	}
-
-	return nil
-}
-
-// IsValidRequestSecurityTokenMsg checks for required fields in the RequestSecurityToken message
-func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
-	if err := req.isValidHeader(); err != nil {
-		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
-	}
-
-	if err := req.isValidBody(); err != nil {
-		return fmt.Errorf("invalid requestsecuritytoken message: %s", err)
-	}
-
-	if req.Body.RequestSecurityToken == nil {
-		return errors.New("invalid requestsecuritytoken message: RequestSecurityToken message not present")
-	}
-
-	if len(req.Body.RequestSecurityToken.TokenType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: TokenType")
-	}
-
-	if len(req.Body.RequestSecurityToken.RequestType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: RequestType")
-	}
-
-	if len(req.Body.RequestSecurityToken.BinarySecurityToken.ValueType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
-	}
-
-	if len(req.Body.RequestSecurityToken.BinarySecurityToken.EncodingType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType")
-	}
-
-	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.Content")
-	}
-
-	return nil
-}
-
-// SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
-// This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
-type SoapRequest struct {
-	XMLName   xml.Name                `xml:"Envelope"`
-	XmlNSS    string                  `xml:"s,attr"`
-	XmlNSA    string                  `xml:"a,attr"`
-	XmlNSU    *string                 `xml:"u,attr,omitempty"`
-	XmlNSWsse *string                 `xml:"wsse,attr,omitempty"`
-	XmlNSWST  *string                 `xml:"wst,attr,omitempty"`
-	XmlNSAC   *string                 `xml:"ac,attr,omitempty"`
-	Header    mdm_types.RequestHeader `xml:"Header"`
-	Body      mdm_types.BodyRequest   `xml:"Body"`
 }
 
 // getUtcTime returns the current timestamp plus the specified number of minutes,
@@ -257,7 +87,7 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 	}
 
 	return mdm_types.DiscoverResponse{
-		XmlNS: mdm.DiscoverNS,
+		XMLNS: mdm.DiscoverNS,
 		DiscoverResult: mdm_types.DiscoverResult{
 			AuthPolicy:                 authPolicy,
 			EnrollmentVersion:          mdm.MinEnrollmentVersion,
@@ -274,19 +104,19 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 	}
 
 	return mdm_types.GetPoliciesResponse{
-		XmlNS: mdm.PolicyNS,
+		XMLNS: mdm.PolicyNS,
 		Response: mdm_types.Response{
 			PolicyFriendlyName: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			NextUpdateHours: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			PoliciesNotChanged: mdm_types.ContentAttr{
 				Xsi:   mdm.DefaultStateXSI,
-				XmlNS: mdm.EnrollXSI,
+				XMLNS: mdm.EnrollXSI,
 			},
 			Policies: mdm_types.Policies{
 				Policy: mdm_types.GPPolicy{
@@ -377,21 +207,21 @@ func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_typ
 
 	enrollSecExtVal := mdm.EnrollSecExt
 	return mdm_types.RequestSecurityTokenResponseCollection{
-		XmlNS: mdm.EnrollWSTrust,
+		XMLNS: mdm.EnrollWSTrust,
 		RequestSecurityTokenResponse: mdm_types.RequestSecurityTokenResponse{
 			TokenType: mdm.EnrollTType,
 			DispositionMessage: mdm_types.SecAttr{
 				Content: "",
-				XmlNS:   mdm.EnrollReq,
+				XMLNS:   mdm.EnrollReq,
 			},
 			RequestID: mdm_types.SecAttr{
 				Content: "0",
-				XmlNS:   mdm.EnrollReq,
+				XMLNS:   mdm.EnrollReq,
 			},
 			RequestedSecurityToken: mdm_types.RequestedSecurityToken{
 				BinarySecurityToken: mdm_types.BinarySecurityToken{
 					Content:      provisionedToken,
-					XmlNS:        &enrollSecExtVal,
+					XMLNS:        &enrollSecExtVal,
 					ValueType:    mdm.EnrollPDoc,
 					EncodingType: mdm.EnrollEncode,
 				},
@@ -425,15 +255,18 @@ func getSoapResponseFault(relatesTo string, soapFault *mdm_types.SoapFault) erro
 		relatesTo = "invalid_message_id"
 	}
 
-	soapResponse, _ := NewSoapResponse(soapFault, relatesTo)
-	return soapResponse
+	response, _ := NewSoapResponse(soapFault, relatesTo)
+	return SoapResponseContainer{
+		Data: &response,
+		Err:  nil,
+	}
 }
 
 // NewSoapResponse creates a new SoapRequest struct based on the message type and the message content
-func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error) {
+func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse, error) {
 	// Sanity check
 	if len(relatesTo) == 0 {
-		return SoapResponse{}, errors.New("relatesTo is invalid")
+		return fleet.SoapResponse{}, errors.New("relatesTo is invalid")
 	}
 
 	// Useful constants
@@ -475,7 +308,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 		activityID = &mdm_types.ActivityId{
 			Content:       uuid,
 			CorrelationId: uuid,
-			XmlNS:         urlDiag,
+			XMLNS:         urlDiag,
 		}
 		body.DiscoverResponse = msg
 
@@ -491,7 +324,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 		headerXsu = &urlXSU
 		security = &mdm_types.WsSecurity{
 			MustUnderstand: MUValue,
-			XmlNS:          urlSecExt,
+			XMLNS:          urlSecExt,
 			Timestamp: mdm_types.Timestamp{
 				ID:      timestampID,
 				Created: getUtcTime(secWindowStartTimeMin), // minutes ago
@@ -515,19 +348,19 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 		activityID = &mdm_types.ActivityId{
 			Content:       uuid,
 			CorrelationId: uuid,
-			XmlNS:         urlDiag,
+			XMLNS:         urlDiag,
 		}
 		body.SoapFault = msg
 
 	default:
-		return SoapResponse{}, errors.New("mdm response message not supported")
+		return fleet.SoapResponse{}, errors.New("mdm response message not supported")
 	}
 
 	// Return the SoapRequest type with the appropriate fields set
-	return SoapResponse{
-		XmlNSS: urlNSS,
-		XmlNSA: urlNSA,
-		XmlNSU: headerXsu,
+	return fleet.SoapResponse{
+		XMLNSS: urlNSS,
+		XMLNSA: urlNSA,
+		XMLNSU: headerXsu,
 		Header: mdm_types.ResponseHeader{
 			Action: mdm_types.Action{
 				Content:        action,
@@ -541,48 +374,141 @@ func NewSoapResponse(payload interface{}, relatesTo string) (SoapResponse, error
 	}, nil
 }
 
-// MDM SOAP request decoder
-func (req *SoapRequest) DecodeBody(ctx context.Context, r io.Reader) error {
-	// Reading the request bytes
-	reqBytes, err := io.ReadAll(r)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading soap mdm request")
+// NewBinarySecurityTokenPayload returns the BinarySecurityTokenPayload type
+func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessTokenPayload, error) {
+	if len(encodedToken) == 0 {
+		return fleet.WindowsMDMAccessTokenPayload{}, errors.New("binary security token: token is empty")
 	}
 
-	// Unmarshal the XML data from the request into the SoapRequest struct
-	err = xml.Unmarshal(reqBytes, &req)
+	rawBytes, err := base64.StdEncoding.DecodeString(encodedToken)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+		return fleet.WindowsMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
 	}
 
-	return nil
+	var tokenPayload fleet.WindowsMDMAccessTokenPayload
+	err = json.Unmarshal(rawBytes, &tokenPayload)
+	if err != nil {
+		return fleet.WindowsMDMAccessTokenPayload{}, fmt.Errorf("binary security token: %v", err)
+	}
+
+	return tokenPayload, nil
 }
 
-// mdmMicrosoftDiscoveryEndpoint is the response struct for the GetDiscovery endpoint
+// GetEncodedBinarySecurityToken returns the base64 form of a BinarySecurityTokenPayload
+func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, hostUUID string) (string, error) {
+	var pld fleet.WindowsMDMAccessTokenPayload
+	pld.Type = typeID
+	pld.Payload.HostUUID = hostUUID
+	rawBytes, err := json.Marshal(pld)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(rawBytes), nil
+}
+
+// mdmMicrosoftDiscoveryEndpoint handles the Discovery message and returns a valid DiscoveryResponse message
 func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*SoapRequest)
+	req := request.(*SoapRequestContainer).Data
 
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.getMessageID(), soapFault), nil
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the DiscoveryResponse message
 	discoveryMessage, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.getMessageID(), soapFault), nil
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
-	response, err := NewSoapResponse(discoveryMessage, req.getMessageID())
+	response, err := NewSoapResponse(discoveryMessage, req.GetMessageID())
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
-		return getSoapResponseFault(req.getMessageID(), soapFault), nil
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
-	return response, nil
+	return SoapResponseContainer{
+		Data: &response,
+		Err:  nil,
+	}, nil
+}
+
+// mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
+func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*SoapRequestContainer).Data
+
+	// Checking first if GetPolicies message is valid and returning error if this is not the case
+	if err := req.IsValidGetPolicyMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Binary security token should be extracted to ensure this is a valid call
+	binSecTokenData, err := req.GetBinarySecurityToken()
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the GetPoliciesResponse message
+	discoveryMessage, err := svc.GetMDMWindowsPolicyResponse(ctx, binSecTokenData)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Embedding the DiscoveryResponse message inside of a SoapResponse
+	response, err := NewSoapResponse(discoveryMessage, req.GetMessageID())
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	return SoapResponseContainer{
+		Data: &response,
+		Err:  nil,
+	}, nil
+}
+
+// validateBinarySecurityToken checks if the provided token is valid
+func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken string, svc fleet.Service) error {
+	if len(encodedBinarySecToken) == 0 {
+		return errors.New("binarySecurityTokenValidation: encoded token is invalid")
+	}
+
+	// Getting the Binary Security Token Payload
+	binSecToken, err := NewBinarySecurityTokenPayload(encodedBinarySecToken)
+	if err != nil {
+		return fmt.Errorf("binarySecurityTokenValidation: token creation error %v", err)
+	}
+
+	// Validating the Binary Security Token Payload
+	err = binSecToken.IsValidToken()
+	if err != nil {
+		return fmt.Errorf("binarySecurityTokenValidation: invalid token data %v", err)
+	}
+
+	// Validating the Binary Security Token Type used on Programmatic Enrollments
+	if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
+		host, err := svc.HostByIdentifier(ctx, binSecToken.Payload.HostUUID, fleet.HostDetailOptions{})
+		if err != nil {
+			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
+		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !host.IsEligibleForWindowsMDMEnrollment() {
+			return errors.New("binarySecurityTokenValidation: host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return nil
+	}
+
+	return errors.New("binarySecurityTokenValidation: token is not authorized")
 }
 
 // GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
@@ -598,27 +524,51 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 
 	// Getting the DiscoveryResponse message content ready
 
-	urlDiscoveryEndpoint, err := mdm.ResolveMicrosoftMDMDiscovery(appCfg.ServerSettings.ServerURL)
+	urlDiscoveryEndpoint, err := mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve discovery endpoint")
 	}
 
-	urlPolicyEndpoint, err := mdm.ResolveMicrosoftMDMPolicy(appCfg.ServerSettings.ServerURL)
+	urlPolicyEndpoint, err := mdm.ResolveWindowsMDMPolicy(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve policy endpoint")
 	}
 
-	urlEnrollEndpoint, err := mdm.ResolveMicrosoftMDMEnroll(appCfg.ServerSettings.ServerURL)
+	urlEnrollEndpoint, err := mdm.ResolveWindowsMDMEnroll(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
 	discoveryMsg, err := NewDiscoverResponse(urlDiscoveryEndpoint, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
 
 	return &discoveryMsg, nil
+}
+
+// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
+func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*fleet.GetPoliciesResponse, error) {
+	if len(authToken) == 0 {
+		return nil, fleet.NewInvalidArgumentError("policy response", "authToken is empty")
+	}
+
+	// Validate the binary security token
+	err := validateBinarySecurityToken(ctx, authToken, svc)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
+	}
+
+	// Token is authorized
+	svc.authz.SkipAuthorization(ctx)
+
+	// Getting the GetPoliciesResponse message content ready
+	policyMsg, err := NewGetPoliciesResponse(mdm.PolicyMinKeyLength, mdm.PolicyCertValidityPeriodInSecs, mdm.PolicyCertRenewalPeriodInSecs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creation of GetPoliciesResponse message")
+	}
+
+	return &policyMsg, nil
 }
 
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
