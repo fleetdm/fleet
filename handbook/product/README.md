@@ -305,7 +305,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| New versions check | Weekly (Friday) | The DRI for this ritual checks conducts the maintenance checks as described in the [maintenance](#maintenance) section | Mo Zhu |
+| New versions check | Weekly (Friday) | The DRI for this ritual conducts the maintenance checks as described in the [maintenance](#maintenance) section | Mo Zhu |
 
 ## Slack channels
 
