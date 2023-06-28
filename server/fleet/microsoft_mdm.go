@@ -199,12 +199,47 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
 	}
 
-	if len(req.Body.RequestSecurityToken.BinarySecurityToken.EncodingType) == 0 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType")
+	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
+		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType  not supported")
 	}
 
 	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.Content")
+	}
+
+	if len(req.Body.RequestSecurityToken.AdditionalContext.ContextItems) == 0 {
+		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems")
+	}
+
+	reqVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
+	if err != nil || (reqVersion != mdm.MaxEnrollmentVersion && reqVersion != mdm.MinEnrollmentVersion) {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemRequestVersion, reqVersion, err)
+	}
+
+	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
+	if err != nil || reqEnrollType != mdm.ReqSecTokenEnrollType {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
+	}
+
+	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil || len(reqDeviceID) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
+	}
+
+	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	if err != nil || len(reqHwDeviceID) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
+	}
+
+	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	if err != nil || len(reqOSEdition) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
+	}
+
+	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	if err != nil || len(reqOSVersion) == 0 {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
 	}
 
 	return nil
@@ -361,10 +396,11 @@ type RequestFilter struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/6ba9c509-8bce-4899-85b2-8c3d41f8f845
 
 type RequestSecurityToken struct {
-	TokenType           string              `xml:"TokenType"`
-	RequestType         string              `xml:"RequestType"`
-	BinarySecurityToken BinarySecurityToken `xml:"BinarySecurityToken"`
-	AdditionalContext   AdditionalContext   `xml:"AdditionalContext"`
+	TokenType           string                  `xml:"TokenType"`
+	RequestType         string                  `xml:"RequestType"`
+	BinarySecurityToken BinarySecurityToken     `xml:"BinarySecurityToken"`
+	AdditionalContext   AdditionalContext       `xml:"AdditionalContext"`
+	MapContextItems     *map[string]ContextItem `xml:"-"`
 }
 
 type BinarySecurityToken struct {
@@ -380,9 +416,63 @@ type ContextItem struct {
 }
 
 type AdditionalContext struct {
-	XMLNS       string        `xml:"xmlns,attr"`
-	ContextItem []ContextItem `xml:"ContextItem"`
+	XMLNS        string        `xml:"xmlns,attr"`
+	ContextItems []ContextItem `xml:"ContextItem"`
 }
+
+// Get Binary Security Token
+func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
+	if len(msg.BinarySecurityToken.Content) == 0 {
+		return "", errors.New("BinarySecurityToken is empty")
+	}
+
+	return msg.BinarySecurityToken.Content, nil
+}
+
+// Get Binary Security Token Type
+func (msg RequestSecurityToken) GetBinarySecurityTokenType() (BinSecTokenType, error) {
+	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 {
+		return MDETokenPKCS10, nil
+	}
+
+	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+		return MDETokenPKCS7, nil
+	}
+
+	return MDETokenPKCSInvalid, errors.New("BinarySecurityToken is invalid")
+}
+
+// Get Context Item
+func (msg RequestSecurityToken) GetContextItem(item string) (string, error) {
+	if len(msg.AdditionalContext.ContextItems) == 0 {
+		return "", errors.New("ContextItems is empty")
+	}
+
+	// Generate map of ContextItems if not there
+	if msg.MapContextItems == nil {
+		contextMap := make(map[string]ContextItem)
+		for _, item := range msg.AdditionalContext.ContextItems {
+			contextMap[item.Name] = item
+		}
+		msg.MapContextItems = &contextMap
+	}
+
+	itemVal, valueFound := (*msg.MapContextItems)[item]
+	if !valueFound {
+		return "", fmt.Errorf("ContextItem item %s is not present", item)
+	}
+
+	return itemVal.Value, nil
+}
+
+// MS-MDE2 Binary Security Token Types
+type BinSecTokenType int
+
+const (
+	MDETokenPKCS7 BinSecTokenType = iota
+	MDETokenPKCS10
+	MDETokenPKCSInvalid
+)
 
 ///////////////////////////////////////////////////////////////
 /// DiscoverResponse MS-MDE2 Message response type
@@ -548,9 +638,10 @@ type SoapFault struct {
 	OriginalMessageType int      `xml:"-"`
 }
 
-// ///////////////////////////////////////////////////////////////////////////
-// / WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
-// / provided as opaque access token to the RegisterDeviceWithManagement API.
+//////////////////////////////////////////////////////////////////////////////
+/// WindowsMDMAccessTokenPayload is the payload that gets encoded as JSON and
+/// provided as opaque access token to the RegisterDeviceWithManagement API
+
 type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
@@ -561,7 +652,8 @@ type WindowsMDMAccessTokenPayload struct {
 
 type WindowsMDMEnrollmentType int
 
-// List of supported Windows MDM enrollment types.
+// List of supported Windows MDM enrollment types
+
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
 )

@@ -761,6 +761,9 @@ type Service interface {
 	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
 	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
 
+	// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
+	GetMDMWindowsEnrollResponse(ctx context.Context, authToken string) (*RequestSecurityTokenResponseCollection, error)
+
 	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
 }

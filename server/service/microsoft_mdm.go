@@ -418,14 +418,14 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}
 
 	// Getting the DiscoveryResponse message
-	discoveryMessage, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
+	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
-	response, err := NewSoapResponse(discoveryMessage, req.GetMessageID())
+	response, err := NewSoapResponse(discoveryResponseMsg, req.GetMessageID())
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -443,28 +443,65 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 
 	// Checking first if GetPolicies message is valid and returning error if this is not the case
 	if err := req.IsValidGetPolicyMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Binary security token should be extracted to ensure this is a valid call
 	binSecTokenData, err := req.GetBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the GetPoliciesResponse message
-	discoveryMessage, err := svc.GetMDMWindowsPolicyResponse(ctx, binSecTokenData)
+	policyResponseMsg, err := svc.GetMDMWindowsPolicyResponse(ctx, binSecTokenData)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
-	response, err := NewSoapResponse(discoveryMessage, req.GetMessageID())
+	response, err := NewSoapResponse(policyResponseMsg, req.GetMessageID())
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	return SoapResponseContainer{
+		Data: &response,
+		Err:  nil,
+	}, nil
+}
+
+// mdmMicrosoftEnrollEndpoint handles the RequestSecurityToken message and returns a valid RequestSecurityTokenResponseCollection message
+func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*SoapRequestContainer).Data
+
+	// Checking first if RequestSecurityToken message is valid and returning error if this is not the case
+	if err := req.IsValidRequestSecurityTokenMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Binary security token should be extracted to ensure this is a valid call
+	binSecTokenData, err := req.GetBinarySecurityToken()
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the RequestSecurityTokenResponseCollection message
+	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, binSecTokenData)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Embedding the DiscoveryResponse message inside of a SoapResponse
+	response, err := NewSoapResponse(enrollResponseMsg, req.GetMessageID())
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -522,7 +559,7 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// Getting the DiscoveryResponse message content ready
+	// Getting the DiscoveryResponse message content
 
 	urlDiscoveryEndpoint, err := mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 	if err != nil {
@@ -562,13 +599,37 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken s
 	// Token is authorized
 	svc.authz.SkipAuthorization(ctx)
 
-	// Getting the GetPoliciesResponse message content ready
+	// Getting the GetPoliciesResponse message content
 	policyMsg, err := NewGetPoliciesResponse(mdm.PolicyMinKeyLength, mdm.PolicyCertValidityPeriodInSecs, mdm.PolicyCertRenewalPeriodInSecs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of GetPoliciesResponse message")
 	}
 
 	return &policyMsg, nil
+}
+
+// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
+func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, authToken string) (*fleet.RequestSecurityTokenResponseCollection, error) {
+	if len(authToken) == 0 {
+		return nil, fleet.NewInvalidArgumentError("enroll response", "authToken is empty")
+	}
+
+	// Validate the binary security token
+	err := validateBinarySecurityToken(ctx, authToken, svc)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
+	}
+
+	// Token is authorized
+	svc.authz.SkipAuthorization(ctx)
+
+	// Getting the RequestSecurityTokenResponseCollection message content
+	enrollMsg, err := NewRequestSecurityTokenResponseCollection("test")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creation of RequestSecurityTokenResponseCollection message")
+	}
+
+	return &enrollMsg, nil
 }
 
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
