@@ -277,11 +277,11 @@ Some of the data is forwarded to [DataDog](https://us5.datadoghq.com/dashboard/7
 Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
 
 Every week, a member of the product team (as determined in the [rituals](#rituals) section) looks up whether there is:
-1. a new major or minor version of macOS (https://support.apple.com/en-us/HT201260)
-2. a new major or minor version of CIS Benchmarks Windows 10 Enterprise (https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
-3. a new major or minor version of CIS Benchmarks macOS 13 Ventura (https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
-4. a release of CIS Benchmarks for macOS 14 Sonoma (https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
-5. a new major or minor version of ChromeOS (https://chromereleases.googleblog.com/search/label/Chrome%20OS)
+1. a new major or minor version of [macOS](https://support.apple.com/en-us/HT201260)
+2. a new major or minor version of [CIS Benchmarks Windows 10 Enterprise](https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
+3. a new major or minor version of [CIS Benchmarks macOS 13 Ventura](https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
+4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
+5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
 If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
 
