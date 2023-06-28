@@ -6132,7 +6132,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 3,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
-	"policy_updated_at": "2023-06-26T18:33:15Z",
+	      "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
