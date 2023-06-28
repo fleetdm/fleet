@@ -283,7 +283,7 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 4. a release of CIS Benchmarks for macOS 14 Sonoma (https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
 5. a new major or minor version of ChromeOS (https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
-If there are changes, the DRI should send a message in the #help-product slack channel, noting the current versions and whether any of the above has changed.
+If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
 
 ## Rituals
 
