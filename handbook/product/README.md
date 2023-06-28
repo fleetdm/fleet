@@ -80,7 +80,11 @@ Bugs are always prioritized. (Fleet takes quality and stability [very seriously]
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-If a bug is not addressed within 6 weeks, [it is automatically sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual (TODO Mo confirm w/ Luke re: timing and ritual), each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The head of product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
+If a bug is not addressed within 6 weeks, [it is automatically sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). During the sprint kickoff review ritual, each product group PM should review every bug which is marked in this way with the Head of Product and recommended whether a bug should be kept for the next sprint or de-prioritized. A de-prioritized bugs might include action items such as documentation of the defect. The head of product then reviews the bug recommendations with the CEO in the bug de-prioritization review ritual. 
+
+If a bug should be kept for the next sprint, the group PM should
+- Remove the :product label.
+- Move the bug to the "Inbox" column on the bugs board and assign it to the appropriate EM.
 
 ## Writing user stories
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
@@ -294,7 +298,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| Bug de-prioritization | Sprintly (TODO Mo to check w/ Luke on timing) | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
+| Bug de-prioritization | Sprintly  | CEO and Head of Product review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to continue into the next sprint and which can be de-prioritized. | Mo Zhu |
 
 ## Slack channels
 
