@@ -36,7 +36,7 @@ Over time, this Product Ops role will expand to:
 - Record and communicate relevant information and decisions to product team and other departments
 - Act as secondary/backup point of contact for other departments for product initiatives. 
 - Ensure product team decisions are made in a timely manner to unblock other departments
-- Ensure product team outputs are consistent and meets agreed-upon handoff requirements for other departments
+- Ensure product team outputs are consistent and meet agreed-upon handoff requirements for other departments
 - Design, implement, and execute systems for the product team to enable engineering, customer experience, marketing, sales and other teams
 - Facilitate the collection and synthesis of qualitative and quantitative customer and user data
 - Assist in organizing betas for larger product initiatives and feature releases
