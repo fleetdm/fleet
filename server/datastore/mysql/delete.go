@@ -12,7 +12,7 @@ import (
 // returning a notFound error if appropriate.
 func (ds *Datastore) deleteEntity(ctx context.Context, dbTable entity, id uint) error {
 	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, dbTable.name)
-	result, err := ds.writer.ExecContext(ctx, deleteStmt, id)
+	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, id)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "delete %s", dbTable)
 	}
@@ -27,7 +27,7 @@ func (ds *Datastore) deleteEntity(ctx context.Context, dbTable entity, id uint) 
 // table, returning a notFound error if appropriate.
 func (ds *Datastore) deleteEntityByName(ctx context.Context, dbTable entity, name string) error {
 	deleteStmt := fmt.Sprintf("DELETE FROM %s WHERE name = ?", dbTable.name)
-	result, err := ds.writer.ExecContext(ctx, deleteStmt, name)
+	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, name)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return ctxerr.Wrap(ctx, foreignKey(dbTable.name, name))
@@ -51,7 +51,7 @@ func (ds *Datastore) deleteEntities(ctx context.Context, dbTable entity, ids []u
 		return 0, ctxerr.Wrapf(ctx, err, "building delete entities query %s", dbTable)
 	}
 
-	result, err := ds.writer.ExecContext(ctx, query, args...)
+	result, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrapf(ctx, err, "executing delete entities query %s", dbTable)
 	}

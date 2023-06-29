@@ -80,6 +80,7 @@ const tableHeaders: IDataColumn[] = [
       const profile = cellProps.row.original;
       return (
         <TruncatedTextCell
+          tooltipBreakOnWord
           value={
             (profile.status === "failed" && profile.detail) ||
             DEFAULT_EMPTY_CELL_VALUE
@@ -102,6 +103,7 @@ export const generateTableData = (
   if (!profiles) {
     return rows;
   }
+  rows = profiles;
 
   if (macos_settings?.disk_encryption === "action_required") {
     rows = profiles.map((p) => {
@@ -114,6 +116,7 @@ export const generateTableData = (
       return p;
     });
   }
+
   return rows;
 };
 

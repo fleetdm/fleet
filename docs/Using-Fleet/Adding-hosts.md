@@ -29,6 +29,8 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
+> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. This Chrome browser extension is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
+
 ## Add hosts with Orbit
 
 To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
@@ -279,7 +281,19 @@ expiration setting. To configure this setting, in the Fleet UI, head to **Settin
 
 ## Add Chromebooks with the Fleetd Chrome extension
 
-> Documentation for adding hosts on ChromeOS is coming soon. In the mean time, basic instructions are available in the [fleetd-chrome README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
+Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
+
+Select the relevant organizational unit, users, or group where you want the fleetd Chrome extension to be installed.
+
+In the bottom right, click the yellow "+" button and select "Add Chrome app or extension by ID."
+
+Visit your Fleet instance and select Hosts > Add Hosts and select ChromeOS in the popup modal.
+
+Enter the "Extension ID," "Installation URL," and "Policy for extensions" using the data provided in the modal.
+
+Under "Installation Policy", select "Force install". Under "Update URL", select "Installation URL (see above)".
+
+> For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which

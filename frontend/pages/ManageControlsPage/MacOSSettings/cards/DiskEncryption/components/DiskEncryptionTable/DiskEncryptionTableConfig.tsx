@@ -1,9 +1,7 @@
 import React from "react";
 
-import {
-  FileVaultProfileStatus,
-  IFileVaultSummaryResponse,
-} from "interfaces/mdm";
+import { FileVaultProfileStatus } from "interfaces/mdm";
+import { IFileVaultSummaryResponse } from "services/entities/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -115,19 +113,22 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
   verified: {
     displayName: "Verified",
     statusName: "success",
-    value: FileVaultProfileStatus.VERIFIED,
-    tooltip: "Disk encryption on and key stored in Fleet. Fleet has verified.",
+    value: "verified",
+    tooltip:
+      "These hosts turned disk encryption on and sent their key to Fleet. Fleet verified with osquery.",
   },
   verifying: {
     displayName: "Verifying",
     statusName: "successPartial",
-    value: FileVaultProfileStatus.VERIFYING,
-    tooltip: "Disk encryption on and key stored in Fleet. Fleet will verify.",
+    value: "verifying",
+    tooltip:
+      "These hosts acknowledged the MDM command to install disk encryption profile. " +
+      "Fleet is verifying with osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.ACTION_REQUIRED,
+    value: "action_required",
     tooltip: (
       <>
         Ask the end user to follow <b>Disk encryption</b> instructions on their{" "}
@@ -138,19 +139,21 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
   enforcing: {
     displayName: "Enforcing (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.ENFORCING,
-    tooltip: "Setting will be enforced when the hosts come online.",
+    value: "enforcing",
+    tooltip:
+      "These hosts will receive the MDM command to install the disk encryption profile when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
     statusName: "error",
-    value: FileVaultProfileStatus.FAILED,
+    value: "failed",
   },
   removing_enforcement: {
     displayName: "Removing enforcement (pending)",
     statusName: "pendingPartial",
-    value: FileVaultProfileStatus.REMOVING_ENFORCEMENT,
-    tooltip: "Enforcement will be removed when the hosts come online.",
+    value: "removing_enforcement",
+    tooltip:
+      "These hosts will receive the MDM command to remove the disk encryption profile when the hosts come online.",
   },
 };
 

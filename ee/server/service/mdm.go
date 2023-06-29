@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -320,8 +321,12 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	return pkg, nil
 }
 
-func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionRead); err != nil {
+func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
+	act := fleet.ActionRead
+	if forUpdate {
+		act = fleet.ActionWrite
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, act); err != nil {
 		return nil, err
 	}
 
@@ -642,10 +647,15 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 		return "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
+	var ssoSettings fleet.SSOSettings
+	if appConfig.SSOSettings != nil {
+		ssoSettings = *appConfig.SSOSettings
+	}
+
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		appConfig.SSOSettings.EntityID,
+		ssoSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
@@ -753,6 +763,11 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return nil // nothing to do
 	}
 
+	// force-use the primary DB instance for all the following reads/writes
+	// (we may create a team and need to read it back, but also to get latest
+	// team matching the profiles)
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	// load the host and ensure it is enrolled in Fleet MDM
 	host, err := svc.ds.HostByIdentifier(ctx, profs.HostUUID)
 	if err != nil {
@@ -809,7 +824,25 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		// call so that it properly assigns the agent options and creates audit
 		// activities, etc.
 		teamName := teamNameFromPreassignGroups(groups)
-		tm, err := svc.NewTeam(ctx, fleet.TeamPayload{Name: &teamName})
+		payload := fleet.TeamPayload{Name: &teamName}
+		tm, err := svc.NewTeam(ctx, payload)
+		if err != nil {
+			return err
+		}
+
+		// teams created by the match endpoint have disk encryption
+		// enabled by default.
+		// TODO: maybe make this configurable?
+		payload.MDM = &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{
+				EnableDiskEncryption: true,
+			},
+		}
+
+		// TODO: seems like we don't support enabling disk encryption
+		// on team creation?
+		// see https://github.com/fleetdm/fleet/issues/12220
+		tm, err = svc.ModifyTeam(ctx, tm.ID, payload)
 		if err != nil {
 			return err
 		}
@@ -858,5 +891,5 @@ func teamNameFromPreassignGroups(groups []string) string {
 		groups = []string{defaultName}
 	}
 
-	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05"))
+	return fmt.Sprintf("%s (%s)", strings.Join(groups, " - "), time.Now().UTC().Format("2006-01-02:15:04:05.000"))
 }

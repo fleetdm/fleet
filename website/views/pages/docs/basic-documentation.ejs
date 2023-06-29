@@ -5,9 +5,7 @@
 
       <div class="text-center">
         <h1 class="pt-5">Fleet documentation</h1>
-        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.</p>
-        <!-- <p class="mb-0"><strong>v4.0.1 </strong><a href="https://github.com/fleetdm/fleet/releases">changelog</a></p> -->
-        <!-- TODO automatically display latest release version or come up with some other way to present this that doesn't rely on knowing the version number -->
+        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.</p>
       </div>
 
       <div purpose="search" class="d-flex p-0 mt-5">
@@ -24,31 +22,8 @@
           </div>
         </div>
       </div>
+      <p purpose="support-link">Can't find what you're looking for? <a href="/support">Support</a></p>
 
-      <div purpose="cta-cards">
-        <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 pt-4 mt-3">
-          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 mr-sm-1 cta-card" @click="clickCTA('/install')">
-            <img class="cta-image" alt="Install Fleet" src="/images/install-fleet-140x72@2x.png"/>
-            <div class="text-center text-md-left cta-text">
-              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Install osquery and Fleet</p>
-              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow" href="/install">
-                Get started
-                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-              </a>
-            </div>
-          </div>
-          <div class="container-fluid d-flex flex-column flex-md-row justify-content-center align-items-center py-3 m-0 ml-sm-1 mt-3 mt-sm-0 cta-card" @click="clickCTA('slack')">
-            <img class="cta-image" alt="Fleet support" src="/images/fleet-support-140x72@2x.png"/>
-            <div class="text-center text-md-left cta-text">
-              <p class="font-weight-bold p-0 pl-md-4 pt-2 pt-md-0 m-0">Can't find what you need?</p>
-              <a class="p-0 pl-md-4 pt-2 pt-md-0 arrow">
-                Support
-                <img class="d-inline mb-1" style="height: 16px; width: auto;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div purpose="docs-tree">
         <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 px-4">
@@ -246,7 +221,7 @@
           <div class="d-block" purpose="slack-cta">
             <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
             <div class="d-sm-flex">
-              <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
+              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
                 Ask the community on Slack
               </a>
@@ -265,6 +240,11 @@
 
     </div>
 
+    <div purpose="back-to-top-button-container">
+      <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
+        <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
+      </div>
+    </div>
   </div>
 
 </div>

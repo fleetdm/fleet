@@ -294,7 +294,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting app config")
 	}
 
-	if !appConfig.SSOSettings.EnableSSO {
+	if appConfig.SSOSettings == nil || !appConfig.SSOSettings.EnableSSO {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
@@ -448,7 +448,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		return "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	if !appConfig.SSOSettings.EnableSSO {
+	if appConfig.SSOSettings == nil || !appConfig.SSOSettings.EnableSSO {
 		err := ctxerr.New(ctx, "organization not configured to use sso")
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
 	}
@@ -563,10 +563,15 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 		return nil, ctxerr.Wrap(ctx, err, "SessionSSOSettings getting app config")
 	}
 
+	var ssoSettings fleet.SSOSettings
+	if appConfig.SSOSettings != nil {
+		ssoSettings = *appConfig.SSOSettings
+	}
+
 	settings := &fleet.SessionSSOSettings{
-		IDPName:     appConfig.SSOSettings.IDPName,
-		IDPImageURL: appConfig.SSOSettings.IDPImageURL,
-		SSOEnabled:  appConfig.SSOSettings.EnableSSO,
+		IDPName:     ssoSettings.IDPName,
+		IDPImageURL: ssoSettings.IDPImageURL,
+		SSOEnabled:  ssoSettings.EnableSSO,
 	}
 	return settings, nil
 }

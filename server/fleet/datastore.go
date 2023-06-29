@@ -195,7 +195,19 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+
+	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
+	// the provided uuids and filtered according to the provided team filters.
+	// The "lite" version is a subset of the fields related to the host. See
+	// documentation of Datastore.HostLite for more information, or the
+	// implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
+
+	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
+	// the provided ids. The "lite" version is a subset of the fields related to
+	// the host. See documentation of Datastore.HostLite for more information, or
+	// the implementation for the exact list.
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -686,8 +698,8 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
-	// SetVerifiedHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
-	SetVerifiedHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
+	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given host to verified.
+	UpdateVerificationHostMacOSProfiles(ctx context.Context, host *Host, installedProfiles []*HostMacOSProfile) error
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -838,6 +850,11 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// ResetMDMAppleNanoEnrollment resets the
+	// `nano_enrollments.token_update_tally` if a matching row for the host
+	// exists.
+	ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error
+
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
 	// specified team (or no team if teamID is nil).
@@ -960,6 +977,14 @@ type Datastore interface {
 	// Get the profile UUID and last update timestamp for the default setup
 	// assistant for a team or no team.
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error)
+
+	// GetMatchingHostSerials receives a list of serial numbers and returns
+	// a map with all the matching serial numbers in the database.
+	GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]struct{}, error)
+
+	// DeleteHostDEPAssignments marks as deleted entries in
+	// host_dep_assignments for host with matching serials.
+	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 }
 
 const (

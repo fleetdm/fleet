@@ -975,6 +975,11 @@ func TestMDMAuthenticate(t *testing.T) {
 		return nil
 	}
 
+	ds.ResetMDMAppleNanoEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		return nil
+	}
+
 	err := svc.Authenticate(
 		&mdm.Request{Context: ctx},
 		&mdm.Authenticate{
@@ -989,6 +994,7 @@ func TestMDMAuthenticate(t *testing.T) {
 	require.True(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, ds.ResetMDMAppleNanoEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {

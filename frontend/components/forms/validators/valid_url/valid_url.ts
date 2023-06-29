@@ -1,6 +1,7 @@
 interface IValidUrl {
   url: string;
-  protocol?: string;
+  /**  Validate protocol specified; http validates both http and https */
+  protocol?: "http" | "https";
 }
 
 export default ({ url, protocol }: IValidUrl): boolean => {

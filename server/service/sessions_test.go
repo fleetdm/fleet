@@ -225,7 +225,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			SSOSettings: fleet.SSOSettings{
+			SSOSettings: &fleet.SSOSettings{
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
 				EnableJITProvisioning: true,
@@ -321,7 +321,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			SSOSettings: fleet.SSOSettings{
+			SSOSettings: &fleet.SSOSettings{
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
 				EnableJITProvisioning: false,
@@ -347,7 +347,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			SSOSettings: fleet.SSOSettings{
+			SSOSettings: &fleet.SSOSettings{
 				EnableSSO:             true,
 				EnableSSOIdPLogin:     true,
 				EnableJITProvisioning: true,

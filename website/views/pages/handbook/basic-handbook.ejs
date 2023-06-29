@@ -1,5 +1,5 @@
 <div id="basic-handbook" v-cloak>
-  <div purpose="handbook-template" style="max-width: 1000px;" class="container-fluid p-0 mb-5">
+  <div purpose="handbook-template" style="max-width: 1080px;" class="container-fluid mb-5">
     <div class="d-flex flex-column justify-content-between flex-lg-row pt-lg-4 pb-lg-4 m-0">
 
       <div purpose="right-sidebar" class="order-lg-last d-lg-block d-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
@@ -24,7 +24,7 @@
       <div class="d-flex flex-column handbook-content">
 
         <div purpose="breadcrumbs" class="d-flex m-0 align-items-center breadcrumbs">
-          <div class="d-flex" v-if="breadcrumbs.length > 1">
+          <div class="d-flex flex-row align-items-center" v-if="breadcrumbs.length > 1">
             <a :href="'/' + breadcrumbs[0]" class="pr-3">
               {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
             </a>
@@ -107,6 +107,11 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div purpose="back-to-top-button-container">
+    <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
+      <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
     </div>
   </div>
 </div>

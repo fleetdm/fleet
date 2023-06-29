@@ -301,6 +301,7 @@ Give an overview of the topic. You don’t need to mention everything at the beg
 
 #### Explanation
 You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
+
 #### Reference
 Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
 

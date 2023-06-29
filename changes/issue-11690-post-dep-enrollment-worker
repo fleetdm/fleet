@@ -1,1 +1,0 @@
-* Moved post-DEP (automatic) MDM enrollment to a worker job for increased resiliency with retries.

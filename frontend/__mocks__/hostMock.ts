@@ -1,4 +1,19 @@
 import { IHost } from "interfaces/host";
+import { IHostMacMdmProfile } from "interfaces/mdm";
+
+const DEFAULT_HOST_PROFILE_MOCK: IHostMacMdmProfile = {
+  profile_id: 1,
+  name: "Test Profile",
+  operation_type: "install",
+  status: "verified",
+  detail: "This is verified",
+};
+
+export const createMockHostMacMdmProfile = (
+  overrides?: Partial<IHostMacMdmProfile>
+): IHostMacMdmProfile => {
+  return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
+};
 
 const DEFAULT_HOST_MOCK: IHost = {
   id: 1,

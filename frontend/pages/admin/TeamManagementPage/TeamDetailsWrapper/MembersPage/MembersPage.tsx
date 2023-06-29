@@ -68,9 +68,9 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
     },
   });
 
-  const smtpConfigured = config?.smtp_settings.configured || false;
+  const smtpConfigured = config?.smtp_settings?.configured || false;
   const sesConfigured = config?.email?.backend === "ses" || false;
-  const canUseSso = config?.sso_settings.enable_sso || false;
+  const canUseSso = config?.sso_settings?.enable_sso || false;
 
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);

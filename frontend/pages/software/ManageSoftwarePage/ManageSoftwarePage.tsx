@@ -608,14 +608,69 @@ const ManageSoftwarePage = ({
   };
 
   const searchable =
-    isSoftwareEnabled && (!!software?.software || searchQuery !== "");
+    isSoftwareEnabled &&
+    (!!software?.software ||
+      searchQuery !== "" ||
+      queryParams.vulnerable === "true");
 
-  return !isRouteOk ||
-    (isPremiumTier && !userTeams) ||
-    !globalConfig ||
-    (!softwareConfig && !softwareConfigError) ? (
-    <Spinner />
-  ) : (
+  const renderSoftwareTable = () => {
+    if (
+      isFetchingCount ||
+      isFetchingSoftware ||
+      !globalConfig ||
+      (!softwareConfig && !softwareConfigError)
+    ) {
+      return <Spinner />;
+    }
+    if (
+      (softwareError && !isFetchingSoftware) ||
+      (softwareConfigError && !isFetchingSoftwareConfig)
+    ) {
+      return <TableDataError />;
+    }
+    return (
+      <TableContainer
+        columns={softwareTableHeaders}
+        data={(isSoftwareEnabled && software?.software) || []}
+        isLoading={false}
+        resultsTitle={"software items"}
+        emptyComponent={() => (
+          <EmptySoftwareTable
+            isSoftwareDisabled={!isSoftwareEnabled}
+            isFilterVulnerable={filterVuln}
+            isSandboxMode={isSandboxMode}
+            isCollectingSoftware={isCollectingInventory}
+            isSearching={searchQuery !== ""}
+            noSandboxHosts={noSandboxHosts}
+          />
+        )}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+        defaultPageIndex={page || 0}
+        defaultSearchQuery={searchQuery}
+        manualSortBy
+        pageSize={DEFAULT_PAGE_SIZE}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resetPageIndex={resetPageIndex}
+        disableNextPage={isLastPage}
+        searchable={searchable}
+        inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+        onQueryChange={onQueryChange}
+        additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+        // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+        // the TableContainer
+        customControl={searchable ? renderVulnFilterDropdown : undefined}
+        stackControls
+        renderCount={renderSoftwareCount}
+        renderFooter={renderTableFooter}
+        disableMultiRowSelect
+        onSelectSingleRow={handleRowSelect}
+      />
+    );
+  };
+
+  return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
@@ -652,51 +707,7 @@ const ManageSoftwarePage = ({
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
         </div>
-        <div className={`${baseClass}__table`}>
-          {(softwareError && !isFetchingSoftware) ||
-          (softwareConfigError && !isFetchingSoftwareConfig) ? (
-            <TableDataError />
-          ) : (
-            <TableContainer
-              columns={softwareTableHeaders}
-              data={(isSoftwareEnabled && software?.software) || []}
-              isLoading={isFetchingSoftware || isFetchingCount}
-              resultsTitle={"software items"}
-              emptyComponent={() => (
-                <EmptySoftwareTable
-                  isSoftwareDisabled={!isSoftwareEnabled}
-                  isFilterVulnerable={filterVuln}
-                  isSandboxMode={isSandboxMode}
-                  isCollectingSoftware={isCollectingInventory}
-                  isSearching={searchQuery !== ""}
-                  noSandboxHosts={noSandboxHosts}
-                />
-              )}
-              defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-              defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-              defaultPageIndex={page || 0}
-              defaultSearchQuery={searchQuery}
-              manualSortBy
-              pageSize={DEFAULT_PAGE_SIZE}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              resetPageIndex={resetPageIndex}
-              disableNextPage={isLastPage}
-              searchable={searchable}
-              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-              onQueryChange={onQueryChange}
-              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-              // the TableContainer
-              customControl={searchable ? renderVulnFilterDropdown : undefined}
-              stackControls
-              renderCount={renderSoftwareCount}
-              renderFooter={renderTableFooter}
-              disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
-            />
-          )}
-        </div>
+        <div className={`${baseClass}__table`}>{renderSoftwareTable()}</div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
