@@ -17,7 +17,7 @@ Changes are applied to Fleet when the configuration file is applied using fleetc
 
 ## Queries
 
-The `query` YAML file controls queries in Fleet.
+The `queries` YAML file controls queries in Fleet.
 
 You can define one or more queries in the same file with `---`.
 
