@@ -39,7 +39,14 @@ yarn run build
 - Verify that the extension works
 - **Copy the appid for later use.**
 
+
+
 ## Run a local server to make the new extension available
+
+### Edit update.xml
+Open ee/fleetd-chrome/update.xml for edit and modify:
+- the version
+- the appid (What we copied from the extension in the web browser). This will only be done for debug versions. For production we will keep the original ID we have.
 
 ### Create the server
 
@@ -47,6 +54,14 @@ yarn run build
 cd ee/fleetd-chrome
 python3 -m http.server
 ```
-Verify that it works by going to http://localhost:8000 and see the files.
+- Verify that it works by going to http://localhost:8000 and see the files.
+
+```
+cd ee/fleetd-chrome
+npm install -g localtunnel
+lt --port 8000 --subdomain test-new-tables
+```
+In your web browser go to: http://test-new-tables.loca.lt
+
 
 
