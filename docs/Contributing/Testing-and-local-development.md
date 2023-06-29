@@ -42,6 +42,7 @@
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
       - [Debugging tips](#debugging-tips)
+    - [Bootstrap package](#bootstrap-package)
 
 ## License key
 
@@ -662,5 +663,13 @@ log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --styl
 ```
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
 ```
+
+### Bootstrap package
+
+A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
+
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+
+The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 <meta name="pageOrderInSection" value="1500">

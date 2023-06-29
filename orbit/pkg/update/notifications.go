@@ -85,9 +85,9 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 	return cfg, err
 }
 
-type execWinAPIFunc func(MicrosoftMDMEnrollmentArgs) error
+type execWinAPIFunc func(WindowsMDMEnrollmentArgs) error
 
-type microsoftMDMEnrollmentConfigFetcher struct {
+type windowsMDMEnrollmentConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
@@ -97,23 +97,25 @@ type microsoftMDMEnrollmentConfigFetcher struct {
 	// HostUUID is the current host's UUID.
 	HostUUID string
 
-	// for tests, to be able to mock command execution. If nil, will use
-	// RunMicrosoftMDMEnrollment.
-	execWinAPIFn execWinAPIFunc
+	// for tests, to be able to mock API commands. If nil, will use
+	// RunWindowsMDMEnrollment and RunWindowsMDMUnenrollment respectively.
+	execEnrollFn   execWinAPIFunc
+	execUnenrollFn execWinAPIFunc
 
-	// ensures only one command runs at a time, protects access to lastRun and
+	// ensures only one command runs at a time, protects access to lastXxxRun and
 	// isWindowsServer.
 	mu              sync.Mutex
-	lastRun         time.Time
+	lastEnrollRun   time.Time
+	lastUnenrollRun time.Time
 	isWindowsServer bool
 }
 
-func ApplyMicrosoftMDMEnrollmentFetcherMiddleware(
+func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
 ) OrbitConfigFetcher {
-	return &microsoftMDMEnrollmentConfigFetcher{
+	return &windowsMDMEnrollmentConfigFetcher{
 		Fetcher:   fetcher,
 		Frequency: frequency,
 		HostUUID:  hostUUID,
@@ -125,43 +127,95 @@ var errIsWindowsServer = errors.New("device is a Windows Server")
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the "needs windows enrollment" flag to true, executes the command
 // to enroll into Windows MDM (or not, if the device is a Windows Server).
-func (w *microsoftMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := w.Fetcher.GetConfig()
 
-	if err == nil && cfg.Notifications.NeedsProgrammaticMicrosoftMDMEnrollment {
-		if cfg.Notifications.MicrosoftMDMDiscoveryEndpoint == "" {
-			log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
-		} else if w.mu.TryLock() {
-			defer w.mu.Unlock()
-
-			// do not enroll Windows Servers, and do not attempt enrollment if the
-			// last run is not at least Frequency ago.
-			if !w.isWindowsServer && time.Since(w.lastRun) > w.Frequency {
-				fn := w.execWinAPIFn
-				if fn == nil {
-					fn = RunMicrosoftMDMEnrollment
-				}
-				args := MicrosoftMDMEnrollmentArgs{
-					DiscoveryURL: cfg.Notifications.MicrosoftMDMDiscoveryEndpoint,
-					HostUUID:     w.HostUUID,
-				}
-				if err := fn(args); err != nil {
-					if errors.Is(err, errIsWindowsServer) {
-						w.isWindowsServer = true
-						log.Info().Msg("device is a Windows Server, skipping enrollment")
-					} else {
-						log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
-					}
-				} else {
-					w.lastRun = time.Now()
-					log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
-				}
-			} else if w.isWindowsServer {
-				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
-			} else {
-				log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
-			}
+	if err == nil {
+		if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
+			w.attemptEnrollment(cfg.Notifications)
+		} else if cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment {
+			w.attemptUnenrollment()
 		}
 	}
 	return cfg, err
+}
+
+func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
+	if notifs.WindowsMDMDiscoveryEndpoint == "" {
+		log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
+		return
+	}
+
+	if w.mu.TryLock() {
+		defer w.mu.Unlock()
+
+		// do not enroll Windows Servers, and do not attempt enrollment if the last
+		// run is not at least Frequency ago.
+		if w.isWindowsServer {
+			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, device is a server")
+			return
+		}
+		if time.Since(w.lastEnrollRun) <= w.Frequency {
+			log.Debug().Msg("skipped calling RegisterDeviceWithManagement to enroll Windows device, last run was too recent")
+			return
+		}
+
+		fn := w.execEnrollFn
+		if fn == nil {
+			fn = RunWindowsMDMEnrollment
+		}
+		args := WindowsMDMEnrollmentArgs{
+			DiscoveryURL: notifs.WindowsMDMDiscoveryEndpoint,
+			HostUUID:     w.HostUUID,
+		}
+		if err := fn(args); err != nil {
+			if errors.Is(err, errIsWindowsServer) {
+				w.isWindowsServer = true
+				log.Info().Msg("device is a Windows Server, skipping enrollment")
+			} else {
+				log.Info().Err(err).Msg("calling RegisterDeviceWithManagement to enroll Windows device failed")
+			}
+			return
+		}
+
+		w.lastEnrollRun = time.Now()
+		log.Info().Msg("successfully called RegisterDeviceWithManagement to enroll Windows device")
+	}
+}
+
+func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
+	if w.mu.TryLock() {
+		defer w.mu.Unlock()
+
+		// do not unenroll Windows Servers, and do not attempt unenrollment if the
+		// last run is not at least Frequency ago.
+		if w.isWindowsServer {
+			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, device is a server")
+			return
+		}
+		if time.Since(w.lastUnenrollRun) <= w.Frequency {
+			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, last run was too recent")
+			return
+		}
+
+		fn := w.execUnenrollFn
+		if fn == nil {
+			fn = RunWindowsMDMUnenrollment
+		}
+		args := WindowsMDMEnrollmentArgs{
+			HostUUID: w.HostUUID,
+		}
+		if err := fn(args); err != nil {
+			if errors.Is(err, errIsWindowsServer) {
+				w.isWindowsServer = true
+				log.Info().Msg("device is a Windows Server, skipping unenrollment")
+			} else {
+				log.Info().Err(err).Msg("calling UnregisterDeviceWithManagement to unenroll Windows device failed")
+			}
+			return
+		}
+
+		w.lastUnenrollRun = time.Now()
+		log.Info().Msg("successfully called UnregisterDeviceWithManagement to unenroll Windows device")
+	}
 }
