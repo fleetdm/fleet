@@ -6,9 +6,9 @@ import (
 
 type CPEMatchingRules []CPEMatchingRule
 
-// GetCPEMatchingRules returns a list of CPEMatchingRules used for
+// GetKnownNVDBugRules returns a list of CPEMatchingRules used for
 // ignoring false positives detected during the NVD vuln. detection process.
-func GetCPEMatchingRules() (CPEMatchingRules, error) {
+func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 	rules := CPEMatchingRules{
 		CPEMatchingRule{
 			CPESpecs: []CPEMatchingRuleSpec{
