@@ -14,9 +14,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -809,70 +806,6 @@ func extract(src, dst string) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func loadSoftware(platform string, ver string) []map[string]string {
-	_, exFilename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("No caller information")
-	}
-	exDir := path.Dir(exFilename)
-
-	srcPath := filepath.Join(
-		exDir,
-		"..",
-		"..",
-		"server",
-		"vulnerabilities",
-		"testdata",
-		platform,
-		"software",
-		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
-	)
-
-	tmpDir, err := os.MkdirTemp("", "osquery-perf")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	dstPath := filepath.Join(tmpDir, fmt.Sprintf("%s-software.json", ver))
-
-	extract(srcPath, dstPath)
-
-	type softwareJSON struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		Release string `json:"release,omitempty"`
-		Arch    string `json:"arch,omitempty"`
-	}
-
-	var software []softwareJSON
-	contents, err := os.ReadFile(dstPath)
-	if err != nil {
-		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
-		return nil
-	}
-
-	err = json.Unmarshal(contents, &software)
-	if err != nil {
-		log.Printf("unmarshalling vuln software for %s %s:%s", platform, ver, err)
-		return nil
-	}
-
-	var r []map[string]string
-	for i, fi := range software {
-		installedPath := ""
-		if i%2 == 0 {
-			installedPath = fmt.Sprintf("/some/path/%s", fi.Name)
-		}
-		r = append(r, map[string]string{
-			"name":           fi.Name,
-			"version":        fi.Version,
-			"source":         "osquery-perf",
-			"installed_path": installedPath,
-		})
-	}
-	return r
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
