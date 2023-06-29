@@ -9,7 +9,8 @@
     margin-bottom: $pad-large;
 
     .fleet-checkbox {
-      margin-top: 5px;
+      display: flex;
+      align-items: center;
 
       &__label {
         font-size: $x-small;
