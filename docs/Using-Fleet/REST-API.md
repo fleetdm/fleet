@@ -5120,7 +5120,7 @@ Returns the query specified by ID.
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
     "team_id": null,
-    "frequency": 3600,
+    "interval": 3600,
     "platform": "",
     "version": "",
     "automations": {
@@ -5171,7 +5171,7 @@ Returns a list of global queries or team queries.
     "description": "query",
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
-    "frequency": 3600,
+    "interval": 3600,
     "platform": "macos,windows,linux",
     "version": "",
     "automations": {
@@ -5200,7 +5200,7 @@ Returns a list of global queries or team queries.
     "description": "Report performance stats for each file in the query schedule.",
     "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
     "team_id": null,
-    "frequency": 3600,
+    "interval": 3600,
     "platform": "",
     "version": "",
     "automations": {
@@ -5231,7 +5231,7 @@ Creates a global query or team query.
 | description                     | string  | body | The query's description.                                                                                                                               |
 | observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
-| frequency                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| interval                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations                     | object  | body | The set of automation options.                                                                     |
@@ -5249,7 +5249,7 @@ Creates a global query or team query.
   "name": "new_query",
   "description": "This is a new query.",
   "query": "SELECT * FROM osquery_info",
-  "frequency": 3600, // Once per hour
+  "interval": 3600, // Once per hour
   "platform": "macos,windows,linux",
   "version": "",
   "automations": {
@@ -5273,7 +5273,7 @@ Creates a global query or team query.
     "query": "SELECT * FROM osquery_info",
     "description": "This is a new query.",
     "team_id": null,
-    "frequency": 3600,
+    "interval": 3600,
     "platform": "macos,windows,linux",
     "version": "",
     "automations": {
@@ -5305,7 +5305,7 @@ Modifies the query specified by ID.
 | query                       | string  | body | The query in SQL syntax.                                                                                                                               |
 | description                 | string  | body | The query's description.                                                                                                                               |
 | observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| frequency                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
+| interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | version         | string  | body | The minimum required osqueryd version installed on a host. If set to "", all osqueryd versions are acceptable.                                                                          |
 | automations                 | object  | body | The set of automation options.                                                                     |
@@ -5321,7 +5321,7 @@ Modifies the query specified by ID.
 ```json
 {
   "name": "new_title_for_my_query",
-  "frequency": 3600, // Once per hour,
+  "interval": 3600, // Once per hour,
   "platform": "",
   "version": "",
   "automations": {
@@ -5344,7 +5344,7 @@ Modifies the query specified by ID.
     "description": "This is a new query.",
     "query": "SELECT * FROM osquery_info",
     "team_id": null,
-    "frequency": 3600,
+    "interval": 3600,
     "platform": "",
     "version": "",
     "automations": {
@@ -5526,7 +5526,7 @@ load balancer timeout.
 ## Schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get schedule (deprecated)](#get-schedule)
 - [Add query to schedule (deprecated)](#add-query-to-schedule)
@@ -5540,7 +5540,7 @@ These API routes let you control your scheduled queries.
 ### Get schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/global/schedule`
 
@@ -5614,7 +5614,7 @@ None.
 ### Add query to schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `frequency` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/global/schedule`
 
@@ -5675,7 +5675,7 @@ None.
 ### Edit query in schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/global/schedule/{id}`
 
@@ -5731,7 +5731,7 @@ None.
 ### Remove query from schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/global/schedule/{id}`
 
@@ -5753,7 +5753,7 @@ None.
 ### Team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 - [Get team schedule (deprecated)](#get-team-schedule)
 - [Add query to team schedule (deprecated)](#add-query-to-team-schedule)
@@ -5765,7 +5765,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Get team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `GET /api/v1/fleet/teams/{id}/schedule`
 
@@ -5845,7 +5845,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Add query to team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `POST /api/v1/fleet/teams/{id}/schedule`
 
@@ -5903,7 +5903,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Edit query in team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
@@ -5960,7 +5960,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 #### Remove query from team schedule
 
 > The Schedule API endpoints are deprecated as of Fleet 4.XX. It is maintained for backwards compatibility. 
-> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platforms` that enable scheduling.
+> Please use the [Queries](#queries) endpoint, which as of 4.xx has attributes such as `interval` and `platform` that enable scheduling.
 
 `DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
