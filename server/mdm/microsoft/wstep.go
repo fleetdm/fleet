@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -100,18 +100,51 @@ func newManager(store CertStore, certPEM []byte, privKeyPEM []byte) (*manager, e
 	}, nil
 }
 
+func (m *manager) IdentityFingerprint() string {
+	return m.identityFingerprint
+}
+
 // TODO: Marcos to update the POC implementation of this function
 func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
 	if m.identityCert == nil || m.identityPrivateKey == nil {
 		return nil, "", errors.New("invalid identity certificate or private key")
 	}
 
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(CertRenewalPeriodInSecs)
+	// serial number is used to uniquely identify the certificate
+	sn, err := m.store.WSTEPNewSerial(ctx)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid renewal time: %v", err)
+		return nil, "", fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
-	// Time durations
+	// populate the client certificate template
+	tmpl, err := populateClientCert(sn, subject, m.identityCert, clientCSR)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to populate client certificate: %w", err)
+	}
+
+	rawSignedDER, err := x509.CreateCertificate(rand.Reader, tmpl, m.identityCert, clientCSR.PublicKey, m.identityPrivateKey)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to sign client certificate: %w", err)
+	}
+
+	signedCert, err := x509.ParseCertificate(rawSignedDER)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse client certificate: %w", err)
+	}
+
+	if err := m.store.WSTEPStoreCertificate(ctx, subject, signedCert); err != nil {
+		return nil, "", fmt.Errorf("failed to store client certificate: %w", err)
+	}
+
+	return rawSignedDER, CertFingerprintHexStr(signedCert), nil
+}
+
+func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	certRenewalPeriodInSecsInt, err := strconv.Atoi(CertRenewalPeriodInSecs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid renewal time: %w", err)
+	}
+
 	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
 	yearDuration := 365 * 24 * time.Hour
 
@@ -120,27 +153,20 @@ func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *
 		CommonName:         subject,
 	}
 
-	// The serial number is used to uniquely identify the certificate
-	sn, err := m.store.WSTEPNewSerial(ctx)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate serial number: %w", err)
-	}
-
-	// Create the client certificate
-	clientCertificate := &x509.Certificate{
+	tmpl := &x509.Certificate{
 		Subject:            certSubject,
-		Issuer:             m.identityCert.Issuer,
-		Version:            clientCSR.Version,
-		PublicKey:          clientCSR.PublicKey,
-		PublicKeyAlgorithm: clientCSR.PublicKeyAlgorithm,
-		Signature:          clientCSR.Signature,
-		SignatureAlgorithm: clientCSR.SignatureAlgorithm,
-		Extensions:         clientCSR.Extensions,
-		ExtraExtensions:    clientCSR.ExtraExtensions,
-		IPAddresses:        clientCSR.IPAddresses,
-		EmailAddresses:     clientCSR.EmailAddresses,
-		DNSNames:           clientCSR.DNSNames,
-		URIs:               clientCSR.URIs,
+		Issuer:             issuerCert.Issuer,
+		Version:            csr.Version,
+		PublicKey:          csr.PublicKey,
+		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
+		Signature:          csr.Signature,
+		SignatureAlgorithm: csr.SignatureAlgorithm,
+		Extensions:         csr.Extensions,
+		ExtraExtensions:    csr.ExtraExtensions,
+		IPAddresses:        csr.IPAddresses,
+		EmailAddresses:     csr.EmailAddresses,
+		DNSNames:           csr.DNSNames,
+		URIs:               csr.URIs,
 		NotBefore:          notBeforeDuration,
 		NotAfter:           notBeforeDuration.Add(yearDuration),
 		SerialNumber:       sn,
@@ -150,25 +176,7 @@ func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-
-	rawSignedCertDER, err := x509.CreateCertificate(rand.Reader, clientCertificate, m.identityCert, clientCSR.PublicKey, m.identityPrivateKey)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to sign client certificate: %v", err.Error())
-	}
-
-	if err := m.store.WSTEPStoreCertificate(ctx, subject, clientCertificate); err != nil {
-		return nil, "", fmt.Errorf("failed to store client certificate: %v", err.Error())
-	}
-
-	// Generate signed cert fingerprint
-	fingerprint := sha1.Sum(rawSignedCertDER)
-	fingerprintHex := strings.ToUpper(hex.EncodeToString(fingerprint[:]))
-
-	return rawSignedCertDER, fingerprintHex, nil
-}
-
-func (m *manager) IdentityFingerprint() string {
-	return m.identityFingerprint
+	return tmpl, nil
 }
 
 // GetClientCSR returns the client certificate signing request from the BinarySecurityToken

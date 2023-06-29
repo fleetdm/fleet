@@ -2,7 +2,7 @@ package microsoft_mdm
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec
 	"crypto/x509"
 	"encoding/hex"
 	"errors"
@@ -34,34 +34,34 @@ var _ CertStore = (*mockStore)(nil)
 func TestNewCertManager(t *testing.T) {
 	var store CertStore
 
-	wantCert, err := cryptoutil.DecodePEMCertificate([]byte(testCert))
+	wantCert, err := cryptoutil.DecodePEMCertificate(testCert)
 	require.NoError(t, err)
-	wantKey, err := server.DecodePrivateKeyPEM([]byte(testKey))
+	wantKey, err := server.DecodePrivateKeyPEM(testKey)
 	require.NoError(t, err)
 	wantIdentityFingerprint := CertFingerprintHexStr(wantCert)
 
 	// Test that NewCertManager returns an error if the cert PEM is invalid.
-	_, err = NewCertManager(store, []byte("invalid"), []byte(testKey))
+	_, err = NewCertManager(store, []byte("invalid"), testKey)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to decode PEM certificate")
 
 	// Test that NewCertManager returns an error if the key PEM is invalid.
-	_, err = NewCertManager(store, []byte(testCert), []byte("invalid"))
+	_, err = NewCertManager(store, testCert, []byte("invalid"))
 	require.Error(t, err)
 	require.ErrorContains(t, err, "decode private key: no PEM-encoded data found")
 
 	// Test that NewCertManager returns an error if the cert PEM is not a certificate.
-	_, err = NewCertManager(store, []byte(testKey), []byte(testKey))
+	_, err = NewCertManager(store, testKey, testKey)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to decode PEM certificate")
 
 	// Test that NewCertManager returns an error if the key PEM is not a private key.
-	_, err = NewCertManager(store, []byte(testCert), []byte(testCert))
+	_, err = NewCertManager(store, testCert, testCert)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "decode private key: unexpected block type")
 
 	// Test that NewCertManager returns a *WSTEPDepot if the cert and key PEMs are valid.
-	cm, err := NewCertManager(store, []byte(testCert), []byte(testKey))
+	cm, err := NewCertManager(store, testCert, testKey)
 	require.NoError(t, err)
 	require.NotNil(t, cm)
 	require.Equal(t, wantIdentityFingerprint, cm.IdentityFingerprint())
@@ -111,7 +111,7 @@ func TestCertFingerprintHexStr(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			csum := sha1.Sum(cert.Raw)
+			csum := sha1.Sum(cert.Raw) // nolint:gosec
 			want := strings.ToUpper(hex.EncodeToString(csum[:]))
 			fp := CertFingerprintHexStr(cert)
 			require.Equal(t, want, fp)
