@@ -20,8 +20,8 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 				},
 			},
 
-			CVEs: map[string]bool{
-				"CVE-2017-13797": true,
+			CVEs: map[string]struct{}{
+				"CVE-2017-13797": {},
 			},
 		},
 		CPEMatchingRule{
@@ -34,9 +34,9 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 				},
 			},
 
-			CVEs: map[string]bool{
-				"CVE-2016-4613": true,
-				"CVE-2017-2383": true,
+			CVEs: map[string]struct{}{
+				"CVE-2016-4613": {},
+				"CVE-2017-2383": {},
 			},
 		},
 		CPEMatchingRule{
@@ -49,8 +49,8 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 				},
 			},
 
-			CVEs: map[string]bool{
-				"CVE-2017-2366": true,
+			CVEs: map[string]struct{}{
+				"CVE-2017-2366": {},
 			},
 		},
 		CPEMatchingRule{
@@ -63,9 +63,9 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 				},
 			},
 
-			CVEs: map[string]bool{
-				"CVE-2016-4613": true,
-				"CVE-2016-7583": true,
+			CVEs: map[string]struct{}{
+				"CVE-2016-4613": {},
+				"CVE-2016-7583": {},
 			},
 		},
 		CPEMatchingRule{
@@ -78,32 +78,32 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 				},
 			},
 
-			CVEs: map[string]bool{
-				"CVE-2016-4692": true,
-				"CVE-2016-4743": true,
-				"CVE-2016-7578": true,
-				"CVE-2016-7586": true,
-				"CVE-2016-7587": true,
-				"CVE-2016-7589": true,
-				"CVE-2016-7592": true,
-				"CVE-2016-7598": true,
-				"CVE-2016-7599": true,
-				"CVE-2016-7610": true,
-				"CVE-2016-7611": true,
-				"CVE-2016-7614": true,
-				"CVE-2016-7632": true,
-				"CVE-2016-7635": true,
-				"CVE-2016-7639": true,
-				"CVE-2016-7640": true,
-				"CVE-2016-7641": true,
-				"CVE-2016-7642": true,
-				"CVE-2016-7645": true,
-				"CVE-2016-7646": true,
-				"CVE-2016-7648": true,
-				"CVE-2016-7649": true,
-				"CVE-2016-7652": true,
-				"CVE-2016-7654": true,
-				"CVE-2016-7656": true,
+			CVEs: map[string]struct{}{
+				"CVE-2016-4692": {},
+				"CVE-2016-4743": {},
+				"CVE-2016-7578": {},
+				"CVE-2016-7586": {},
+				"CVE-2016-7587": {},
+				"CVE-2016-7589": {},
+				"CVE-2016-7592": {},
+				"CVE-2016-7598": {},
+				"CVE-2016-7599": {},
+				"CVE-2016-7610": {},
+				"CVE-2016-7611": {},
+				"CVE-2016-7614": {},
+				"CVE-2016-7632": {},
+				"CVE-2016-7635": {},
+				"CVE-2016-7639": {},
+				"CVE-2016-7640": {},
+				"CVE-2016-7641": {},
+				"CVE-2016-7642": {},
+				"CVE-2016-7645": {},
+				"CVE-2016-7646": {},
+				"CVE-2016-7648": {},
+				"CVE-2016-7649": {},
+				"CVE-2016-7652": {},
+				"CVE-2016-7654": {},
+				"CVE-2016-7656": {},
 			},
 		},
 	}
@@ -120,7 +120,7 @@ func GetCPEMatchingRules() (CPEMatchingRules, error) {
 // FindMatch returns the first matching rule
 func (rules CPEMatchingRules) FindMatch(cve string) (*CPEMatchingRule, bool) {
 	for _, rule := range rules {
-		if rule.CVEs[cve] {
+		if _, ok := rule.CVEs[cve]; ok {
 			return &rule, true
 		}
 	}

@@ -20,7 +20,7 @@ func TestCPEProcessingRule(t *testing.T) {
 				},
 			},
 
-			CVEs: map[string]bool{"CVE-123": true},
+			CVEs: map[string]struct{}{"CVE-123": {}},
 		}
 	}
 
@@ -86,7 +86,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Vendor can't be empty"),
 			},
 			{
@@ -100,7 +100,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Vendor can't be 'ANY'"),
 			},
 			{
@@ -113,7 +113,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Vendor can't be 'NA'"),
 			},
 			{
@@ -127,7 +127,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Product can't be empty"),
 			},
 			{
@@ -141,7 +141,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Product can't be 'ANY'"),
 			},
 			{
@@ -154,7 +154,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("Product can't be 'NA'"),
 			},
 			{
@@ -167,7 +167,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("TargetSW can't be empty"),
 			},
 			{
@@ -180,7 +180,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("TargetSW can't be 'ANY'"),
 			},
 			{
@@ -193,7 +193,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("TargetSW can't be 'NA'"),
 			},
 			{
@@ -206,7 +206,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: ".as.-as",
 						},
 					},
-					CVEs: map[string]bool{"CVE-123": true},
+					CVEs: map[string]struct{}{"CVE-123": {}},
 				}, err: errors.New("improper constraint: .as.-as"),
 			},
 			{
@@ -231,7 +231,7 @@ func TestCPEProcessingRule(t *testing.T) {
 							SemVerConstraint: "1.2.3",
 						},
 					},
-					CVEs: map[string]bool{"": true, "  ": true, "CVE-123": true},
+					CVEs: map[string]struct{}{"": {}, "  ": {}, "CVE-123": {}},
 				}, err: errors.New("CVE can't be empty"),
 			},
 		}

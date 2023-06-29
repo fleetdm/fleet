@@ -37,7 +37,7 @@ func (rule CPEMatchingRuleSpec) getCPEMeta() *wfn.Attributes {
 type CPEMatchingRule struct {
 	CPESpecs []CPEMatchingRuleSpec
 	// Set of CVEs that this rule targets
-	CVEs map[string]bool
+	CVEs map[string]struct{}
 }
 
 // CPEMatches returns true if both the provided CPE match the rule.
