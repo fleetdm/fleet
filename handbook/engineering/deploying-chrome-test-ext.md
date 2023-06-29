@@ -65,5 +65,24 @@ lt --port 8000 --subdomain test-new-tables
 - Click the hazard link on item number 1 (below the big button "Click To Submit"). from the new page copy the IP and paste it in the previous page in the window.
 - Open ee/fleetd-chrome/update.xml for edit and modify the codebase to the newly created URL (in this example: http://test-new-tables.loca.lt/dist.crx)
 
+### Deploy the extension using Google Admin
+
+- Go to google admin
+- On the left menu, open Apps & Extensions --> Users & browsers
+- Select CHromeOSTesting
+- Press bottom right + symbal then the apps logo (Quadrant with dots)
+- Put the appid we copied earlier.
+- change the dropdown menu to "custom URL"
+- paste http://test-new-tables.loca.lt/updates.xml
+- SAVE
+- On the right tab change from "Allow Install" to "Force Install"
+- SAVE (top right of screen)
+- remove the filters (The one with our appid)
+- Click the original FleetDM extention. From the right tab, copy the "Policy for extension" json and put it in the our new extension in the same place.
+- SAVE (top right of screen)
+
+
+
+
 
 
