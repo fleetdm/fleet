@@ -40,6 +40,7 @@ export interface IFormData {
   name: string;
   newUserType?: NewUserType | null;
   password?: string | null;
+  new_password?: string | null;
   sso_enabled?: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
@@ -53,6 +54,7 @@ interface ICreateUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFormData) => void;
   submitText: string;
+  userToEditId?: number;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -79,6 +81,7 @@ const UserForm = ({
   onCancel,
   onSubmit,
   submitText,
+  userToEditId,
   defaultName,
   defaultEmail,
   currentUserId,
@@ -102,7 +105,7 @@ const UserForm = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [errors, setErrors] = useState<any>(createOrEditUserErrors);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
     newUserType: isNewUser ? NewUserType.AdminCreated : null,
@@ -153,7 +156,7 @@ const UserForm = ({
     });
   };
 
-  const onGlobalUserRoleChange = (value: string): void => {
+  const onGlobalUserRoleChange = (value: UserRole): void => {
     setFormData({
       ...formData,
       global_role: value,

@@ -77,7 +77,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [isUpdatingMembers, setIsUpdatingMembers] = useState(false);
-  const [userEditing, setUserEditing] = useState<IUser>();
+  const [userToEdit, setUserToEdit] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
@@ -94,9 +94,9 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const toggleRemoveMemberModal = useCallback(
     (user?: IUser) => {
       setShowRemoveMemberModal(!showRemoveMemberModal);
-      user ? setUserEditing(user) : setUserEditing(undefined);
+      user ? setUserToEdit(user) : setUserToEdit(undefined);
     },
-    [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
+    [showRemoveMemberModal, setShowRemoveMemberModal, setUserToEdit]
   );
 
   // API CALLS
@@ -142,10 +142,10 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const toggleEditMemberModal = useCallback(
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
-      user ? setUserEditing(user) : setUserEditing(undefined);
+      user ? setUserToEdit(user) : setUserToEdit(undefined);
       setEditUserErrors(DEFAULT_CREATE_USER_ERRORS);
     },
-    [showEditUserModal, setShowEditUserModal, setUserEditing]
+    [showEditUserModal, setShowEditUserModal, setUserToEdit]
   );
 
   const toggleCreateMemberModal = useCallback(() => {
@@ -156,14 +156,14 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   // FUNCTIONS
 
   const onRemoveMemberSubmit = useCallback(() => {
-    const removedUsers = { users: [{ id: userEditing?.id }] };
+    const removedUsers = { users: [{ id: userToEdit?.id }] };
     setIsUpdatingMembers(true);
     teamsAPI
       .removeMembers(teamIdForApi, removedUsers)
       .then(() => {
         renderFlash(
           "success",
-          `Successfully removed ${userEditing?.name || "member"}`
+          `Successfully removed ${userToEdit?.name || "member"}`
         );
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
@@ -179,8 +179,8 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
         refetchUsers();
       });
   }, [
-    userEditing?.id,
-    userEditing?.name,
+    userToEdit?.id,
+    userToEdit?.name,
     teamIdForApi,
     renderFlash,
     currentUser,
@@ -299,28 +299,24 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
       const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
-        userEditing as IUser,
+        userToEdit as IUser,
         formData
       );
 
       setIsUpdatingMembers(true);
 
-      const userName = userEditing?.name;
+      const userName = userToEdit?.name;
 
-      userEditing &&
+      userToEdit &&
         usersAPI
-          .update(userEditing.id, updatedAttrs)
+          .update(userToEdit.id, updatedAttrs)
           .then(() => {
             renderFlash(
               "success",
               `Successfully edited ${userName || "member"}.`
             );
 
-            if (
-              currentUser &&
-              userEditing &&
-              currentUser.id === userEditing.id
-            ) {
+            if (currentUser && userToEdit && currentUser.id === userToEdit.id) {
               // If user edits self and removes "admin" role,
               // redirect to home
               const selectedTeam = formData.teams.filter(
@@ -351,7 +347,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           });
     },
     [
-      userEditing,
+      userToEdit,
       renderFlash,
       currentUser,
       toggleEditMemberModal,
@@ -474,21 +470,16 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
           onSubmit={onEditMemberSubmit}
-          defaultName={userEditing?.name}
-          defaultEmail={userEditing?.email}
-          defaultGlobalRole={userEditing?.global_role || null}
-          defaultTeamRole={userEditing?.role}
-          defaultTeams={userEditing?.teams}
+          userToEdit={userToEdit}
+          currentUser={currentUser ?? undefined}
           availableTeams={teams || []}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
           sesConfigured={sesConfigured}
           canUseSso={canUseSso}
-          isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
           isUpdatingUsers={isUpdatingMembers}
-          isApiOnly={userEditing?.api_only || false}
         />
       )}
       {showCreateUserModal && currentTeamDetails && (
@@ -513,7 +504,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       )}
       {showRemoveMemberModal && currentTeamDetails && (
         <RemoveMemberModal
-          memberName={userEditing?.name || ""}
+          memberName={userToEdit?.name || ""}
           teamName={currentTeamDetails.name}
           isUpdatingMembers={isUpdatingMembers}
           onCancel={toggleRemoveMemberModal}

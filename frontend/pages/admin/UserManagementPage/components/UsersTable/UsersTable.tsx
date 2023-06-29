@@ -433,10 +433,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     return (
       <EditUserModal
-        defaultEmail={userData?.email}
-        defaultName={userData?.name}
-        defaultGlobalRole={userData?.global_role}
-        defaultTeams={userData?.teams}
+        userToEdit={userData}
         onCancel={toggleEditUserModal}
         onSubmit={onEditUser}
         availableTeams={teams || []}
@@ -444,8 +441,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         smtpConfigured={config?.smtp_settings.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
-        isSsoEnabled={userData?.sso_enabled}
-        isApiOnly={userData?.api_only || false}
         isModifiedByGlobalAdmin
         isInvitePending={userEditing.type === "invite"}
         editUserErrors={editUserErrors}
