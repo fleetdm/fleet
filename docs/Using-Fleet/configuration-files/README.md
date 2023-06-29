@@ -34,6 +34,7 @@ spec:
   team: ""
   interval: 3600 # 1 hour
   observer_can_run: true
+  automations_enabled: true
 ---
 apiVersion: v1 
 kind: query 
@@ -59,11 +60,10 @@ spec:
   team: Workstations (Canary)
   interval: 86400 # 24 hours
   observer_can_run: false
-  version: 5.4.0
+  min_osquery_version: 5.4.0
   platform: darwin,windows
-  automations:
-    logging: differential
-    ignore_removals: true
+  automations_enabled: true
+  logging: differential
 ```
 
 Continued edits and applications to this file will update the queries.
