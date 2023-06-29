@@ -418,6 +418,7 @@ INNER JOIN
 ON
     nvq.id = h.uuid
 WHERE
+   nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
 	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)

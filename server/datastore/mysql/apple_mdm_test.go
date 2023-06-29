@@ -3438,6 +3438,17 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			TeamID:      &tm1.ID,
 		},
 	})
+
+	// randomly set two commadns as inactive
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 LIMIT 2`)
+		return err
+	})
+	// only two results are listed
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
 }
 
 func testMDMAppleEULA(t *testing.T, ds *Datastore) {
