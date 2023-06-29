@@ -23,6 +23,7 @@
 define fleetdm::profile (
   String $template,
   String $group = 'default',
+  String $ensure = 'present',
 ) {
   if $facts["clientnoop"] {
     notice('noop mode: skipping profile definition in the Fleet server')
@@ -36,7 +37,7 @@ define fleetdm::profile (
     }
 
     $host_uuid = $facts['system_profiler']['hardware_uuid']
-    $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group)
+    $response = fleetdm::preassign_profile($name, $host_uuid, $template, $group, $ensure)
     $err = $response['error']
 
     if $err != '' {

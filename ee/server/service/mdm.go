@@ -793,10 +793,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		make([]string, 0, len(profs.Profiles)),
 		make([][]byte, 0, len(profs.Profiles))
 	for _, prof := range profs.Profiles {
-		hashes = append(hashes, prof.HexMD5Hash)
-		rawProfiles = append(rawProfiles, prof.Profile)
 		if prof.Group != "" {
 			groups = append(groups, prof.Group)
+		}
+
+		if !prof.Exclude {
+			hashes = append(hashes, prof.HexMD5Hash)
+			rawProfiles = append(rawProfiles, prof.Profile)
 		}
 	}
 

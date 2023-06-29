@@ -20,7 +20,7 @@ module Puppet::Util
     # @param profile_xml [String] Raw XML with the configuration profile.
     # @param group [String] Used to construct a team name.
     # @return [Hash] The response status code, headers, and body.
-    def preassign_profile(run_identifier, uuid, profile_xml, group)
+    def preassign_profile(run_identifier, uuid, profile_xml, group, ensure_prof)
       post(
         '/api/latest/fleet/mdm/apple/profiles/preassign',
         {
@@ -28,6 +28,7 @@ module Puppet::Util
           'host_uuid' => uuid,
           'profile' => Base64.strict_encode64(profile_xml),
           'group' => group,
+          'exclude' => ensure_prof == 'absent',
         },
       )
     end
