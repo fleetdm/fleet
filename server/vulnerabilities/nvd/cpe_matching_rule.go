@@ -9,7 +9,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 )
 
-// CPEMatchingRuleSpec allows you to match againts a CPE. Version ranges are supported via SemVer constraints.
+// CPEMatchingRuleSpec allows you to match against a CPE. Version ranges are supported via SemVer constraints.
 type CPEMatchingRuleSpec struct {
 	Vendor   string // Software vendor.
 	Product  string // Software product name.

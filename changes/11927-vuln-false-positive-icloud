@@ -1,2 +1,3 @@
 - Added CPEMatchingRule type, used for correcting false positives caused by incorrect entries in the
-NVD dataset.
+  NVD dataset.
+- Fixed false positives for iCloud on macOS.
