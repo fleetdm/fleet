@@ -5122,7 +5122,7 @@ Returns the query specified by ID.
     "team_id": null,
     "frequency": 3600,
     "platform": "",
-    "min_osquery_version": "",
+    "version": "",
     "automations": {
       "logging": "differential",
       "ignore_removal": true
@@ -5173,7 +5173,7 @@ Returns a list of global queries or team queries.
     "team_id": null,
     "frequency": 3600,
     "platform": "macos,windows,linux",
-    "min_osquery_version": "",
+    "version": "",
     "automations": {
       "logging": "differential",
       "ignore_removal": true
@@ -5202,7 +5202,7 @@ Returns a list of global queries or team queries.
     "team_id": null,
     "frequency": 3600,
     "platform": "",
-    "min_osquery_version": "",
+    "version": "",
     "automations": {
       "logging": "differential",
       "ignore_removal": true
@@ -5233,7 +5233,7 @@ Creates a global query or team query.
 | team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | frequency                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
-| min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
+| version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations                     | object  | body | The set of automation options.                                                                     |
 | automations.logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
 | automations.ignore_removals     | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.logging` is `"differential"`.                 |
@@ -5251,7 +5251,7 @@ Creates a global query or team query.
   "query": "SELECT * FROM osquery_info",
   "frequency": 3600, // Once per hour
   "platform": "macos,windows,linux",
-  "min_osquery_version": "",
+  "version": "",
   "automations": {
     "logging": "snapshot",
     "ignore_removal": true
@@ -5275,7 +5275,7 @@ Creates a global query or team query.
     "team_id": null,
     "frequency": 3600,
     "platform": "macos,windows,linux",
-    "min_osquery_version": "",
+    "version": "",
     "automations": {
       "logging": "differential",
       "ignore_removal": true
@@ -5307,7 +5307,7 @@ Modifies the query specified by ID.
 | observer_can_run            | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | frequency                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
-| min_osquery_version         | string  | body | The minimum required osqueryd version installed on a host. If set to "", all osqueryd versions are acceptable.                                                                          |
+| version         | string  | body | The minimum required osqueryd version installed on a host. If set to "", all osqueryd versions are acceptable.                                                                          |
 | automations                 | object  | body | The set of automation options.                                                                     |
 | automations.logging         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default) or `"differential"`.                                         |
 | automations.ignore_removals | boolean | body | Whether "removed" actions should be logged. Default is `false`. Only relevant when `automations.logging` is `"differential"`.                 |
@@ -5323,7 +5323,7 @@ Modifies the query specified by ID.
   "name": "new_title_for_my_query",
   "frequency": 3600, // Once per hour,
   "platform": "",
-  "min_osquery_version": "",
+  "version": "",
   "automations": {
     "logging": "differential",
   }
@@ -5346,7 +5346,7 @@ Modifies the query specified by ID.
     "team_id": null,
     "frequency": 3600,
     "platform": "",
-    "min_osquery_version": "",
+    "version": "",
     "automations": {
       "logging": "differential",
       "ignore_removal": true
