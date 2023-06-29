@@ -30,3 +30,4 @@ This allows some flexibility when developing new features in Orbit and Fleet.
 2. When the new Fleet server version doesn't support older Orbit versions (see [Nice to have](#nice-to-have)), the release notes must document their minimum supported Orbit version. This is for users that use Orbit with auto-updates disabled or they pin to a specific channel. These users would need to first update Orbit in their devices and then proceed to upgrade Fleet server.
 
 <meta name="pageOrderInSection" value="1200">
+<meta name="description" value="A page outlining the strategy that developers must follow when introducing new feature to Fleetd.">

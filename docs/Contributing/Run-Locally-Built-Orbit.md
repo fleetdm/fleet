@@ -60,3 +60,4 @@ Double-Click this pkg file and install the local Orbit.
 
 
 <meta name="pageOrderInSection" value="100">
+<meta name="description" value="Learn how to build and run Fleetd with modified code.">
