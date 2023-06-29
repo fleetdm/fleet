@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
+	"math/big"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -985,6 +987,16 @@ type Datastore interface {
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Microsoft MDM
+
+	// WSTEPStoreCertificate stores a certificate in the database.
+	WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error
+	// WSTEPNewSerial returns a new serial number for a certificate.
+	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
+	// WSTEPAssociateCertHash associates a certificate hash with a device.
+	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 }
 
 const (

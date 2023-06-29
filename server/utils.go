@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -55,4 +59,19 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	}
 
 	return nil
+}
+
+// TODO: Consider moving other crypto functions from server/mdm/apple/util to here
+
+// DecodePrivateKeyPEM decodes PEM-encoded private key data.
+func DecodePrivateKeyPEM(encoded []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(encoded)
+	if block == nil {
+		return nil, errors.New("no PEM-encoded data found")
+	}
+	if block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("unexpected block type %s", block.Type)
+	}
+
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
