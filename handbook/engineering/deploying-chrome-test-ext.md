@@ -25,19 +25,19 @@ yarn run build
 
 ### Pack the extension
 
--Go to chrome web browser.
--go to chrome://extensions
--Press "Pack Extensions" button (Top left of the screen)
--Press the top Browse button and select the newly created dist folder (ee/fleetd-chrome/dist)
--Press "Pack Extension" (No need to give it a key. It will generate it)
+- Go to chrome web browser.
+- go to chrome://extensions
+- Press "Pack Extensions" button (Top left of the screen)
+- Press the top Browse button and select the newly created dist folder (ee/fleetd-chrome/dist)
+- Press "Pack Extension" (No need to give it a key. It will generate it)
 
 ### Load the new extension to the Chrome web browser
 
--Open the finder app 
--Drag and srop the ee/fleetd-chrome/dist.crx binary file to chrome web browser
--Press "Add Extension"
--Verify that the extension works
--**Copy the appid for later use.**
+- Open the finder app 
+- Drag and srop the ee/fleetd-chrome/dist.crx binary file to chrome web browser
+- Press "Add Extension"
+- Verify that the extension works
+- **Copy the appid for later use.**
 
 ## Run a local server to make the new extension available
 
