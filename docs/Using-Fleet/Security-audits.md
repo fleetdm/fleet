@@ -224,3 +224,5 @@ Our goal with this audit was to ensure that our auto-updater mechanism, built wi
 improvements to make it more robust and resilient to compromise.
 
 <meta name="pageOrderInSection" value="790">
+<meta name="description" value="This page contains explanations of the latest external security audits performed on Fleet software.">
+
