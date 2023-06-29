@@ -36,8 +36,10 @@ var (
 	//go:embed *.software
 	macOSVulnerableSoftwareFS embed.FS
 
-	//go:embed *-software.json.bz2
-	softwareFS embed.FS
+	//go:embed ubuntu_2204-software.json.bz2
+	ubuntuSoftwareFS embed.FS
+	//go:embed windows_11-software.json.bz2
+	windowsSoftwareFS embed.FS
 
 	macosVulnerableSoftware []fleet.Software
 	windowsSoftware         []map[string]string
@@ -65,8 +67,8 @@ func loadMacOSVulnerableSoftware() {
 	log.Printf("Loaded %d vulnerable macOS software\n", len(macosVulnerableSoftware))
 }
 
-func loadSoftwareItems(path string) []map[string]string {
-	bz2, err := softwareFS.Open(path)
+func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
+	bz2, err := fs.Open(path)
 	if err != nil {
 		panic(err)
 	}
@@ -96,8 +98,8 @@ func loadSoftwareItems(path string) []map[string]string {
 
 func init() {
 	loadMacOSVulnerableSoftware()
-	windowsSoftware = loadSoftwareItems("windows_11-software.json.bz2")
-	ubuntuSoftware = loadSoftwareItems("ubuntu_2204-software.json.bz2")
+	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2")
+	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2")
 }
 
 type Stats struct {
