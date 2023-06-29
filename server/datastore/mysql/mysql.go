@@ -1111,8 +1111,10 @@ while the second part `[^[:ascii:]]` matches any character that is not within th
 So, when these two parts are combined with no space in between, the resulting regex matches any
 sequence of characters where the first character is within the ASCII range and the following characters are not within the ASCII range.
 */
-var nonascii = regexp.MustCompile(`(?P<ascii>[[:ascii:]])(?P<nonascii>[^[:ascii:]]+)`)
-var nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
+var (
+	nonascii        = regexp.MustCompile(`(?P<ascii>[[:ascii:]])(?P<nonascii>[^[:ascii:]]+)`)
+	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
+)
 
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
