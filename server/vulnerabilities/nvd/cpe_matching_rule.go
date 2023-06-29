@@ -46,21 +46,20 @@ func (rule CPEMatchingRule) CPEMatches(cpeMeta *wfn.Attributes) bool {
 		return false
 	}
 
-	var matches bool
+	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
+	if err != nil {
+		return false
+	}
+
 	for _, spec := range rule.CPESpecs {
 		// The SemVer constraint is validated at instantiation time, so it should be ok to ignore the error.
 		constraint, _ := semver.NewConstraint(spec.SemVerConstraint)
-
-		ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
-		if err != nil {
-			matches = matches || false
-			continue
+		if cpeMeta.MatchWithoutVersion(spec.getCPEMeta()) && constraint.Check(ver) {
+			return true
 		}
-
-		matches = matches || (cpeMeta.MatchWithoutVersion(spec.getCPEMeta()) && constraint.Check(ver))
 	}
 
-	return matches
+	return false
 }
 
 // Validate validates the rule, returns an error if there's something wrong.
