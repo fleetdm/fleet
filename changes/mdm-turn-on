@@ -1,0 +1,1 @@
+* Make sure that all configuration profiles and commands are set to devices if MDM is turn-on, even if the device never turned-off MDM.

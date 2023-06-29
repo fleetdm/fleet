@@ -63,7 +63,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestMatchMDMAppleConfigProfiles", testMatchMDMAppleConfigProfiles},
-		{"TestResetMDMAppleNanoEnrollment", testResetMDMAppleNanoEnrollment},
+		{"TestResetMDMAppleEnrollment", testResetMDMAppleEnrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 	}
 
@@ -4430,7 +4430,7 @@ func testMatchMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
+func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -4444,22 +4444,72 @@ func testResetMDMAppleNanoEnrollment(t *testing.T, ds *Datastore) {
 
 	// try with a host that doesn't have a matching entry
 	// in nano_enrollments
-	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 
-	// add a matching entry
+	// add a matching entry in the nano table
 	nanoEnroll(t, ds, host, false)
 
 	enrollment, err := ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, enrollment.TokenUpdateTally, 1)
 
-	err = ds.ResetMDMAppleNanoEnrollment(ctx, host.UUID)
+	// add configuration profiles
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("name0", "identifier0", 0))
+	require.NoError(t, err)
+	upsertHostCPs([]*fleet.Host{host}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerified, ctx, ds, t)
+
+	gotProfs, err := ds.GetHostMDMProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+
+	// add a record of the bootstrap package being installed
+	_, err = ds.writer(ctx).Exec(`
+          INSERT INTO nano_commands (command_uuid, request_type, command)
+          VALUES ('command-uuid', 'foo', '<?xml')
+	`)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`
+          INSERT INTO nano_command_results (id, command_uuid, status, result)
+          VALUES (?, 'command-uuid', 'Acknowledged', '<?xml')
+	`, host.UUID)
+	require.NoError(t, err)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name(),
+		Sha256: sha256.New().Sum(nil),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	})
+	require.NoError(t, err)
+	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
+	require.NoError(t, err)
+
+	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Pending)
+	require.EqualValues(t, 1, sum.Installed)
+
+	// reset the enrollment
+	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 
 	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Zero(t, enrollment.TokenUpdateTally)
+
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, gotProfs)
+
+	sum, err = ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
+	require.NoError(t, err)
+	require.Zero(t, sum.Failed)
+	require.Zero(t, sum.Installed)
+	require.EqualValues(t, 1, sum.Pending)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
