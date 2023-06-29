@@ -58,3 +58,4 @@ fleet serve
 ```
 
 <meta name="pageOrderInSection" value="700">
+<meta name="description" value="Learn how to upgrade your Fleet instance to the latest version.">
