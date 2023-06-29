@@ -48,17 +48,17 @@ Once the draft has been approved:
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
-### Emergency drafting
+### Expedited drafting
 
-Emergency drafting is the revision of drafted changes currently being developed by
-the engineering team. Emergency drafting aims to quickly adapt to unknown edge cases and
+Expedited drafting is the revision of drafted changes currently being developed by
+the engineering team. Expedited drafting aims to quickly adapt to unknown edge cases and
 changing specifications while ensuring that Fleet meets our brand and quality guidelines. 
 
-You'll know it's time for emergency drafting when:
+You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 
-What happens during emergency drafting?
+What happens during expedited drafting?
 1. Everyone on the product and engineering teams know that a drafted change was brought back
    to drafting and prioritized.
 2. Drafts are updated to cover edge cases or reduce functionality.
@@ -77,7 +77,7 @@ Product Managers prioritize all potential product improvements worked on by cont
 
 Bugs are always prioritized.  (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).)
 
-If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the sprint backlog for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [emergency drafting](#emergency-drafting). 
+If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized in the Estimated for the next sprint. Bugs are never carried more than one sprint. If a bug requires drafting to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
 > Anyone can [suggest improvements](#intake).
 
@@ -98,7 +98,7 @@ On the first day of each release, all estimated issues are moved into the releva
 Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
 ### Sprint numbering
-Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.
+Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint. 
 
 ### Product design conventions
 
@@ -267,11 +267,23 @@ Most requests are not prioritized.  The goal is to narrow our focus and avoid cr
 
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
-Fleet team members can view these statistics in the Google spreadsheet [Fleet
+Fleeties can view these statistics in the Google spreadsheet [Fleet
 usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
 available in Google Drive.
 
-Some of the data is forwarded to a [DataDog board](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleet team members.
+Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
+
+## Maintenance
+Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
+
+Every week, a member of the product team (as determined in the [rituals](#rituals) section) looks up whether there is:
+1. a new major or minor version of [macOS](https://support.apple.com/en-us/HT201260)
+2. a new major or minor version of [CIS Benchmarks Windows 10 Enterprise](https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
+3. a new major or minor version of [CIS Benchmarks macOS 13 Ventura](https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
+4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
+5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
+
+If there are changes, the DRI should send a message in the #help-product Slack channel, noting the current versions and whether any of the above has changed.
 
 ## Rituals
 
@@ -280,19 +292,20 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
 | Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
-| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
+| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. | Mo Zhu |
 | 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
 | 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
 | Design sprint kickoff (CX) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
 | Design sprint kickoff (MDM) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
-| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the sprint backlog with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
-| Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the sprint backlog with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
+| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
+| Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. | Mo Zhu |
 | Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
+| New versions check | Weekly (Friday) | The DRI for this ritual conducts the maintenance checks as described in the [maintenance](#maintenance) section | Mo Zhu |
 
 ## Slack channels
 
@@ -302,7 +315,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-cx`                             | Zay Hanlon                                                          |
+| `#g-cx`                             | Mo Zhu                                                              |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">

@@ -95,6 +95,7 @@
     "@testing-library/react": "12.1.4",
     "@testing-library/user-event": "14.4.3",
     "@tsconfig/recommended": "1.0.1",
+    "@types/chrome": "0.0.237",
     "@types/classnames": "0.0.32",
     "@types/cypress": "1.1.3",
     "@types/expect": "1.20.3",

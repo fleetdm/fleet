@@ -25,7 +25,7 @@ import (
 )
 
 func main() {
-	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
+	app := createApp(os.Stdin, os.Stdout, os.Stderr, exitErrHandler)
 	app.Run(os.Args) //nolint:errcheck
 }
 
@@ -38,7 +38,7 @@ func exitErrHandler(c *cli.Context, err error) {
 	cli.OsExiter(1)
 }
 
-func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHandlerFunc) *cli.App {
+func createApp(reader io.Reader, stdout io.Writer, stderr io.Writer, exitErrHandler cli.ExitErrHandlerFunc) *cli.App {
 	app := cli.NewApp()
 	app.Name = "desktop"
 	app.Usage = "Tool to generate the Fleet Desktop application"
@@ -47,8 +47,8 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		version.PrintFull()
 	}
 	app.Reader = reader
-	app.Writer = writer
-	app.ErrWriter = writer
+	app.Writer = stdout
+	app.ErrWriter = stderr
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    "version",

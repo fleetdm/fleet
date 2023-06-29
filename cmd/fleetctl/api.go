@@ -27,7 +27,7 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, err
 	}
 
-	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
+	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer, c.App.ErrWriter)
 }
 
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
@@ -98,8 +98,12 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	return fleetClient, nil
 }
 
-func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*service.Client, error) {
-	options := []service.ClientOption{service.SetClientWriter(w)}
+func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Writer, errWriter io.Writer) (*service.Client, error) {
+	options := []service.ClientOption{
+		service.SetClientOutputWriter(outputWriter),
+		service.SetClientErrorWriter(errWriter),
+	}
+
 	if len(cc.CustomHeaders) > 0 {
 		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
 	}

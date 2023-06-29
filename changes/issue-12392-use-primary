@@ -1,0 +1,2 @@
+* Fixed a bug where reading from the replica would not read recent writes when matching a set of MDM profiles to a team (the `GET /mdm/apple/profiles/match` endpoint).
+* Added milliseconds to the timestamp of auto-generated team name when creating a new team in `GET /mdm/apple/profiles/match`.

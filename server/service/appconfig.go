@@ -196,7 +196,7 @@ type modifyAppConfigRequest struct {
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyAppConfigRequest)
-	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
+	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})
@@ -212,10 +212,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return nil, err
 	}
 	response := appConfigResponse{
-		AppConfig: *config,
+		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: license,
-			Logging: loggingConfig,
+			License:    license,
+			Logging:    loggingConfig,
+			MDMEnabled: config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 
@@ -376,7 +377,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.SMTPSettings.SMTPEnabled {
 			if oldSMTPSettings != *appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 				if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-					return nil, ctxerr.Wrap(ctx, err)
+					return nil, fleet.NewInvalidArgumentError("SMTP Options", err.Error())
 				}
 			}
 			appConfig.SMTPSettings.SMTPConfigured = true
@@ -525,6 +526,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if Windows MDM was enabled or disabled, create the corresponding activity
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsEnabledAndConfigured {
+			act = fleet.ActivityTypeEnabledWindowsMDM{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDM{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	return obfuscatedAppConfig, nil
 }
 
@@ -645,6 +659,14 @@ func (svc *Service) validateMDM(
 			}
 		}
 	}
+
+	// Windows validation
+	if !config.IsMDMFeatureFlagEnabled() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
+			return
+		}
+	}
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
@@ -666,6 +688,14 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	if incoming.IDPName == "" {
 		if existing.IDPName == "" {
 			invalid.Append("idp_name", "required")
+		}
+	}
+
+	if incoming.MetadataURL != "" {
+		if u, err := url.ParseRequestURI(incoming.MetadataURL); err != nil {
+			invalid.Append("metadata_url", err.Error())
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			invalid.Append("metadata_url", "must be either https or http")
 		}
 	}
 }
