@@ -73,7 +73,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		case "b", "c", "d", "f", "l", "p", "s":
 			// OK
 		default:
-			return nil, fmt.Errorf("type must be one of: 'b', 'c', 'd', 'f', 'l', 'p' or 's'")
+			return nil, errors.New("type must be one of: 'b', 'c', 'd', 'f', 'l', 'p' or 's'")
 		}
 	}
 

@@ -16,13 +16,13 @@ import (
 // TestGenerate tests the find_cmd table generation.
 func TestGenerate(t *testing.T) {
 	// Test not setting required column directory.
-	rows, err := Generate(context.Background(), table.QueryContext{})
+	_, err := Generate(context.Background(), table.QueryContext{})
 	require.Error(t, err)
 
 	testDir := t.TempDir()
 
 	// Test with an empty directory.
-	rows, err = Generate(context.Background(), table.QueryContext{
+	rows, err := Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			"directory": {
 				Affinity: table.ColumnTypeText,
@@ -40,7 +40,7 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, rows[0]["path"], testDir)
 
 	// Test with invalid type argument.
-	rows, err = Generate(context.Background(), table.QueryContext{
+	_, err = Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			"directory": {
 				Affinity: table.ColumnTypeText,
@@ -65,7 +65,7 @@ func TestGenerate(t *testing.T) {
 	require.Error(t, err)
 
 	// Test with invalid perm argument.
-	rows, err = Generate(context.Background(), table.QueryContext{
+	_, err = Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			"directory": {
 				Affinity: table.ColumnTypeText,
@@ -93,6 +93,7 @@ func TestGenerate(t *testing.T) {
 	f, err := os.Create(filepath.Join(testDir, "foo.txt"))
 	require.NoError(t, err)
 	err = f.Close()
+	require.NoError(t, err)
 	err = os.Chmod(filepath.Join(testDir, "foo.txt"), os.ModePerm)
 	require.NoError(t, err)
 	require.NoError(t, err)
