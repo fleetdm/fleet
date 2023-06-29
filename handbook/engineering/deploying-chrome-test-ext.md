@@ -61,7 +61,9 @@ cd ee/fleetd-chrome
 npm install -g localtunnel
 lt --port 8000 --subdomain test-new-tables
 ```
-In your web browser go to: http://test-new-tables.loca.lt
+- In your web browser go to: http://test-new-tables.loca.lt
+- Click the hazard link on item number 1 (below the big button "Click To Submit"). from the new page copy the IP and paste it in the previous page in the window.
+- Open ee/fleetd-chrome/update.xml for edit and modify the codebase to the newly created URL (in this example: http://test-new-tables.loca.lt/dist.crx)
 
 
 
