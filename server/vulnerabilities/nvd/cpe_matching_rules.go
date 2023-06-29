@@ -6,8 +6,9 @@ import (
 
 type CPEMatchingRules []CPEMatchingRule
 
+// GetCPEMatchingRules returns a list of CPEMatchingRules used for
+// ignoring false positives detected during the NVD vuln. detection process.
 func GetCPEMatchingRules() (CPEMatchingRules, error) {
-	// TODO: Move this to a metadata file?
 	rules := CPEMatchingRules{
 		CPEMatchingRule{
 			CPESpecs: []CPEMatchingRuleSpec{
