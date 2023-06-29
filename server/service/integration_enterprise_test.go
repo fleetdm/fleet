@@ -2801,6 +2801,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Empty(t, resp.NudgeConfig)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 
 	// set macos_updates
 	s.applyConfig([]byte(`
