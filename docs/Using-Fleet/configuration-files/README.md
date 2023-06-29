@@ -31,8 +31,8 @@ spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
-  team_id: null
-  frequency: 3600
+  team: ""
+  interval: 3600 # 1 hour
   observer_can_run: true
 ---
 apiVersion: v1 
@@ -41,8 +41,8 @@ spec:
   name: Get serial number of a laptop 
   description: Returns the serial number of a laptop, which can be useful for asset tracking.
   query: SELECT hardware_serial FROM system_info; 
-  team_id: 2
-  frequency: 0
+  team: Workstations
+  interval: 0
   observer_can_run: true
 --- 
 apiVersion: v1 
@@ -56,13 +56,11 @@ spec:
     LEFT JOIN mounts 
       ON mounts.device = disk_events.device
     ;
-  team_id: 2
-  frequency: 86400
+  team: Workstations (Canary)
+  interval: 86400 # 24 hours
   observer_can_run: false
-  min_osquery_version: "5.4.0"
-  platforms: 
-    - macos
-    - windows
+  version: 5.4.0
+  platform: darwin,windows
   automations:
     logging: differential
     ignore_removals: true
