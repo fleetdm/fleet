@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -15,10 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
@@ -190,6 +189,16 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 
+	ds.WSTEPNewSerialFunc = func(context.Context) (*big.Int, error) {
+		return big.NewInt(1337), nil
+	}
+	ds.WSTEPStoreCertificateFunc = func(ctx context.Context, name string, crt *x509.Certificate) error {
+		require.Equal(t, "test-client", name)
+		require.Equal(t, "test-client", crt.Subject.CommonName)
+		require.Equal(t, "FleetDM", crt.Subject.OrganizationalUnit[0])
+		return nil
+	}
+
 	certPath := "testdata/server.pem"
 	keyPath := "testdata/server.key"
 
@@ -198,12 +207,6 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	require.NoError(t, err)
 	wantKeyPEM, err := os.ReadFile(keyPath)
 	require.NoError(t, err)
-	wantDepot, err := microsoft_mdm.NewWSTEPDepot(wantCertPEM, wantKeyPEM)
-	require.NoError(t, err)
-	wantCert, err := cryptoutil.DecodePEMCertificate(wantCertPEM)
-	require.NoError(t, err)
-	wantFP := microsoft_mdm.CertFingerprintHexStr(wantCert)
-	require.Equal(t, wantFP, *wantDepot.IdentityFingerprint)
 
 	// specify the test data in the server config
 	cfg := config.TestConfig()
@@ -241,19 +244,12 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	// test the service method
 	rawDER, _, err := svc.SignMDMMicrosoftClientCSR(ctx, "test-client", csr)
 	require.NoError(t, err)
+	require.True(t, ds.WSTEPNewSerialFuncInvoked)
+	require.True(t, ds.WSTEPStoreCertificateFuncInvoked)
+
+	// TODO: additional assertions on the signed certificate
 	parsedCert, err := x509.ParseCertificate(rawDER)
 	require.NoError(t, err)
 	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
 	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
-	// TODO: additional assertions on the signed certificate
-
-	// test the depot method (to ensure the service method is using the depot)
-	rawDER2, _, err := wantDepot.SignClientCSR("test-client", csr)
-	require.NoError(t, err)
-	require.NotEqual(t, rawDER, rawDER2) // serial numbers are random and timestamps will be different
-	parsedCert2, err := x509.ParseCertificate(rawDER2)
-	require.NoError(t, err)
-	require.Equal(t, "test-client", parsedCert2.Subject.CommonName)
-	require.Equal(t, "FleetDM", parsedCert2.Subject.OrganizationalUnit[0])
-	require.NotEqual(t, parsedCert.Raw, parsedCert2.Raw) // serial numbers are random and timestamps will be different
 }

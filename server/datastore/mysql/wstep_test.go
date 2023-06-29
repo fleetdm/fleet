@@ -1,122 +1,103 @@
-package microsoft_mdm
+package mysql
 
 import (
 	"context"
-	"crypto/sha1"
-	"crypto/x509"
-	"encoding/hex"
-	"errors"
-	"math/big"
+	"crypto/sha256"
+	"encoding/pem"
+	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server"
+	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/stretchr/testify/require"
 )
 
-type mockStore struct{}
-
-func (m *mockStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
-	return nil
-}
-
-func (m *mockStore) WSTEPNewSerial(ctx context.Context) (*big.Int, error) {
-	return nil, nil
-}
-
-func (m *mockStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error {
-	return nil
-}
-
-var _ CertStore = (*mockStore)(nil)
-
-func TestNewCertManager(t *testing.T) {
-	var store CertStore
+func TestWSTEPStore(t *testing.T) {
+	ds := CreateMySQLDS(t)
 
 	wantCert, err := cryptoutil.DecodePEMCertificate([]byte(testCert))
 	require.NoError(t, err)
-	wantKey, err := server.DecodePrivateKeyPEM([]byte(testKey))
 	require.NoError(t, err)
-	wantIdentityFingerprint := CertFingerprintHexStr(wantCert)
 
-	// Test that NewCertManager returns an error if the cert PEM is invalid.
-	_, err = NewCertManager(store, []byte("invalid"), []byte(testKey))
-	require.Error(t, err)
-	require.ErrorContains(t, err, "failed to decode PEM certificate")
-
-	// Test that NewCertManager returns an error if the key PEM is invalid.
-	_, err = NewCertManager(store, []byte(testCert), []byte("invalid"))
-	require.Error(t, err)
-	require.ErrorContains(t, err, "decode private key: no PEM-encoded data found")
-
-	// Test that NewCertManager returns an error if the cert PEM is not a certificate.
-	_, err = NewCertManager(store, []byte(testKey), []byte(testKey))
-	require.Error(t, err)
-	require.ErrorContains(t, err, "failed to decode PEM certificate")
-
-	// Test that NewCertManager returns an error if the key PEM is not a private key.
-	_, err = NewCertManager(store, []byte(testCert), []byte(testCert))
-	require.Error(t, err)
-	require.ErrorContains(t, err, "decode private key: unexpected block type")
-
-	// Test that NewCertManager returns a *WSTEPDepot if the cert and key PEMs are valid.
-	cm, err := NewCertManager(store, []byte(testCert), []byte(testKey))
+	// serial number should start at 2 because 1 is reserved for the CA cert
+	sn, err := ds.WSTEPNewSerial(context.Background())
 	require.NoError(t, err)
-	require.NotNil(t, cm)
-	require.Equal(t, wantIdentityFingerprint, cm.IdentityFingerprint())
+	require.NotNil(t, sn)
+	require.Equal(t, int64(2), sn.Int64())
 
-	// Test that newManager sets the correct fields.
-	m := cm.(*manager)
+	// serial should increment
+	sn, err = ds.WSTEPNewSerial(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, *wantCert, *m.identityCert)
+	require.NotNil(t, sn)
+	require.Equal(t, int64(3), sn.Int64())
+
+	testCert := *wantCert
+	testCert.SerialNumber = sn
+
+	// store without setting a common name in the cert
+	err = ds.WSTEPStoreCertificate(context.Background(), "test", &testCert)
 	require.NoError(t, err)
-	require.Equal(t, *wantKey, *m.identityPrivateKey)
-	require.Equal(t, wantIdentityFingerprint, m.identityFingerprint)
-}
-
-func TestSignClientCSR(t *testing.T) {
-	// TODO
-}
-
-func TestGetClientCSR(t *testing.T) {
-	// TODO
-}
-
-func TestCertFingerprintHexStr(t *testing.T) {
-	cases := []struct {
-		name string
-		cert []byte
-		err  error
-	}{
-		{
-			name: "valid cert",
-			cert: testCert,
-			err:  nil,
-		},
-		{
-			name: "invalid cert",
-			cert: []byte("invalid"),
-			err:  errors.New("failed to decode PEM certificate"),
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			cert, err := cryptoutil.DecodePEMCertificate(tc.cert)
-			if tc.err != nil {
-				require.Error(t, err)
-				require.ErrorContains(t, err, tc.err.Error())
-				return
-			}
-
-			require.NoError(t, err)
-			csum := sha1.Sum(cert.Raw)
-			want := strings.ToUpper(hex.EncodeToString(csum[:]))
-			fp := CertFingerprintHexStr(cert)
-			require.Equal(t, want, fp)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var dest []struct {
+			Name    string `db:"name"`
+			CertPEM []byte `db:"certificate_pem"`
+		}
+		err = sqlx.SelectContext(context.Background(), q, &dest, "SELECT name, certificate_pem FROM wstep_certificates where serial = 3")
+		if err != nil {
+			return err
+		}
+		require.Len(t, dest, 1)
+		wantPEM := pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: testCert.Raw,
 		})
-	}
+		require.Equal(t, wantPEM, dest[0].CertPEM)
+
+		// name wasn't set in the test cert, so it should default to sha256 of the cert
+		require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(testCert.Raw)), dest[0].Name)
+
+		return nil
+	})
+
+	// store with a common name in the cert
+	testCert.Subject.CommonName = "test"
+	err = ds.WSTEPStoreCertificate(context.Background(), "test", &testCert)
+	require.Error(t, err) // duplicate serial number
+
+	// get a new serial number
+	sn, err = ds.WSTEPNewSerial(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, sn)
+	require.Equal(t, int64(4), sn.Int64())
+
+	testCert.SerialNumber = sn
+	err = ds.WSTEPStoreCertificate(context.Background(), "test", &testCert)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var dest []struct {
+			Name    string `db:"name"`
+			CertPEM []byte `db:"certificate_pem"`
+		}
+		err = sqlx.SelectContext(context.Background(), q, &dest, "SELECT name, certificate_pem FROM wstep_certificates where serial = 4")
+		if err != nil {
+			return err
+		}
+		require.Len(t, dest, 1)
+		wantPEM := pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: testCert.Raw,
+		})
+		require.Equal(t, wantPEM, dest[0].CertPEM)
+
+		// name wasn't set in the test cert, so it should default to sha256 of the cert
+		require.Equal(t, "test", dest[0].Name)
+
+		return nil
+	})
+
+	// TODO: test WSTEPAssociateCertHash when the intended usage is clear
 }
 
 var (

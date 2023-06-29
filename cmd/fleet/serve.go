@@ -551,7 +551,7 @@ the way that the Fleet server works.
 
 			// register the Microsoft MDM services
 			var (
-				wstepDepot *microsoft_mdm.WSTEPDepot
+				wstepCertManager microsoft_mdm.CertManager
 			)
 			// TODO: check if MicrosoftMDM is enabled?
 			if config.MDM.IsMicrosoftWSTEPSet() {
@@ -559,7 +559,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Microsoft WSTEP certificate and key")
 				}
-				wstepDepot, err = microsoft_mdm.NewWSTEPDepot(crtPEM, keyPEM)
+				wstepCertManager, err = microsoft_mdm.NewCertManager(ds, crtPEM, keyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm microsoft wstep depot")
 				}
@@ -617,7 +617,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				mdmPushCertTopic,
 				cronSchedules,
-				wstepDepot,
+				wstepCertManager,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")

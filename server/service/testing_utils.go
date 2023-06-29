@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -135,15 +134,14 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPushCertTopic = opts[0].APNSTopic
 	}
 
-	var wstepDepot microsoft_mdm.CertDepot
-	if len(opts) > 0 && opts[0].WSTEPDepot != nil {
-		wstepDepot = opts[0].WSTEPDepot
-	} else if fleetConfig.MDM.MicrosoftWSTEPIdentityCert != "" && fleetConfig.MDM.MicrosoftWSTEPIdentityKey != "" {
+	var wstepManager microsoft_mdm.CertManager
+	if fleetConfig.MDM.MicrosoftWSTEPIdentityCert != "" && fleetConfig.MDM.MicrosoftWSTEPIdentityKey != "" {
 		rawCert, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityCert)
 		require.NoError(t, err)
 		rawKey, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityKey)
 		require.NoError(t, err)
-		wstepDepot, err = microsoft_mdm.NewWSTEPDepot(rawCert, rawKey)
+
+		wstepManager, err = microsoft_mdm.NewCertManager(ds, rawCert, rawKey)
 		require.NoError(t, err)
 	}
 
@@ -169,7 +167,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		mdmPushCertTopic,
 		cronSchedulesService,
-		wstepDepot,
+		wstepManager,
 	)
 	if err != nil {
 		panic(err)
@@ -290,7 +288,6 @@ type TestServerOpts struct {
 	UseMailService      bool
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
-	WSTEPDepot          microsoft_mdm.CertDepot
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -628,16 +625,6 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 	}
-}
-
-type nopWSTEPDepot struct{}
-
-func (nopWSTEPDepot) SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
-	return nil, "", nil
-}
-
-func NewNopWSTEPDepot() microsoft_mdm.CertDepot {
-	return &nopWSTEPDepot{}
 }
 
 // getURLSchemas returns a list of all valid URI schemas

@@ -1,6 +1,7 @@
 package microsoft_mdm
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -8,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"go.mozilla.org/pkcs7"
 )
@@ -36,64 +37,138 @@ const (
 	MDETokenPKCSInvalid
 )
 
-// WSTEPDepot implements certificate management tasks associated with MS-WSTEP messages in the MS-MDE2
-// protocol.
-//
-// Note: The current implementation does not persist certificates it issues; however, it could
-// be extended to do so in the future. In that case, the depot would need to be initialized with a
-// datastore connection and extended to include datastore operations (similar to the SCEP depot).
-type WSTEPDepot struct {
+// CertManager is an interface for certificate management tasks associated with Microsoft MDM (e.g.,
+// signing CSRs).
+type CertManager interface {
+	// IdentityFingerprint returns the hex-encoded, uppercased sha1 fingerprint of the identity certificate.
+	IdentityFingerprint() string
+
+	// SignClientCSR signs a client CSR and returns the signed, DER-encoded certificate bytes and
+	// its uppercased, hex-endcoded sha1 fingerprint. The subject passed is set as the common name of
+	// the signed certificate.
+	SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error)
+
+	// TODO: implement other methods as needed:
+	// - verify certificate-device association
+	// - certificate lifecycle management (e.g., renewal, revocation)
+}
+
+// CertStore implements storage tasks associated with MS-WSTEP messages in the MS-MDE2
+// protocol. It is implemented by fleet.Datastore.
+type CertStore interface {
+	WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error
+	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
+	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
+}
+
+type manager struct {
+	store CertStore
+
 	// identityCert holds the identity certificate of the depot.
 	identityCert *x509.Certificate
 	// identityPrivateKey holds the private key of the depot.
 	identityPrivateKey *rsa.PrivateKey
 	// identityFingerprint holds the hex-encoded, sha1 fingerprint of the identity certificate.
-	IdentityFingerprint *string
+	identityFingerprint string
 	// maxSerialNumber holds the maximum serial number. The maximum value a serial number can have
 	// is 2^160. However, this could be limited further if required.
 	maxSerialNumber *big.Int
 }
 
-// CertDepot is an interface for certificate management tasks associated with Microsoft MDM (e.g.,
-// signing CSRs). It is implemented by *WSTEPDepot.
-type CertDepot interface {
-	SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error)
+// NewCertManager returns a new CertManager instance.
+func NewCertManager(store CertStore, certPEM []byte, privKeyPEM []byte) (CertManager, error) {
+	return newManager(store, certPEM, privKeyPEM)
 }
 
-// newWSTEPDepot creates and returns a *WSTEPDepot.
-func NewWSTEPDepot(certPEM []byte, privKeyPEM []byte) (*WSTEPDepot, error) {
+func newManager(store CertStore, certPEM []byte, privKeyPEM []byte) (*manager, error) {
 	crt, err := cryptoutil.DecodePEMCertificate(certPEM)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode certificate: %w", err)
 	}
-	key, err := decodeRSAKeyFromPEM(privKeyPEM)
+	key, err := server.DecodePrivateKeyPEM(privKeyPEM)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode private key: %w", err)
 	}
 	fp := CertFingerprintHexStr(crt)
 
-	return &WSTEPDepot{
+	return &manager{
+		store:               store,
 		identityCert:        crt,
 		identityPrivateKey:  key,
-		IdentityFingerprint: &fp,
+		identityFingerprint: fp,
 		maxSerialNumber:     new(big.Int).Lsh(big.NewInt(1), 128), // 2^12,
 	}, nil
 }
 
-func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode(key)
-	if block == nil {
-		return nil, errors.New("failed to decode PEM private key")
+// TODO: Marcos to update the POC implementation of this function
+func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
+	if m.identityCert == nil || m.identityPrivateKey == nil {
+		return nil, "", errors.New("invalid identity certificate or private key")
 	}
-	if block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("PEM type is not RSA PRIVATE KEY")
+
+	certRenewalPeriodInSecsInt, err := strconv.Atoi(CertRenewalPeriodInSecs)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid renewal time: %v", err)
 	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	// Time durations
+	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
+	yearDuration := 365 * 24 * time.Hour
+
+	certSubject := pkix.Name{
+		OrganizationalUnit: []string{DocProvisioningAppProviderID},
+		CommonName:         subject,
+	}
+
+	// The serial number is used to uniquely identify the certificate
+	sn, err := m.store.WSTEPNewSerial(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	// Create the client certificate
+	clientCertificate := &x509.Certificate{
+		Subject:            certSubject,
+		Issuer:             m.identityCert.Issuer,
+		Version:            clientCSR.Version,
+		PublicKey:          clientCSR.PublicKey,
+		PublicKeyAlgorithm: clientCSR.PublicKeyAlgorithm,
+		Signature:          clientCSR.Signature,
+		SignatureAlgorithm: clientCSR.SignatureAlgorithm,
+		Extensions:         clientCSR.Extensions,
+		ExtraExtensions:    clientCSR.ExtraExtensions,
+		IPAddresses:        clientCSR.IPAddresses,
+		EmailAddresses:     clientCSR.EmailAddresses,
+		DNSNames:           clientCSR.DNSNames,
+		URIs:               clientCSR.URIs,
+		NotBefore:          notBeforeDuration,
+		NotAfter:           notBeforeDuration.Add(yearDuration),
+		SerialNumber:       sn,
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  false,
+	}
+
+	rawSignedCertDER, err := x509.CreateCertificate(rand.Reader, clientCertificate, m.identityCert, clientCSR.PublicKey, m.identityPrivateKey)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to sign client certificate: %v", err.Error())
+	}
+
+	if err := m.store.WSTEPStoreCertificate(ctx, subject, clientCertificate); err != nil {
+		return nil, "", fmt.Errorf("failed to store client certificate: %v", err.Error())
+	}
+
+	// Generate signed cert fingerprint
+	fingerprint := sha1.Sum(rawSignedCertDER)
+	fingerprintHex := strings.ToUpper(hex.EncodeToString(fingerprint[:]))
+
+	return rawSignedCertDER, fingerprintHex, nil
 }
 
-func CertFingerprintHexStr(cert *x509.Certificate) string {
-	fingerprint := sha1.Sum(cert.Raw)
-	return strings.ToUpper(hex.EncodeToString(fingerprint[:]))
+func (m *manager) IdentityFingerprint() string {
+	return m.identityFingerprint
 }
 
 // GetClientCSR returns the client certificate signing request from the BinarySecurityToken
@@ -155,69 +230,12 @@ func GetClientCSR(binSecTokenData string, tokenType BinSecTokenType) (*x509.Cert
 	return certCSR, nil
 }
 
-// SignClientCSR returns a signed certificate from the client certificate signing request and the
-// certificate fingerprint. The certificate common name should be passed in the subject parameter.
-//
-// TODO: Marcos to update the POC implementation of this function
-func (d WSTEPDepot) SignClientCSR(subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error) {
-	if d.identityCert == nil || d.identityPrivateKey == nil {
-		return nil, "", errors.New("invalid identity certificate or private key")
-	}
-
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(CertRenewalPeriodInSecs)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid renewal time: %v", err)
-	}
-
-	// Time durations
-	notBeforeDuration := time.Now().Add(time.Duration(certRenewalPeriodInSecsInt) * -time.Second)
-	yearDuration := 365 * 24 * time.Hour
-
-	certSubject := pkix.Name{
-		OrganizationalUnit: []string{DocProvisioningAppProviderID},
-		CommonName:         subject,
-	}
-
-	// Generate cryptographically strong pseudo-random number.
-	// The serial number is used to uniquely identify the certificate
-	serialNumber, err := rand.Int(rand.Reader, d.maxSerialNumber)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate serial number: %v", err.Error())
-	}
-
-	// Create the client certificate
-	clientCertificate := &x509.Certificate{
-		Subject:            certSubject,
-		Issuer:             d.identityCert.Issuer,
-		Version:            clientCSR.Version,
-		PublicKey:          clientCSR.PublicKey,
-		PublicKeyAlgorithm: clientCSR.PublicKeyAlgorithm,
-		Signature:          clientCSR.Signature,
-		SignatureAlgorithm: clientCSR.SignatureAlgorithm,
-		Extensions:         clientCSR.Extensions,
-		ExtraExtensions:    clientCSR.ExtraExtensions,
-		IPAddresses:        clientCSR.IPAddresses,
-		EmailAddresses:     clientCSR.EmailAddresses,
-		DNSNames:           clientCSR.DNSNames,
-		URIs:               clientCSR.URIs,
-		NotBefore:          notBeforeDuration,
-		NotAfter:           notBeforeDuration.Add(yearDuration),
-		SerialNumber:       serialNumber,
-		KeyUsage:           x509.KeyUsageDigitalSignature,
-
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  false,
-	}
-
-	rawSignedCertDER, err := x509.CreateCertificate(rand.Reader, clientCertificate, d.identityCert, clientCSR.PublicKey, d.identityPrivateKey)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to sign client certificate: %v", err.Error())
-	}
-
-	// Generate signed cert fingerprint
-	fingerprint := sha1.Sum(rawSignedCertDER)
-	fingerprintHex := strings.ToUpper(hex.EncodeToString(fingerprint[:]))
-
-	return rawSignedCertDER, fingerprintHex, nil
+// CertFingerprintHexStr returns the hex-encoded, uppercased sha1 fingerprint of the certificate.
+func CertFingerprintHexStr(cert *x509.Certificate) string {
+	// Windows Certificate Store requires passing the certificate thumbprint, which is the same as
+	// SHA1 fingerprint. See also:
+	// https://security.stackexchange.com/questions/14330/what-is-the-actual-value-of-a-certificate-fingerprint
+	// https://www.thesslstore.com/blog/ssl-certificate-still-sha-1-thumbprint/
+	fingerprint := sha1.Sum(cert.Raw) //nolint:gosec
+	return strings.ToUpper(hex.EncodeToString(fingerprint[:]))
 }
