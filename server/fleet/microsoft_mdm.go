@@ -128,11 +128,6 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// TODO: add check for valid email address
-	if len(req.Body.Discover.Request.EmailAddress) == 0 {
-		return errors.New("invalid discover message: Request.EmailAddress")
-	}
-
 	// Ensure that only valid versions are supported
 	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
 		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
