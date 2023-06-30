@@ -1,0 +1,2 @@
+- Fixed UI bug on host details and device user pages that caused the software search to not work
+  properly when searching by CVE.

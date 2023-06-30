@@ -1,3 +1,7 @@
+## Fleet 4.33.1 (Jun 20, 2023)
+
+* Fixed ChromeOS add host instructions to use variable Fleet URL.
+
 ## Fleet 4.33.0 (Jun 12, 2023)
 
 * Upgraded Go version to 1.19.10.

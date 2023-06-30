@@ -144,8 +144,8 @@ Engineering-initiated stories follow the [user story drafting process](https://f
 
 ### Creating an engineering-initiated story
 
-1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
-2. Label it `~engineering-initiated` and the relevant product group. 
+1. Create a [new feature request issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~engineering-initiated&projects=&template=feature-request.md&title=) in GitHub. 
+2. Ensure it is labeled with `~engineering-initiated` and the relevant product group. Remove any `~customer-request` label. 
 3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
 4. Schedule a time with an EM and/or PM to present your story. Iterate based on feedback. 
 5. You, your EM or PM can bring this to Feature Fest for consideration. All engineering-initiated changes go through the same [drafting process](https://fleetdm.com/handbook/product#intake) as any other story.

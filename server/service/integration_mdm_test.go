@@ -26,6 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -789,11 +790,21 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		<-ch
 	}
 
+	// add global profiles
+	globalProfile := mobileconfigForTest("N1", "I1")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
+
 	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
 		s.runWorker()
+		// run the worker to assign configuration profiles
+		ch := make(chan bool)
+		s.onProfileScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
 
-		var fleetdCmd *micromdm.CommandPayload
+		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -801,16 +812,24 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 				cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
 				strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
 				fleetdCmd = cmd
+			} else if cmd.Command.RequestType == "InstallProfile" {
+				installProfileCmd = cmd
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 		}
 
 		if shouldReceive {
-			require.NotNil(t, fleetdCmd)
-			require.NotNil(t, fleetdCmd.Command)
+			// received request to install fleetd
+			require.NotNil(t, fleetdCmd, "host didn't get a command to install fleetd")
+			require.NotNil(t, fleetdCmd.Command, "host didn't get a command to install fleetd")
+
+			// received request to install the global configuration profile
+			require.NotNil(t, installProfileCmd, "host didn't get a command to install profiles")
+			require.NotNil(t, installProfileCmd.Command, "host didn't get a command to install profiles")
 		} else {
-			require.Nil(t, fleetdCmd)
+			require.Nil(t, fleetdCmd, "host got a command to install fleetd")
+			require.Nil(t, installProfileCmd, "host got a command to install profiles")
 		}
 	}
 
@@ -886,7 +905,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// make sure the host gets a request to install fleetd
+	// make sure the host gets post enrollment requests
 	checkPostEnrollmentCommands(mdmDevice, true)
 
 	// only one shows up as pending
@@ -5346,6 +5365,116 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
+}
+
+func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
+	t := s.T()
+
+	// ensure the config is empty before starting
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: ""
+      minimum_version: ""
+ `))
+
+	var resp orbitGetConfigResponse
+	// missing orbit key
+	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
+
+	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+
+	// set macos_updates
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: 2022-01-04
+      minimum_version: 12.1.3
+ `))
+
+	// still empty if MDM is turned off for the host
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+
+	// turn on MDM features
+	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h.HardwareSerial
+	mdmDevice.UUID = h.UUID
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// create a team with an empty macos_updates config
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          4827,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// add the host to the team
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
+	require.NoError(t, err)
+
+	// NudgeConfig should be empty
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// modify the team config, add macos_updates config
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
+
+	// create a new host, still receives the global config
+	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
+	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h2.HardwareSerial
+	mdmDevice.UUID = h2.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
 // ///////////////////////////////////////////////////////////////////////////
