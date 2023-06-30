@@ -122,6 +122,8 @@ const UserForm = ({
     setErrors(createOrEditUserErrors);
   }, [createOrEditUserErrors]);
 
+  const editingSelf = userToEditId === currentUserId;
+
   const onInputChange = (formField: string): ((value: string) => void) => {
     return (value: string) => {
       setErrors({
@@ -376,9 +378,54 @@ const UserForm = ({
     );
   }
 
+  const renderTeamGlobalOptions = () => {
+    return (
+      <>
+        {isPremiumTier ? (
+          <div className={`${baseClass}__selected-teams-container`}>
+            <div className={`${baseClass}__team-radios`}>
+              <p className={`${baseClass}__label`}>Team</p>
+              {isModifiedByGlobalAdmin ? (
+                <>
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label={"Global user"}
+                    id={"global-user"}
+                    checked={isGlobalUser}
+                    value={UserTeamType.GlobalUser}
+                    name={"userTeamType"}
+                    onChange={onIsGlobalUserChange}
+                  />
+                  <Radio
+                    className={`${baseClass}__radio-input`}
+                    label={"Assign teams"}
+                    id={"assign-teams"}
+                    checked={!isGlobalUser}
+                    value={UserTeamType.AssignTeams}
+                    name={"userTeamType"}
+                    onChange={onIsGlobalUserChange}
+                    disabled={!availableTeams.length}
+                  />
+                </>
+              ) : (
+                <p className="current-team">
+                  {currentTeam ? currentTeam.name : ""}
+                </p>
+              )}
+            </div>
+            <div className={`${baseClass}__teams-form-container`}>
+              {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+            </div>
+          </div>
+        ) : (
+          renderGlobalRoleForm()
+        )}
+      </>
+    );
+  };
+
   return (
     <form className={baseClass} autoComplete="off">
-      {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
       <InputField
         label="Full name"
         autofocus
@@ -429,25 +476,32 @@ const UserForm = ({
             </div>
           </div>
         )}
-      <div className={`${baseClass}__sso-input`}>
-        <Checkbox
-          name="sso_enabled"
-          onChange={onCheckboxChange("sso_enabled")}
-          value={canUseSso && formData.sso_enabled}
-          disabled={!canUseSso}
-          wrapperClassName={`${baseClass}__invite-admin`}
-          tooltip={`
+
+      {/* Enable SSO */}
+      {/* Gated until back end support is implemented */}
+      {!editingSelf && (
+        <div className={`${baseClass}__sso-input`}>
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange("sso_enabled")}
+            value={canUseSso && formData.sso_enabled}
+            disabled={!canUseSso}
+            wrapperClassName={`${baseClass}__invite-admin`}
+            tooltip={`
               Enabling single sign-on for a user requires that SSO is first enabled for the organization.
               <br /><br />
               Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
             `}
-        >
-          Enable single sign-on
-        </Checkbox>
-        <p className={`${baseClass}__sso-input sublabel`}>
-          Password authentication will be disabled for this user.
-        </p>
-      </div>
+          >
+            Enable single sign-on
+          </Checkbox>
+          <p className={`${baseClass}__sso-input sublabel`}>
+            Password authentication will be disabled for this user.
+          </p>
+        </div>
+      )}
+
+      {/* New User options */}
       {isNewUser && (
         <div className={`${baseClass}__new-user-container`}>
           <div className={`${baseClass}__new-user-radios`}>
@@ -518,44 +572,9 @@ const UserForm = ({
             )}
         </div>
       )}
-      {isPremiumTier && (
-        <div className={`${baseClass}__selected-teams-container`}>
-          <div className={`${baseClass}__team-radios`}>
-            <p className={`${baseClass}__label`}>Team</p>
-            {isModifiedByGlobalAdmin ? (
-              <>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label={"Global user"}
-                  id={"global-user"}
-                  checked={isGlobalUser}
-                  value={UserTeamType.GlobalUser}
-                  name={"userTeamType"}
-                  onChange={onIsGlobalUserChange}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label={"Assign teams"}
-                  id={"assign-teams"}
-                  checked={!isGlobalUser}
-                  value={UserTeamType.AssignTeams}
-                  name={"userTeamType"}
-                  onChange={onIsGlobalUserChange}
-                  disabled={!availableTeams.length}
-                />
-              </>
-            ) : (
-              <p className="current-team">
-                {currentTeam ? currentTeam.name : ""}
-              </p>
-            )}
-          </div>
-          <div className={`${baseClass}__teams-form-container`}>
-            {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
-          </div>
-        </div>
-      )}
-      {!isPremiumTier && renderGlobalRoleForm()}
+
+      {/*  Team / Global Assignments */}
+      {!editingSelf && renderTeamGlobalOptions()}
 
       <div className="modal-cta-wrap">
         <Button
