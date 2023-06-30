@@ -13,6 +13,7 @@ ARG binpath=build/binary-bundle/linux/fleetctl
 RUN apt-get update \
   && dpkg --add-architecture i386 \
   && apt update \
+  && apt upgrade \
   && apt install -y --no-install-recommends ca-certificates cpio libxml2 wine wine32 libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/* 
 
