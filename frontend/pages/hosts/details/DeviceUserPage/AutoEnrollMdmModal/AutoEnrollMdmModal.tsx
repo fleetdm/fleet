@@ -25,12 +25,10 @@ const AutoEnrollMdmModal = ({
         </p>
         <ol>
           <li>
-            From the Apple menu in the top left corner of your screen, select{" "}
-            <b>System Settings</b> or <b>System Preferences</b>.
+            Open your Mac’s notification center by selecting the date and time in the top right corner of your screen.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
-            click on <b>Enrollment Profile</b>, and select <b>Install</b>.
+            Select the <b>Device Enrollment</b> notification. This will open <b>System Settings</b> or <b>System Preferences</b>. Select <b>Allow</b>.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.
