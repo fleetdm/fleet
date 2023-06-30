@@ -52,8 +52,8 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
  - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
  - Emails that need the CEO's attention should be "starred" 
  - EA should prepare draft responses, move drafts to the Inbox, and label
- - Any invoice or remittance related emails get forwarded to Billing and marked as read and otherwise ignored
- - Any google drive share notifications from internal fleeties are checked for a custom message, and if no custom message, then just mark as read and ignore
+ - Any invoice or remittance related emails get marked as read and otherwise ignored
+ - Any Google Drive share notifications from internal fleeties are checked for a custom message, and if no custom message, then just mark as read and ignore
 
 ### Travel preferences
 Current preferences for flights are:
