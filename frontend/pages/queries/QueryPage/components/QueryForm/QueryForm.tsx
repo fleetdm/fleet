@@ -424,7 +424,7 @@ const QueryForm = ({
           name="query editor"
           label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly={!isObserverPlus || !isAnyTeamObserverPlus}
+          readOnly={!isObserverPlus && !isAnyTeamObserverPlus}
           labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
