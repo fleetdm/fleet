@@ -238,5 +238,17 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+#### Why does Fleet use sentence case?
+
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
+
+In sentence case, we write and capitalize words as if they were in sentences:
+
+> Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
+
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
+
+The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
