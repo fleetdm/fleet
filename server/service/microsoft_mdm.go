@@ -407,6 +407,164 @@ func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, hostUU
 	return base64.URLEncoding.EncodeToString(rawBytes), nil
 }
 
+// newParm returns a new ProvisioningDoc Parameter
+func newParm(name, value, datatype string) mdm_types.Param {
+	return mdm_types.Param{
+		Name:     name,
+		Value:    value,
+		Datatype: datatype,
+	}
+}
+
+// newCharacteristic returns a new ProvisioningDoc Characteristic
+func newCharacteristic(typ string, parms []mdm_types.Param, characteristics []mdm_types.Characteristic) mdm_types.Characteristic {
+	return mdm_types.Characteristic{
+		Type:            typ,
+		Params:          parms,
+		Characteristics: characteristics,
+	}
+}
+
+// NewProvisioningDoc returns a new ProvisioningDoc container
+
+// NewCertStoreProvisioningData returns a new CertStoreProvisioningData Characteristic
+// The enrollment client installs the client certificate, as well as the trusted root certificate and intermediate certificates.
+// The provisioning information in NewCertStoreProvisioningData includes various properties that the device management client uses to communicate with the MDM Server.
+// identityFingerprint is the fingerprint of the identity certificate
+// identityCert is the identity certificate bytes
+// signedClientFingerprint is the fingerprint of the signed client certificate
+// signedClientCert is the signed client certificate bytes
+func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint string, identityCert []byte, signedClientFingerprint string, signedClientCert []byte) mdm_types.Characteristic {
+	// Target Cert Store selection based on Enrollment type
+	targetCertStore := "User"
+	if enrollmentType == "Device" {
+		targetCertStore = "System"
+	}
+
+	root := newCharacteristic("Root", nil, []mdm_types.Characteristic{
+		newCharacteristic("System", nil, []mdm_types.Characteristic{
+			newCharacteristic(identityFingerprint, []mdm_types.Param{
+				newParm("EncodedCertificate", base64.StdEncoding.EncodeToString(identityCert), ""),
+			}, nil),
+		}),
+	})
+
+	my := newCharacteristic("My", nil, []mdm_types.Characteristic{
+		newCharacteristic(targetCertStore, nil, []mdm_types.Characteristic{
+			newCharacteristic(signedClientFingerprint, []mdm_types.Param{
+				newParm("EncodedCertificate", base64.StdEncoding.EncodeToString(signedClientCert), ""),
+			}, nil),
+			newCharacteristic("PrivateKeyContainer", nil, nil),
+		}),
+		newCharacteristic("WSTEP", nil, []mdm_types.Characteristic{
+			newCharacteristic("Renew", []mdm_types.Param{
+				newParm("ROBOSupport", mdm.WstepROBOSupport, "boolean"),
+				newParm("RenewPeriod", mdm.WstepCertRenewalPeriodInDays, "integer"),
+				newParm("RetryInterval", mdm.WstepRenewRetryInterval, "integer"),
+			}, nil),
+		}),
+	})
+
+	certStore := newCharacteristic("CertificateStore", nil, []mdm_types.Characteristic{root, my})
+	return certStore
+}
+
+// NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
+// The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
+// The paramenters here maps to the W7 application CSP
+// https://learn.microsoft.com/en-us/windows/client-management/mdm/w7-application-csp
+func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
+	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
+		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
+		newParm("PROVIDER-ID", mdm.DocProvisioningAppProviderID, ""),
+
+		// The APPID parameter is used to differentiate the types of available application services and protocols.
+		newParm("APPID", "w7", ""),
+
+		// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity.
+		newParm("NAME", mdm.DocProvisioningAppName, ""),
+
+		// The ADDR parameter is used in the APPADDR param to get or set the address of the OMA DM server.
+		newParm("ADDR", mdmEndpoint, ""),
+
+		// The ROLE parameter is used in the APPLICATION characteristic to specify the security application chamber that the DM session should run with when communicating with the DM server.
+
+		// The BACKCOMPATRETRYFREQ parameter is used  to specify how many retries the DM client performs when there are Connection Manager-level or WinInet-level errors
+		newParm("CONNRETRYFREQ", mdm.DocProvisioningAppConnRetryFreq, ""),
+
+		// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
+		newParm("INITIALBACKOFFTIME", mdm.DocProvisioningAppInitialBackoffTime, ""),
+
+		// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
+		newParm("MAXBACKOFFTIME", mdm.DocProvisioningAppMaxBackoffTime, ""),
+
+		// The DEFAULTENCODING parameter is used to specify whether the DM client should use WBXML or XML for the DM package when communicating with the server.
+		newParm("DEFAULTENCODING", "application/vnd.syncml.dm+xml", ""),
+
+		// The BACKCOMPATRETRYDISABLED parameter is used to specify whether to retry resending a package with an older protocol version
+		newParm("BACKCOMPATRETRYDISABLED", "", ""),
+	}, []mdm_types.Characteristic{
+		// CLIENT specifies that the server authenticates itself to the OMA DM Client at the DM protocol level.
+		newCharacteristic("APPAUTH", []mdm_types.Param{
+			newParm("AAUTHLEVEL", "CLIENT", ""),
+			// DIGEST - Specifies that the SyncML DM 'syncml:auth-md5' authentication type.
+			newParm("AAUTHTYPE", "DIGEST", ""),
+			newParm("AAUTHSECRET", "dummy", ""),
+			newParm("AAUTHDATA", "nonce", ""),
+		}, nil),
+		// APPSRV specifies that the client authenticates itself to the OMA DM Server at the DM protocol level.
+		newCharacteristic("APPAUTH", []mdm_types.Param{
+			newParm("AAUTHLEVEL", "APPSRV", ""),
+			// DIGEST - Specifies that the SyncML DM 'syncml:auth-md5' authentication type.
+			newParm("AAUTHTYPE", "DIGEST", ""),
+			newParm("AAUTHNAME", "dummy", ""),
+			newParm("AAUTHSECRET", "dummy", ""),
+			newParm("AAUTHDATA", "nonce", ""),
+		}, nil),
+	})
+
+	return provDoc
+}
+
+// NewDMClientProvisioningData returns a new DMClient Characteristic
+// These settings can be used to define different aspects of the DM client behavior
+// The provisioning information in NewCertStoreProvisioningData includes various properties that the device management client uses to communicate with the MDM Server.
+// c2DeviceName is the device name used by the IT admin console
+// listOfMSIAppToInstall contains a list of LocURIs that expected to be provision via EnterpriseDesktopAppManagement CSP
+func NewDMClientProvisioningData() mdm_types.Characteristic {
+	dmClient := newCharacteristic("DMClient", nil, []mdm_types.Characteristic{
+		newCharacteristic("Provider", nil, []mdm_types.Characteristic{
+			newCharacteristic(mdm.DocProvisioningAppProviderID,
+				[]mdm_types.Param{}, []mdm_types.Characteristic{
+					newCharacteristic("Poll", []mdm_types.Param{
+						newParm("NumberOfFirstRetries", mdm.DmClientCSPNumberOfFirstRetries, mdm.DmClientIntType),
+						newParm("IntervalForFirstSetOfRetries", mdm.DmClientCSPIntervalForFirstSetOfRetries, mdm.DmClientIntType),
+						newParm("NumberOfSecondRetries", mdm.DmClientCSPNumberOfSecondRetries, mdm.DmClientIntType),
+						newParm("IntervalForSecondSetOfRetries", mdm.DmClientCSPIntervalForSecondSetOfRetries, mdm.DmClientIntType),
+						newParm("NumberOfRemainingScheduledRetries", mdm.DmClientCSPNumberOfRemainingScheduledRetries, mdm.DmClientIntType),
+						newParm("IntervalForRemainingScheduledRetries", mdm.DmClientCSPIntervalForRemainingScheduledRetries, mdm.DmClientIntType),
+						newParm("PollOnLogin", mdm.DmClientCSPPollOnLogin, mdm.DmClientBoolType),
+						newParm("AllUsersPollOnFirstLogin", mdm.DmClientCSPPollOnLogin, mdm.DmClientBoolType),
+					}, nil),
+				}),
+		}),
+	})
+
+	return dmClient
+}
+
+// NewProvisioningDoc returns a new ProvisioningDoc container
+func NewProvisioningDoc(certStoreData mdm_types.Characteristic, applicationData mdm_types.Characteristic, dmClientData mdm_types.Characteristic) mdm_types.WapProvisioningDoc {
+	return mdm_types.WapProvisioningDoc{
+		Version: mdm.DocProvisioningVersion,
+		Characteristics: []mdm_types.Characteristic{
+			certStoreData,
+			applicationData,
+			dmClientData,
+		},
+	}
+}
+
 // mdmMicrosoftDiscoveryEndpoint handles the Discovery message and returns a valid DiscoveryResponse message
 func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*SoapRequestContainer).Data
@@ -484,12 +642,71 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
+	// Getting the RequestSecurityToken message from the SOAP request
+	reqRequestSecurityTokenMsg, err := req.GetRequestSecurityTokenMessage()
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the MDMDeviceID context information from the RequestSecurityToken msg
+	reqMDMDeviceID, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the HWDevID context information from the RequestSecurityToken msg
+	reqHWDevID, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
+	reqEnrollVersion, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the HWDevID context information from the RequestSecurityToken msg
+	reqEnrollType, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the OSEdition context information from the RequestSecurityToken msg
+	reqOSEdition, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// Getting the OSVersion context information from the RequestSecurityToken msg
+	reqOSVersion, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
 	// Binary security token should be extracted to ensure this is a valid call
 	binSecTokenData, err := req.GetBinarySecurityToken()
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
+
+	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
+	binSecurityTokenType, err := reqRequestSecurityTokenMsg.GetBinarySecurityTokenType()
+	if err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+	}
+
+	// TODO delete this
+	_ = fmt.Sprintf("%s %s %s %s %s %s %s", reqMDMDeviceID, reqEnrollVersion, string(binSecurityTokenType), reqHWDevID, reqOSEdition, reqOSVersion, reqEnrollType)
 
 	// Getting the RequestSecurityTokenResponseCollection message
 	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, binSecTokenData)
@@ -509,6 +726,8 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 		Data: &response,
 		Err:  nil,
 	}, nil
+
+	return SoapResponseContainer{}, nil
 }
 
 // validateBinarySecurityToken checks if the provided token is valid

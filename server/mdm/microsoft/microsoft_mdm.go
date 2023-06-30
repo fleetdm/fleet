@@ -126,6 +126,67 @@ const (
 	// Supported Enroll Type
 	ReqSecTokenEnrollType = "Full"
 
+	// Provisioning Doc Certificate Renewal Period (180 days)
+	WstepCertRenewalPeriodInDays = "60"
+
+	// Provisioning Doc Server supports ROBO auto certificate renewal
+	// TODO: Add renewal support
+	WstepROBOSupport = "true"
+
+	// Provisioning Doc Server retry interval
+	WstepRenewRetryInterval = "4"
+
+	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
+	DocProvisioningAppProviderID = "C2runchMDM"
+
+	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
+	DocProvisioningAppName = "Managed by " + DocProvisioningAppProviderID
+
+	// The CONNRETRYFREQ parameter is used in the APPLICATION characteristic to specify a user readable application identity
+	DocProvisioningAppConnRetryFreq = "6"
+
+	// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
+	DocProvisioningAppInitialBackoffTime = "30000"
+
+	// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
+	DocProvisioningAppMaxBackoffTime = "120000"
+
+	// The DocProvisioningVersion attributes defines the version of the provisioning document format
+	DocProvisioningVersion = "1.1"
+
+	// The number of times the DM client should retry to connect to the server when the client is initially configured or enrolled to communicate with the server.
+	DmClientCSPNumberOfFirstRetries = "8"
+
+	// The waiting time (in minutes) for the initial set of retries as specified by the number of retries in NumberOfFirstRetries
+	DmClientCSPIntervalForFirstSetOfRetries = "15"
+
+	// The number of times the DM client should retry a second round of connecting to the server when the client is initially configured/enrolled to communicate with the server
+	DmClientCSPNumberOfSecondRetries = "5"
+
+	// The waiting time (in minutes) for the second set of retries as specified by the number of retries in NumberOfSecondRetries
+	DmClientCSPIntervalForSecondSetOfRetries = "3"
+
+	// The number of times the DM client should retry connecting to the server when the client is initially configured/enrolled to communicate with the server
+	DmClientCSPNumberOfRemainingScheduledRetries = "0"
+
+	// The waiting time (in minutes) for the initial set of retries as specified by the number of retries in NumberOfRemainingScheduledRetries
+	DmClientCSPIntervalForRemainingScheduledRetries = "1560"
+
+	// It allows the IT admin to require the device to start a management session on any user login, regardless of if the user has preciously logged in
+	DmClientCSPPollOnLogin = "true"
+
+	// It specifies whether the DM client should send out a request pending alert in case the device response to a DM request is too slow.
+	DmClientCSPEnableOmaDmKeepAliveMessage = "true"
+
+	// CSR issuer should be verified during enrollment
+	EnrollVerifyIssue = true
+
+	// Int type used by the DM client configuration
+	DmClientIntType = "integer"
+
+	// Bool type used by the DM client configuration
+	DmClientBoolType = "boolean"
+
 	// Additional Context items present on the RequestSecurityToken token message
 	ReqSecTokenContextItemUXInitiated          = "UXInitiated"
 	ReqSecTokenContextItemHWDevID              = "HWDevID"

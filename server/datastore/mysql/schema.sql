@@ -1208,6 +1208,26 @@ CREATE TABLE `windows_updates` (
   KEY `idx_update_date` (`host_id`,`date_epoch`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `mdm_windows_enrollments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `mdm_device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mdm_hardware_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_identity_cert` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_user_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `enroll_proto_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_client_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_in_oobe` tinyint(4) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_type` (`mdm_device_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!50001 DROP VIEW IF EXISTS `nano_view_queue`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;

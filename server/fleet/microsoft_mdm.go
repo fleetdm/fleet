@@ -1,9 +1,12 @@
 package fleet
 
 import (
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
@@ -245,6 +248,15 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 	return nil
 }
 
+// Get RequestSecurityToken MDM Message from the body
+func (req *SoapRequest) GetRequestSecurityTokenMessage() (*RequestSecurityToken, error) {
+	if req.Body.RequestSecurityToken == nil {
+		return nil, errors.New("invalid body: RequestSecurityToken message not present")
+	}
+
+	return req.Body.RequestSecurityToken, nil
+}
+
 // MS-MDE2 Message request types
 const (
 	MDEDiscovery = iota
@@ -442,7 +454,7 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenType() (BinSecTokenType, e
 	return MDETokenPKCSInvalid, errors.New("BinarySecurityToken is invalid")
 }
 
-// Get Context Item
+// Get SecurityToken Context Item
 func (msg RequestSecurityToken) GetContextItem(item string) (string, error) {
 	if len(msg.AdditionalContext.ContextItems) == 0 {
 		return "", errors.New("ContextItems is empty")
@@ -673,4 +685,82 @@ func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 
 func (t *WindowsMDMAccessTokenPayload) GetType() WindowsMDMEnrollmentType {
 	return t.Type
+}
+
+///////////////////////////////////////////////////////////////
+/// MS-MDE2 ProvisioningDoc (XML Provisioning Schema) message type
+/// Section 2.2.9.1 on the specification
+/// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
+
+type Param struct {
+	Name     string `xml:"name,attr,omitempty"`
+	Value    string `xml:"value,attr,omitempty"`
+	Datatype string `xml:"datatype,attr,omitempty"`
+}
+
+type Characteristic struct {
+	Type            string           `xml:"type,attr"`
+	Params          []Param          `xml:"parm"`
+	Characteristics []Characteristic `xml:"characteristic,omitempty"`
+}
+
+type WapProvisioningDoc struct {
+	XMLName         xml.Name         `xml:"wap-provisioningdoc"`
+	Version         string           `xml:"version,attr"`
+	Characteristics []Characteristic `xml:"characteristic"`
+}
+
+// Add Characteristic to the Characteristic container
+func (msg *Characteristic) AddCharacteristic(c Characteristic) {
+	msg.Characteristics = append(msg.Characteristics, c)
+}
+
+// Add Param to the Params container
+func (msg *Characteristic) AddParam(name string, value string, dataType string) {
+	param := Param{Name: name, Value: value, Datatype: dataType}
+	msg.Params = append(msg.Params, param)
+}
+
+// Add Characteristic to the WapProvisioningDoc
+func (msg *WapProvisioningDoc) AddCharacteristic(c Characteristic) {
+	msg.Characteristics = append(msg.Characteristics, c)
+}
+
+// GetEncodedB64Representation returns encoded WapProvisioningDoc representation
+func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
+	rawXML, err := xml.MarshalIndent(msg, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	// Appending the XML header beforing encoding it
+	xmlContent := append([]byte(xml.Header), rawXML...)
+
+	// Removing all the new lines and tabs
+	xmlStripContent := []byte(strings.ReplaceAll(strings.ReplaceAll(string(xmlContent), "\n", ""), "\t", ""))
+
+	return base64.StdEncoding.EncodeToString(xmlStripContent), nil
+}
+
+///////////////////////////////////////////////////////////////
+/// MDMWindowsEnrolledDevice type
+/// Contains the information of the enrolled Windows host
+
+type MDMWindowsEnrolledDevice struct {
+	MDMDeviceID            string    `db:"mdm_device_id"`
+	MDMHardwareID          string    `db:"mdm_hardware_id"`
+	MDMIdentityCert        string    `db:"device_identity_cert"`
+	MDMDeviceType          string    `db:"device_type"`
+	MDMDeviceName          string    `db:"device_name"`
+	MDMEnrollType          string    `db:"enroll_type"`
+	MDMEnrollUserID        string    `db:"enroll_user_id"`
+	MDMEnrollProtoVersion  string    `db:"enroll_proto_version"`
+	MDMEnrollClientVersion string    `db:"enroll_client_version"`
+	MDMNotInOOBE           bool      `db:"not_in_oobe"`
+	CreatedAt              time.Time `db:"created_at"`
+	UpdatedAt              time.Time `db:"updated_at"`
+}
+
+func (e MDMWindowsEnrolledDevice) AuthzType() string {
+	return "mdm_windows"
 }

@@ -985,6 +985,16 @@ type Datastore interface {
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows MDM
+
+	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
+	MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, MDMDeviceID string) error
 }
 
 const (
