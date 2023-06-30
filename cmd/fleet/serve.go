@@ -564,7 +564,6 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "initialize mdm microsoft wstep depot")
 					}
-
 				}
 			}
 
