@@ -2619,11 +2619,13 @@ spec:
       done
   query: |
     SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE 
-      path LIKE '/Applications/%%'  
-      AND type = 'directory' 
-      AND directory LIKE '%.app' 
-      AND  CAST( SUBSTRING( mode ,-1) AS INTEGER)  & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      SELECT apps.path FROM apps
+      LEFT JOIN file on file.path = apps.path
+      WHERE apps.path LIKE '/Applications/%' AND
+      -- file.mode's last character are the permissions for 'other',
+      -- bitwise && with '0x2' selects the write permission,
+      -- which we do not want here.
+      CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.5
@@ -2637,7 +2639,9 @@ spec:
   platform: darwin
   description: |
     Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
-    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a persistent presence on the system.
+    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application.
+    It could also be a sign of a computer compromise and a persistent presence on the system.
+    The audit check excludes the "Drop Box" folder that is part of Apple's default user template.
   resolution: |
     Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
     /usr/bin/sudo IFS=$'\n'
@@ -2647,11 +2651,11 @@ spec:
     done
   query: |
     SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE 
-      path LIKE '/System/Volumes/Data/System/%%'  
-      AND type = 'directory' 
-      AND directory NOT LIKE '%Drop Box%' 
-      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      SELECT 1 FROM find_cmd WHERE
+        directory = '/System/Volumes/Data/System'
+        AND type = 'd'
+        AND perm = '-2'
+        AND path NOT LIKE '%Drop Box%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.6
@@ -2675,12 +2679,12 @@ spec:
     done
   query: |
     SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE 
-      path LIKE '/System/Volumes/Data/Library/%%'
-      AND type = 'directory' 
-      AND directory NOT LIKE '%Caches%' 
-      AND directory NOT LIKE '%/Preferences/Audio/Data%' 
-      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      SELECT 1 FROM find_cmd WHERE
+        directory = '/System/Volumes/Data/Library'
+        AND type = 'd'
+        AND perm = '-2'
+        AND path NOT LIKE '%Caches%'
+        AND path NOT LIKE '%/Preferences/Audio/Data%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.1.7

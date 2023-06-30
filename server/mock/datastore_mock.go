@@ -4,7 +4,9 @@ package mock
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"math/big"
 	"sync"
 	"time"
 
@@ -645,6 +647,12 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
+
+type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
+
+type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
+
+type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, hash string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1591,6 +1599,15 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
+	WSTEPStoreCertificateFuncInvoked bool
+
+	WSTEPNewSerialFunc        WSTEPNewSerialFunc
+	WSTEPNewSerialFuncInvoked bool
+
+	WSTEPAssociateCertHashFunc        WSTEPAssociateCertHashFunc
+	WSTEPAssociateCertHashFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3798,4 +3815,25 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+}
+
+func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
+	s.mu.Lock()
+	s.WSTEPStoreCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPStoreCertificateFunc(ctx, name, crt)
+}
+
+func (s *DataStore) WSTEPNewSerial(ctx context.Context) (*big.Int, error) {
+	s.mu.Lock()
+	s.WSTEPNewSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPNewSerialFunc(ctx)
+}
+
+func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error {
+	s.mu.Lock()
+	s.WSTEPAssociateCertHashFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }

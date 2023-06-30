@@ -6,11 +6,24 @@ import "encoding/json"
 // fleetd (orbit) so that it can run commands or more generally react to this
 // information.
 type OrbitConfigNotifications struct {
-	RenewEnrollmentProfile                bool   `json:"renew_enrollment_profile,omitempty"`
-	RotateDiskEncryptionKey               bool   `json:"rotate_disk_encryption_key,omitempty"`
-	NeedsMDMMigration                     bool   `json:"needs_mdm_migration,omitempty"`
-	NeedsProgrammaticWindowsMDMEnrollment bool   `json:"needs_programmatic_windows_mdm_enrollment,omitempty"`
-	WindowsMDMDiscoveryEndpoint           string `json:"windows_mdm_discovery_endpoint,omitempty"`
+	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
+	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
+	NeedsMDMMigration       bool `json:"needs_mdm_migration,omitempty"`
+
+	// NeedsProgrammaticWindowsMDMEnrollment is sent as true if Windows MDM is
+	// enabled and the device should be enrolled as far as the server knows (e.g.
+	// it is running Windows, is not already enrolled, etc., see
+	// host.IsEligibleForWindowsMDMEnrollment for the list of conditions).
+	NeedsProgrammaticWindowsMDMEnrollment bool `json:"needs_programmatic_windows_mdm_enrollment,omitempty"`
+	// WindowsMDMDiscoveryEndpoint is the URL to use as Windows MDM discovery. It
+	// must be sent when NeedsProgrammaticWindowsMDMEnrollment is true so that
+	// the device knows where to enroll.
+	WindowsMDMDiscoveryEndpoint string `json:"windows_mdm_discovery_endpoint,omitempty"`
+
+	// NeedsProgrammaticWindowsMDMUnenrollment is sent as true if Windows MDM is
+	// disabled and the device was enrolled in Fleet's MDM (see
+	// host.IsEligibleForWindowsMDMUnenrollment for the list of conditions).
+	NeedsProgrammaticWindowsMDMUnenrollment bool `json:"needs_programmatic_windows_mdm_unenrollment,omitempty"`
 }
 
 type OrbitConfig struct {

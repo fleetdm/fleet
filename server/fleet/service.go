@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"time"
@@ -696,6 +697,11 @@ type Service interface {
 	// error can be raised to the user.
 	VerifyMDMAppleConfigured(ctx context.Context) error
 
+	// VerifyMDMWindowsConfigured verifies that the server is configured for
+	// Windows MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user.
+	VerifyMDMWindowsConfigured(ctx context.Context) error
+
 	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
@@ -746,4 +752,20 @@ type Service interface {
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 
 	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows MDM
+
+	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
+	GetMDMMicrosoftDiscoveryResponse(ctx context.Context) (*DiscoverResponse, error)
+
+	// GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
+	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
+
+	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
+	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
+
+	// SignMDMMicrosoftClientCSR returns a signed certificate from the client certificate signing request and the
+	// certificate fingerprint. The certificate common name should be passed in the subject parameter.
+	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 }
