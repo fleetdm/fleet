@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"time"
@@ -762,8 +763,12 @@ type Service interface {
 	GetMDMWindowsPolicyResponse(ctx context.Context, authToken string) (*GetPoliciesResponse, error)
 
 	// GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
-	GetMDMWindowsEnrollResponse(ctx context.Context, authToken string) (*RequestSecurityTokenResponseCollection, error)
+	GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *RequestSecurityToken, authToken string) (*RequestSecurityTokenResponseCollection, error)
 
 	// GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 	GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *SoapFault
+
+	// SignMDMMicrosoftClientCSR returns a signed certificate from the client certificate signing request and the
+	// certificate fingerprint. The certificate common name should be passed in the subject parameter.
+	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 }

@@ -171,6 +171,8 @@ module.exports.routes = {
     action: 'try-fleet/view-register',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet Sandbox - The fastest way to test Fleet. Get up and running in minutes to try out Fleet.',
     }
   },
 
@@ -178,6 +180,8 @@ module.exports.routes = {
     action: 'try-fleet/view-sandbox-login',
     locals: {
       layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Log in to Fleet Sandbox | Fleet for osquery',
+      pageDescriptionForMeta: 'Log in to Fleet Sandbox.',
     }
   },
 
@@ -243,7 +247,7 @@ module.exports.routes = {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'Device management | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
+      pageDescriptionForMeta: 'GitOps-driven MDM. Automate the management of your fleet of devices with increased visibility, control, and improved stability.',
       currentSection: 'platform',
     }
   },
@@ -281,7 +285,14 @@ module.exports.routes = {
     }
   },
 
-  'GET /support': { action: 'view-support' },
+  'GET /support': {
+    action: 'view-support',
+    locals: {
+      pageTitleForMeta: 'Support | Fleet for osquery',
+      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      currentSection: 'documentation',
+    }
+  },
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐

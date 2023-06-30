@@ -214,7 +214,6 @@ func (s *integrationMDMTestSuite) TearDownSuite() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = false
-	appConf.MDM.WindowsEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }
@@ -233,12 +232,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	s.token = s.getTestAdminToken()
 	appCfg := s.getConfig()
-	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
-		// ensure global disk encryption is disabled on exit
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
-  }`), http.StatusOK)
-	}
+	// ensure windows mdm is always enabled for the next test
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	// ensure global disk encryption is disabled on exit
+	appCfg.MDM.MacOSSettings.EnableDiskEncryption = false
+	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
+	require.NoError(t, err)
 
 	s.withServer.commonTearDownTest(t)
 
@@ -3573,7 +3572,9 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// trying to upload a file that is not a PDF fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "")
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	// trying to upload an empty file fails
+	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 
 	// admin is able to upload a new EULA
 	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
@@ -5082,6 +5083,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDMEnabled)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
@@ -5091,12 +5093,35 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 		if meta.shouldEnroll {
 			require.Contains(t, resp.Notifications.WindowsMDMDiscoveryEndpoint, microsoft_mdm.MDE2DiscoveryPath)
 		} else {
 			require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 		}
 	}
+
+	// disable Microsoft MDM
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_enabled_and_configured": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
+
+	// set the win-no-team host as enrolled in Windows MDM
+	noTeamHost := hostsBySuffix["win-no-team"]
+	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	// get the orbit config for win-no-team should return true for the
+	// unenrollment notification
+	var resp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		http.StatusOK, &resp)
+	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
+	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+	require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {

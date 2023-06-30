@@ -49,18 +49,54 @@ module.exports = {
         }
       });
     }
-    // Set a currentSection variable for the website header based on how the articles category page is linked to in the header navigation dropdown menus.
-    let currentSection;
-    if(category === 'success-stories'){
-      // If the category is success-stories, highlight the "Platform" dropdown.
-      currentSection = 'platform';
-    } else if(_.contains(['deploy','guides','releases'], category)) {
-      // If the category is deploy, guides, or release, highlight the "Documentation" dropdown.
-      currentSection = 'documentation';
-    } else {
-      // If the category is anything else, highlight the "Community" dropdown.
-      currentSection = 'community';
+
+    let pageTitleForMeta = 'Fleet blog | Fleet for osquery';
+    let pageDescriptionForMeta = 'Read the latest articles written by Fleet.';
+    // Create a currentSection variable, this will be used to highlight the header dropdown that this article category lives under.
+    // There are three possible values for this (documentation, community, and platform), so we'll default to the one with the most article categories (community) and set the value to another section if needed.
+    // If the category is deploy, guides, or releases, currentSection will be set to 'documentation', and if the category is 'success-stories', currentSection will be set to 'platform'.
+    let currentSection = 'community';
+
+    // Set a pageTitleForMeta, pageDescriptionForMeta, and currentSection variable based on the article category.
+    switch(category) {
+      case 'success-stories':
+        pageTitleForMeta = 'Success stories | Fleet for osquery';
+        pageDescriptionForMeta = 'Read about how others are using Fleet and osquery.';
+        currentSection = 'platform';
+        break;
+      case 'deploy':
+        pageTitleForMeta = 'Deployment guides | Fleet for osquery';
+        pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';
+        currentSection = 'documentation';
+        break;
+      case 'releases':
+        pageTitleForMeta = 'Releases | Fleet for osquery';
+        pageDescriptionForMeta = 'Fleet releases new and updated features every three weeks. Read about the latest product improvements here.';
+        currentSection = 'documentation';
+        break;
+      case 'guides':
+        pageTitleForMeta = 'Guides | Fleet for osquery';
+        pageDescriptionForMeta = 'A collection of how-to guides for Fleet and osquery.';
+        currentSection = 'documentation';
+        break;
+      case 'securing':
+        pageTitleForMeta = 'Security articles | Fleet for osquery';
+        pageDescriptionForMeta = 'Learn more about how we secure Fleet.';
+        break;
+      case 'engineering':
+        pageTitleForMeta = 'Engineering articles | Fleet for osquery';
+        pageDescriptionForMeta = 'Read about engineering at Fleet and beyond.';
+        break;
+      case 'announcements':
+        pageTitleForMeta = 'Announcements | Fleet for osquery';
+        pageDescriptionForMeta = 'Read the latest news from Fleet.';
+        break;
+      case 'podcasts':
+        pageTitleForMeta = 'Podcasts | Fleet for osquery';
+        pageDescriptionForMeta = 'Listen to the Future of Device Management podcast.';
+        break;
     }
+
 
     return {
       path: require('path'),
@@ -69,6 +105,8 @@ module.exports = {
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       currentSection,
+      pageTitleForMeta,
+      pageDescriptionForMeta,
     };
 
   }

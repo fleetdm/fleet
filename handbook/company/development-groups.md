@@ -32,7 +32,7 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 |:----------------------------------|:--------------------------|
 | Designer                          | Marko Lisica
 | Engineering manager               | George Karr
-| Quality assurance                 | Reed Haynes
+| Quality assurance                 | Reed Haynes, Sabrina Coy
 | Product manager                   | Noah Talerman
 | Software engineers (developers)   | Gabe Hernandez, Martin Angers*, Roberto Dip, Sarah Gillespie, Marcos Oviedo
 

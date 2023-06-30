@@ -14,7 +14,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceI
 	stmt := `SELECT 
 		mdm_device_id, 
 		mdm_hardware_id, 
-		device_identity_cert, 
+		device_state,
 		device_type, 
 		device_name, 
 		enroll_type, 
@@ -29,7 +29,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceI
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, MDMDeviceID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+			return nil, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsEnrolledDevice")
 	}
@@ -42,7 +42,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		INSERT INTO mdm_windows_enrollments (
 		mdm_device_id,
 		mdm_hardware_id,
-		device_identity_cert,
+		device_state,
 		device_type,
 		device_name,
 		enroll_type,
@@ -56,7 +56,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		stmt,
 		device.MDMDeviceID,
 		device.MDMHardwareID,
-		device.MDMIdentityCert,
+		device.MDMDeviceState,
 		device.MDMDeviceType,
 		device.MDMDeviceName,
 		device.MDMEnrollType,

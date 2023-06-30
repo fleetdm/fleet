@@ -34,7 +34,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String(),
-		MDMIdentityCert:        uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",

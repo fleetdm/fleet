@@ -415,6 +415,12 @@ type RequestSecurityToken struct {
 	MapContextItems     *map[string]ContextItem `xml:"-"`
 }
 
+// BinarySecurityToken contains the base64 encoding representation of the security token
+// BinarySecurityToken is the sole operation in the WSTEP protocol. It provides the mechanism for
+// certificate enrollment requests, retrieval of pending certificate status, and the request of the
+// server key exchange certificate.
+// The token format is defined by the WS-Trust X509v3 Enrollment Extensions [MS-WSTEP] specification
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/5b02c625-ced2-4a01-a8e1-da0ae84f5bb7
 type BinarySecurityToken struct {
 	Content      string  `xml:",chardata"`
 	XMLNS        *string `xml:"xmlns,attr"`
@@ -442,16 +448,13 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
 }
 
 // Get Binary Security Token Type
-func (msg RequestSecurityToken) GetBinarySecurityTokenType() (BinSecTokenType, error) {
-	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 {
-		return MDETokenPKCS10, nil
+func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
+	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 ||
+		msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+		return msg.BinarySecurityToken.ValueType, nil
 	}
 
-	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
-		return MDETokenPKCS7, nil
-	}
-
-	return MDETokenPKCSInvalid, errors.New("BinarySecurityToken is invalid")
+	return "", errors.New("BinarySecurityToken is invalid")
 }
 
 // Get SecurityToken Context Item
@@ -476,15 +479,6 @@ func (msg RequestSecurityToken) GetContextItem(item string) (string, error) {
 
 	return itemVal.Value, nil
 }
-
-// MS-MDE2 Binary Security Token Types
-type BinSecTokenType int
-
-const (
-	MDETokenPKCS7 BinSecTokenType = iota
-	MDETokenPKCS10
-	MDETokenPKCSInvalid
-)
 
 ///////////////////////////////////////////////////////////////
 /// DiscoverResponse MS-MDE2 Message response type
@@ -534,13 +528,17 @@ type Permission struct {
 	AutoEnroll string `xml:"autoEnroll"`
 }
 
+type ProviderAttr struct {
+	Content string `xml:",chardata"`
+}
+
 type PrivateKeyAttributes struct {
-	MinimalKeyLength      string      `xml:"minimalKeyLength"`
-	KeySpec               GenericAttr `xml:"keySpec"`
-	KeyUsageProperty      GenericAttr `xml:"keyUsageProperty"`
-	Permissions           GenericAttr `xml:"permissions"`
-	AlgorithmOIDReference GenericAttr `xml:"algorithmOIDReference"`
-	CryptoProviders       GenericAttr `xml:"cryptoProviders"`
+	MinimalKeyLength      string         `xml:"minimalKeyLength"`
+	KeySpec               GenericAttr    `xml:"keySpec"`
+	KeyUsageProperty      GenericAttr    `xml:"keyUsageProperty"`
+	Permissions           GenericAttr    `xml:"permissions"`
+	AlgorithmOIDReference GenericAttr    `xml:"algorithmOIDReference"`
+	CryptoProviders       []ProviderAttr `xml:"provider"`
 }
 type Revision struct {
 	MajorRevision string `xml:"majorRevision"`
@@ -592,7 +590,7 @@ type OID struct {
 
 type OIDs struct {
 	Content string `xml:",chardata"`
-	OID     OID    `xml:"oID"`
+	OID     []OID  `xml:"oID"`
 }
 
 ///////////////////////////////////////////////////////////////
@@ -749,7 +747,7 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 type MDMWindowsEnrolledDevice struct {
 	MDMDeviceID            string    `db:"mdm_device_id"`
 	MDMHardwareID          string    `db:"mdm_hardware_id"`
-	MDMIdentityCert        string    `db:"device_identity_cert"`
+	MDMDeviceState         string    `db:"device_state"`
 	MDMDeviceType          string    `db:"device_type"`
 	MDMDeviceName          string    `db:"device_name"`
 	MDMEnrollType          string    `db:"enroll_type"`

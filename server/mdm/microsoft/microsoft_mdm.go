@@ -91,6 +91,19 @@ const (
 	SoapErrorInvalidSecurity = "a:invalidsecurity"
 )
 
+// Device Enrolled States
+
+const (
+	// Device is not yet MDM enrolled
+	MDMDeviceStateNotEnrolled = "MDMDeviceEnrolledNotEnrolled"
+
+	// Device is MDM enrolled
+	MDMDeviceStateEnrolled = "MDMDeviceEnrolledEnrolled"
+
+	// Device is MDM enrolled and managed
+	MDMDeviceStateManaged = "MDMDeviceEnrolledManaged"
+)
+
 // MS-MDE2 Message constants
 const (
 	// Minimum supported version
@@ -213,4 +226,8 @@ func ResolveWindowsMDMPolicy(serverURL string) (string, error) {
 
 func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
+}
+
+func ResolveWindowsMDMManagement(serverURL string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
 }

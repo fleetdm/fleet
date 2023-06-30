@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -178,22 +179,35 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 							AlgorithmOIDReference: mdm_types.GenericAttr{
 								Xsi: mdm.DefaultStateXSI,
 							},
-							CryptoProviders: mdm_types.GenericAttr{
-								Xsi: mdm.DefaultStateXSI,
+							CryptoProviders: []mdm_types.ProviderAttr{
+								{"Microsoft Platform Crypto Provider"},
+								{"Microsoft Software Key Storage Provider"},
 							},
 						},
 					},
 				},
 			},
 		},
+		// These are MS-XCEP OIDs defined in section 3.1.4.1.3.16
+		// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/161aab9f-d159-4df3-85c9-f732ed2a8445
 		OIDs: mdm_types.OIDs{
-			// SHA1WithRSA encryption OID
-			// https://oidref.com/1.3.14.3.2.29
-			OID: mdm_types.OID{
-				Value:          "1.3.14.3.2.29",
-				Group:          "1",
-				OIDReferenceID: "0",
-				DefaultName:    "szOID_NIST_sha256",
+			OID: []mdm_types.OID{
+				{
+					// SHA256WithRSA OID
+					// https://oidref.com/2.16.840.1.101.3.4.2.1
+					Value:          "2.16.840.1.101.3.4.2.1",
+					Group:          "4",
+					OIDReferenceID: "0",
+					DefaultName:    "szOID_NIST_sha256",
+				},
+				{
+					// RSA OID
+					// https://oidref.com/1.2.840.113549.1.1.1
+					Value:          "1.2.840.113549.1.1.1",
+					Group:          "3",
+					OIDReferenceID: "1",
+					DefaultName:    "szOID_RSA_RSA",
+				},
 			},
 		},
 	}, nil
@@ -566,6 +580,7 @@ func NewProvisioningDoc(certStoreData mdm_types.Characteristic, applicationData 
 }
 
 // mdmMicrosoftDiscoveryEndpoint handles the Discovery message and returns a valid DiscoveryResponse message
+// DiscoverResponse message contains the Uniform Resource Locators (URLs) of service endpoints required for the following enrollment steps
 func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
@@ -596,6 +611,7 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 }
 
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
+// GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
 func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
@@ -633,6 +649,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 // mdmMicrosoftEnrollEndpoint handles the RequestSecurityToken message and returns a valid RequestSecurityTokenResponseCollection message
+// RequestSecurityTokenResponseCollection message contains the identity and provisioning information for the device management client.
 func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
@@ -643,49 +660,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	// Getting the RequestSecurityToken message from the SOAP request
-	reqRequestSecurityTokenMsg, err := req.GetRequestSecurityTokenMessage()
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the MDMDeviceID context information from the RequestSecurityToken msg
-	reqMDMDeviceID, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the HWDevID context information from the RequestSecurityToken msg
-	reqHWDevID, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
-	reqEnrollVersion, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the HWDevID context information from the RequestSecurityToken msg
-	reqEnrollType, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the OSEdition context information from the RequestSecurityToken msg
-	reqOSEdition, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// Getting the OSVersion context information from the RequestSecurityToken msg
-	reqOSVersion, err := reqRequestSecurityTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	reqSecurityTokenMsg, err := req.GetRequestSecurityTokenMessage()
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -698,18 +673,8 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
-	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
-	binSecurityTokenType, err := reqRequestSecurityTokenMsg.GetBinarySecurityTokenType()
-	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
-	}
-
-	// TODO delete this
-	_ = fmt.Sprintf("%s %s %s %s %s %s %s", reqMDMDeviceID, reqEnrollVersion, string(binSecurityTokenType), reqHWDevID, reqOSEdition, reqOSVersion, reqEnrollType)
-
 	// Getting the RequestSecurityTokenResponseCollection message
-	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, binSecTokenData)
+	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, reqSecurityTokenMsg, binSecTokenData)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
@@ -726,8 +691,6 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 		Data: &response,
 		Err:  nil,
 	}, nil
-
-	return SoapResponseContainer{}, nil
 }
 
 // validateBinarySecurityToken checks if the provided token is valid
@@ -755,8 +718,8 @@ func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken stri
 			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
 		}
 
-		// This ensures that only hosts that are elegible for Windows enrollment can be enrolled
-		if !host.IsElegibleForWindowsMDMEnrollment() {
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !host.IsEligibleForWindowsMDMEnrollment() {
 			return errors.New("binarySecurityTokenValidation: host is not elegible for Windows MDM enrollment")
 		}
 
@@ -828,7 +791,9 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken s
 }
 
 // GetMDMWindowsEnrollResponse returns a valid RequestSecurityTokenResponseCollection message
-func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, authToken string) (*fleet.RequestSecurityTokenResponseCollection, error) {
+// secTokenMsg is the RequestSecurityToken message
+// authToken is the base64 encoded binary security token
+func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, authToken string) (*fleet.RequestSecurityTokenResponseCollection, error) {
 	if len(authToken) == 0 {
 		return nil, fleet.NewInvalidArgumentError("enroll response", "authToken is empty")
 	}
@@ -839,16 +804,215 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, authToken s
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
+	// Checking if this device is already MDM enrolled
+	err = svc.isWindowsDeviceAlreadyMDMEnrolled(ctx, secTokenMsg)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device is already enrolled")
+	}
+
+	// Getting the the device provisioning information in the form of a WapProvisioningDoc
+	deviceProvisioning, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device is already enrolled")
+	}
+
 	// Token is authorized
 	svc.authz.SkipAuthorization(ctx)
 
 	// Getting the RequestSecurityTokenResponseCollection message content
-	enrollMsg, err := NewRequestSecurityTokenResponseCollection("test")
+	secTokenResponseCollectionMsg, err := NewRequestSecurityTokenResponseCollection(deviceProvisioning)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of RequestSecurityTokenResponseCollection message")
 	}
 
-	return &enrollMsg, nil
+	// RequestSecurityTokenResponseCollection message is ready
+	// The identity and provisioning information will be sent to the Windows MDM Enrollment Client
+
+	// But before doing that, let's save the device information to the list of MDM enrolled MDM devices
+	err = svc.storeWindowsMDMEnrolledDevice(ctx, secTokenMsg)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
+	}
+
+	return &secTokenResponseCollectionMsg, nil
+}
+
+// isWindowsDeviceAlreadyMDMEnrolled checks if the device is already enrolled by checking the device
+// UUID against the list of enrolled devices
+func (svc *Service) isWindowsDeviceAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+	// Getting the DeviceID from the RequestSecurityToken msg
+	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return err
+	}
+
+	// Checking the storage to see if the device is already enrolled
+	if _, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqDeviceID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getDeviceProvisioningInformation returns a valid WapProvisioningDoc
+// This is the provisioning information that will be sent to the Windows MDM Enrollment Client
+// This information is used to configure the device management client
+// See section 2.2.9.1 for more details on the XML provision schema used here
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
+func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
+	const (
+		error_tag = "wap provisioning: "
+	)
+
+	// Getting the DeviceID from the RequestSecurityToken msg
+	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the EnrollmentType information from the RequestSecurityToken msg
+	reqEnrollType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemEnrollmentType)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the BinarySecurityToken from the RequestSecurityToken msg
+	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
+	binSecurityTokenType, err := secTokenMsg.GetBinarySecurityTokenType()
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the client CSR request from the device
+	clientCSR, err := mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the signed, DER-encoded certificate bytes and its uppercased, hex-endcoded SHA1 fingerprint
+	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqDeviceID, clientCSR)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Preparing client certificate and identity certificate information to be sent to the Windows MDM Enrollment Client
+	certStoreProvisioningData := NewCertStoreProvisioningData(
+		reqEnrollType,
+		svc.wstepCertManager.IdentityFingerprint(),
+		svc.wstepCertManager.IdentityCert().Raw,
+		rawSignedCertFingerprint,
+		rawSignedCertDER)
+
+	// Preparing the provisioning information that includes the location of the Device Management Service (DMS)
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the MS-MDM management URL to provision the device
+	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Preparing the Application Provisioning information
+	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint)
+
+	// Preparing the DM Client Provisioning information
+	appDMClientProvisioningData := NewDMClientProvisioningData()
+
+	// And finally returning the Base64 encoded representation of the Provisioning Doc XML
+	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
+	encodedProvDoc, err := provDoc.GetEncodedB64Representation()
+	if err != nil {
+		return "", fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	return encodedProvDoc, nil
+}
+
+// storeWindowsMDMEnrolledDevice stores the device information to the list of MDM enrolled devices
+func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+	const (
+		error_tag = "windows MDM enrolled storage: "
+	)
+
+	// Getting the DeviceID context information from the RequestSecurityToken msg
+	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the HWDevID context information from the RequestSecurityToken msg
+	reqHWDevID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the Enroll DeviceType context information from the RequestSecurityToken msg
+	reqDeviceType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceType)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the Enroll DeviceName context information from the RequestSecurityToken msg
+	reqDeviceName, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceName)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
+	reqEnrollVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemRequestVersion)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the RequestVersion context information from the RequestSecurityToken msg
+	reqAppVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemApplicationVersion)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the EnrollmentType information from the RequestSecurityToken msg
+	reqEnrollType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemEnrollmentType)
+	if err != nil {
+		return fmt.Errorf("%s %v", error_tag, err)
+	}
+
+	// Getting the Windows Enrolled Device Information
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            reqDeviceID,
+		MDMHardwareID:          reqHWDevID,
+		MDMDeviceState:         mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          reqDeviceType,
+		MDMDeviceName:          reqDeviceName,
+		MDMEnrollType:          reqEnrollType,
+		MDMEnrollUserID:        "", // No user information is available at this point
+		MDMEnrollProtoVersion:  reqEnrollVersion,
+		MDMEnrollClientVersion: reqAppVersion,
+		MDMNotInOOBE:           false,
+	}
+
+	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getWindowsDeviceID returns the Windows Device ID from the RequestSecurityToken message
+func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string) (string, error) {
+	reqDeviceID, err := secTokenMsg.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return "", fmt.Errorf("%s token context information is not present: %v", mdm.ReqSecTokenContextItemDeviceID, err)
+	}
+
+	return reqDeviceID, nil
 }
 
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
@@ -858,4 +1022,17 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault
+}
+
+func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error) {
+	cert, fpHex, err := svc.wstepCertManager.SignClientCSR(ctx, subject, csr)
+	if err != nil {
+		return nil, "signing wstep client csr", ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: if desired, the signature of this method can be modified to accept a device UUID so
+	// that we can associate the certificate with the host here by calling
+	// svc.wstepCertManager.AssociateCertHash
+
+	return cert, fpHex, nil
 }

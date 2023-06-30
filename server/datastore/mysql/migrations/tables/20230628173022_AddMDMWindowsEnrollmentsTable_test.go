@@ -14,7 +14,7 @@ func TestUp_20230628173022(t *testing.T) {
 
 	mdm_device_id := uuid.New().String()
 	mdm_hardware_id := uuid.New().String()
-	device_identity_cert := uuid.New().String()
+	device_state := uuid.New().String()
 	device_type := "CIMClient_Windows"
 	device_name := "DESKTOP-1C3ARC1"
 	enroll_type := "ProgrammaticEnrollment"
@@ -26,7 +26,7 @@ func TestUp_20230628173022(t *testing.T) {
 	insertStmt := `INSERT INTO mdm_windows_enrollments (
 		mdm_device_id,
 		mdm_hardware_id,
-		device_identity_cert,
+		device_state,
 		device_type,
 		device_name,
 		enroll_type,
@@ -35,16 +35,16 @@ func TestUp_20230628173022(t *testing.T) {
 		enroll_client_version,
 		not_in_oobe ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := db.Exec(insertStmt, mdm_device_id, mdm_hardware_id, device_identity_cert, device_type, device_name, enroll_type, enroll_user_id, enroll_proto_version, enroll_client_version, not_in_oobe)
+	_, err := db.Exec(insertStmt, mdm_device_id, mdm_hardware_id, device_state, device_type, device_name, enroll_type, enroll_user_id, enroll_proto_version, enroll_client_version, not_in_oobe)
 	require.NoError(t, err)
 
-	_, err = db.Exec(insertStmt, mdm_device_id, mdm_hardware_id, device_identity_cert, device_type, device_name, enroll_type, enroll_user_id, enroll_proto_version, enroll_client_version, not_in_oobe)
+	_, err = db.Exec(insertStmt, mdm_device_id, mdm_hardware_id, device_state, device_type, device_name, enroll_type, enroll_user_id, enroll_proto_version, enroll_client_version, not_in_oobe)
 	require.ErrorContains(t, err, "Error 1062")
 
 	type enrolledWindowsHost struct {
 		MDMDeviceID            string    `db:"mdm_device_id"`
 		MDMHardwareID          string    `db:"mdm_hardware_id"`
-		MDMIdentityCert        string    `db:"device_identity_cert"`
+		MDMDeviceState         string    `db:"device_state"`
 		MDMDeviceType          string    `db:"device_type"`
 		MDMDeviceName          string    `db:"device_name"`
 		MDMEnrollType          string    `db:"enroll_type"`
