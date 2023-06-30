@@ -17,6 +17,7 @@
     - [Migrating from plain osquery to osquery installer](#migrating-from-plain-osquery-to-osquery-installer)
       - [Generate installer](#generate-installer)
       - [Migrate](#migrate)
+  - [Add Chromebooks with the fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension)
   - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
     - [Creating the configuration profile](#creating-the-configuration-profile)
       - [Obtaining identifiers](#obtaining-identifiers)
@@ -29,7 +30,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
-> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. It is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
+> For ChromeOS hosts, the [fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension) is installed instead of osquery.
 
 ## Add hosts with Orbit
 
