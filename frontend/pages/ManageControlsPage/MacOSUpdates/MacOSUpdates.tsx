@@ -37,28 +37,23 @@ const MacOSUpdates = ({ teamIdForApi }: IMacOSUpdates) => {
 
   return isPremiumTier ? (
     <div className={baseClass}>
-      <>
-        <p className={`${baseClass}__description`}>
-          Remotely encourage the installation of macOS updates on hosts assigned
-          to this team.
-        </p>
-        <div className={`${baseClass}__content`}>
-          <div className={`${baseClass}__form-table-content`}>
-            <div className={`${baseClass}__os-versions-card`}>
-              {OperatingSystemCard}
-            </div>
-            <div className={`${baseClass}__os-version-form`}>
-              <OsMinVersionForm
-                currentTeamId={teamIdForApi}
-                key={teamIdForApi}
-              />
-            </div>
+      <p className={`${baseClass}__description`}>
+        Remotely encourage the installation of macOS updates on hosts assigned
+        to this team.
+      </p>
+      <div className={`${baseClass}__content`}>
+        <div className={`${baseClass}__form-table-content`}>
+          <div className={`${baseClass}__os-versions-card`}>
+            {OperatingSystemCard}
           </div>
-          <div className={`${baseClass}__nudge-preview`}>
-            <NudgePreview />
+          <div className={`${baseClass}__os-version-form`}>
+            <OsMinVersionForm currentTeamId={teamIdForApi} key={teamIdForApi} />
           </div>
         </div>
-      </>
+        <div className={`${baseClass}__nudge-preview`}>
+          <NudgePreview />
+        </div>
+      </div>
     </div>
   ) : (
     <PremiumFeatureMessage

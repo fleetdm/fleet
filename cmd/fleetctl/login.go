@@ -50,6 +50,16 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				return err
 			}
 
+			definedAsEnvOnly := func(flagName, envName string) bool {
+				cliArgPresent := false
+				for _, arg := range os.Args {
+					if arg == flagName {
+						cliArgPresent = true
+					}
+				}
+				return os.Getenv(envName) != "" && !cliArgPresent
+			}
+
 			// Allow interactive entry to discourage passwords in
 			// CLI history.
 			if flEmail == "" {
@@ -58,6 +68,10 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				_, err := fmt.Scanln(&flEmail)
 				if err != nil {
 					return fmt.Errorf("error reading email: %w", err)
+				}
+			} else {
+				if definedAsEnvOnly("--email", "EMAIL") {
+					fmt.Printf("Using value of environment variable $EMAIL as email.\n")
 				}
 			}
 			if flPassword == "" {
@@ -68,6 +82,10 @@ Trying to login with SSO? First, login to the Fleet UI and retrieve your API tok
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
+			} else {
+				if definedAsEnvOnly("--password", "PASSWORD") {
+					fmt.Printf("Using value of environment variable $PASSWORD as password.\n")
+				}
 			}
 
 			token, err := fleet.Login(flEmail, flPassword)

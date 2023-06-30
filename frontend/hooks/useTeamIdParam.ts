@@ -30,13 +30,25 @@ const rebuildQueryStringWithTeamId = (
   newTeamId: number
 ) => {
   const parts = splitQueryStringParts(queryString);
-  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
 
+  // Reset page to 0
+  const pageIndex = parts.findIndex((p) => p.startsWith("page="));
+  const inheritedPageIndex = parts.findIndex((p) =>
+    p.startsWith("inherited_page=")
+  );
+  if (pageIndex !== -1) {
+    parts.splice(pageIndex, 1, "page=0");
+  }
+  if (inheritedPageIndex !== -1) {
+    parts.splice(inheritedPageIndex, 1, "inherited_page=0");
+  }
+
+  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
   // URLs for the app represent "All teams" by the absence of the team id param
   const newTeamPart =
     newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
 
-  if (teamIndex < 0) {
+  if (teamIndex === -1) {
     // nothing to remove/replace so add the new part (if any) and rejoin
     return joinQueryStringParts(
       newTeamPart ? parts.concat(newTeamPart) : parts
@@ -54,6 +66,7 @@ const rebuildQueryStringWithTeamId = (
   } else {
     parts.splice(teamIndex, 1); // just remove the old team part
   }
+
   return joinQueryStringParts(parts);
 };
 
@@ -260,6 +273,9 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      // TODO: This results in a warning that TableProvider is being updated while rendering while
+      // rendering a different component (the component that invokes the useTeamIdParam hook).
+      // This requires further investigation but is not currently causing any known issues.
       if (resetSelectedRowsOnTeamChange) {
         setResetSelectedRows(true);
       }

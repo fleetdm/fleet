@@ -105,7 +105,7 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 
 	idWithAgg := gotQueries[0].ID
 
-	_, err = ds.writer.Exec(
+	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
 		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)

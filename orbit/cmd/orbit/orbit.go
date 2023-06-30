@@ -151,9 +151,15 @@ func main() {
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
+		// Note: this flag doesn't have any effect anymore. I'm keeping
+		// it just for backwards compatibility since some users were
+		// using it because softwareupdated was causing problems and I
+		// don't want to break their setups.
+		//
+		// For more context please check out: https://github.com/fleetdm/fleet/issues/11777
 		&cli.BoolFlag{
 			Name:    "disable-kickstart-softwareupdated",
-			Usage:   "Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
+			Usage:   "(Deprecated) Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
 			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
 			Hidden:  true,
 		},
@@ -335,13 +341,8 @@ func main() {
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
-		// periodically run launchctl kickstart -k softwareupdated on macOS
-		if runtime.GOOS == "darwin" && !c.Bool("disable-kickstart-softwareupdated") {
-			const softwareUpdatedKickstartInterval = 12 * time.Hour
-			updatedRunner := update.NewSoftwareUpdatedRunner(update.SoftwareUpdatedOptions{
-				Interval: softwareUpdatedKickstartInterval,
-			})
-			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		if !c.Bool("disable-kickstart-softwareupdated") {
+			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
 		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
@@ -613,10 +614,14 @@ func main() {
 
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
-		const renewEnrollmentProfileCommandFrequency = time.Hour
+		const (
+			renewEnrollmentProfileCommandFrequency = time.Hour
+			windowsMDMEnrollmentCommandFrequency   = time.Hour
+		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
-		if runtime.GOOS == "darwin" {
+		switch runtime.GOOS {
+		case "darwin":
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
@@ -624,6 +629,9 @@ func main() {
 			})
 
 			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
+			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
+		case "windows":
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -858,6 +866,7 @@ func main() {
 				rawClientCrt,
 				rawClientKey,
 				c.String("fleet-desktop-alternative-browser-host"),
+				opt.RootDirectory,
 			)
 			g.Add(desktopRunner.actor())
 		}
@@ -895,6 +904,7 @@ func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt
 type desktopRunner struct {
 	// desktopPath is the path to the desktop executable.
 	desktopPath string
+	updateRoot  string
 	// fleetURL is the URL of the Fleet server.
 	fleetURL string
 	// trw is the Fleet Desktop token reader and writer (implements token rotation).
@@ -924,9 +934,11 @@ func newDesktopRunner(
 	trw *token.ReadWriter,
 	fleetClientCrt []byte, fleetClientKey []byte,
 	fleetAlternativeBrowserHost string,
+	updateRoot string,
 ) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:                 desktopPath,
+		updateRoot:                  updateRoot,
 		fleetURL:                    fleetURL,
 		trw:                         trw,
 		fleetRootCA:                 fleetRootCA,
@@ -985,6 +997,7 @@ func (d *desktopRunner) execute() error {
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
 
 		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
+		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))

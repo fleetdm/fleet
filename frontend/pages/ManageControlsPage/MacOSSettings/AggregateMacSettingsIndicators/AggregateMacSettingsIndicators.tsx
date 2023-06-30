@@ -6,6 +6,7 @@ import { MdmProfileStatus, ProfileSummaryResponse } from "interfaces/mdm";
 import MacSettingsIndicator from "pages/hosts/details/MacSettingsIndicator";
 
 import { IconNames } from "components/icons";
+import Spinner from "components/Spinner";
 
 const baseClass = "aggregate-mac-settings-indicators";
 
@@ -18,38 +19,50 @@ interface IAggregateDisplayOption {
 
 const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
+    value: "verified",
+    text: "Verified",
+    iconName: "success",
+    tooltipText:
+      "These hosts installed all configuration profiles. Fleet verified with osquery.",
+  },
+  {
     value: "verifying",
     text: "Verifying",
     iconName: "success-partial",
     tooltipText:
-      "Hosts that told Fleet all settings are enforced. Fleet is verifying.",
+      "These hosts acknowledged all MDM commands to install configuration profiles. " +
+      "Fleet is verifying the profiles are installed with osquery.",
   },
   {
     value: "pending",
     text: "Pending",
     iconName: "pending-partial",
     tooltipText:
-      "Hosts that will have settings enforced when the hosts come online.",
+      "These hosts will receive MDM commands to install configuration profiles when the hosts come online.",
   },
   {
     value: "failed",
     text: "Failed",
     iconName: "error",
     tooltipText:
-      "Hosts that failed to apply settings. Click on a host to view error(s).",
+      "These hosts failed to install configuration profiles. Click on a host to view error(s).",
   },
 ];
 
 interface AggregateMacSettingsIndicatorsProps {
+  isLoading: boolean;
   teamId: number;
-  aggregateProfileStatusData: ProfileSummaryResponse;
+  aggregateProfileStatusData?: ProfileSummaryResponse;
 }
 
 const AggregateMacSettingsIndicators = ({
+  isLoading,
   teamId,
   aggregateProfileStatusData,
 }: AggregateMacSettingsIndicatorsProps) => {
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
+    if (!aggregateProfileStatusData) return null;
+
     const { value, text, iconName, tooltipText } = status;
     const count = aggregateProfileStatusData[value];
 
@@ -71,6 +84,14 @@ const AggregateMacSettingsIndicators = ({
       </div>
     );
   });
+
+  if (isLoading) {
+    return (
+      <div className={baseClass}>
+        <Spinner className={`${baseClass}__loading-spinner`} centered={false} />
+      </div>
+    );
+  }
 
   return <div className={baseClass}>{indicators}</div>;
 };

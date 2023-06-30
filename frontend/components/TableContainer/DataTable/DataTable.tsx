@@ -26,7 +26,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
-import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -48,10 +47,7 @@ interface IDataTableProps {
   resultsTitle: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
-  primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
-  primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick: any; // figure out type
+  primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
   onClientSidePaginationChange?: (pageIndex: number) => void; // Used to set URL to correct path and include page query param
@@ -91,10 +87,7 @@ const DataTable = ({
   resultsTitle,
   defaultPageSize,
   defaultPageIndex,
-  primarySelectActionButtonIcon,
-  primarySelectActionButtonVariant,
-  onPrimarySelectActionClick,
-  primarySelectActionButtonText,
+  primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
   onClientSidePaginationChange,
@@ -120,6 +113,10 @@ const DataTable = ({
   const data = useMemo(() => {
     return tableData;
   }, [tableData]);
+
+  const initialSortBy = useMemo(() => {
+    return [{ id: sortHeader, desc: sortDirection === "desc" }];
+  }, [sortHeader, sortDirection]);
 
   const {
     headerGroups,
@@ -149,9 +146,7 @@ const DataTable = ({
       columns,
       data,
       initialState: {
-        sortBy: useMemo(() => {
-          return [{ id: sortHeader, desc: sortDirection === "desc" }];
-        }, [sortHeader, sortDirection]),
+        sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
       },
       disableMultiSort: true,
@@ -378,7 +373,7 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      icon,
+      iconSvg,
       iconPosition,
       indicatePremiumFeature,
     } = actionButtonProps;
@@ -393,7 +388,7 @@ const DataTable = ({
           variant={variant}
           hideButton={hideButton}
           indicatePremiumFeature={indicatePremiumFeature}
-          icon={icon}
+          iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
       </div>
@@ -403,18 +398,18 @@ const DataTable = ({
   const renderPrimarySelectAction = (): JSX.Element | null => {
     const targetIds = selectedFlatRows.map((row: any) => row.original.id);
     const buttonText =
-      typeof primarySelectActionButtonText === "function"
-        ? primarySelectActionButtonText(targetIds)
-        : primarySelectActionButtonText;
+      typeof primarySelectAction?.buttonText === "function"
+        ? primarySelectAction?.buttonText(targetIds)
+        : primarySelectAction?.buttonText;
     const name = buttonText ? kebabCase(buttonText) : "primary-select-action";
 
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: onPrimarySelectActionClick,
+      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
       targetIds,
-      variant: primarySelectActionButtonVariant,
-      icon: primarySelectActionButtonIcon,
+      variant: primarySelectAction?.variant,
+      iconSvg: primarySelectAction?.iconSvg,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);
@@ -482,8 +477,7 @@ const DataTable = ({
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
                     <div className={"active-selection__inner-right"}>
-                      {primarySelectActionButtonText &&
-                        renderPrimarySelectAction()}
+                      {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (

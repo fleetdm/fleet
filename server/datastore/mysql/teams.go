@@ -47,7 +47,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 }
 
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader, tid)
+	return teamDB(ctx, ds.reader(ctx), tid)
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
@@ -106,6 +106,11 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting team global packs for team %d", tid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id=?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
+		}
+
 		return nil
 	})
 }
@@ -117,21 +122,21 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, ds.reader, team, stmt, name); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
-	if err := loadSecretsForTeamsDB(ctx, ds.reader, []*fleet.Team{team}); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, ds.reader(ctx), []*fleet.Team{team}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
 	}
 
-	if err := loadUsersForTeamDB(ctx, ds.reader, team); err != nil {
+	if err := loadUsersForTeamDB(ctx, ds.reader(ctx), team); err != nil {
 		return nil, err
 	}
-	if err := loadHostCountForTeamDB(ctx, ds.reader, team); err != nil {
+	if err := loadHostCountForTeamDB(ctx, ds.reader(ctx), team); err != nil {
 		return nil, err
 	}
-	if err := loadFeaturesForTeamDB(ctx, ds.reader, team); err != nil {
+	if err := loadFeaturesForTeamDB(ctx, ds.reader(ctx), team); err != nil {
 		return nil, err
 	}
 
@@ -255,10 +260,10 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
 	query = appendListOptionsToSQL(query, &opt)
 	teams := []*fleet.Team{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &teams, query, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")
 	}
-	if err := loadSecretsForTeamsDB(ctx, ds.reader, teams); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, ds.reader(ctx), teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
 	}
 	return teams, nil
@@ -277,7 +282,7 @@ func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*
 
 func (ds *Datastore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, error) {
 	teamsSummary := []*fleet.TeamSummary{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &teamsSummary, "SELECT id, name, description FROM teams"); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamsSummary, "SELECT id, name, description FROM teams"); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "teams summary")
 	}
 	return teamsSummary, nil
@@ -296,10 +301,10 @@ func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, m
 	)
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	teams := []*fleet.Team{}
-	if err := sqlx.SelectContext(ctx, ds.reader, &teams, sql, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "search teams")
 	}
-	if err := loadSecretsForTeamsDB(ctx, ds.reader, teams); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, ds.reader(ctx), teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
 	}
 	return teams, nil
@@ -311,7 +316,7 @@ func (ds *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fle
 		WHERE team_id = ?
 	`
 	var secrets []*fleet.EnrollSecret
-	if err := sqlx.SelectContext(ctx, ds.reader, &secrets, sql, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &secrets, sql, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")
 	}
 	return secrets, nil
@@ -330,7 +335,7 @@ func amountTeamsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
 	sql := `SELECT config->'$.agent_options' FROM teams WHERE id = ?`
 	var agentOptions *json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader, &agentOptions, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &agentOptions, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 	return agentOptions, nil
@@ -338,7 +343,7 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 
 // TeamFeatures loads the features enabled for a team.
 func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Features, error) {
-	return teamFeaturesDB(ctx, ds.reader, tid)
+	return teamFeaturesDB(ctx, ds.reader(ctx), tid)
 }
 
 func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Features, error) {
@@ -361,7 +366,7 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
 	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
 	var raw *json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
 	}
 	var mdmConfig *fleet.TeamMDM
@@ -381,7 +386,7 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 		updateTeam = `UPDATE teams SET config = ? WHERE id = ?`
 	)
 
-	rows, err := ds.writer.QueryxContext(ctx, listTeams)
+	rows, err := ds.writer(ctx).QueryxContext(ctx, listTeams)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "query teams")
 	}
@@ -416,7 +421,7 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 
 			tm.Config.Integrations.Jira = keepJira
 			tm.Config.Integrations.Zendesk = keepZendesk
-			if _, err := ds.writer.ExecContext(ctx, updateTeam, tm.Config, tm.ID); err != nil {
+			if _, err := ds.writer(ctx).ExecContext(ctx, updateTeam, tm.Config, tm.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update team config")
 			}
 		}

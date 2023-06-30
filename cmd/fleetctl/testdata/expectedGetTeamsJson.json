@@ -25,8 +25,8 @@
 			},
 			"mdm": {
 				"macos_updates": {
-					"minimum_version": "",
-					"deadline": ""
+					"minimum_version": null,
+					"deadline": null
 				},
 				"macos_settings": {
 					"custom_settings": null,
@@ -34,6 +34,7 @@
 				},
 				"macos_setup": {
 					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null
 				}
 			},
@@ -93,6 +94,7 @@
 				},
 				"macos_setup": {
 					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null
 				}
 			},

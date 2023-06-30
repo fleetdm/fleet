@@ -1,0 +1,1 @@
+* Added notification and execution of programmatic Windows MDM unenrollment on eligible devices when Windows MDM is disabled.

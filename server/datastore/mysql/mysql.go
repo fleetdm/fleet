@@ -22,6 +22,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
@@ -60,8 +61,8 @@ type dbReader interface {
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	reader dbReader // so it cannot be used to perform writes
-	writer *sqlx.DB
+	replica dbReader // so it cannot be used to perform writes
+	primary *sqlx.DB
 
 	logger log.Logger
 	clock  clock.Clock
@@ -82,18 +83,39 @@ type Datastore struct {
 	stmtCache map[string]*sqlx.Stmt
 }
 
+// reader returns the DB instance to use for read-only statements, which is the
+// replica unless the primary has been explicitly required via
+// ctxdb.RequirePrimary.
+func (ds *Datastore) reader(ctx context.Context) dbReader {
+	if ctxdb.IsPrimaryRequired(ctx) {
+		return ds.primary
+	}
+	return ds.replica
+}
+
+// writer returns the DB instance to use for write statements, which is always
+// the primary.
+func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
+	return ds.primary
+}
+
 // loadOrPrepareStmt will load a statement from the statements cache.
 // If not available, it will attempt to prepare (create) it.
 //
 // Returns nil if it failed to prepare a statement.
 func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
+	// the cache is only available on the replica
+	if ctxdb.IsPrimaryRequired(ctx) {
+		return nil
+	}
+
 	ds.stmtCacheMu.Lock()
 	defer ds.stmtCacheMu.Unlock()
 
 	stmt, ok := ds.stmtCache[query]
 	if !ok {
 		var err error
-		stmt, err = sqlx.PreparexContext(ctx, ds.reader, query)
+		stmt, err = sqlx.PreparexContext(ctx, ds.replica, query)
 		if err != nil {
 			level.Error(ds.logger).Log(
 				"msg", "failed to prepare statement",
@@ -110,13 +132,13 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	return newSCEPDepot(ds.writer.DB, caCertPEM, caKeyPEM)
+	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
-	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.writer.DB))
+	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +192,7 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
-	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
+	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +265,7 @@ func retryableError(err error) bool {
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
-		tx, err := ds.writer.BeginTxx(ctx, nil)
+		tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
@@ -292,7 +314,7 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 
 // withTx provides a common way to commit/rollback a txFn
 func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
-	tx, err := ds.writer.BeginTxx(ctx, nil)
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
@@ -359,8 +381,8 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	ds := &Datastore{
-		writer:              dbWriter,
-		reader:              dbReader,
+		primary:             dbWriter,
+		replica:             dbReader,
 		logger:              options.logger,
 		clock:               c,
 		config:              config,
@@ -394,7 +416,7 @@ func (ds *Datastore) writeChanLoop() {
 			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
 			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := ds.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			_, err := ds.writer(item.ctx).ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
@@ -483,11 +505,11 @@ func checkConfig(conf *config.MysqlConfig) error {
 }
 
 func (ds *Datastore) MigrateTables(ctx context.Context) error {
-	return tables.MigrationClient.Up(ds.writer.DB, "")
+	return tables.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
 func (ds *Datastore) MigrateData(ctx context.Context) error {
-	return data.MigrationClient.Up(ds.writer.DB, "")
+	return data.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
 // loadMigrations manually loads the applied migrations in ascending
@@ -530,7 +552,7 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.writer.DB, ds.reader)
+	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.primary.DB, ds.replica)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
@@ -662,12 +684,12 @@ func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
-	if _, err := ds.writer.ExecContext(context.Background(), "select 1"); err != nil {
+	if _, err := ds.primary.ExecContext(context.Background(), "select 1"); err != nil {
 		return err
 	}
 	if ds.readReplicaConfig != nil {
 		var dst int
-		if err := sqlx.GetContext(context.Background(), ds.reader, &dst, "select 1"); err != nil {
+		if err := sqlx.GetContext(context.Background(), ds.replica, &dst, "select 1"); err != nil {
 			return err
 		}
 	}
@@ -694,11 +716,11 @@ func (ds *Datastore) Close() error {
 	if errStmt := ds.closeStmts(); errStmt != nil {
 		err = multierror.Append(err, errStmt)
 	}
-	if errWriter := ds.writer.Close(); errWriter != nil {
+	if errWriter := ds.primary.Close(); errWriter != nil {
 		err = multierror.Append(err, errWriter)
 	}
 	if ds.readReplicaConfig != nil {
-		if errRead := ds.reader.Close(); errRead != nil {
+		if errRead := ds.replica.Close(); errRead != nil {
 			err = multierror.Append(err, errRead)
 		}
 	}
@@ -1033,6 +1055,8 @@ func isChildForeignKeyError(err error) bool {
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
 }
 
+type patternReplacer func(string) string
+
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
 	m = strings.Replace(m, "_", "\\_", -1)
@@ -1040,15 +1064,24 @@ func likePattern(m string) string {
 	return "%" + m + "%"
 }
 
+// noneReplacer doesn't manipulate
+func noneReplacer(m string) string {
+	return m
+}
+
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
 //
 // The input columns must be sanitized if they are provided by the user.
 func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, match, likePattern, columns...)
+}
+
+func searchLikePattern(sql string, params []interface{}, match string, replacer patternReplacer, columns ...string) (string, []interface{}) {
 	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
 
-	pattern := likePattern(match)
+	pattern := replacer(match)
 	ors := make([]string, 0, len(columns))
 	for _, column := range columns {
 		ors = append(ors, column+" LIKE ?")
@@ -1071,17 +1104,47 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 // in this.
 var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
 
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+/*
+This regex matches any occurrence of a character from the ASCII character set followed by one or more characters that are not from the ASCII character set.
+The first part `[[:ascii:]]` matches any character that is within the ASCII range (0 to 127 in the ASCII table),
+while the second part `[^[:ascii:]]` matches any character that is not within the ASCII range.
+So, when these two parts are combined with no space in between, the resulting regex matches any
+sequence of characters where the first character is within the ASCII range and the following characters are not within the ASCII range.
+*/
+var (
+	nonascii        = regexp.MustCompile(`(?P<ascii>[[:ascii:]])(?P<nonascii>[^[:ascii:]]+)`)
+	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
+)
+
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
+	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
 	// special-case for hosts: if match looks like an email address, add searching
 	// in host_emails table as an option, in addition to the provided columns.
 	if rxLooseEmail.MatchString(match) {
+		matchesEmail = true
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args
+	return base, args, matchesEmail
+}
+
+func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	return searchLikePattern(sql, params, buildWildcardMatchPhrase(match), noneReplacer, columns...)
+}
+
+func buildWildcardMatchPhrase(matchQuery string) string {
+	return replaceMatchAny(likePattern(matchQuery))
+}
+
+func hasNonASCIIRegex(s string) bool {
+	return nonascii.MatchString(s)
+}
+
+func replaceMatchAny(s string) string {
+	return nonacsiiReplace.ReplaceAllString(s, "_")
 }
 
 func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
@@ -1091,7 +1154,7 @@ func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
 		Status string `db:"Status"`
 	}{}
 	// using the writer even when doing a read to get the data from the main db node
-	err := ds.writer.GetContext(ctx, &status, "show engine innodb status")
+	err := ds.writer(ctx).GetContext(ctx, &status, "show engine innodb status")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
 	}
@@ -1101,7 +1164,7 @@ func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
 func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
 	var processList []fleet.MySQLProcess
 	// using the writer even when doing a read to get the data from the main db node
-	err := ds.writer.SelectContext(ctx, &processList, "show processlist")
+	err := ds.writer(ctx).SelectContext(ctx, &processList, "show processlist")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "Getting process list")
 	}
@@ -1175,16 +1238,16 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	}
 
 	// 1. read from the read replica, as it is likely to already exist
-	id, err = readID(ds.reader)
+	id, err = readID(ds.reader(ctx))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
 				if isDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer)
+					id, err := readID(ds.writer(ctx))
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}

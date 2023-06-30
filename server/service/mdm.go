@@ -208,7 +208,6 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrMDMNotConfigured
-
 	}
 
 	return nil
@@ -382,4 +381,26 @@ func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error 
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Windows MDM Middleware
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	// Windows MDM configuration setting
+	if !appCfg.MDM.WindowsEnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+	}
+
+	return nil
 }

@@ -232,7 +232,7 @@ func (ds *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.
 			WHERE name = ?
 	`
 	var pack fleet.Pack
-	err := sqlx.GetContext(ctx, ds.reader, &pack, sqlStatement, name)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &pack, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -240,7 +240,7 @@ func (ds *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.
 		return nil, false, ctxerr.Wrap(ctx, err, "fetch pack by name")
 	}
 
-	if err := loadPackTargetsDB(ctx, ds.reader, &pack); err != nil {
+	if err := loadPackTargetsDB(ctx, ds.reader(ctx), &pack); err != nil {
 		return nil, false, err
 	}
 
@@ -413,7 +413,7 @@ func (ds *Datastore) DeletePack(ctx context.Context, name string) error {
 
 // Pack fetch fleet.Pack with matching ID
 func (ds *Datastore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
-	return packDB(ctx, ds.reader, pid)
+	return packDB(ctx, ds.reader(ctx), pid)
 }
 
 func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, error) {
@@ -550,13 +550,13 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 		query = `SELECT * FROM packs`
 	}
 	var packs []*fleet.Pack
-	err := sqlx.SelectContext(ctx, ds.reader, &packs, appendListOptionsToSQL(query, &opt.ListOptions))
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packs, appendListOptionsToSQL(query, &opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "listing packs")
 	}
 
 	for _, pack := range packs {
-		if err := loadPackTargetsDB(ctx, ds.reader, pack); err != nil {
+		if err := loadPackTargetsDB(ctx, ds.reader(ctx), pack); err != nil {
 			return nil, err
 		}
 	}
@@ -565,7 +565,7 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 }
 
 func (ds *Datastore) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-	return listPacksForHost(ctx, ds.reader, hid)
+	return listPacksForHost(ctx, ds.reader(ctx), hid)
 }
 
 // listPacksForHost returns all the packs that are configured to run on the given host.

@@ -54,6 +54,8 @@ export interface ITeam extends ITeamSummary {
     };
     macos_setup: {
       bootstrap_package: string | null;
+      enable_end_user_authentication: boolean;
+      macos_setup_assistant: string | null; // TODO: types?
     };
   };
 }

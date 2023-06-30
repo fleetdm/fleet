@@ -10,11 +10,6 @@
         .shell__header {
           width: $col-md;
         }
-        @media (min-width: $break-768) {
-          .username__header {
-            width: $col-lg;
-          }
-        }
       }
     }
   }

@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 import CopyWebpackPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import TerserPlugin from "terser-webpack-plugin";
+import webpack from "webpack"
+import dotenv from "dotenv"
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +28,9 @@ export const resolve = {
   extensions: [".tsx", ".ts", ".js"],
 };
 export const plugins = [
+  new webpack.DefinePlugin({
+    ...Object.entries(dotenv.config().parsed).reduce((acc, curr) => ({...acc, [`${curr[0]}`]: JSON.stringify(curr[1]) }), {}),
+  }),
   new CopyWebpackPlugin({
     patterns: [
       {

@@ -7,7 +7,7 @@ import checkPlatformCompatibility from "utilities/sql_tools";
 import PlatformCompatibility from "components/PlatformCompatibility";
 
 export interface IPlatformCompatibility {
-  getCompatiblePlatforms: () => ("darwin" | "windows" | "linux")[];
+  getCompatiblePlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
   setCompatiblePlatforms: (sqlString: string) => void;
   render: () => JSX.Element;
 }

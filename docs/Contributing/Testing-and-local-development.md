@@ -30,6 +30,7 @@
   - [Testing Kinesis Logging](#testing-kinesis-logging)
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
+  - [Fleetd Chrome extension](#fleetd-chrome-extension)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -40,6 +41,8 @@
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
     - [Nudge](#nudge)
+      - [Debugging tips](#debugging-tips)
+    - [Bootstrap package](#bootstrap-package)
 
 ## License key
 
@@ -323,7 +326,6 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -482,6 +484,12 @@ You can configure the server to record and report trace data using OpenTelemetry
 
 Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
 
+## Fleetd Chrome extension
+
+### Debugging the service Worker
+
+View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
 ## MDM setup and testing
 
 To run your local server with the MDM features enabled, you need to get certificates and keys.
@@ -595,16 +603,9 @@ If you are using QEMU for Linux, follow the instruction guide to install a recen
 
 > NOTE: Currently this is not possible for M1 Mac machines.
 
-1. Create a DEP profile with:
+1. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
-```
-fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
-```
-Reference the [Apple DEP Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for further information on each setting.
-
-2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
-
-3. Boot the machine, it should automatically enroll into MDM.
+2. Boot the machine, it should automatically enroll into MDM.
 
 ##### Gating the DEP profile behind SSO
 
@@ -626,7 +627,6 @@ mdm:
   end_user_authentication:
     entity_id: <your_fleet_tunnel_url>
     idp_name: SimpleSAML
-    issuer_uri: <your_idp_tunnel_url>/simplesaml/saml2/idp/SSOService.php
     metadata_url: <your_idp_tunnel_url>/simplesaml/saml2/idp/metadata.php
 ```
 
@@ -663,5 +663,13 @@ log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --styl
 ```
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
 ```
+
+### Bootstrap package
+
+A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
+
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+
+The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 <meta name="pageOrderInSection" value="1500">
