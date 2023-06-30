@@ -29,7 +29,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
-> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. This Chrome browser extension is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
+> For ChromeOS hosts, the fleetd Chrome extension is installed instead of osquery. It is only supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). 
 
 ## Add hosts with Orbit
 
@@ -279,7 +279,9 @@ installation should appear as the same host in the Fleet UI. If other settings a
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
-## Add Chromebooks with the Fleetd Chrome extension
+## Add Chromebooks with the fleetd Chrome extension
+
+> The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
 Visit the Google Admin console. In the navigation menu, visit Devices > Chrome > Apps & Extensions > Users & browsers.
 
