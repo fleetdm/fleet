@@ -694,7 +694,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 // validateBinarySecurityToken checks if the provided token is valid
-func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken string, svc fleet.Service) error {
+func (svc *Service) validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken string) error {
 	if len(encodedBinarySecToken) == 0 {
 		return errors.New("binarySecurityTokenValidation: encoded token is invalid")
 	}
@@ -713,7 +713,7 @@ func validateBinarySecurityToken(ctx context.Context, encodedBinarySecToken stri
 
 	// Validating the Binary Security Token Type used on Programmatic Enrollments
 	if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-		host, err := svc.HostByIdentifier(ctx, binSecToken.Payload.HostUUID, fleet.HostDetailOptions{})
+		host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
 		if err != nil {
 			return fmt.Errorf("binarySecurityTokenValidation: host data cannot be found %v", err)
 		}
@@ -767,7 +767,7 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken s
 	}
 
 	// Validate the binary security token
-	err := validateBinarySecurityToken(ctx, authToken, svc)
+	err := svc.validateBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -793,7 +793,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Validate the binary security token
-	err := validateBinarySecurityToken(ctx, authToken, svc)
+	err := svc.validateBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}

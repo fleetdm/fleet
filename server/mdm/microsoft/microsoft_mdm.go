@@ -150,10 +150,10 @@ const (
 	WstepRenewRetryInterval = "4"
 
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
-	DocProvisioningAppProviderID = "C2runchMDM"
+	DocProvisioningAppProviderID = "FleetDM"
 
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
-	DocProvisioningAppName = "Managed by " + DocProvisioningAppProviderID
+	DocProvisioningAppName = DocProvisioningAppProviderID
 
 	// The CONNRETRYFREQ parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppConnRetryFreq = "6"
