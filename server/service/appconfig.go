@@ -196,7 +196,7 @@ type modifyAppConfigRequest struct {
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyAppConfigRequest)
-	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
+	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})
@@ -212,10 +212,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return nil, err
 	}
 	response := appConfigResponse{
-		AppConfig: *config,
+		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: license,
-			Logging: loggingConfig,
+			License:    license,
+			Logging:    loggingConfig,
+			MDMEnabled: config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 
@@ -522,6 +523,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
+		}
+	}
+
+	// if Windows MDM was enabled or disabled, create the corresponding activity
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsEnabledAndConfigured {
+			act = fleet.ActivityTypeEnabledWindowsMDM{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDM{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 

@@ -66,19 +66,19 @@ Our scrum boards are exclusively composed of three types of scrum items:
 
 ### Eng Together
 
-This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held weekly for one hour.
+This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 
 #### Participants
 
-Everyone at the company is welcome to attend.  The subject matter is focused on engineering.
+Everyone at the company is welcome to attend. All engineers are asked to attend. The subject matter is focused on engineering.
 
-#### Sample agenda
+#### Agenda
 
 - Announcements
-- “Show and tell”
-  - Each engineer gets two minutes to explain (showing, if desired) what they are working on and why it’s important to the business and/or engineering team.
-- Deeper dive
-  - One or a few engineers go deeper on a topic relevant to all of engineering.
+- Engineering KPIs review
+- “Tech talks”
+  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
 
@@ -98,7 +98,7 @@ Anyone who wishes to participate.
 
 ### Eng leadership weekly 
 
-Engineering leaders discuss topics of importance that week.
+Engineering leaders discuss topics of importance that week. Prepare agenda, announcements, and tech talks before the monthly [Eng Together](#eng-together) meeting.
 
 #### Participants
 
@@ -144,12 +144,11 @@ Engineering-initiated stories follow the [user story drafting process](https://f
 
 ### Creating an engineering-initiated story
 
-1. Create a [new user story issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) in GitHub. 
-2. Label it `~engineering-initiated` and the relevant product group. 
+1. Create a [new feature request issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~engineering-initiated&projects=&template=feature-request.md&title=) in GitHub. 
+2. Ensure it is labeled with `~engineering-initiated` and the relevant product group. Remove any `~customer-request` label. 
 3. Assign it to yourself. You will own this user story until it is either prioritized or closed. 
-4. Schedule a time with an EM or PM to attend an upcoming design review and present your story. All changes to Fleet go through the same user story design review process. 
-5. Iterate based on feedback. 
-6. If prioritized, a PM will place it on the roadmap board for further drafting and specification.
+4. Schedule a time with an EM and/or PM to present your story. Iterate based on feedback. 
+5. You, your EM or PM can bring this to Feature Fest for consideration. All engineering-initiated changes go through the same [drafting process](https://fleetdm.com/handbook/product#intake) as any other story.
 
 > We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities. 
 
@@ -311,14 +310,13 @@ A Slack reminder should notify the oncall of the handoff. Please do the followin
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
-   thread, and the new oncall should subscribe. The former oncall should explicitly share each of
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the thread, and the new oncall should subscribe. The former oncall should explicitly share each of
    these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
-At the weekly "Eng Together" meeting, the oncall is asked to make a report of how they spent their time. Please answer the following:
+In the Slack reminder thread, the oncall engineer includes their retrospective. Please answer the following:
 
 1. What were the most common support requests over the week? This can potentially give the new oncall an idea of which documentation to focus their efforts on.
 
@@ -416,6 +414,18 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
+## Changes to tables' schema
+
+Whenever a PR is proposed for making changes to our [tables' schema](https://fleetdm.com/tables/screenlock)(e.g. to schema/tables/screenlock.yml), it also has to be reflected in our osquery_fleet_schema.json file.
+It should be done by running these commands:
+```
+cd website
+./node_modules/sails/bin/sails.js run generate-merged-schema
+```
+> When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
+
+> If a table is added to our ChromeOS extension but it does not exist in osquery, add a note that mentions it. As in this [example](https://github.com/fleetdm/fleet/blob/e95e075e77b683167e86d50960e3dc17045e3c44/schema/tables/mdm.yml#L2).
+
 ## Quality
 
 - [Human-oriented QA](#human-oriented-qa)
@@ -496,14 +506,14 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 #### In product drafting (as needed)
-If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the (bugs board)[https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board]. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
+If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board). It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
 #### In engineering
 A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://fleetdm.com/docs/contributing/releasing-fleet#critical-bug-notification-process).
 
 If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
 
-Fleet (always prioritizes bugs)[https://fleetdm.com/handbook/product#prioritizing-improvements] into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
+Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary. 
 
 #### Awaiting QA 
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
@@ -619,7 +629,28 @@ The information needed to evaluate and potentially fix any issues is documented 
 
 When an infrastructure on-call engineer is out of the office, Zach Wasserman will serve as a backup to on-call in #help-p1. All absences must be communicated in advance to Luke Heath and Zach Wasserman.
 
+## Accounts
+
+Engineering is responsible for managing third-party accounts required to support engineering infrastructure. 
+
+### Apple developer account
+
+We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
+
+When this occurs, we will begin receiving the following error message when attempting to notarize packages: "You must first sign the relevant contracts online." To resolve this error, follow the steps below.
+
+1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+
+2. Log in using the credentials stored in 1Password under "Apple developer account". 
+
+3. Contact the Head of Business Operations to determine which phone number to use for 2FA. 
+
+4. Complete the 2FA process to log in. 
+
+5. Accept the new terms of service.
+
 ## Rituals
+
 The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
 
 | Ritual                        | Frequency           | Description                                                                                                                            | DRI            |
