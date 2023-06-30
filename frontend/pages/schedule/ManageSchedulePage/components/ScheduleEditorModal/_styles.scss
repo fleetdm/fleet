@@ -1,4 +1,8 @@
 .schedule-editor-modal {
+  &__platform-compatibility {
+    margin-bottom: $pad-large;
+  }
+
   &__sandbox-info {
     margin-top: $pad-medium;
 

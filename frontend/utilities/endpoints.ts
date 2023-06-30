@@ -34,6 +34,9 @@ export default {
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
+  LABEL_SPEC_BY_NAME: (labelName: string) => {
+    return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
+  },
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
@@ -61,6 +64,7 @@ export default {
     `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
+  MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
   MDM_EULA: (token: string) =>
     `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,

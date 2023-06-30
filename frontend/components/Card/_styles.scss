@@ -1,0 +1,23 @@
+.card {
+  border-radius: $border-radius;
+  border: 1px solid $ui-fleet-black-10;
+  padding: $pad-large;
+
+  &__white {
+    background-color: $core-white;
+  }
+
+  &__gray {
+    background-color: $ui-off-white;
+  }
+
+  &__purple {
+    background-color: $ui-vibrant-blue-10;
+    border-color: $ui-vibrant-blue-50;
+  }
+
+  &__yellow {
+    background-color: $ui-yellow-banner;
+    border-color: $ui-yellow-banner-outline;
+  }
+}

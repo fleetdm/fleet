@@ -315,7 +315,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
 ```
-{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+{host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
 ## What can I do if Fleet is slow or unresponsive after enabling a feature?
@@ -340,3 +340,6 @@ In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn o
 When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#instructions-for-end-users) with the end user. Turning MDM back on for a host requires end user action.
+
+## What does "package root files: heat failed" mean?
+We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)

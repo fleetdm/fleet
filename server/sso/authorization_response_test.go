@@ -508,6 +508,7 @@ func TestUserDisplayName(t *testing.T) {
 	}{
 		{"name", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},
 		{"displayname", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},
+		{"displayName", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},
 		{"cn", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},
 		{"urn:oid:2.5.4.3", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},
 		{"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", []AttributeValue{{Value: "Name Surname"}}, "Name Surname"},

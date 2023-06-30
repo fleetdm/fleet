@@ -8,7 +8,7 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
-import { ButtonVariant } from "components/buttons/Button/Button";
+import Icon from "components/Icon/Icon";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -203,9 +203,9 @@ const TableContainer = ({
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
-  const onResultsCountChange = (resultsCount: number) => {
+  const onResultsCountChange = useCallback((resultsCount: number) => {
     setClientFilterCount(resultsCount);
-  };
+  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -337,11 +337,8 @@ const TableContainer = ({
                 >
                   <>
                     {actionButton.buttonText}
-                    {actionButton.icon && (
-                      <img
-                        src={actionButton.icon}
-                        alt={`${actionButton.buttonText} icon`}
-                      />
+                    {actionButton.iconSvg && (
+                      <Icon name={actionButton.iconSvg} />
                     )}
                   </>
                 </Button>
@@ -443,7 +440,9 @@ const TableContainer = ({
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
-                renderPagination={renderPagination}
+                renderPagination={
+                  isClientSidePagination ? undefined : renderPagination
+                }
                 setExportRows={setExportRows}
               />
             </div>

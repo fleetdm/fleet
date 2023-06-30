@@ -55,6 +55,7 @@ const (
 type MacOSSettingsStatus string
 
 const (
+	MacOSSettingsVerified  MacOSSettingsStatus = "verified"
 	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
 	MacOSSettingsPending   MacOSSettingsStatus = "pending"
 	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
@@ -62,7 +63,7 @@ const (
 
 func (s MacOSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying:
+	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying, MacOSSettingsVerified:
 		return true
 	default:
 		return false
@@ -296,7 +297,16 @@ type Host struct {
 	// add a "reason" field with well-known labels so we know what condition(s)
 	// are expected to clear the timestamp. For now there's a single use-case
 	// so we don't need this.
-	RefetchCriticalQueriesUntil *time.Time `json:"-" db:"refetch_critical_queries_until" csv:"-"`
+	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
+
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
+	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
+	// responses.
+	//
+	// The boolean is based on information ingested from the Apple DEP API that is stored in the
+	// host_dep_assignments table.
+	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 }
 
 type MDMHostData struct {
@@ -348,6 +358,7 @@ type MDMHostData struct {
 type DiskEncryptionStatus string
 
 const (
+	DiskEncryptionVerified            DiskEncryptionStatus = "verified"
 	DiskEncryptionVerifying           DiskEncryptionStatus = "verifying"
 	DiskEncryptionActionRequired      DiskEncryptionStatus = "action_required"
 	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
@@ -363,6 +374,7 @@ func (s DiskEncryptionStatus) IsValid() bool {
 	switch s {
 	case
 		DiskEncryptionVerifying,
+		DiskEncryptionVerified,
 		DiskEncryptionActionRequired,
 		DiskEncryptionEnforcing,
 		DiskEncryptionFailed,
@@ -415,11 +427,16 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 		switch fvprof.OperationType {
 		case MDMAppleOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
+			case fvprof.Status != nil && (*fvprof.Status == MDMAppleDeliveryVerifying || *fvprof.Status == MDMAppleDeliveryVerified):
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					switch {
+					case *fvprof.Status == MDMAppleDeliveryVerifying:
+						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					case *fvprof.Status == MDMAppleDeliveryVerified:
+						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
+					}
 				} else if d.rawDecryptable != nil {
 					// if a FileVault profile has been successfully installed on the host
 					// but either we didn't get an encryption key or we're not able to
@@ -476,6 +493,8 @@ func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleD
 		return &MDMAppleDeliveryFailed
 	case DiskEncryptionVerifying:
 		return &MDMAppleDeliveryVerifying
+	case DiskEncryptionVerified:
+		return &MDMAppleDeliveryVerified
 	default:
 		return currStatus
 	}
@@ -511,6 +530,48 @@ func (d *MDMHostData) Scan(v interface{}) error {
 // IsOsqueryEnrolled returns true if the host is enrolled via osquery.
 func (h *Host) IsOsqueryEnrolled() bool {
 	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
+}
+
+// IsDEPAssignedToFleet returns true if the host was assigned to the Fleet
+// server in ABM.
+func (h *Host) IsDEPAssignedToFleet() bool {
+	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsEligibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func (h *Host) IsEligibleForDEPMigration() bool {
+	return h.IsOsqueryEnrolled() &&
+		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.IsEnrolledInThirdPartyMDM()
+}
+
+// NeedsDEPEnrollment returns true if the host should be DEP enrolled into
+// fleet but it's currently unenrolled.
+func (h *Host) NeedsDEPEnrollment() bool {
+	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+		!h.MDMInfo.IsManualFleetEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		h.IsDEPAssignedToFleet()
+}
+
+// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if it was enabled).
+func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+		!h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
+// IsEligibleForWindowsMDMUnenrollment returns true if the host must be
+// unenrolled from Fleet's Windows MDM (if it MDM was disabled).
+func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
+	return h.FleetPlatform() == "windows" &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled() &&
+		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -751,6 +812,23 @@ func (h *HostMDM) IsDEPFleetEnrolled() bool {
 		h.Name == WellKnownMDMFleet
 }
 
+// IsManualFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM manual enrollment.
+func (h *HostMDM) IsManualFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (h.Enrolled) && !h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
+}
+
+// IsFleetEnrolled returns true if the host's MDM information indicates that
+// it is in enrolled state for Fleet MDM, regardless of automatic or manual
+// enrollment method.
+func (h *HostMDM) IsFleetEnrolled() bool {
+	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
@@ -981,4 +1059,15 @@ type HostSoftwareInstalledPath struct {
 	SoftwareID uint `db:"software_id"`
 	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
+}
+
+// HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
+// table of the macadmins oquery extension
+type HostMacOSProfile struct {
+	// DisplayName is the display name of the profile.
+	DisplayName string `json:"display_name" db:"display_name"`
+	// Identifier is the identifier of the profile.
+	Identifier string `json:"identifier" db:"identifier"`
+	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
+	InstallDate time.Time `json:"install_date" db:"install_date"`
 }

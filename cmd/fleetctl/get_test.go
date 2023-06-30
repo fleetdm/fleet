@@ -15,6 +15,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -157,8 +158,8 @@ func TestGetTeams(t *testing.T) {
 							},
 							MDM: fleet.TeamMDM{
 								MacOSUpdates: fleet.MacOSUpdates{
-									MinimumVersion: "12.3.1",
-									Deadline:       "2021-12-14",
+									MinimumVersion: optjson.SetString("12.3.1"),
+									Deadline:       optjson.SetString("2021-12-14"),
 								},
 							},
 						},
@@ -192,22 +193,26 @@ func TestGetTeams(t *testing.T) {
 			}
 			expectedJson := buf.String()
 
-			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner.String() + expectedJson
-				expectedText = expiredBanner.String() + expectedText
-			}
+			var errBuffer strings.Builder
 
-			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			actualText, err := runWithErrWriter([]string{"get", "teams"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedText, actualText.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
+
 			// cannot use assert.JSONEq like we do for YAML because this is not a
 			// single JSON value, it is a list of 2 JSON objects.
-			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+			errBuffer.Reset()
+			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
+			require.NoError(t, err)
+			require.Equal(t, expectedJson, actualJSON.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
-			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
-			if tt.shouldHaveExpiredBanner {
-				require.True(t, strings.HasPrefix(actualYaml, expiredBanner.String()))
-				actualYaml = strings.TrimPrefix(actualYaml, expiredBanner.String())
-			}
-			assert.YAMLEq(t, expectedYaml, actualYaml)
+			errBuffer.Reset()
+			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
+			require.NoError(t, err)
+			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 		})
 	}
 }
@@ -553,6 +558,8 @@ func TestGetConfig(t *testing.T) {
 		return &fleet.AppConfig{
 			Features:              fleet.Features{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
+			SMTPSettings:          &fleet.SMTPSettings{},
+			SSOSettings:           &fleet.SSOSettings{},
 		}, nil
 	}
 
@@ -1638,8 +1645,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			},
 			MDM: fleet.TeamMDM{
 				MacOSUpdates: fleet.MacOSUpdates{
-					MinimumVersion: "12.3.1",
-					Deadline:       "2021-12-14",
+					MinimumVersion: optjson.SetString("12.3.1"),
+					Deadline:       optjson.SetString("2021-12-14"),
 				},
 			},
 		},
@@ -1929,6 +1936,106 @@ func TestUserIsObserver(t *testing.T) {
 			actual, err := userIsObserver(tc.user)
 			require.Equal(t, tc.expectedErr, err)
 			require.Equal(t, tc.expectedVal, actual)
+		})
+	}
+}
+
+func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	agentOpts := json.RawMessage(`
+{
+  "config": {
+      "options": {
+        "distributed_interval": 10
+      }
+  },
+  "overrides": {
+    "platforms": {
+      "darwin": {
+        "options": {
+          "distributed_interval": 5
+        }
+      }
+    }
+  }
+}`)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			AgentOptions: &agentOpts,
+			SSOSettings:  &fleet.SSOSettings{},
+			SMTPSettings: &fleet.SMTPSettings{},
+		}, nil
+	}
+
+	setCurrentUserSession := func(user *fleet.User) {
+		user, err := ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+			return &fleet.Session{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				ID:              1,
+				AccessedAt:      time.Now(),
+				UserID:          user.ID,
+				Key:             key,
+			}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return user, nil
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		user        *fleet.User
+		checkOutput func(output string) bool
+	}{
+		{
+			name: "global admin",
+			user: &fleet.User{
+				ID:         1,
+				Name:       "Global admin",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "ga@example.com",
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+			checkOutput: func(output string) bool {
+				return strings.Contains(output, "sso_settings") && strings.Contains(output, "smtp_settings")
+			},
+		},
+		{
+			name: "global observer",
+			user: &fleet.User{
+				ID:         2,
+				Name:       "Global observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "go@example.com",
+				GlobalRole: ptr.String(fleet.RoleObserverPlus),
+			},
+			checkOutput: func(output string) bool {
+				return !strings.Contains(output, "sso_settings") && !strings.Contains(output, "smtp_settings")
+			},
+		},
+		{
+			name: "team observer",
+			user: &fleet.User{
+				ID:         3,
+				Name:       "Team observer",
+				Password:   []byte("p4ssw0rd.123"),
+				Email:      "tm@example.com",
+				GlobalRole: nil,
+				Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
+			},
+			checkOutput: func(output string) bool {
+				return !strings.Contains(output, "sso_settings") && !strings.Contains(output, "smtp_settings")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setCurrentUserSession(tc.user)
+
+			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
+			require.True(t, ok)
 		})
 	}
 }

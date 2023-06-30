@@ -42,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -69,7 +69,7 @@ jobs:
       run: docker pull fleetdm/wix:latest &
 
     - name: Install Go
-      uses: actions/setup-go@v2.1.3
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 

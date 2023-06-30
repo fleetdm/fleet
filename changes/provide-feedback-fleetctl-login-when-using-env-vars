@@ -1,0 +1,1 @@
+* Provide feedback to users when `fleetctl login` is using EMAIL and PASSWORD environment variables.

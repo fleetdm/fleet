@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -8,8 +9,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -278,4 +281,96 @@ func TestHostMDMAppleProfileIgnoreClientError(t *testing.T) {
 		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
 		OperationType: MDMAppleOperationTypeRemove,
 	}.IgnoreMDMClientError())
+}
+
+func TestHostDEPAssignment(t *testing.T) {
+	cases := []struct {
+		testName string
+		input    HostDEPAssignment
+		expect   bool
+	}{
+		{
+			testName: "assigned to Fleet",
+			input: HostDEPAssignment{
+				HostID:    1,
+				AddedAt:   time.Now(),
+				DeletedAt: nil,
+			},
+			expect: true,
+		},
+		{
+			testName: "was assigned Fleet but now deleted",
+			input: HostDEPAssignment{
+				HostID:    1,
+				AddedAt:   time.Now(),
+				DeletedAt: ptr.Time(time.Now()),
+			},
+			expect: false,
+		},
+		{
+			testName: "empty struct",
+			input:    HostDEPAssignment{},
+			expect:   false,
+		},
+		{
+			testName: "empty added at",
+			input: HostDEPAssignment{
+				HostID: 1,
+			},
+			expect: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			require.Equal(t, c.expect, c.input.IsDEPAssignedToFleet())
+		})
+	}
+}
+
+func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
+	// create a test profile
+	var b bytes.Buffer
+	params := mobileconfig.FleetdProfileOptions{
+		EnrollSecret: t.Name(),
+		ServerURL:    "https://example.com",
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+	}
+	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
+	require.NoError(t, err)
+	testProfile, err := NewMDMAppleConfigProfile(b.Bytes(), nil)
+	require.NoError(t, err)
+
+	// set profile updated at 2 hours ago
+	testProfile.UpdatedAt = time.Now().Truncate(time.Second).Add(-2 * time.Hour)
+	// set profile created at 24 hours ago (irrelevant but included for completeness)
+	testProfile.CreatedAt = testProfile.UpdatedAt.Add(-24 * time.Hour)
+
+	cases := []struct {
+		testName            string
+		hostDetailUpdatedAt time.Time
+		expect              bool
+	}{
+		{
+			testName:            "outside grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(61 * time.Minute), // more than 1 hour grace period
+			expect:              false,
+		},
+		{
+			testName:            "online host within grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(59 * time.Minute), // less than 1 hour grace period
+			expect:              true,
+		},
+		{
+			testName:            "offline host within grace period",
+			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(-48 * time.Hour), // grace period doesn't start until host is online (i.e. host detail updated at is after profile updated at)
+			expect:              true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			require.Equal(t, c.expect, testProfile.IsWithinGracePeriod(c.hostDetailUpdatedAt))
+		})
+	}
 }

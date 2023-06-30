@@ -6,9 +6,11 @@ interface IPlatformSelectorProps {
   checkDarwin: boolean;
   checkWindows: boolean;
   checkLinux: boolean;
+  checkChrome: boolean;
   setCheckDarwin: (val: boolean) => void;
   setCheckWindows: (val: boolean) => void;
   setCheckLinux: (val: boolean) => void;
+  setCheckChrome: (val: boolean) => void;
 }
 
 export const PlatformSelector = ({
@@ -16,9 +18,11 @@ export const PlatformSelector = ({
   checkDarwin,
   checkWindows,
   checkLinux,
+  checkChrome,
   setCheckDarwin,
   setCheckWindows,
   setCheckLinux,
+  setCheckChrome,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
@@ -47,6 +51,13 @@ export const PlatformSelector = ({
             wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
           >
             Linux
+          </Checkbox>
+          <Checkbox
+            value={checkChrome}
+            onChange={(value: boolean) => setCheckChrome(value)}
+            wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          >
+            ChromeOS
           </Checkbox>
         </span>
       </span>

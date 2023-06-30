@@ -41,7 +41,7 @@ $max-width: 2560px;
   background-color: $ui-fleet-black-25;
   color: $core-white;
   font-size: $xx-small;
-  font-weight: 700;
+  font-weight: $bold;
   padding: 0 $pad-xsmall;
   border-radius: $border-radius;
   position: relative;
@@ -86,5 +86,25 @@ $max-width: 2560px;
 
   &__list-item-button:not(:last-child) {
     margin-right: $pad-medium;
+  }
+}
+
+// used to share styles across the manual enroll mdm modal and the auto enroll mdm modal.
+@mixin enroll-mdm-modal {
+  &__description {
+    margin: $pad-large 0;
+  }
+
+  &__download-button {
+    margin-top: 12px;
+  }
+
+  ol {
+    padding-left: 0;
+  }
+
+  li {
+    margin-bottom: $pad-large;
+    list-style-position: inside;
   }
 }

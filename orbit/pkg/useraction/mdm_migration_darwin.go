@@ -32,12 +32,9 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 
 To begin, click "Start." Your default browser will open your My Device page.
 
-{{ if .Aggressive }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.
-
-\\![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180@2x.jpg)
-
-Unsure? Contact {{ .OrgInfo.OrgName }} IT [here]({{ .OrgInfo.ContactURL }}).
-`))
+{{ if .IsUnmanaged }}You {{ else }} Once you start, you {{ end -}} will see this dialog every 15 minutes until you click "Turn on MDM" and complete the instructions.` +
+	"\n\n![Image showing the Fleet UI](https://fleetdm.com/images/permanent/mdm-migration-screenshot-768x180-2x.png)\n\n",
+))
 
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
@@ -211,16 +208,24 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	exitCodeCh, errCh := m.render(message.String(),
-		// info button
-		"--infobuttontext", "?",
-		"--infobuttonaction", "https://fleetdm.com/handbook/company/why-this-way#why-open-source",
+	flags := []string{
 		// main button
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		"--blurscreen", "--ontop", "--height", "600",
-	)
+		"--blurscreen", "--ontop", "--height", "500",
+	}
+
+	if m.props.OrgInfo.ContactURL != "" {
+		flags = append(flags,
+			// info button
+			"--infobuttontext", "Unsure? Contact IT",
+			"--infobuttonaction", m.props.OrgInfo.ContactURL,
+			"--quitoninfo",
+		)
+	}
+
+	exitCodeCh, errCh := m.render(message.String(), flags...)
 
 	select {
 	case err := <-errCh:
@@ -231,7 +236,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if !m.props.Aggressive {
+		if !m.props.IsUnmanaged {
 			// show the loading spinner
 			m.renderLoadingSpinner()
 
