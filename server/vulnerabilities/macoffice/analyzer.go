@@ -49,7 +49,7 @@ func getLatestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
 	return relNotes, nil
 }
 
-// collectVulnerabilities compares 'software' againts all 'release notes' returning all detected
+// collectVulnerabilities compares 'software' against all 'release notes' returning all detected
 // vulnerabilities.
 func collectVulnerabilities(
 	software *fleet.Software,
