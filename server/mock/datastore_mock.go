@@ -574,7 +574,7 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
-type ResetMDMAppleNanoEnrollmentFunc func(ctx context.Context, hostUUID string) error
+type ResetMDMAppleEnrollmentFunc func(ctx context.Context, hostUUID string) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
@@ -1489,8 +1489,8 @@ type DataStore struct {
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 
-	ResetMDMAppleNanoEnrollmentFunc        ResetMDMAppleNanoEnrollmentFunc
-	ResetMDMAppleNanoEnrollmentFuncInvoked bool
+	ResetMDMAppleEnrollmentFunc        ResetMDMAppleEnrollmentFunc
+	ResetMDMAppleEnrollmentFuncInvoked bool
 
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
@@ -3558,11 +3558,11 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }
 
-func (s *DataStore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
+func (s *DataStore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
 	s.mu.Lock()
-	s.ResetMDMAppleNanoEnrollmentFuncInvoked = true
+	s.ResetMDMAppleEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetMDMAppleNanoEnrollmentFunc(ctx, hostUUID)
+	return s.ResetMDMAppleEnrollmentFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
