@@ -29,7 +29,8 @@ const AutoEnrollMdmModal = ({
             the top right corner of your screen.
           </li>
           <li>
-            Select the <b>Device Enrollment</b> notification. This will open <b>System Settings</b> or <b>System Preferences</b>. Select <b>Allow</b>.
+            Select the <b>Device Enrollment</b> notification. This will open <b>System Settings</b> or <b>System Preferences</b>. Select
+            <b>Allow</b>.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.
