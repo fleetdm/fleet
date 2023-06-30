@@ -434,6 +434,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return (
       <EditUserModal
         userToEdit={userData}
+        currentUser={currentUser ?? undefined}
         onCancel={toggleEditUserModal}
         onSubmit={onEditUser}
         availableTeams={teams || []}
