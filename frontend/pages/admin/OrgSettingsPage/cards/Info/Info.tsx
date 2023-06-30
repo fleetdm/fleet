@@ -13,6 +13,12 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
+interface IOrgInfoFormData {
+  orgName: string;
+  orgLogoURL: string;
+  orgSupportURL: string;
+}
+
 const baseClass = "app-config-form";
 
 const Info = ({
@@ -20,12 +26,14 @@ const Info = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IOrgInfoFormData>({
     orgName: appConfig.org_info.org_name || "",
     orgLogoURL: appConfig.org_info.org_logo_url || "",
+    orgSupportURL:
+      appConfig.org_info.contact_url || "https://fleetdm.com/company/contact",
   });
 
-  const { orgName, orgLogoURL } = formData;
+  const { orgName, orgLogoURL, orgSupportURL } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
@@ -45,6 +53,12 @@ const Info = ({
       errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
     }
 
+    if (!orgSupportURL) {
+      errors.org_support_url = `Organization support URL must be present`;
+    } else if (!validUrl({ url: orgSupportURL, protocol: "http" })) {
+      errors.org_support_url = `${orgSupportURL} is not a valid URL`;
+    }
+
     setFormErrors(errors);
   };
 
@@ -56,6 +70,7 @@ const Info = ({
       org_info: {
         org_logo_url: orgLogoURL,
         org_name: orgName,
+        contact_url: orgSupportURL,
       },
     };
 
@@ -84,6 +99,15 @@ const Info = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.org_logo_url}
+          />
+          <InputField
+            label="Organization support URL"
+            onChange={handleInputChange}
+            name="orgSupportURL"
+            value={orgSupportURL}
+            parseTarget
+            onBlur={validateForm}
+            error={formErrors.org_support_url}
           />
         </div>
         <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
