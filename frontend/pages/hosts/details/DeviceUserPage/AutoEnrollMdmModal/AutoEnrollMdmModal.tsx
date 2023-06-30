@@ -25,7 +25,8 @@ const AutoEnrollMdmModal = ({
         </p>
         <ol>
           <li>
-            Open your Mac’s notification center by selecting the date and time in the top right corner of your screen.
+            Open your Mac’s notification center by selecting the date and time in
+            the top right corner of your screen.
           </li>
           <li>
             Select the <b>Device Enrollment</b> notification. This will open <b>System Settings</b> or <b>System Preferences</b>. Select <b>Allow</b>.
