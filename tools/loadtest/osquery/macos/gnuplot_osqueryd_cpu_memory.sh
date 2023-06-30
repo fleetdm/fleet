@@ -23,7 +23,7 @@ set terminal jpeg
 
 set title 'Memory (MB)'
 set output 'osquery_worker_memory.jpg'
-plot '/tmp/osqueryd.dat' using 1:3 with linespoints linetype 7 linewidth 2 title 'Memory (MB)'
+plot '/tmp/osqueryd.dat' using 1:3 with linespoints linetype -1 linewidth 1 title 'Memory (MB)'
 
 set title 'CPU'
 set output 'osquery_worker_cpu.jpg'
@@ -34,7 +34,7 @@ set yrange [0:24000]
 # where default values are: check_interval=3000ms, percent_cpu_limit=10%.
 # On my Macbook with 4 physical core this gives 1200ms.
 #
-plot '/tmp/osqueryd.dat' using 1:2 with linespoints linetype 6 linewidth 2 title 'CPU', 1200 linecolor 1
+plot '/tmp/osqueryd.dat' using 1:2 with linespoints linetype -1 linewidth 1 title 'CPU', 1200 linecolor 1
 EOF
 
 gnuplot < gnuplot_commands.txt

@@ -2621,10 +2621,11 @@ spec:
     SELECT 1 WHERE NOT EXISTS (
       SELECT apps.path FROM apps
       LEFT JOIN file on file.path = apps.path
+      WHERE apps.path LIKE '/Applications/%' AND
       -- file.mode's last character are the permissions for 'other',
       -- bitwise && with '0x2' selects the write permission,
       -- which we do not want here.
-      WHERE CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
+      CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.5
@@ -2650,11 +2651,11 @@ spec:
     done
   query: |
     SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE 
-      path LIKE '/System/Volumes/Data/System/%%'  
-      AND type = 'directory' 
-      AND directory NOT LIKE '%Drop Box%' 
-      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      SELECT 1 FROM find_cmd WHERE
+        directory = '/System/Volumes/Data/System'
+        AND type = 'd'
+        AND perm = '-2'
+        AND path NOT LIKE '%Drop Box%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.6
@@ -2678,12 +2679,12 @@ spec:
     done
   query: |
     SELECT 1 WHERE NOT EXISTS (
-    SELECT 1 FROM file WHERE 
-      path LIKE '/System/Volumes/Data/Library/%%'
-      AND type = 'directory' 
-      AND directory NOT LIKE '%Caches%' 
-      AND directory NOT LIKE '%/Preferences/Audio/Data%' 
-      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      SELECT 1 FROM find_cmd WHERE
+        directory = '/System/Volumes/Data/Library'
+        AND type = 'd'
+        AND perm = '-2'
+        AND path NOT LIKE '%Caches%'
+        AND path NOT LIKE '%/Preferences/Audio/Data%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.1.7
