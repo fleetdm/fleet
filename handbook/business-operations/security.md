@@ -48,13 +48,13 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the login recovery issue.
 * If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to
-  `#g-security` to engage the security team immediately.
+  `#_security` to engage the security team immediately.
 
 After the identity confirmation, the recovery can be performed while still on the video call, or asynchronously.
 
 ### Performing recovery
 
-Before any account recovery, the recoverer must send a message to `#g-security` announcing that the
+Before any account recovery, the recoverer must send a message to `#_security` announcing that the
 recovery will take place. Then, perform the necessary recovery steps.
 
 #### Google
