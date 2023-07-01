@@ -1,5 +1,9 @@
 # Markdown guide
 
+The Markdown files in the [/docs](https://fleetdm.com/docs), [/handbook](https://fleetdm.com/handbook), and [/articles](https://fleetdm.com/articles) folders in the [Fleet repo](https://github.com/fleetdm/fleet) are converted to HTML for the Fleet website.
+
+This guide is here to help you format consistent Fleet-flavored Markdown.
+
 ## Headings
 
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
@@ -20,6 +24,36 @@ Try to stay within three or four heading levels. Complicated documents may use m
 | `***Bold italic***` | <em><strong>Bold italic</strong></em> |
 | `~~Strikethrough~~` | <s>Strikethrough</s> |
 
+## Line breaks and new lines
+
+Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
+
+For example, if you were adding this section:
+
+```
+line one
+line two
+```
+
+The Markdown would render on the Fleet website as
+
+line one
+line two
+
+To make sure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
+
+```
+line one
+
+line two
+```
+
+The Markdown will render correctly as
+
+line one
+
+line two
+
 ## Lists
 
 ### Ordered lists
@@ -28,6 +62,46 @@ Try to stay within three or four heading levels. Complicated documents may use m
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
 | <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
+
+Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item, as shown in the example below.
+
+**Markdown:**
+
+```
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+```
+
+**Rendered output:**
+
+1. Item one
+
+Paragraph about item one
+
+2. Item two
+
+To make sure that ordered lists increment correctly, you can indent the content nested within the list. For example, the same ordered list with indentation:
+
+**Markdown:**
+
+```
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
+```
+
+**Rendered output:**
+
+1. Item one
+
+   Paragraph about item one
+
+2. Item two
 
 ### Unordered lists
 

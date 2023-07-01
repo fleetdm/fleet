@@ -6,12 +6,10 @@ const validate = (formData) => {
   const { email } = formData;
   const errors = {};
 
-  if (!validEmail(email)) {
-    errors.email = `${email} is not a valid email`;
-  }
-
   if (!validatePresence(email)) {
     errors.email = "Email field must be completed";
+  } else if (!validEmail(email)) {
+    errors.email = "Email must be a valid email address";
   }
 
   const valid = !size(errors);

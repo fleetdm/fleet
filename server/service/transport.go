@@ -130,10 +130,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("non-int page value"))
 		}
 		if page < 0 {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "negative page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("negative page value"))
 		}
 	}
 
@@ -143,10 +143,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int per_page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("non-int per_page value"))
 		}
 		if perPage <= 0 {
-			return fleet.ListOptions{}, ctxerr.New(r.Context(), "invalid per_page value")
+			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("invalid per_page value"))
 		}
 	}
 
@@ -158,8 +158,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
-		return fleet.ListOptions{},
-			ctxerr.New(r.Context(), "order_key must be specified with order_direction")
+		return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("order_key must be specified with order_direction"))
 	}
 
 	var orderDirection fleet.OrderDirection
@@ -172,7 +171,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		orderDirection = fleet.OrderAscending
 	default:
 		return fleet.ListOptions{},
-			ctxerr.New(r.Context(), "unknown order_direction: "+orderDirectionString)
+			ctxerr.Wrap(r.Context(), badRequest("unknown order_direction: "+orderDirectionString))
 
 	}
 
@@ -319,7 +318,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
 	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying:
+	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying, fleet.MacOSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
@@ -331,6 +330,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	switch fleet.DiskEncryptionStatus(macOSSettingsDiskEncryptionStatus) {
 	case
 		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionVerified,
 		fleet.DiskEncryptionActionRequired,
 		fleet.DiskEncryptionEnforcing,
 		fleet.DiskEncryptionFailed,

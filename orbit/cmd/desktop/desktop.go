@@ -11,8 +11,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/useraction"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 	"github.com/oklog/run"
@@ -82,9 +85,15 @@ func main() {
 	if fleetClientCrt != nil {
 		log.Info().Msg("Using TLS client certificate and key to authenticate to the server.")
 	}
+	tufUpdateRoot := os.Getenv("FLEET_DESKTOP_TUF_UPDATE_ROOT")
+	if tufUpdateRoot != "" {
+		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
+	}
 
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
+
+	var mdmMigrator useraction.MDMMigrator
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -114,8 +123,14 @@ func main() {
 		versionItem.Disable()
 		systray.AddSeparator()
 
+		migrateMDMItem := systray.AddMenuItem("Migrate to Fleet", "")
+		migrateMDMItem.Disable()
+		// this item is only shown if certain conditions are met below.
+		migrateMDMItem.Hide()
+
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
+
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
 
@@ -153,6 +168,8 @@ func main() {
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
+			migrateMDMItem.Disable()
+			migrateMDMItem.Hide()
 		}
 
 		// checkToken performs API test calls to enable the "My device" item as
@@ -167,7 +184,7 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
+					_, err := client.DesktopSummary(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
@@ -212,6 +229,22 @@ func main() {
 			}
 		}()
 
+		if runtime.GOOS == "darwin" {
+			_, swiftDialogPath, _ := update.LocalTargetPaths(
+				tufUpdateRoot,
+				"swiftDialog",
+				update.SwiftDialogMacOSTarget,
+			)
+			mdmMigrator = useraction.NewMDMMigrator(
+				swiftDialogPath,
+				15*time.Minute,
+				&mdmMigrationHandler{
+					client:      client,
+					tokenReader: &tokenReader,
+				},
+			)
+		}
+
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
 		go func() {
@@ -221,7 +254,7 @@ func main() {
 
 			for {
 				<-tic.C
-				failingPolicies, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
+				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
@@ -235,6 +268,11 @@ func main() {
 				default:
 					log.Error().Err(err).Msg("get failing policies")
 					continue
+				}
+
+				failingPolicies := 0
+				if sum.FailingPolicies != nil {
+					failingPolicies = int(*sum.FailingPolicies)
 				}
 
 				if failingPolicies > 0 {
@@ -257,7 +295,37 @@ func main() {
 					}
 				}
 				myDeviceItem.Enable()
+
+				if runtime.GOOS == "darwin" &&
+					(sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile) &&
+					mdmMigrator.CanRun() {
+
+					// update org info in case it changed
+					mdmMigrator.SetProps(useraction.MDMMigratorProps{
+						OrgInfo:     sum.Config.OrgInfo,
+						IsUnmanaged: sum.Notifications.RenewEnrollmentProfile,
+					})
+
+					// enable tray items
+					migrateMDMItem.Enable()
+					migrateMDMItem.Show()
+
+					// if the device is unmanaged or we're
+					// in force mode and the device needs
+					// migration, enable aggressive mode.
+					if sum.Notifications.RenewEnrollmentProfile ||
+						(sum.Notifications.NeedsMDMMigration && sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced) {
+						log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
+						if err := mdmMigrator.ShowInterval(); err != nil {
+							log.Error().Err(err).Msg("showing MDM migration dialog at interval")
+						}
+					}
+				} else {
+					migrateMDMItem.Disable()
+					migrateMDMItem.Hide()
+				}
 			}
+
 		}()
 
 		go func() {
@@ -273,15 +341,44 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
 					}
+				case <-migrateMDMItem.ClickedCh:
+					if err := mdmMigrator.Show(); err != nil {
+						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
+					}
 				}
 			}
 		}()
 	}
 	onExit := func() {
+		if mdmMigrator != nil {
+			mdmMigrator.Exit()
+		}
 		log.Info().Msg("exit")
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+type mdmMigrationHandler struct {
+	client      *service.DeviceClient
+	tokenReader *token.Reader
+}
+
+func (m *mdmMigrationHandler) NotifyRemote() error {
+	log.Debug().Msg("sending request to trigger mdm migration webhook")
+	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
+		log.Error().Err(err).Msg("triggering migration webhook")
+		return fmt.Errorf("on migration start: %w", err)
+	}
+	log.Debug().Msg("successfully sent request to trigger mdm migration webhook")
+	return nil
+}
+
+func (m *mdmMigrationHandler) ShowInstructions() {
+	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
+	if err := open.Browser(openURL); err != nil {
+		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+	}
 }
 
 // setupLogs configures our logging system to write logs to rolling files and

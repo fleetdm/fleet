@@ -136,6 +136,19 @@ func TestMDMRunCommand(t *testing.T) {
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `missing or invalid license`)
+
+	// try to run an empty plist as a command
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.xml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+</plist>`))
+	require.NoError(t, err)
+
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.`)
 }
 
 func writeTmpMDMCmd(t *testing.T, commandName string) string {

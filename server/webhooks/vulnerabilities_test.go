@@ -81,7 +81,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	t.Run("trigger requests", func(t *testing.T) {
 		now := time.Now()
 
-		hosts := []*fleet.HostShort{
+		hosts := []fleet.HostVulnerabilitySummary{
 			{ID: 1, Hostname: "h1", DisplayName: "d1"},
 			{ID: 2, Hostname: "h2", DisplayName: "d2"},
 			{ID: 3, Hostname: "h3", DisplayName: "d3"},
@@ -105,7 +105,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			name  string
 			vulns []fleet.SoftwareVulnerability
 			meta  map[string]fleet.CVEMeta
-			hosts []*fleet.HostShort
+			hosts []fleet.HostVulnerabilitySummary
 			want  string
 		}{
 			{
@@ -178,7 +178,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				}))
 				defer srv.Close()
 
-				ds.HostsBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+				ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 					return c.hosts, nil
 				}
 
@@ -194,8 +194,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args, &mapper)
 				require.NoError(t, err)
 
-				assert.True(t, ds.HostsBySoftwareIDsFuncInvoked)
-				ds.HostsBySoftwareIDsFuncInvoked = false
+				assert.True(t, ds.HostVulnSummariesBySoftwareIDsFuncInvoked)
+				ds.HostVulnSummariesBySoftwareIDsFuncInvoked = false
 
 				want := strings.Split(c.want, "\n")
 				assert.ElementsMatch(t, want, requests)

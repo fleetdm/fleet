@@ -108,8 +108,8 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate aggr
 }
 
 func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(ctx, ds.reader, "scheduled_queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer, aggregatedStatsTypeScheduledQuery, id)
+	err := walkIdsInTable(ctx, ds.reader(ctx), "scheduled_queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeScheduledQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")
@@ -119,8 +119,8 @@ func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) er
 }
 
 func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(ctx, ds.reader, "queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer, aggregatedStatsTypeQuery, id)
+	err := walkIdsInTable(ctx, ds.reader(ctx), "queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")

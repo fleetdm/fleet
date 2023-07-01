@@ -208,7 +208,6 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrMDMNotConfigured
-
 	}
 
 	return nil
@@ -295,7 +294,6 @@ func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.Respon
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.pdf"`, r.eula.Name))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -383,4 +381,26 @@ func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error 
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Windows MDM Middleware
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	// Windows MDM configuration setting
+	if !appCfg.MDM.WindowsEnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+	}
+
+	return nil
 }

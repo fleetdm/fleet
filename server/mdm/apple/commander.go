@@ -171,6 +171,31 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>PrimaryAccountFullName</key>
+      <string>%s</string>
+      <key>PrimaryAccountUserName</key>
+      <string>%s</string>
+      <key>LockPrimaryAccountInfo</key>
+      <true />
+      <key>RequestType</key>
+      <string>AccountConfiguration</string>
+    </dict>
+
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, fullName, userName, uuid)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //

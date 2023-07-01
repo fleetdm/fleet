@@ -40,6 +40,7 @@ import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
+import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
@@ -52,6 +53,7 @@ import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/
 import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
+import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage/WindowsMdmPage";
 
 import PATHS from "router/paths";
 
@@ -98,6 +100,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>
       </Route>
@@ -110,6 +113,7 @@ const routes = (
             <Route path="linux" component={DashboardPage} />
             <Route path="mac" component={DashboardPage} />
             <Route path="windows" component={DashboardPage} />
+            <Route path="chrome" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
@@ -133,6 +137,7 @@ const routes = (
                 </Route>
               </Route>
             </Route>
+            <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
@@ -229,7 +234,16 @@ const routes = (
           />
         </Route>
       </Route>
-      <Route path="/device/:device_auth_token" component={DeviceUserPage} />
+      <Route path="device">
+        <IndexRedirect to=":device_auth_token" />
+
+        <Route component={DeviceUserPage}>
+          <Route path=":device_auth_token" component={DeviceUserPage}>
+            <Route path="software" component={DeviceUserPage} />
+            <Route path="policies" component={DeviceUserPage} />
+          </Route>
+        </Route>
+      </Route>
     </Route>
     <Route path="/apionlyuser" component={ApiOnlyUser} />
     <Route path="/404" component={Fleet404} />

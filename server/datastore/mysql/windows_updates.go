@@ -23,7 +23,7 @@ func (ds *Datastore) ListWindowsUpdatesByHostID(
 	`
 	updates := []fleet.WindowsUpdate{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &updates, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &updates, stmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list windows updates")
 	}
 
@@ -44,7 +44,7 @@ func (ds *Datastore) InsertWindowsUpdates(ctx context.Context, hostID uint, upda
 	var placeholders []string
 
 	lastUpdateSmt := `SELECT date_epoch FROM windows_updates WHERE host_id = ? ORDER BY date_epoch DESC LIMIT 1`
-	if err := sqlx.GetContext(ctx, ds.reader, &lastUpdateEpoch, lastUpdateSmt, hostID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastUpdateEpoch, lastUpdateSmt, hostID); err != nil {
 		if err != sql.ErrNoRows {
 			return ctxerr.Wrap(ctx, err, "inserting windows updates")
 		}
@@ -64,7 +64,7 @@ func (ds *Datastore) InsertWindowsUpdates(ctx context.Context, hostID uint, upda
 			strings.Join(placeholders, ","),
 		)
 
-		if _, err := ds.writer.ExecContext(ctx, smt, args...); err != nil {
+		if _, err := ds.writer(ctx).ExecContext(ctx, smt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows updates")
 		}
 

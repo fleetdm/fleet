@@ -62,7 +62,7 @@ $base-class: "button";
   padding: $pad-small $pad-medium;
   border-radius: 6px;
   font-size: $x-small;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: $bold;
   display: inline-flex;
   height: 38px;
@@ -196,7 +196,10 @@ $base-class: "button";
     }
   }
 
-  &--text-icon {
+  // &--icon, &--small-icon used for no text and svg icons
+  &--text-icon,
+  &--icon,
+  &--small-icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -223,7 +226,25 @@ $base-class: "button";
     &:focus {
       color: $core-vibrant-blue-over;
     }
+
+    // globally styled gap between text and icon
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
+
+  &--icon {
+    svg {
+      padding: $pad-icon;
+    }
+  }
+
+  &--small-icon {
+    svg {
+      padding: $pad-small;
+    }
+  }
+
   &--small-text-icon {
     @include button-variant(transparent);
     margin-left: $pad-medium;
@@ -278,7 +299,6 @@ $base-class: "button";
     color: $core-vibrant-red;
     border: 0;
     box-sizing: border-box;
-    padding: 0;
 
     &:hover,
     &:focus {
@@ -376,5 +396,12 @@ $base-class: "button";
     @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;
     justify-content: space-between;
+  }
+
+  &--oversized {
+    background-color: $core-fleet-black;
+    padding: $pad-large $pad-small;
+    font-size: $medium;
+    width: 100%;
   }
 }

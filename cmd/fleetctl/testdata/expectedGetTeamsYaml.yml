@@ -8,13 +8,14 @@ spec:
       enable_software_inventory: true
     mdm:
       macos_updates:
-        minimum_version: ""
-        deadline: ""
+        minimum_version: null
+        deadline: null
       macos_settings:
         custom_settings:
         enable_disk_encryption: false
       macos_setup:
         bootstrap_package:
+        enable_end_user_authentication: false
         macos_setup_assistant:
     name: team1
 ---
@@ -43,5 +44,6 @@ spec:
         enable_disk_encryption: false
       macos_setup:
         bootstrap_package:
+        enable_end_user_authentication: false
         macos_setup_assistant:
     name: team2

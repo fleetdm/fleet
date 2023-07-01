@@ -115,11 +115,11 @@ module.exports.custom = {
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['hollidayn', 'mikermcneil'],
-    'handbook/engineering': 'zwass',
+    'handbook/business-operations': ['jostableford','hollidayn', 'mikermcneil'],
+    'handbook/engineering': ['zwass', 'lukeheath'],
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas', 'spokanemac'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
@@ -132,13 +132,7 @@ module.exports.custom = {
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
-    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
-    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-    'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
-    'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
-    'docs/Deploying/FAQ.md': ['ksatter'],
-    'docs/Contributing/FAQ.md': ['ksatter'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter'],
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter', 'rachaelshaw', 'lukeheath', 'eashaw', 'mike-j-thomas', 'noahtalerman'],// (default for docs)
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','marcosd4h'],// (standard query library)
     'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','marcosd4h'],// (Osquery table schema)
@@ -154,7 +148,7 @@ module.exports.custom = {
     'free-for-all': '*',
 
     // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-    'cold-outbound-strategy.md': ['mikermcneil'],
+    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],
 
     // Boilerplate
     'README.md': ['mikermcneil'],
@@ -165,8 +159,12 @@ module.exports.custom = {
     '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'jostableford'],
 
+  },
+
+  fleetMdmGitopsGithubRepoDRIByPath: {
+    '/': ['lukeheath']
   },
 
   // The version of osquery to use when generating schema docs
@@ -188,6 +186,12 @@ module.exports.custom = {
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
   // datadogApiKey: '…',
+
+  // For receive-from-customer-fleet-instance webhook.
+  // customerWorkspaceOneBaseUrl: '…',
+  // customerWorkspaceOneOauthId: '…',
+  // customerWorkspaceOneOauthSecret: '…',
+  // customerMigrationWebhookSecret: '…',
 
   //…
 

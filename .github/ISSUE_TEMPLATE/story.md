@@ -2,7 +2,7 @@
 name: 🎟  Story
 about: Specify an iterative change to the Fleet product.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story,:product'
+labels: 'story'
 assignees: ''
 
 ---
@@ -44,3 +44,40 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 1. 
 2. 
 -->
+
+
+## QA
+
+### Risk assessment
+
+- [ ] Requires load testing TODO <!-- User story has performance implications that require load testing. Otherwise, remove this checkbox. -->
+
+Risk level: Low / High TODO <!-- Choose one. -->
+
+Risk description: TODO <!-- If risk level is high, explain why. If low, remove. -->
+
+#### Automated:
+
+- Fleet: Cover / Will not cover <!-- Choose one. -->
+- QAWolf: Cover / Will not cover <!-- Choose one. -->
+
+### Manual testing steps
+<!-- 
+Add detailed manual testing steps for all affected user roles. 
+-->
+
+1. Step 1
+2. Step 2
+3. Step 3
+
+<!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all team-level access roles?  If not, write the steps used to test each variation.
+-->
+
+### Testing notes
+<!-- Any additional testing notes relevant to this story or tools required for testing. -->
+
+### Confirmation
+<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
+
+1. [ ] Engineer (@____): Added comment to user story confirming succesful completion of QA.
+2. [ ] QA (@____): Added comment to user story confirming succesful completion of QA.

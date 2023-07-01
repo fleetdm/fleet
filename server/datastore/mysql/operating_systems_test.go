@@ -55,7 +55,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	list, err := ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
 	require.Len(t, list, 0)
-	_, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// insert new os record and host operating system record
@@ -65,7 +65,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, true, isSameOS(t, testOS, list[0]))
-	storedOS, err := getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	storedOS, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
 
@@ -77,7 +77,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
-	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testNewVersion, *storedOS))
 
@@ -88,7 +88,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
-	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer, testNewHostID)
+	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
 
@@ -98,7 +98,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
-	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer, testNewHostID)
+	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
 }
@@ -153,7 +153,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	}
 
 	// new os, returns a newly inserted record
-	result1, err := getOrGenerateOperatingSystemDB(ctx, ds.writer, testOS)
+	result1, err := getOrGenerateOperatingSystemDB(ctx, ds.writer(ctx), testOS)
 	require.NoError(t, err)
 	require.True(t, isSameOS(t, testOS, *result1))
 	require.NotContains(t, osByID, result1.ID)
@@ -170,7 +170,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	require.True(t, isSameOS(t, osByID[result1.ID], testOS))
 
 	// no change, returns the existing record
-	result2, err := getOrGenerateOperatingSystemDB(ctx, ds.writer, testOS)
+	result2, err := getOrGenerateOperatingSystemDB(ctx, ds.writer(ctx), testOS)
 	require.NoError(t, err)
 	require.True(t, isSameOS(t, *result1, *result2))
 
@@ -188,7 +188,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	// new version, returns new record
 	testNewVersion := testOS
 	testNewVersion.Version = "22.04 LTS"
-	result3, err := getOrGenerateOperatingSystemDB(ctx, ds.writer, testNewVersion)
+	result3, err := getOrGenerateOperatingSystemDB(ctx, ds.writer(ctx), testNewVersion)
 	require.NoError(t, err)
 	require.True(t, isSameOS(t, testNewVersion, *result3))
 
@@ -217,27 +217,27 @@ func TestMaybeUpdateHostOperatingSystem(t *testing.T) {
 	testHostID := uint(42)
 
 	// no record exists for test host
-	_, err = getIDHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	_, err = getIDHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// insert test host and os id
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[0].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[0].ID)
 	require.NoError(t, err)
-	osID, err := getIDHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	osID, err := getIDHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[0].ID, osID)
 
 	// update test host with new os id
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[1].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
-	osID, err = getIDHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	osID, err = getIDHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1].ID, osID)
 
 	// no change
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[1].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
-	osID, err = getIDHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	osID, err = getIDHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1].ID, osID)
 }
@@ -253,27 +253,27 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	testHostID := uint(42)
 
 	// no record exists for test host
-	_, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// insert test host and os id
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[0].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[0].ID)
 	require.NoError(t, err)
-	os, err := getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[0], *os)
 
 	// update test host with new os id
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[1].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
-	os, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	os, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 
 	// no change
-	err = upsertHostOperatingSystemDB(ctx, ds.writer, testHostID, osList[1].ID)
+	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
-	os, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
+	os, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 }
@@ -305,14 +305,14 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 
 		// insert host operating system record so initially each os is seeded with two hosts
 		hostOS := testOSs[i%len(testOSs)]
-		err = upsertHostOperatingSystemDB(ctx, ds.writer, h.ID, hostOS.ID)
+		err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), h.ID, hostOS.ID)
 		require.NoError(t, err)
 		osByHostID[h.ID] = hostOS
 	}
 
 	assertDeletedHostOS := func(expectDeletedIDs []uint) {
 		for _, h := range testHosts {
-			os, err := getHostOperatingSystemDB(ctx, ds.writer, h.ID)
+			os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), h.ID)
 			if err == sql.ErrNoRows {
 				require.Contains(t, expectDeletedIDs, h.ID)
 				return
@@ -417,7 +417,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 	}
 	storedById := make(map[uint]fleet.OperatingSystem)
 	for _, os := range osSeeds {
-		stored, err := newOperatingSystemDB(context.Background(), ds.writer, os)
+		stored, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), os)
 		require.NoError(t, err)
 		require.True(t, isSameOS(t, os, *stored))
 		storedById[stored.ID] = *stored

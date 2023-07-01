@@ -57,7 +57,6 @@ package-lock.json
 .terraform
 .terraform.tfstate*
 terraform.tfstate*
-*.lock.hcl
 
 # generated orbit installers and artifacts
 fleet-osquery*
@@ -65,6 +64,7 @@ desktop.app.tar.gz
 osqueryd.app.tar.gz
 desktop.tar.gz
 nudge.app.tar.gz
+swiftDialog.app.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv
@@ -88,3 +88,15 @@ macoffice_rel_notes/
 
 # IDE
 .vscode
+
+# residual files when running the build-windows tool
+orbit/cmd/desktop/manifest.xml
+orbit/cmd/desktop/resource.syso
+orbit/cmd/orbit/manifest.xml
+orbit/cmd/orbit/resource.syso
+
+# Residual files from osqueryd loadtests.
+osquery_worker_*.jpg
+
+# Residual files when building fleetd_tables extension.
+fleetd_tables_*

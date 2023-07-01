@@ -51,6 +51,8 @@ const config: StorybookConfig = {
     "@storybook/addon-essentials",
     "@storybook/addon-mdx-gfm",
     "@storybook/addon-a11y",
+    "@storybook/test-runner",
+    "storybook-addon-designs",
   ],
   typescript: {
     check: false,
