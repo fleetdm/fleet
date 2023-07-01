@@ -834,7 +834,7 @@ The steps for doing this are highlighted in this loom, TODO.
 
 ## Legal
 
-Please submit legal questions and requests to BizOps via [the intake method](https://fleetdm.com/handbookfleetdm.com/handbook>/business-operations#intake) outlined further down in the handbook.
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake) outlined further down in the handbook.
 
 ## Taxes and compliance
 
