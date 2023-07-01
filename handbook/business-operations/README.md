@@ -932,6 +932,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-onboarding`                      | Mike McNeil
 | `#help-manage`                          | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
+| `#_security`                            | Zach Wasserman
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
