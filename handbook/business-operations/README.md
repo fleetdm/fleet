@@ -832,12 +832,13 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
 ### Quarterly investor reporting
-- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
 - Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
   - Headcount at end of the previous quarter.
   - Starting ARR for the previous quarter.
   - Total new ARR for the previous quarter.
-  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason. Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.
+  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
+    **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
   - Ending ARR for the previous quarter.
   - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
   - Total amount of Fleet customers at the end of the previous quarter.
