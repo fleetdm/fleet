@@ -602,7 +602,7 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 ### Purchasing a company-issued device
 Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-Apple computers shipping to the United States, Canada, and countries Apple does business with should be ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
 
 When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
