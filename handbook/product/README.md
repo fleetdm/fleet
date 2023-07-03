@@ -16,18 +16,26 @@ The product team is responsible for product design tasks like drafting [changes 
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-* Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
+- Take the top issue that is assigned to you in the "Prioritized" column of the drafting board.
+  
+- Create a file inside the [Fleet product Figma project](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870).
+  -  Duplicate "(TEMPLATE) Starter file". It's inside Fleet product project. To make it easier to find the starter file later, pin it to the sidebar menu.
+  -  Each Figma file corresponds to an issue on GitHub. Rename the file to follow the naming convention: **{issue number} {issue name}** (e.g. #11766 Instructions for Autopilot enrollment).
+  -  Cover page: The template file will have a Cover page with a component to reflect the status of the wireframe: Work in progress and Approved (the main source of truth is still the "Designed" column in the drafting board for Approved wireframes)
+  -  Explorations page: to explore and review wireframes
+  -  Ready for development: Once ready for development move all relevant screens to this page. This way you can still keep your explorations and revisit them at some point in the future if necessary.
+-  Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
 
-* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
-  title to name the Figma page.
+- Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
 
-* Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
-  yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
-  Figma page in Fleet EE (scratchpad, dev-ready).
+- While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
-* While drafting, reach out to sales, customer success, and marketing for a business perspective.
+- While drafting, engage engineering to gain insight into technical costs and feasibility.
 
-* While drafting, engage engineering to gain insight into technical costs and feasibility.
+#### Keep projects/files clean and up-to-date
+
+- Once your designs are reviewed and approved, change the status on the Cover page and move the issue to "Designed" column
+- After each release move released features(wireframes) to  "Fleet product - released" project (every 3 weeks)
 
 ### Scheduling design reviews
 
