@@ -24,5 +24,8 @@ Learn how to add fake data to your development instance.
 ### [API for contributors](./API-for-contributors.md) 
 Get to grips with Fleet API routes. This documentation is helpful for developing or contributing to Fleet.
 
+### [Deploying ChromeOS Test Extension](./Deploying-chrome-test-ext.md) 
+Learn how to force deploy a test Chrome extension to ChromeOS devices for debug purposes.
+
 ### [FAQ](./FAQ.md) 
 Find commonly asked questions and answers about contributing to Fleet as part of our community.
