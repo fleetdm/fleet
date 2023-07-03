@@ -77,7 +77,9 @@ parasails.registerPage('basic-documentation', {
       return pagesBySectionSlug;
     })();
     // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
-    window.addEventListener('scroll', this.handleScrollingInDocumentation);
+    if(!this.isDocsLandingPage){
+      window.addEventListener('scroll', this.handleScrollingInDocumentation);
+    }
   },
 
   mounted: async function() {
@@ -269,7 +271,7 @@ parasails.registerPage('basic-documentation', {
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
       let windowHeight = window.innerHeight;
-
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden', 'scrolled');
@@ -279,12 +281,14 @@ parasails.registerPage('basic-documentation', {
           rightNavBar.classList.remove('header-hidden');
         }
       }
-      if (backToTopButton && scrollTop > 2500) {
-        backToTopButton.classList.add('show');
-      } else if (scrollTop === 0) {
-        backToTopButton.classList.remove('show');
+      // If back to top button exists, add and remove a class based on the current scroll position.
+      if (backToTopButton){
+        if (scrollTop > 2500) {
+          backToTopButton.classList.add('show');
+        } else if (scrollTop === 0) {
+          backToTopButton.classList.remove('show');
+        }
       }
-
       this.scrollDistance = scrollTop;
     },
     clickScrollToTop: function() {

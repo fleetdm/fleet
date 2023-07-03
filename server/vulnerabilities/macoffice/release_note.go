@@ -49,7 +49,7 @@ func (or *ReleaseNote) Valid() bool {
 	return len(or.Version) != 0 && len(or.SecurityUpdates) != 0
 }
 
-// CmpVersion compares the release note version againts 'otherVer' returning:
+// CmpVersion compares the release note version against 'otherVer' returning:
 // -1 if rel. note version < other version
 // 0 if rel. note version == other version
 // 1 if rel. note version > other version

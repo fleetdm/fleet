@@ -975,7 +975,7 @@ func TestMDMAuthenticate(t *testing.T) {
 		return nil
 	}
 
-	ds.ResetMDMAppleNanoEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -994,7 +994,7 @@ func TestMDMAuthenticate(t *testing.T) {
 	require.True(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
-	require.True(t, ds.ResetMDMAppleNanoEnrollmentFuncInvoked)
+	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {
