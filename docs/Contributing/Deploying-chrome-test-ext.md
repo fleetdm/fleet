@@ -15,6 +15,7 @@ Modify the version field at the top of the file (Line 4 when writing this doc)
   "version": "1.0.3",
   ...
 ```
+Bump the version also in ee/fleetd-chrome/updates.xml
 
 ### Build the distribution folder
 
