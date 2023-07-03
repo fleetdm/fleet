@@ -107,10 +107,10 @@ const (
 // MS-MDE2 Message constants
 const (
 	// Minimum supported version
-	MinEnrollmentVersion = "4.0"
+	EnrollmentVersionV4 = "4.0"
 
 	// Maximum supported version
-	MaxEnrollmentVersion = "5.0"
+	EnrollmentVersionV5 = "5.0"
 
 	// xsi:nil indicates value is not present
 	DefaultStateXSI = "true"

@@ -129,8 +129,8 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	}
 
 	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.MinEnrollmentVersion &&
-		req.Body.Discover.Request.RequestVersion != mdm.MaxEnrollmentVersion {
+	if req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV4 &&
+		req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV5 {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
@@ -199,7 +199,7 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 
 	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
 		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
-		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType  not supported")
+		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType not supported")
 	}
 
 	if len(req.Body.RequestSecurityToken.BinarySecurityToken.Content) == 0 {
@@ -207,11 +207,11 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 	}
 
 	if len(req.Body.RequestSecurityToken.AdditionalContext.ContextItems) == 0 {
-		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems")
+		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
 	}
 
 	reqVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemRequestVersion)
-	if err != nil || (reqVersion != mdm.MaxEnrollmentVersion && reqVersion != mdm.MinEnrollmentVersion) {
+	if err != nil || (reqVersion != mdm.EnrollmentVersionV5 && reqVersion != mdm.EnrollmentVersionV4) {
 		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemRequestVersion, reqVersion, err)
 	}
 
@@ -403,11 +403,11 @@ type RequestFilter struct {
 /// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/6ba9c509-8bce-4899-85b2-8c3d41f8f845
 
 type RequestSecurityToken struct {
-	TokenType           string                  `xml:"TokenType"`
-	RequestType         string                  `xml:"RequestType"`
-	BinarySecurityToken BinarySecurityToken     `xml:"BinarySecurityToken"`
-	AdditionalContext   AdditionalContext       `xml:"AdditionalContext"`
-	MapContextItems     *map[string]ContextItem `xml:"-"`
+	TokenType           string                 `xml:"TokenType"`
+	RequestType         string                 `xml:"RequestType"`
+	BinarySecurityToken BinarySecurityToken    `xml:"BinarySecurityToken"`
+	AdditionalContext   AdditionalContext      `xml:"AdditionalContext"`
+	MapContextItems     map[string]ContextItem `xml:"-"`
 }
 
 // BinarySecurityToken contains the base64 encoding representation of the security token
@@ -453,7 +453,7 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
 }
 
 // Get SecurityToken Context Item
-func (msg RequestSecurityToken) GetContextItem(item string) (string, error) {
+func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 	if len(msg.AdditionalContext.ContextItems) == 0 {
 		return "", errors.New("ContextItems is empty")
 	}
@@ -464,10 +464,10 @@ func (msg RequestSecurityToken) GetContextItem(item string) (string, error) {
 		for _, item := range msg.AdditionalContext.ContextItems {
 			contextMap[item.Name] = item
 		}
-		msg.MapContextItems = &contextMap
+		msg.MapContextItems = contextMap
 	}
 
-	itemVal, valueFound := (*msg.MapContextItems)[item]
+	itemVal, valueFound := (msg.MapContextItems)[item]
 	if !valueFound {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}

@@ -554,16 +554,15 @@ the way that the Fleet server works.
 				wstepCertManager microsoft_mdm.CertManager
 			)
 
-			if configpkg.IsMDMFeatureFlagEnabled() && appCfg.MDM.WindowsEnabledAndConfigured {
-				if config.MDM.IsMicrosoftWSTEPSet() {
-					_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
-					if err != nil {
-						initFatal(err, "validate Microsoft WSTEP certificate and key")
-					}
-					wstepCertManager, err = microsoft_mdm.NewCertManager(ds, crtPEM, keyPEM)
-					if err != nil {
-						initFatal(err, "initialize mdm microsoft wstep depot")
-					}
+			// Configuring WSTEP certs if Windows MDM feature flag is enabled
+			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
+				if err != nil {
+					initFatal(err, "validate Microsoft WSTEP certificate and key")
+				}
+				wstepCertManager, err = microsoft_mdm.NewCertManager(ds, crtPEM, keyPEM)
+				if err != nil {
+					initFatal(err, "initialize mdm microsoft wstep depot")
 				}
 			}
 

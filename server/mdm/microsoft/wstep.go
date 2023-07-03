@@ -33,7 +33,7 @@ type CertManager interface {
 	SignClientCSR(ctx context.Context, subject string, clientCSR *x509.CertificateRequest) ([]byte, string, error)
 
 	// IdentityCert returns the identity certificate of the depot.
-	IdentityCert() *x509.Certificate
+	IdentityCert() x509.Certificate
 
 	// TODO: implement other methods as needed:
 	// - verify certificate-device association
@@ -91,8 +91,8 @@ func (m *manager) IdentityFingerprint() string {
 	return m.identityFingerprint
 }
 
-func (m *manager) IdentityCert() *x509.Certificate {
-	return m.identityCert
+func (m *manager) IdentityCert() x509.Certificate {
+	return *m.identityCert
 }
 
 // SignClientCSR returns a signed certificate from the client certificate signing request and the certificate fingerprint
@@ -182,7 +182,7 @@ func GetClientCSR(binSecTokenData string, tokenType string) (*x509.CertificateRe
 	// Decoding the Base64 encoded binary security token to obtain the client CSR bytes
 	rawCSR, err := base64.StdEncoding.DecodeString(binSecTokenData)
 	if err != nil {
-		return nil, fmt.Errorf("decoding the binary security token: %v", err)
+		return nil, fmt.Errorf("decoding the binary security token: %w", err)
 	}
 
 	// Sanity checks on binary signature token

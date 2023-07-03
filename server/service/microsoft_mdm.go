@@ -91,7 +91,7 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 		XMLNS: mdm.DiscoverNS,
 		DiscoverResult: mdm_types.DiscoverResult{
 			AuthPolicy:                 authPolicy,
-			EnrollmentVersion:          mdm.MinEnrollmentVersion,
+			EnrollmentVersion:          mdm.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
 		},
@@ -180,8 +180,8 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 								Xsi: mdm.DefaultStateXSI,
 							},
 							CryptoProviders: []mdm_types.ProviderAttr{
-								{"Microsoft Platform Crypto Provider"},
-								{"Microsoft Software Key Storage Provider"},
+								{Content: "Microsoft Platform Crypto Provider"},
+								{Content: "Microsoft Software Key Storage Provider"},
 							},
 						},
 					},
