@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -578,4 +579,20 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault
+}
+
+func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error) {
+	// TODO: check if this method should require explicit authorization
+	svc.authz.SkipAuthorization(ctx)
+
+	cert, fpHex, err := svc.wstepCertManager.SignClientCSR(ctx, subject, csr)
+	if err != nil {
+		return nil, "signing wstep client csr", ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: if desired, the signature of this method can be modified to accept a device UUID so
+	// that we can associate the certificate with the host here by calling
+	// svc.wstepCertManager.AssociateCertHash
+
+	return cert, fpHex, nil
 }

@@ -133,6 +133,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 ## Compensation changes
 Fleet's founders [evaluate and update compensation decisions yearly](#workiversaries), shortly after the anniversary of a team member's start date.
 
+Compensation at Fleet is determined by benchmarking (we use [Pave](https://pave.com)) with role, experience, location, and performance. Annual raises are not guaranteed, particularly when compensation is already strong relative to benchmarks.
 
 ## CEO handbook
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
@@ -485,7 +486,7 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZ
 #### Hiring restrictions
 
 ##### Incompatible former employers
-Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
 ##### Incompatible locations
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
@@ -600,7 +601,9 @@ Now what happens?  Business Operations will then follow the steps in the "Hiring
 ### Purchasing a company-issued device
 Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-Apple computers shipping to the United States, Canada, and countries Apple does business with should be ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store, or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie, if needed.
+Apple computers shipping to the United States, Canada, and countries Apple does business with are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
+
+When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
 
 > The Apple Store business team will need Fleet's customer number (located in 1Password) to place an order. This will ensure the computer is automatically added to Fleet's Apple Business Manager, and will automatically configure using Automated Device Enrollment (ADE) (aka DEP).
 
@@ -833,6 +836,28 @@ The steps for doing this are highlighted in this loom, TODO.
 - Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 
+### Quarterly investor reporting
+- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+- Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+  - Headcount at end of the previous quarter.
+  - Starting ARR for the previous quarter.
+  - Total new ARR for the previous quarter.
+  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
+    **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
+  - Ending ARR for the previous quarter.
+  - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
+  - Total amount of Fleet customers at the end of the previous quarter.
+  - Gross margin % 
+    - How to calculate: total revenue for the quarter - cost of goods sold for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+  - Net dollar retention rate
+    - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
+  - Cash burn
+    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+
+
+## Legal
+
+Please submit legal questions and requests to [Business Operations department](https://fleetdm.com/handbook>/business-operations#intake).
 
 ## Taxes and compliance
 
@@ -876,7 +901,9 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
+| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+
 
 
 
@@ -908,6 +935,7 @@ Note: These are out of date, but retained for future reference:
 | Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
 | Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+
 -->
 
 
@@ -931,6 +959,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-onboarding`                      | Mike McNeil
 | `#help-manage`                          | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
+| `#_security`                            | Zach Wasserman
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
