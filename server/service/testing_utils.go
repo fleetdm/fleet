@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -133,6 +134,17 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPushCertTopic = opts[0].APNSTopic
 	}
 
+	var wstepManager microsoft_mdm.CertManager
+	if fleetConfig.MDM.MicrosoftWSTEPIdentityCert != "" && fleetConfig.MDM.MicrosoftWSTEPIdentityKey != "" {
+		rawCert, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityCert)
+		require.NoError(t, err)
+		rawKey, err := os.ReadFile(fleetConfig.MDM.MicrosoftWSTEPIdentityKey)
+		require.NoError(t, err)
+
+		wstepManager, err = microsoft_mdm.NewCertManager(ds, rawCert, rawKey)
+		require.NoError(t, err)
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -155,6 +167,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		mdmPushCertTopic,
 		cronSchedulesService,
+		wstepManager,
 	)
 	if err != nil {
 		panic(err)

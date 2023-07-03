@@ -1,0 +1,1 @@
+* Fixed a bug where an empty file uploaded to `POST /api/latest/fleet/mdm/apple/setup/eula` resulted in a 500, now returns a 400 Bad Request.
