@@ -1,0 +1,1 @@
+- Return the proper HTTP status code if SMTP is invalid.

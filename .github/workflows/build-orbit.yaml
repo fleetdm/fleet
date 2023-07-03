@@ -41,7 +41,7 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@v2.1.3
+        uses: actions/setup-go@v4.0.1
         with:
           go-version: 1.19.10
 

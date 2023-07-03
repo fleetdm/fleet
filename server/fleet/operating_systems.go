@@ -1,5 +1,7 @@
 package fleet
 
+import "strings"
+
 // OperatingSystem is an operating system uniquely identified according to its name and version.
 type OperatingSystem struct {
 	ID uint `json:"id" db:"id"`
@@ -13,4 +15,9 @@ type OperatingSystem struct {
 	KernelVersion string `json:"kernel_version,omitempty" db:"kernel_version"`
 	// Platform is the platform of the operating system, e.g., "darwin" or "rhel"
 	Platform string `json:"platform" db:"platform"`
+}
+
+// IsWindows returns whether the OperatingSystem record references a Windows OS
+func (os OperatingSystem) IsWindows() bool {
+	return strings.ToLower(os.Platform) == "windows"
 }

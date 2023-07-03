@@ -4,7 +4,9 @@ package mock
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"math/big"
 	"sync"
 	"time"
 
@@ -486,7 +488,7 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
-type SetVerifiedHostMacOSProfilesFunc func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error
+type UpdateVerificationHostMacOSProfilesFunc func(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -572,7 +574,7 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
-type ResetMDMAppleNanoEnrollmentFunc func(ctx context.Context, hostUUID string) error
+type ResetMDMAppleEnrollmentFunc func(ctx context.Context, hostUUID string) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
@@ -645,6 +647,12 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]struct{}, error)
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
+
+type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
+
+type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
+
+type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, hash string) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1352,8 +1360,8 @@ type DataStore struct {
 	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
 	SetDiskEncryptionResetStatusFuncInvoked bool
 
-	SetVerifiedHostMacOSProfilesFunc        SetVerifiedHostMacOSProfilesFunc
-	SetVerifiedHostMacOSProfilesFuncInvoked bool
+	UpdateVerificationHostMacOSProfilesFunc        UpdateVerificationHostMacOSProfilesFunc
+	UpdateVerificationHostMacOSProfilesFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -1481,8 +1489,8 @@ type DataStore struct {
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 
-	ResetMDMAppleNanoEnrollmentFunc        ResetMDMAppleNanoEnrollmentFunc
-	ResetMDMAppleNanoEnrollmentFuncInvoked bool
+	ResetMDMAppleEnrollmentFunc        ResetMDMAppleEnrollmentFunc
+	ResetMDMAppleEnrollmentFuncInvoked bool
 
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
@@ -1591,6 +1599,15 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
+	WSTEPStoreCertificateFuncInvoked bool
+
+	WSTEPNewSerialFunc        WSTEPNewSerialFunc
+	WSTEPNewSerialFuncInvoked bool
+
+	WSTEPAssociateCertHashFunc        WSTEPAssociateCertHashFunc
+	WSTEPAssociateCertHashFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3240,11 +3257,11 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
 }
 
-func (s *DataStore) SetVerifiedHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
+func (s *DataStore) UpdateVerificationHostMacOSProfiles(ctx context.Context, host *fleet.Host, installedProfiles []*fleet.HostMacOSProfile) error {
 	s.mu.Lock()
-	s.SetVerifiedHostMacOSProfilesFuncInvoked = true
+	s.UpdateVerificationHostMacOSProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetVerifiedHostMacOSProfilesFunc(ctx, host, installedProfiles)
+	return s.UpdateVerificationHostMacOSProfilesFunc(ctx, host, installedProfiles)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
@@ -3541,11 +3558,11 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }
 
-func (s *DataStore) ResetMDMAppleNanoEnrollment(ctx context.Context, hostUUID string) error {
+func (s *DataStore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
 	s.mu.Lock()
-	s.ResetMDMAppleNanoEnrollmentFuncInvoked = true
+	s.ResetMDMAppleEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetMDMAppleNanoEnrollmentFunc(ctx, hostUUID)
+	return s.ResetMDMAppleEnrollmentFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
@@ -3798,4 +3815,25 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+}
+
+func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
+	s.mu.Lock()
+	s.WSTEPStoreCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPStoreCertificateFunc(ctx, name, crt)
+}
+
+func (s *DataStore) WSTEPNewSerial(ctx context.Context) (*big.Int, error) {
+	s.mu.Lock()
+	s.WSTEPNewSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPNewSerialFunc(ctx)
+}
+
+func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error {
+	s.mu.Lock()
+	s.WSTEPAssociateCertHashFuncInvoked = true
+	s.mu.Unlock()
+	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }

@@ -829,6 +829,7 @@ None.
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
     "enabled_and_configured": true,
+    "windows_enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1026,6 +1027,7 @@ Modifies the Fleet's configuration with the supplied information.
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
+| windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
@@ -1113,6 +1115,7 @@ Modifies the Fleet's configuration with the supplied information.
     "apple_bm_terms_expired": false,
     "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
+    "windows_enabled_and_configured": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1846,6 +1849,8 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "detail_updated_at": "2020-11-05T05:09:45Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
+      "policy_updated_at": "2023-06-26T18:33:15Z",
+      "last_enrolled_at": "2023-02-26T22:33:12Z",
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "2ceca32fe484",
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
@@ -2151,6 +2156,7 @@ Returns the information of the specified host.
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
+    "policy_updated_at": "2023-06-26T18:33:15Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
@@ -3469,6 +3475,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
       "id": 2,
       "detail_updated_at": "2021-02-03T21:58:10Z",
       "label_updated_at": "2021-02-03T21:58:10Z",
+      "policy_updated_at": "2023-06-26T18:33:15Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "seen_time": "2021-02-03T21:58:20Z",
@@ -6125,6 +6132,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 3,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
+	      "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
@@ -6164,6 +6172,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 4,
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
+        "policy_updated_at": "2023-06-26T18:33:15Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
         "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",

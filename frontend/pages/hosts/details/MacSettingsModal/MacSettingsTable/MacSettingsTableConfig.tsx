@@ -80,6 +80,7 @@ const tableHeaders: IDataColumn[] = [
       const profile = cellProps.row.original;
       return (
         <TruncatedTextCell
+          tooltipBreakOnWord
           value={
             (profile.status === "failed" && profile.detail) ||
             DEFAULT_EMPTY_CELL_VALUE

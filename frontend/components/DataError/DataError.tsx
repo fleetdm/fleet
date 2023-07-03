@@ -7,7 +7,7 @@ import Icon from "components/Icon";
 const baseClass = "data-error";
 
 interface IDataErrorProps {
-  children?: JSX.Element | string;
+  children?: React.ReactNode;
   card?: boolean;
   className?: string;
 }
