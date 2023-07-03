@@ -3,10 +3,8 @@ package apple_mdm
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"strings"
 	"text/template"
@@ -300,8 +298,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	var appleBMTeam *fleet.Team
 	if appCfg.MDM.AppleBMDefaultTeam != "" {
 		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-		// NOTE: TeamByName does NOT return a not found error if it does not exist
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		if err != nil && fleet.IsNotFound(err) {
 			return err
 		}
 		appleBMTeam = tm
