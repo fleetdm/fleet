@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230629140528, Down_20230629140528)
+	MigrationClient.AddMigration(Up_20230629140530, Down_20230629140530)
 }
 
-func Up_20230629140528(tx *sql.Tx) error {
+func Up_20230629140530(tx *sql.Tx) error {
 	_, err := tx.Exec(`
           CREATE TABLE mdm_windows_enrollments (
             id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -35,7 +35,7 @@ func Up_20230629140528(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230629140528(tx *sql.Tx) error {
+func Down_20230629140530(tx *sql.Tx) error {
 	_, err := tx.Exec("DROP TABLE IF EXISTS `mdm_windows_enrollments`;")
 	return err
 }
