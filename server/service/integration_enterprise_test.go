@@ -3697,11 +3697,11 @@ func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() 
 	require.NoError(t, err)
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: nil}, time.Now(), false))
 
-	// Any 'invalid' policies should be counted as failed.
+	// Any 'invalid' policies should be ignored.
 	desktopRes := fleetDesktopResponse{}
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&desktopRes))
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, desktopRes.Err)
-	require.Equal(t, *desktopRes.FailingPolicies, uint(1))
+	require.Equal(t, uint(0), *desktopRes.FailingPolicies)
 }

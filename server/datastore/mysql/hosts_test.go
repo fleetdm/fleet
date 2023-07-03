@@ -6101,7 +6101,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 					policies[4].ID: nil,
 					policies[5].ID: nil,
 				},
-				expected: 3,
+				expected: 1,
 			},
 			{
 				host: hosts[1],

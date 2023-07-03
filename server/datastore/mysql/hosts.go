@@ -2227,9 +2227,9 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 	}
 
 	query := `
-		SELECT SUM(1 - COALESCE(pm.passes, 0)) AS n_failed
+		SELECT SUM(1 - pm.passes) AS n_failed
 		FROM policy_membership pm
-		WHERE pm.host_id = ?
+		WHERE pm.host_id = ? AND pm.passes IS NOT null
 		GROUP BY host_id
 	`
 
