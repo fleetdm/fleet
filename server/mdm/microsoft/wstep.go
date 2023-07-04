@@ -208,7 +208,7 @@ func GetClientCSR(binSecTokenData string, tokenType string) (*x509.CertificateRe
 	}
 
 	// Decode and verify CSR
-	certCSR, err := x509.ParseCertificateRequest(rawCSR)
+	certCSR, err := ParseCertificateRequestFromWindowsDevice(rawCSR)
 	if err != nil {
 		return nil, fmt.Errorf("parsing CSR data: %v", err)
 	}

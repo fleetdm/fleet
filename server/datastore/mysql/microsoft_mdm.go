@@ -29,7 +29,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, MDMDeviceI
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, MDMDeviceID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, &notFoundError{}
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsEnrolledDevice")
 	}
@@ -84,9 +84,9 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, MDMDevi
 	}
 
 	deleted, _ := res.RowsAffected()
-	if deleted != 1 {
-		return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+	if deleted == 1 {
+		return nil
 	}
 
-	return nil
+	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }

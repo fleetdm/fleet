@@ -5224,7 +5224,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.isXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "invalid SOAP header: Header.MessageID", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequest() {
@@ -5308,7 +5308,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.isXMLTagContains("s:text", "binarySecurityTokenValidation: host data cannot be found", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "binarySecurityTokenValidation: host data cannot be found", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
@@ -5349,7 +5349,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.isXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "host is not elegible for Windows MDM enrollment", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
@@ -5365,6 +5365,9 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
 		Platform:      "windows",
 	})
 	require.NoError(t, err)
+
+	// Delete the host from the list of MDM enrolled devices if present
+	s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
 	// Preparing the GetPolicies Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
@@ -5521,7 +5524,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.isXMLTagPresent("s:fault", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
-	require.True(t, s.isXMLTagContains("s:text", "AdditionalContext.ContextItems missing", resSoapMsg))
+	require.True(t, s.checkIfXMLTagContains("s:text", "AdditionalContext.ContextItems missing", resSoapMsg))
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -5555,7 +5558,7 @@ func (s *integrationMDMTestSuite) isXMLTagContentPresent(xmlTag string, payload 
 	return matched
 }
 
-func (s *integrationMDMTestSuite) isXMLTagContains(xmlTag string, xmlContent string, payload string) bool {
+func (s *integrationMDMTestSuite) checkIfXMLTagContains(xmlTag string, xmlContent string, payload string) bool {
 	regex := fmt.Sprintf("<%s.*>.*%s.*</%s.*>", xmlTag, xmlContent, xmlTag)
 
 	matched, err := regexp.MatchString(regex, payload)

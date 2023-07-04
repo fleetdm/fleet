@@ -842,6 +842,9 @@ func (svc *Service) isWindowsDeviceAlreadyMDMEnrolled(ctx context.Context, secTo
 
 	// Checking the storage to see if the device is already enrolled
 	if _, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqDeviceID); err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 
