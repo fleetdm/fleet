@@ -77,4 +77,9 @@ export default {
       throw error;
     }
   },
+  specByName: (labelName: string) => {
+    const { LABEL_SPEC_BY_NAME } = endpoints;
+    const path = LABEL_SPEC_BY_NAME(labelName);
+    return sendRequest("GET", path);
+  },
 };

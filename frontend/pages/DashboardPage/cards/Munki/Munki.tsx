@@ -74,7 +74,6 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
                   emptyComponent={() => (
                     <EmptyTable
@@ -87,7 +86,6 @@ const Munki = ({
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />
@@ -103,7 +101,6 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"Munki"}
                   emptyComponent={() => (
                     <EmptyTable
@@ -125,7 +122,6 @@ const Munki = ({
                   isAllPagesSelected={false}
                   isClientSidePagination
                   disableCount
-                  disableActionButton
                   disablePagination
                   pageSize={PAGE_SIZE}
                 />

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,10 +83,11 @@ func NewOrbitClient(
 	rootCA string,
 	insecureSkipVerify bool,
 	enrollSecret string,
+	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", orbitCapabilities)
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,27 @@ package packaging
 
 import "text/template"
 
+// Adapted from
+// https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
+var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
+	`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+    type="win32"
+    name="Fleet osquery"
+    version="{{.Version}}"
+    processorArchitecture="*"/>
+ <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+   <security>
+     <requestedPrivileges>
+       <requestedExecutionLevel
+         level="asInvoker"
+         uiAccess="false"/>
+       </requestedPrivileges>
+   </security>
+ </trustInfo>
+</assembly>`))
+
 // Partially adapted from Launcher's wix XML in
 // https://github.com/kolide/launcher/blob/master/pkg/packagekit/internal/assets/main.wxs.
 var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
@@ -75,7 +96,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Start="auto"
                   Type="ownProcess"
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"{{ if .FleetURL }} --fleet-url "{{ .FleetURL }}"{{ end }}{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"{{ if .FleetURL }} --fleet-url "{{ .FleetURL }}"{{ end }}{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"

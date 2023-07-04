@@ -94,7 +94,6 @@ const Software = ({
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"software"}
                   emptyComponent={() => (
                     <EmptySoftwareTable
@@ -105,7 +104,6 @@ const Software = ({
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                   disableMultiRowSelect
@@ -123,7 +121,6 @@ const Software = ({
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  hideActionButton
                   resultsTitle={"software"}
                   emptyComponent={() => (
                     <EmptySoftwareTable
@@ -135,7 +132,6 @@ const Software = ({
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
-                  disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                   disableMultiRowSelect

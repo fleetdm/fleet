@@ -1,0 +1,87 @@
+#!/usr/bin/python3
+
+import argparse, os, re
+
+def validate_name(name: str):
+  return len(name) > 1 and name != name.lower() and name != name.upper() and name[0].isupper()
+
+def get_component_classname(name):
+  split_by_caps = re.findall('[A-Z][^A-Z]*', name)
+  return '-'.join([word.lower() for word in split_by_caps])
+
+def createFleetTSXComponent(name: str, output_path: str, overwrite: bool):
+  target = os.path.join(output_path, name)
+
+  # handle existing directory of the same name
+  try:
+    os.mkdir(target)
+  except FileExistsError:
+    if overwrite:
+      print("A directory with that name already exists, overwriting it.")
+      os.system(f"rm -r {target}")
+      os.mkdir(target)
+    else:
+      print("A directory with that name already exists, aborting.\nTo recursively overwrite existing directories of the same name, pass the '-o' flag.")
+      return 1
+
+  print (f"Creating component \"{name}\" in {os.path.abspath(output_path)}")
+
+  base_class_name = get_component_classname(name)
+  react_import_ts = "import React from \"react\";"
+  component_import_ts = f"import {name} from \"./{name}\";"
+
+  # write index file
+  os.system(
+    f"echo 'export {{ default }} from \"./{name}\";' > {target}/index.ts"
+  )
+
+  # write the component
+  base_class_ts = f"const baseClass = \"{base_class_name}\";"
+  interface_name_ts = f"I{name}"
+  interface_definition_ts = f"interface {interface_name_ts} {{\n\n}}"
+  component_ts = f"const {name} = ({{}}: {interface_name_ts}) => {{\n  return (\n    <div className={{`${{baseClass}}`}}>\n\n    </div>\n  );\n}};"
+  export_ts = f"export default {name};"
+  component_ts = f"{react_import_ts}\n\n{base_class_ts}\n\n{interface_definition_ts}\n\n{component_ts}\n\n{export_ts}"
+  os.system(
+    f"echo '{component_ts}' > {target}/{name}.tsx"
+  )
+
+  # write stylesheet
+  os.system(
+    f"echo '.{base_class_name} {{\n\n}}' > {target}/_styles.scss"
+  )
+
+  # write_tests(target, name)
+  library_imports = "import { render, screen } from \"@testing-library/react\";"
+  describe_ts = f"describe(\"{name} component\", () => {{\n  it(\"\", () => {{\n\n  }});\n}});"
+  tests_ts = f"{react_import_ts}\n\n{library_imports}\n\n{component_import_ts}\n\n{describe_ts}"
+  os.system(f"echo '{tests_ts}' > {target}/{name}.tests.tsx")
+
+  # write storybook
+  storybook_imports_ts = f"import {{ Meta, StoryObj }} from \"@storybook/react\";\n\n{component_import_ts}"
+  storybook_meta_ts = f"const meta: Meta<typeof {name}> = {{\n  title: \"Components/{name}\",\n  component: {name},\n}};"
+  default_export_ts = "export default meta;"
+  type_ts = f"type Story = StoryObj<typeof {name}>;"
+  storybook_export_ts = "export const Basic: Story = {};"
+  storybook_ts = f"{storybook_imports_ts}\n\n{storybook_meta_ts}\n\n{default_export_ts}\n\n{type_ts}\n\n{storybook_export_ts}"
+  os.system(f"echo '{storybook_ts}' > {target}/{name}.stories.tsx")
+
+  return 0
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate all boilerplate for a new Fleet UI component")
+    parser.add_argument("-n", "--name", type=str, required=True,
+                        help="The PascalCase name for the new component")
+    parser.add_argument("-p", "--output_path", type=str, required=False, help="Absolute or relative path at which to create the component's containing directory. Defaults to the current directory.")
+    parser.add_argument("-o", "--overwrite_directory", required=False, action="store_true", help="Flag to overwrite an existing component directory with the same name if it already exists. Defaults to False.")
+    args = parser.parse_args()
+
+    name, output_path, overwrite = args.name, args.output_path if args.output_path else ".", args.overwrite_directory
+
+    if validate_name(name):
+      createFleetTSXComponent(name, output_path, overwrite)
+    else:
+      print("Enter a PascalCase name")
+
+

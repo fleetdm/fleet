@@ -50,6 +50,18 @@ spec:
             memory: {{ .Values.resources.requests.memory }}
         env:
           ## BEGIN FLEET SECTION
+          - name: ELASTIC_APM_SERVER_URL
+            value: "{{ .Values.apm.url }}"
+          - name: ELASTIC_APM_SECRET_TOKEN
+            value: "{{ .Values.apm.token }}"
+          - name: ELASTIC_APM_SERVICE_NAME
+            value: "sandbox"
+          - name: ELASTIC_APM_ENVIRONMENT
+            value: "{{ .Values.fleetName }}"
+          - name: FLEET_LOGGING_TRACING_TYPE
+            value: elasticapm
+          - name: FLEET_LOGGING_TRACING_ENABLED
+            value: "true"
           - name: FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED
             value: "true"
           - name: FLEET_SESSION_DURATION
@@ -58,6 +70,8 @@ spec:
             value: "1"
           - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
             value: "true"
+          - name: FLEET_LICENSE_KEY
+            value: "{{ .Values.fleet.licenseKey }}"
           - name: FLEET_VULNERABILITIES_DATABASES_PATH
             value: /tmp/vuln
           {{- if ne .Values.packaging.enrollSecret "" }}

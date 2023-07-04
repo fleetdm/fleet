@@ -27,7 +27,6 @@
 
   &__select-installer {
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 8px;
@@ -38,11 +37,9 @@
     cursor: pointer;
     font-size: $small;
     display: flex;
-    flex-direction: row;
     justify-content: center;
-    align-items: center;
+    flex-grow: 1;
     padding: 16px;
-    gap: 16px;
     width: 247px;
 
     border: 1px solid #c5c7d1;
@@ -50,7 +47,6 @@
 
     span {
       display: flex;
-      flex-direction: row;
       justify-content: center;
       align-items: center;
 

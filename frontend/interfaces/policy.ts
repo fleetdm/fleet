@@ -61,9 +61,11 @@ export interface IPolicyWebhookPreviewPayload {
   critical?: boolean;
 }
 
+export type PolicyStatusResponse = "pass" | "fail" | "";
+
 // Used on the host details page and other places where the status of individual hosts are displayed
 export interface IHostPolicy extends IPolicy {
-  response: string;
+  response: PolicyStatusResponse;
 }
 
 export interface ILoadAllPoliciesResponse {

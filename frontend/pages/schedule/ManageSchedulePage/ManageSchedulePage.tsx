@@ -123,7 +123,12 @@ const ManageSchedulePage = ({
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
-  const { isOnGlobalTeam, isPremiumTier, isFreeTier } = useContext(AppContext);
+  const {
+    isOnGlobalTeam,
+    isPremiumTier,
+    isFreeTier,
+    isSandboxMode,
+  } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -409,6 +414,7 @@ const ManageSchedulePage = ({
                       selectedTeamId={currentTeamId}
                       currentUserTeams={userTeams || []}
                       onChange={handleTeamChange}
+                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&

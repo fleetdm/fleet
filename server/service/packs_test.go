@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -297,6 +298,124 @@ func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
 				return
 			}
 			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestUserIsGitOpsOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		user       *fleet.User
+		expectedFn func(value bool, err error) bool
+	}{
+		{
+			name: "missing user in context",
+			user: nil,
+			expectedFn: func(value bool, err error) bool {
+				return err != nil && !value
+			},
+		},
+		{
+			name: "no roles",
+			user: &fleet.User{},
+			expectedFn: func(value bool, err error) bool {
+				return err != nil && !value
+			},
+		},
+		{
+			name: "global gitops",
+			user: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleGitOps),
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "global non-gitops",
+			user: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleObserver),
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+		{
+			name: "team gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "multiple team gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleGitOps,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "multiple teams, not all gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+		{
+			name: "multiple teams, none gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleMaintainer,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := userIsGitOpsOnly(viewer.NewContext(context.Background(), viewer.Viewer{User: tc.user}))
+			require.True(t, tc.expectedFn(actual, err))
 		})
 	}
 }

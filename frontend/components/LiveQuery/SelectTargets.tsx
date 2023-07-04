@@ -82,7 +82,10 @@ const parseLabels = (list?: ILabelSummary[]) => {
   const platforms =
     list?.filter(
       (l) =>
-        l.name === "macOS" || l.name === "MS Windows" || l.name === "All Linux"
+        l.name === "macOS" ||
+        l.name === "MS Windows" ||
+        l.name === "All Linux" ||
+        l.name === "chrome"
     ) || [];
   const other = list?.filter((l) => l.label_type === "regular") || [];
 
@@ -100,6 +103,8 @@ const TargetPillSelector = ({
         return "All hosts";
       case "All Linux":
         return "Linux";
+      case "chrome":
+        return "ChromeOS";
       default:
         return entity.name || "Missing display name"; // TODO
     }

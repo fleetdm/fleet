@@ -9,6 +9,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 interface IHeaderProps {
   column: {
@@ -61,7 +62,10 @@ const formatSeverity = (float: number | null) => {
   return `${severity} (${float.toFixed(1)})`;
 };
 
-const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
+const generateVulnTableHeaders = (
+  isPremiumTier: boolean,
+  isSandboxMode: boolean
+): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Vunerability",
@@ -97,10 +101,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
@@ -123,10 +130,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
@@ -150,10 +160,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
@@ -174,10 +187,13 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           </TooltipWrapper>
         );
         return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
+          <>
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+          </>
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => {

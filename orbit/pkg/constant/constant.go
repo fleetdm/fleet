@@ -35,4 +35,16 @@ const (
 	// SystemServiceName is the name of Orbit system service
 	// The service name is used by the OS service management framework
 	SystemServiceName = "Fleet osquery"
+	// FleetTLSClientCertificateFileName is the name of the TLS client certificate file
+	// used when connecting to the Fleet server.
+	FleetTLSClientCertificateFileName = "fleet_client.crt"
+	// FleetTLSClientKeyFileName is the name of the TLS client private key file
+	// used when connecting to the Fleet server.
+	FleetTLSClientKeyFileName = "fleet_client.key"
+	// UpdateTLSClientCertificateFileName is the name of the TLS client certificate file
+	// used when connecting to the update server.
+	UpdateTLSClientCertificateFileName = "update_client.crt"
+	// UpdateTLSClientKeyFileName is the name of the TLS client private key file
+	// used when connecting to the update server.
+	UpdateTLSClientKeyFileName = "update_client.key"
 )

@@ -19,6 +19,13 @@ var (
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
 
+// ErrWithStatusCode is an interface for errors that should set a specific HTTP
+// status code.
+type ErrWithStatusCode interface {
+	error
+	StatusCode() int
+}
+
 // ErrWithInternal is an interface for errors that include extra "internal"
 // information that should be logged in server logs but not sent to clients.
 type ErrWithInternal interface {
@@ -302,6 +309,38 @@ func (e *MDMNotConfiguredError) StatusCode() int {
 
 func (e *MDMNotConfiguredError) Error() string {
 	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
+}
+
+// BadGatewayError is an error type that generates a 502 status code.
+type BadGatewayError struct {
+	Message string
+	err     error
+
+	ErrorWithUUID
+}
+
+// NewBadGatewayError returns a MDMBadGatewayError with the message and
+// error specified.
+func NewBadGatewayError(message string, err error) *BadGatewayError {
+	return &BadGatewayError{
+		Message: message,
+		err:     err,
+	}
+}
+
+// StatusCode implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *BadGatewayError) StatusCode() int {
+	return http.StatusBadGateway
+}
+
+// Error returns the error message.
+func (e *BadGatewayError) Error() string {
+	msg := e.Message
+	if e.err != nil {
+		msg += ": " + e.err.Error()
+	}
+	return msg
 }
 
 // Error is a user facing error (API user). It's meant to be used for errors that are

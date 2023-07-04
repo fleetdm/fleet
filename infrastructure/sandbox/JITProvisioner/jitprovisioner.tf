@@ -204,9 +204,23 @@ resource "random_uuid" "jitprovisioner" {
   }
 }
 
-resource "local_file" "standard-query-library" {
-  content  = file("${path.module}/../../../docs/01-Using-Fleet/standard-query-library/standard-query-library.yml")
-  filename = "${path.module}/lambda/standard-query-library.yml"
+# Use the local to make the trigger work.
+locals {
+  fleet_tag = "v4.33.1"
+}
+
+resource "null_resource" "standard-query-library" {
+  triggers = {
+    # Trick this to run if the file doesn't exist or if tag changes.
+    # In the case it doesn't exist, this will say it needs to apply twice,
+    # so not truly idempotent, but as close as null_resource allows.
+    file_exists = fileexists("${path.module}/lambda/standard-query-library.yml") ? local.fleet_tag : timestamp()
+  }
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/../../../"
+    command     = "git archive fleet-${local.fleet_tag} docs/01-Using-Fleet/standard-query-library/standard-query-library.yml | tar -xO docs/01-Using-Fleet/standard-query-library/standard-query-library.yml > infrastructure/sandbox/JITProvisioner/lambda/standard-query-library.yml"
+  }
 }
 
 data "archive_file" "jitprovisioner" {
@@ -214,7 +228,7 @@ data "archive_file" "jitprovisioner" {
   output_path = "${path.module}/.jitprovisioner.zip"
   source_dir  = "${path.module}/lambda"
   depends_on = [
-    local_file.standard-query-library
+    null_resource.standard-query-library
   ]
 }
 
@@ -228,7 +242,7 @@ resource "docker_registry_image" "jitprovisioner" {
     platform    = "linux/amd64"
   }
   depends_on = [
-    local_file.standard-query-library
+    null_resource.standard-query-library
   ]
 }
 

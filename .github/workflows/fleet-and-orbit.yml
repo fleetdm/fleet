@@ -46,24 +46,24 @@ jobs:
     - id: gen
       run: |
         UUID=$(uuidgen)
-        echo "::set-output name=subdomain::fleet-test-$UUID"
-        echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
-        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+        echo "domain=fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
         ENROLL=$(uuidgen)
-        echo "::set-output name=enroll_secret::$ENROLL"
+        echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
 
   run-server:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -145,13 +145,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -185,12 +185,12 @@ jobs:
   build-macos-targets:
     strategy:
       matrix:
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
     runs-on: macos-latest
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -227,13 +227,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.8']
+        go-version: ['^1.19.10']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      uses: actions/setup-go@v4.0.1
       with:
         go-version: ${{ matrix.go-version }}
 

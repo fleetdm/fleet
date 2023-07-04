@@ -26,27 +26,27 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__profile-data`}>
+      <div className={`${baseClass}__list-item-data`}>
         <Icon name="profile" />
-        <div className={`${baseClass}__profile-info`}>
-          <span className={`${baseClass}__profile-name`}>{profile.name}</span>
-          <span className={`${baseClass}__profile-uploaded`}>
+        <div className={`${baseClass}__list-item-info`}>
+          <span className={`${baseClass}__list-item-name`}>{profile.name}</span>
+          <span className={`${baseClass}__list-item-uploaded`}>
             {`Uploaded ${formatDistanceToNow(
               new Date(profile.created_at)
             )} ago`}
           </span>
         </div>
       </div>
-      <div className={`${baseClass}__profile-actions`}>
+      <div className={`${baseClass}__list-item-actions`}>
         <Button
-          className={`${baseClass}__download-button`}
+          className={`${baseClass}__list-item-button`}
           variant="text-icon"
           onClick={onClickDownload}
         >
           <Icon name="download" />
         </Button>
         <Button
-          className={`${baseClass}__delete-button`}
+          className={`${baseClass}__list-item-button`}
           variant="text-icon"
           onClick={() => onDelete(profile)}
         >

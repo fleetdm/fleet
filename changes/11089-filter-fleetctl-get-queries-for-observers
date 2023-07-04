@@ -1,1 +1,0 @@
-* Filter out non-`observer_can_run` queries for observers in `fleetctl get queries` (to match the UI behavior).

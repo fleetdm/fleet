@@ -1,7 +1,6 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { AppContext } from "context/app";
-import { noop } from "lodash";
-import paths from "router/paths";
+import PATHS from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
@@ -22,15 +21,26 @@ const TAGGED_TEMPLATES = {
   },
 };
 
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "updated_at";
+
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
-  tableType?: string;
+  tableType?: "inheritedPolicies";
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
+  isPremiumTier?: boolean;
+  isSandboxMode?: boolean;
+  onClientSidePaginationChange?: (pageIndex: number) => void;
+  onQueryChange: (newTableQuery: ITableQueryData) => void;
+  searchQuery: string;
+  sortHeader?: "name" | "failing_host_count";
+  sortDirection?: "asc" | "desc";
+  page: number;
 }
 
 const PoliciesTable = ({
@@ -42,15 +52,23 @@ const PoliciesTable = ({
   tableType,
   currentTeam,
   currentAutomatedPolicies,
+  isPremiumTier,
+  isSandboxMode,
+  onQueryChange,
+  onClientSidePaginationChange,
+  searchQuery,
+  sortHeader,
+  sortDirection,
+  page,
 }: IPoliciesTableProps): JSX.Element => {
-  const { MANAGE_HOSTS } = paths;
-
   const { config } = useContext(AppContext);
 
-  const [searchString, setSearchString] = useState("");
-
-  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
-    setSearchString(searchQuery);
+  // Inherited table uses the same onQueryChange but require different URL params
+  const onTableQueryChange = (newTableQuery: ITableQueryData) => {
+    onQueryChange({
+      ...newTableQuery,
+      editingInheritedTable: tableType === "inheritedPolicies",
+    });
   };
 
   const emptyState = () => {
@@ -59,7 +77,7 @@ const PoliciesTable = ({
       header: (
         <>
           Ask yes or no questions about{" "}
-          <a href={MANAGE_HOSTS}>all your hosts</a>
+          <a href={PATHS.MANAGE_HOSTS}>all your hosts</a>
         </>
       ),
       info: (
@@ -78,7 +96,8 @@ const PoliciesTable = ({
           Ask yes or no questions about hosts assigned to{" "}
           <a
             href={
-              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
+              PATHS.MANAGE_HOSTS +
+              TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
             }
           >
             {currentTeam.name}
@@ -97,7 +116,7 @@ const PoliciesTable = ({
         </Button>
       );
     }
-    if (searchString) {
+    if (searchQuery) {
       delete emptyPolicies.iconName;
       delete emptyPolicies.primaryButton;
       emptyPolicies.header = "No policies match the current search criteria.";
@@ -108,7 +127,7 @@ const PoliciesTable = ({
     return emptyPolicies;
   };
 
-  const searchable = !(policiesList?.length === 0 && searchString === "");
+  const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
   return (
     <div
@@ -120,27 +139,36 @@ const PoliciesTable = ({
         <Spinner />
       ) : (
         <TableContainer
-          resultsTitle={"policies"}
-          columns={generateTableHeaders({
-            selectedTeamId: currentTeam?.id,
-            canAddOrDeletePolicy,
-            tableType,
-          })}
+          resultsTitle="policies"
+          columns={generateTableHeaders(
+            {
+              selectedTeamId: currentTeam?.id,
+              canAddOrDeletePolicy,
+              tableType,
+            },
+            isPremiumTier,
+            isSandboxMode
+          )}
           data={generateDataSet(
             policiesList,
             currentAutomatedPolicies,
             config?.update_interval.osquery_policy
           )}
+          filters={{ global: searchQuery }}
           isLoading={isLoading}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          manualSortBy
+          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+          defaultSearchQuery={searchQuery}
+          defaultPageIndex={page}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          onPrimarySelectActionClick={onDeletePolicyClick}
-          primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="delete"
-          primarySelectActionButtonText={"Delete"}
+          primarySelectAction={{
+            name: "delete policy",
+            buttonText: "Delete",
+            iconSvg: "trash",
+            variant: "text-icon",
+            onActionButtonClick: onDeletePolicyClick,
+          }}
           emptyComponent={() =>
             EmptyTable({
               iconName: emptyState().iconName,
@@ -152,9 +180,10 @@ const PoliciesTable = ({
           }
           disableCount={tableType === "inheritedPolicies"}
           isClientSidePagination
+          onClientSidePaginationChange={onClientSidePaginationChange}
           isClientSideFilter
           searchQueryColumn="name"
-          onQueryChange={handleSearchChange}
+          onQueryChange={onTableQueryChange}
           inputPlaceHolder="Search by name"
           searchable={searchable}
         />

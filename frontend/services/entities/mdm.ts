@@ -1,8 +1,17 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { FileVaultProfileStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
+export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
+
+export interface IEulaMetadataResponse {
+  name: string;
+  token: string;
+  created_at: string;
+}
 
 export default {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
@@ -96,6 +105,77 @@ export default {
     return sendRequest("PATCH", teamsEndpoint, {
       enable_disk_encryption: enableDiskEncryption,
       team_id: teamId,
+    });
+  },
+
+  initiateMDMAppleSSO: () => {
+    const { MDM_APPLE_SSO } = endpoints;
+    return sendRequest("POST", MDM_APPLE_SSO, {});
+  },
+
+  getBootstrapPackageMetadata: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
+
+    return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
+  },
+
+  uploadBootstrapPackage: (file: File, teamId?: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+
+    const formData = new FormData();
+    formData.append("package", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
+  },
+
+  deleteBootstrapPackage: (teamId: number) => {
+    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
+    return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
+  },
+
+  getBootstrapPackageAggregate: (teamId?: number) => {
+    let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
+
+  getEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    return sendRequest("GET", MDM_EULA_METADATA);
+  },
+
+  uploadEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
+  },
+
+  deleteEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("DELETE", MDM_EULA(token));
+  },
+
+  downloadEULA: (token: string) => {
+    const { MDM_EULA } = endpoints;
+    return sendRequest("GET", MDM_EULA(token));
+  },
+
+  updateEndUserAuthentication: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      team_id: teamId,
+      enable_end_user_authentication: isEnabled,
     });
   },
 };

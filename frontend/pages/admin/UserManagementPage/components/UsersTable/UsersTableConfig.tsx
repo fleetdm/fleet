@@ -258,6 +258,14 @@ const generateActionDropdownOptions = (
       value: "delete",
     },
   ];
+
+  if (isCurrentUser) {
+    // remove "Reset sessions" from dropdownOptions
+    dropdownOptions = dropdownOptions.filter(
+      (option) => option.label !== "Reset sessions"
+    );
+  }
+
   if (isSsoEnabled) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(

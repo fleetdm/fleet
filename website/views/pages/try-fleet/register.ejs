@@ -9,10 +9,10 @@
         The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
       </p>
       <div purpose="sandbox-mdm-note" class="d-flex flex-column">
-        <p class="mb-0">Interested in testing Fleet’s MDM capabilities? <a target="_blank" href="https://calendly.com/d/ykd-hqy-p7t/chat-with-fleet">Meet with us to learn more</a></p>
+        <p class="mb-0">Interested in testing Fleet’s MDM capabilities? <a target="_blank" href="https://fleetdm.com/docs/using-fleet/mdm-setup">Deploy your own Fleet</a></p>
       </div>
       <div class="pt-3">
-        <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
+        <ajax-form :handle-submitting="handleSubmittingRegisterForm" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
             <div class="d-flex flex-row">
               <div class="d-flex flex-column mr-2">

@@ -4,20 +4,19 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/micromdm/nanomdm/mdm"
-	"golang.org/x/crypto/pbkdf2"
 )
 
 // Note Apple rejects CSRs if the key size is not 2048.
@@ -102,48 +101,6 @@ func GenerateRandomPin(length int) string {
 	return fmt.Sprintf(f, v)
 }
 
-const pbkdf2KeyLen = 128
-
-// SaltedSHA512PBKDF2 creates a SALTED-SHA512-PBKDF2 dictionary
-// from a plaintext password.
-//
-// This implementation has been taken from micromdm's `password` package
-// https://github.com/micromdm/micromdm/blob/974ba0d2060c55dbcf588e832acd89e5b2aa5f41/pkg/crypto/password/password.go#L31-L47
-func SaltedSHA512PBKDF2(plaintext string) (fleet.SaltedSHA512PBKDF2Dictionary, error) {
-	salt := make([]byte, 32)
-	if _, err := rand.Read(salt); err != nil {
-		return fleet.SaltedSHA512PBKDF2Dictionary{}, err
-	}
-	iterations, err := secureRandInt(20000, 40000)
-	if err != nil {
-		return fleet.SaltedSHA512PBKDF2Dictionary{}, err
-	}
-	return fleet.SaltedSHA512PBKDF2Dictionary{
-		Iterations: iterations,
-		Salt:       salt,
-		Entropy:    pbkdf2.Key([]byte(plaintext), salt, iterations, pbkdf2KeyLen, sha512.New),
-	}, nil
-}
-
-// CCCalibratePBKDF uses a pseudorandom value returned within 100 milliseconds.
-// Use a random int from crypto/rand between 20,000 and 40,000 instead.
-//
-// This implementation has been taken from micromdm's `password` package
-func secureRandInt(min, max int64) (int, error) {
-	var random int
-	for {
-		iter, err := rand.Int(rand.Reader, big.NewInt(max))
-		if err != nil {
-			return 0, err
-		}
-		if iter.Int64() >= min {
-			random = int(iter.Int64())
-			break
-		}
-	}
-	return random, nil
-}
-
 func FmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
@@ -154,4 +111,16 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
+}
+
+func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
+	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return "", err
+	}
+	enrollURL.Path = path.Join(enrollURL.Path, EnrollPath)
+	q := enrollURL.Query()
+	q.Set("token", token)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }

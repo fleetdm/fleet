@@ -93,6 +93,12 @@ To generate all necessary code (bundling JavaScript into Go, etc.), run the foll
 make generate
 ```
 
+If you are using a Mac computer with Apple Silicon and have not installed Rosetta 2, you will need to do so before running `make generate`.
+
+```
+/usr/sbin/softwareupdate --install-rosetta --agree-to-license
+```
+
 #### Automatic rebuilding of the JavaScript bundle
 
 Usually, `make generate` takes the JavaScript code, bundles it into a single bundle via Webpack, and inlines that bundle into a generated Go source file so that all of the frontend code can be statically compiled into the binary. When you build the code after running `make generate`, include all of that JavaScript in the binary.
@@ -177,7 +183,7 @@ If you're using the Google Chrome web browser, you can always automatically bypa
 > then be visible again.
 
 The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
-The source code can be found in the [frontend](../../frontend/) directory.
+The source code can be found in the [frontend](https://github.com/fleetdm/fleet/tree/main/frontend) directory.
 
 ## Debugging with Delve debugger
 

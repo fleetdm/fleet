@@ -14,6 +14,8 @@ html, body {
   min-height: 100%;
   position: relative;
   padding-bottom: @footer-height;
+  background: linear-gradient(180deg, #E8F1F6 0%, #FFFFFF 200px);
+  background-position: center 40px;
 }
 
 // Styles for the page header
@@ -38,7 +40,6 @@ html, body {
 
 [purpose='header-ribbon-cta'] {
   background-color: #7487C2;
-  padding: 12px 0px;
   p {
     font-size: 14px;
     line-height: 20px;
@@ -47,35 +48,9 @@ html, body {
   a {
     font-size: 14px;
     line-height: 20px;
-    font-weight: 400;
-    text-decoration: none;
+    font-weight: 700;
+    text-decoration: underline;
     color: #fff;
-    position: relative;
-    span {
-      font-weight: 700;
-      &:before {
-      content: url('/images/arrow-right-white-16x16@2x.png');
-      transform: scale(0.5);
-      position: absolute;
-      top: -8px;
-      left: 100%;
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-      }
-    }
-    &:hover {
-      span:before {
-      left: 102%;
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-      }
-    }
   }
 }
 
@@ -416,18 +391,8 @@ body.detected-mobile {
 
 @media (max-width: 490px) {
   [purpose='header-ribbon-cta'] {
-    a {
+    p {
       width: 220px;
-      span:before {
-        position: absolute;
-        top: 5px;
-        left: 87%;
-      }
-      &:hover {
-        span:before {
-          left: 90%;
-        }
-      }
     }
   }
   [purpose='page-wrap'] {

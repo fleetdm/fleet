@@ -22,13 +22,16 @@ import {
   IMdmSummaryResponse,
 } from "interfaces/mdm";
 import { ISelectedPlatform } from "interfaces/platform";
-import { ISoftwareResponse } from "interfaces/software";
+import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI, { ISoftwareQueryKey } from "services/entities/software";
+import softwareAPI, {
+  ISoftwareQueryKey,
+  ISoftwareCountQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
@@ -45,6 +48,7 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import SandboxGate from "components/Sandbox/SandboxGate";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -82,7 +86,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isPremiumTier,
-    isFreeTier,
     isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
@@ -115,6 +118,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
+  const [chromeCount, setChromeCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -126,6 +130,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMdmCard, setShowMdmCard] = useState(true);
+  const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
@@ -196,9 +201,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
+        const chromebooks = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
+        ) || { platform: "chrome", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
+        setChromeCount(chromebooks.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -267,7 +277,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (data.software?.length !== 0) {
+        if (data.software?.length > 0) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -275,8 +285,35 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
                 whatToRetrieve={"software"}
               />
             );
+          setShowSoftwareCard(true);
+        } else {
+          setShowSoftwareCard(false);
         }
       },
+    }
+  );
+
+  // If no vulnerable software, !software?.software can return undefined
+  // Must check non-vuln software count > 0 to show software card iff API returning undefined
+  const { data: softwareCount } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number,
+    ISoftwareCountQueryKey[]
+  >(
+    [
+      {
+        scope: "softwareCount",
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    {
+      enabled: isRouteOk && !software?.software,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
     }
   );
 
@@ -285,9 +322,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     Error
   >(
     [`mdm-${selectedPlatform}`, teamIdForApi],
-    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi), // TODO: confirm
+    () => hosts.getMdmSummary(selectedPlatform, teamIdForApi),
     {
-      enabled: isRouteOk && selectedPlatform !== "linux",
+      enabled: isRouteOk && !["linux", "chrome"].includes(selectedPlatform),
       onSuccess: ({
         counts_updated_at,
         mobile_device_management_solution,
@@ -354,6 +391,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
   });
 
+  useEffect(() => {
+    softwareCount && softwareCount > 0
+      ? setShowSoftwareCard(true)
+      : setShowSoftwareCard(false);
+  }, [softwareCount]);
+
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
     if (labels) {
@@ -379,12 +422,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
+  const { MANAGE_HOSTS } = paths;
+
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
-    action: {
-      type: "link",
-      text: "View all hosts",
-    },
+    action:
+      selectedPlatform === "all"
+        ? {
+            type: "link",
+            text: "View all hosts",
+          }
+        : undefined,
+    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
     total_host_count: (() => {
       if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
@@ -395,15 +444,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: true,
     children: (
       <HostsSummary
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
         linuxCount={linuxCount}
+        chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        labels={labels}
         errorHosts={!!errorHosts}
       />
     ),
@@ -431,7 +479,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
   // collecting inventory
   const isCollectingInventory =
-    !isAnyTeamSelected && // TODO: confirm
+    !isAnyTeamSelected &&
     !softwarePageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -444,7 +492,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -458,7 +507,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi} // TODO: confirm
+        currentTeamId={teamIdForApi}
+        isSandboxMode={isSandboxMode}
+        notSupported={selectedPlatform === "chrome"}
       />
     ),
   });
@@ -489,6 +540,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -545,24 +597,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM)",
-    titleDetail: mdmTitleDetail,
-    showTitle: !isMacAdminsFetching,
-    description: (
-      <p>MDM is used to change settings and install software on your hosts.</p>
-    ),
-    children: (
-      <Mdm
-        isFetching={isMdmFetching}
-        error={errorMdm}
-        mdmStatusData={mdmStatusData}
-        mdmSolutions={mdmSolutions}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        selectedTeamId={currentTeamId}
-      />
-    ),
-  });
+  const MDMCard = (
+    <SandboxGate>
+      {useInfoCard({
+        title: "Mobile device management (MDM)",
+        titleDetail: mdmTitleDetail,
+        showTitle: !isMdmFetching,
+        description: (
+          <p>
+            MDM is used to change settings and install software on your hosts.
+          </p>
+        ),
+        children: (
+          <Mdm
+            isFetching={isMdmFetching}
+            error={errorMdm}
+            mdmStatusData={mdmStatusData}
+            mdmSolutions={mdmSolutions}
+            selectedPlatformLabelId={selectedPlatformLabelId}
+            selectedTeamId={currentTeamId}
+          />
+        ),
+      })}
+    </SandboxGate>
+  );
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
@@ -589,7 +647,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {software?.software && SoftwareCard}
+        {showSoftwareCard && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
@@ -614,6 +672,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
   const linuxLayout = () => null;
 
+  const chromeLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -622,6 +686,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return windowsLayout();
       case "linux":
         return linuxLayout();
+      case "chrome":
+        return chromeLayout();
       default:
         return allLayout();
     }
@@ -639,7 +705,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     return (
       <AddHostsModal
-        currentTeamName={currentTeamName} // TODO: confirm
+        currentTeamName={currentTeamName}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
@@ -649,6 +715,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
+  const renderDashboardHeader = () => {
+    if (isPremiumTier) {
+      if (userTeams) {
+        if (userTeams.length > 1 || isOnGlobalTeam) {
+          return (
+            <TeamsDropdown
+              selectedTeamId={currentTeamId}
+              currentUserTeams={userTeams}
+              onChange={handleTeamChange}
+              isSandboxMode={isSandboxMode}
+            />
+          );
+        }
+        if (userTeams.length === 1) {
+          return <h1>{userTeams[0].name}</h1>;
+        }
+      }
+      // userTeams.length should have at least 1 element
+      return null;
+    }
+    // Free tier
+    return <h1>{config?.org_info.org_name}</h1>;
+  };
   return !isRouteOk ? (
     <Spinner />
   ) : (
@@ -657,20 +746,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
-              {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
-              {isPremiumTier &&
-                userTeams &&
-                (userTeams.length > 1 || isOnGlobalTeam) && (
-                  <TeamsDropdown
-                    selectedTeamId={currentTeamId}
-                    currentUserTeams={userTeams}
-                    onChange={handleTeamChange}
-                  />
-                )}
-              {isPremiumTier &&
-                !isOnGlobalTeam &&
-                userTeams &&
-                userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+              {renderDashboardHeader()}
             </div>
           </div>
         </div>

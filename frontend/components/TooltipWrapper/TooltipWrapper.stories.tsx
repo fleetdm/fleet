@@ -12,7 +12,7 @@ interface ITooltipWrapperProps {
 
 export default {
   component: TooltipWrapper,
-  title: "Components/Tooltip",
+  title: "Components/TooltipWrapper",
   args: {
     tipContent: "This is an example tooltip.",
   },

@@ -3,11 +3,11 @@ package apple_mdm
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -19,13 +19,13 @@ import (
 )
 
 func TestDEPService(t *testing.T) {
-	t.Run("CreateDefaultProfile", func(t *testing.T) {
+	t.Run("EnsureDefaultSetupAssistant", func(t *testing.T) {
 		ds := new(mock.Store)
 		ctx := context.Background()
 		logger := log.NewNopLogger()
 		depStorage := new(nanodep_mock.Storage)
-		depSvc := NewDEPService(ds, depStorage, logger, true)
-		defaultProfile := depSvc.GetDefaultProfile()
+		depSvc := NewDEPService(ds, depStorage, logger)
+		defaultProfile := depSvc.getDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func TestDEPService(t *testing.T) {
 			case "/session":
 				_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 			case "/profile":
-				_, _ = w.Write([]byte(`{"profile_uuid": "xyz"}`))
+				_, _ = w.Write([]byte(`{"profile_uuid": "abcd"}`))
 				body, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
 				var got godep.Profile
@@ -45,6 +45,8 @@ func TestDEPService(t *testing.T) {
 				got.URL = ""
 				got.ConfigurationWebURL = ""
 				require.Equal(t, defaultProfile, &got)
+			default:
+				require.Fail(t, "unexpected path: %s", r.URL.Path)
 			}
 		}))
 		t.Cleanup(srv.Close)
@@ -55,12 +57,39 @@ func TestDEPService(t *testing.T) {
 			return appCfg, nil
 		}
 
+		var savedProfile *fleet.MDMAppleEnrollmentProfile
 		ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, p fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
-			require.Equal(t, fleet.MDMAppleEnrollmentType("automatic"), p.Type)
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, p.Type)
 			require.NotEmpty(t, p.Token)
-			//require.JSONEq
-			return &fleet.MDMAppleEnrollmentProfile{}, nil
+			res := &fleet.MDMAppleEnrollmentProfile{
+				Token:      p.Token,
+				Type:       p.Type,
+				DEPProfile: p.DEPProfile,
+			}
+			savedProfile = res
+			return res, nil
+		}
 
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			require.Equal(t, fleet.MDMAppleEnrollmentTypeAutomatic, typ)
+			if savedProfile == nil {
+				return nil, notFoundError{}
+			}
+			return savedProfile, nil
+		}
+
+		var defaultProfileUUID string
+		ds.GetMDMAppleDefaultSetupAssistantFunc = func(ctx context.Context, teamID *uint) (profileUUID string, updatedAt time.Time, err error) {
+			if defaultProfileUUID == "" {
+				return "", time.Time{}, nil
+			}
+			return defaultProfileUUID, time.Now(), nil
+		}
+
+		ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFunc = func(ctx context.Context, teamID *uint, profileUUID string) error {
+			require.Nil(t, teamID)
+			defaultProfileUUID = profileUUID
+			return nil
 		}
 
 		ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
@@ -81,53 +110,31 @@ func TestDEPService(t *testing.T) {
 			return nil
 		}
 
-		err := depSvc.CreateDefaultProfile(ctx)
+		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil)
 		require.NoError(t, err)
+		require.Equal(t, "abcd", profUUID)
+		require.NotZero(t, modTime)
 		require.True(t, ds.NewMDMAppleEnrollmentProfileFuncInvoked)
+		require.True(t, ds.GetMDMAppleEnrollmentProfileByTypeFuncInvoked)
+		require.True(t, ds.GetMDMAppleDefaultSetupAssistantFuncInvoked)
+		require.True(t, ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFuncInvoked)
 		require.True(t, depStorage.RetrieveConfigFuncInvoked)
-		require.True(t, depStorage.StoreAssignerProfileFuncInvoked)
+		require.False(t, depStorage.StoreAssignerProfileFuncInvoked) // not used anymore
 	})
 
 	t.Run("EnrollURL", func(t *testing.T) {
-		ds := new(mock.Store)
-		logger := log.NewNopLogger()
-		depStorage := new(nanodep_mock.Storage)
-		depSvc := NewDEPService(ds, depStorage, logger, true)
-		testErr := errors.New("test")
-		serverURL := "https://example.com/"
+		const serverURL = "https://example.com/"
 
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return nil, testErr
-		}
-
-		url, err := depSvc.EnrollURL("token")
-		require.ErrorIs(t, err, testErr)
-		require.Empty(t, url)
-		require.True(t, ds.AppConfigFuncInvoked)
-		ds.AppConfigFuncInvoked = false
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.ServerSettings.ServerURL = " http://foo.com"
-			return appCfg, nil
-		}
-
-		url, err = depSvc.EnrollURL("token")
-		require.Error(t, err)
-		require.Empty(t, url)
-		require.True(t, ds.AppConfigFuncInvoked)
-		ds.AppConfigFuncInvoked = false
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.ServerSettings.ServerURL = serverURL
-			return appCfg, nil
-		}
-
-		url, err = depSvc.EnrollURL("token")
+		appCfg := &fleet.AppConfig{}
+		appCfg.ServerSettings.ServerURL = serverURL
+		url, err := EnrollURL("token", appCfg)
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
-		require.True(t, ds.AppConfigFuncInvoked)
-
 	})
 }
+
+type notFoundError struct{}
+
+func (e notFoundError) IsNotFound() bool { return true }
+
+func (e notFoundError) Error() string { return "not found" }

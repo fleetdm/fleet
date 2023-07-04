@@ -118,6 +118,7 @@ $shadow-transition-width: 10px;
         padding: $pad-medium $pad-large;
         white-space: nowrap;
         border-right: 1px solid $ui-fleet-black-10;
+        font-weight: $bold;
 
         &:first-child {
           border-top-left-radius: 6px;
@@ -131,6 +132,14 @@ $shadow-transition-width: 10px;
         &:last-child {
           border-right: none;
           border-top-right-radius: 6px;
+        }
+
+        .column-header {
+          span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+          }
         }
       }
 

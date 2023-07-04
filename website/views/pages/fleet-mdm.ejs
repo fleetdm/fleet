@@ -1,167 +1,130 @@
 <div id="device-management" v-cloak>
+
   <div purpose="hero-background" class="container-lg d-flex justify-content-center">
+
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
-        <h4>Limited beta</h4>
-        <h1>A better MDM</h1>
-        <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box.</p>
+        <h4 class="mb-2">Device management built for IT, security approved</h4>
+        <h1>Fleet brings GitOps to MDM</h1>
+        <p>We prefer a more collaborative approach to device management. Fleet uses a GitOps workflow, ensuring checks and balances for your configuration deployments.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
-          <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
-      <img alt="The MDM page hero image" purpose="hero-image" class="d-none d-sm-block" src="/images/fleet-mdm-hero-1006x595@2x.png">
     </div>
+
   </div>
-  <!-- <div purpose="page-container" class="container-lg">
 
-    <div purpose="section" class="mx-auto mb-0">
-      <div class="d-flex flex-column text-left text-md-center">
-        <h4>Device management with telemetry</h4>
-        <h2 class="mb-0">Fleet delivers real-time answers to every team and tool</h2>
-      </div>
-    </div>
-
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse  justify-content-between mx-auto align-items-center">
-      <div class="d-flex flex-column">
-        <h3>All platforms welcome</h3>
-        <p>Give your teams access to any machine regardless of OS or manufacturer. Fleet MDM supports Mac, Windows, and Linux devices. So, you can make the most of your resources (and make everybody’s lives easier).</p>
-      </div>
-      <div purpose="feature-image">
-        <img alt="MDM feature image" src="images/mdm-feature-image-1-344x288@2x.png">
-      </div>
-    </div>
-
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="feature-image">
-        <img alt="MDM feature image" src="images/mdm-feature-image-2-325x300@2x.png">
-      </div>
-      <div class="d-flex flex-column">
-        <h3>Real-time visibility</h3>
-        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results reveal the status of your entire fleet at any given moment. Launch custom workflows around those results with scheduled queries.</p>
-      </div>
-    </div>
+  <div purpose="page-container" class="container-lg">
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div class="d-flex flex-column">
-        <h3>Built for customization</h3>
-        <p>Instead of forcing you to use a static MDM, we went for a more collaborative approach. Deliver data where it benefits your engineering and IT teams the most with GitOps compatibility and a ton of integrations. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
+      <div purpose="feature-left-text-block" class="d-flex flex-column">
+          <h3>Made for customization</h3>
+          <p>Integrations with leading configuration management platforms, including Chef, Munki, and Puppet, allow for efficiency in your management workflows. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
+        </div>
+        <div purpose="feature-image">
+          <img alt="A bento box featuring all the tools Fleet can bring together" src="/images/device-management-bento-logos-320x295@2x.png">
+      </div>
+    </div>
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="feature-image">
+        <img alt="A Fleet orb scanning a Laptop" src="/images/device-management-realtime-visibility-320x294@2x.png">
+      </div>
+      <div purpose="feature-right-text-block" class="d-flex flex-column">
+        <h3>Real-time visibility</h3>
+        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results allow you to see the status of your entire fleet at any given moment.</p>
+      </div>
+    </div>
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-left-text-block" class="d-flex flex-column">
+        <h3>All platforms welcome</h3>
+        <p>Give your teams access to any machine regardless of OS or manufacturer. Fleet supports Mac, Linux, Chromebooks, and Windows devices. So, you can make the most of your resources (and make everybody’s lives easier).</p>
       </div>
       <div purpose="feature-image">
-        <img alt="MDM feature image" src="images/mdm-feature-image-3-360x300@2x.png">
+        <img alt="All platforms welcome" src="/images/device-management-all-platforms-welcome-320-249@2x.png">
       </div>
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
-      <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a purpose="cta-button" @click="clickOpenMdmModal()">See MDM in action</a>
+      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
-    <div purpose="section" class="d-flex flex-column justify-content-center mx-auto">
-      <div class="text-left text-md-center">
-        <h4>Fleet MDM roadmap</h4>
-        <h2>The path to a better MDM starts here</h2>
-      </div>
-      <div purpose="checklists" class="d-flex flex-lg-row flex-column justify-content-center align-items-center">
-        <div purpose="checklist" class="d-flex flex-column pr-lg-4">
-          <p>Report on disk encryption status</p>
-          <p>User-initiated device enrollment</p>
-          <p>Remotely enforce OS settings</p>
-          <p>Zero-touch device setup</p>
-          <p>Remotely update OS version</p>
-          <p>Low-level MDM commands</p>
-          <div purpose="checklist" class="mb-0 d-block d-lg-none">
-            <p>Keep OS up to date through reminders</p>
-            <p>Encrypt computer hard disks</p>
-            <p>Manage queued MDM commands</p>
-            <p>Remotely lock and wipe computers</p>
-            <p>Trigger a workflow based on a failing policy</p>
-            <p>Update apps on computers</p>
-          </div>
-        </div>
-        <div purpose="checklist" class="flex-column d-none d-lg-flex">
-          <p>Keep OS up to date through reminders</p>
-          <p>Encrypt computer hard disks</p>
-          <p>Manage queued MDM commands</p>
-          <p>Remotely lock and wipe computers</p>
-          <p>Trigger a workflow based on a failing policy</p>
-          <p>Update apps on computers</p>
-        </div>
-      </div>
-      <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center w-100 w-sm-auto mx-auto">
-        <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
-        <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
-      </div>
-
-    </div>
   </div>
-  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
-    <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-left text-md-center">
-      <h4>Don’t know osquery?</h4>
-      <h2>Dedicated support from osquery experts</h2>
-
-      <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+  <%/* End of page gradient */%>
+  <div purpose="bottom-gradient">
+    <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+      <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
+        <h4>Don’t know osquery?</h4>
+        <h2>Dedicated support from osquery experts</h2>
+        <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+      </div>
     </div>
-  </div>
-  <div style="background-color: #F9FAFC;">
+
     <scrollable-tweets></scrollable-tweets>
-  </div>
-  <div purpose="tweets-container" class="container-fluid px-md-0 d-flex pt-0 flex-column justify-content-center">
-    <div purpose="logos" class="d-flex flex-wrap justify-content-center align-items-center">
-      <img alt="The Snowflake logo" purpose="snowflake-logo" src="/images/logo-snowflake-muted-151x30@2x.png">
-      <img alt="The Wayfair logo" purpose="wayfair-logo" src="/images/logo-wayfair-muted-150x33@2x.png">
-      <img alt="The Uber logo" purpose="uber-logo" src="/images/logo-uber-muted-84x29@2x.png">
-      <img alt="The Atlassian logo" purpose="atlassian-logo" src="/images/logo-atlassian-muted-172x22@2x.png">
-      <img alt="The Twilio Segment logo" purpose="segment-logo" src="/images/logo-segment-muted-150x34@2x.png">
-    </div>
-  </div> -->
+    <div purpose="page-container" class="pb-0 container">
 
-  <modal v-if="modal === 'beta-signup'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
-    <div class="container d-flex flex-column justify-content-center align-items-center" purpose="modal-container">
-      <div class="modal-header">
-        <h4>See the future of device management</h4>
-        <h2 class="text-center">Better MDM starts here</h2>
-      </div>
-      <div purpose="modal-form" v-if="!showSignupFormSuccess">
-      <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
-          <div class="form-group">
-            <label for="fullName">Name</label>
-            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" @input="typeClearOneFormError('fullName')">
-            <div class="invalid-feedback" v-if="formErrors.fullName">Please enter your name.</div>
-          </div>
-          <div class="form-group">
-            <label for="emailAddress">Email</label>
-            <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
-            <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
-          </div>
-          <div class="form-group">
-            <div class="d-flex flex-sm-row flex-column">
-              <div class="pr-0 pr-sm-3 pb-4 pb-sm-0">
-                <label for="jobTitle">Job title</label>
-                <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
-                <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.
-                </div>
-              </div>
-              <div>
-                <label for="numberOfHosts">Number of devices</label>
-                <input class="form-control" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts" @input="typeClearOneFormError('numberOfHosts')">
-                <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices.</div>
-              </div>
-            </div>
-          </div>
-          <cloud-error v-if="cloudError"></cloud-error>
-        <div class="border-0 justify-content-center">
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Request access</ajax-button>
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Open-source device management</h4>
+        <h1>Lighter than air</h1>
+        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
-      </ajax-form>
+      </div>
+    </div>
+    <%/* Cloud city banner */%>
+  </div>
+  <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-lg-flex" src="/images/homepage-cloud-city-banner-lg-1600x375@2x.png">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
+    <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
+  </div>
+
+
+  <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
+    <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
+      <div purpose="modal-form"  v-if="!showSignupFormSuccess">
+      <div class="modal-header pb-2">
+        <h2 class="text-center mb-2">Is it any good?</h2>
+        <p>Fill out the form below to see Dave bootstrapping a macOS device with MDM.</p>
+      </div>
+        <ajax-form action="deliverMdmDemoEmail" class="mdm-demo-video w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+            <div class="form-group">
+              <label for="emailAddress">Work email</label>
+              <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address</div>
+            </div>
+            <div class="form-group">
+              <p style="padding-bottom: 12px;" class="mb-0 font-weight-bold">How many hosts do you have?</p>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="more-than-1000" value="true" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="more-than-1000">
+                    More than 1,000
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="less-than-1000" value="false" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="less-than-1000">
+                    Less than 1,000
+                  </label>
+                  <div class="invalid-feedback" style="margin-left: -20px;" v-if="formErrors.hasOverOneThousandHosts" focus-first>Please choose one option</div>
+                </div>
+            </div>
+            <cloud-error v-if="cloudError"></cloud-error>
+          <div class="border-0 justify-content-center">
+            <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
+          </div>
+        </ajax-form>
       </div>
       <div purpose="modal-form" class="text-center" v-else>
-        <h3>You're all set!</h3>
-        <p>A Fleet team member will reach out via email with more information if selected.</p>
+        <h2 class="mb-2">Thank you!</h2>
+        <p class="mb-4">We just sent you an email in case you need to watch it again.</p>
+        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue5caa4fa" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
       </div>
     </div>
   </modal>
+
 </div>
-
-
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

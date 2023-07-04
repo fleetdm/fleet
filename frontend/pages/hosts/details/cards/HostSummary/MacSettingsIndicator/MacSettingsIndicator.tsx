@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import { IHostMacMdmProfile, MdmProfileStatus } from "interfaces/mdm";
+import { IHostMacMdmProfile } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -9,7 +9,7 @@ import { IconNames } from "components/icons";
 
 const baseClass = "mac-settings-indicator";
 
-type MacSettingsStatus = "Failing" | "Verifying" | "Pending";
+type MacProfileStatus = "Failed" | "Verifying" | "Pending" | "Verified";
 
 interface IStatusDisplayOption {
   iconName: Extract<
@@ -18,35 +18,53 @@ interface IStatusDisplayOption {
   >;
   tooltipText: string;
 }
-type StatusDisplayOptions = Record<MacSettingsStatus, IStatusDisplayOption>;
+type StatusDisplayOptions = Record<MacProfileStatus, IStatusDisplayOption>;
 
 const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
+  Verified: {
+    iconName: "success",
+    tooltipText:
+      "The host installed all configuration profiles. Fleet verified with osquery.",
+  },
   Verifying: {
     iconName: "success-partial",
-    tooltipText: "Host applied the latest settings",
+    tooltipText:
+      "The hosts acknowledged all MDM commands to install configuration profiles. Fleet is verifying " +
+      "the profiles are installed with osquery.",
   },
   Pending: {
     iconName: "pending-partial",
-    tooltipText: "Host will apply the latest settings when it comes online",
+    tooltipText:
+      "The host will receive MDM commands to install configuration profiles when the host come online.",
   },
-  Failing: {
+  Failed: {
     iconName: "error",
     tooltipText:
-      "Host failed to apply the latest settings. Click to view error(s).",
+      "Host failed to install configuration profiles. Click to view error(s).",
   },
 };
 
-const getMacSettingsStatus = (
-  hostMacSettings?: IHostMacMdmProfile[]
-): MacSettingsStatus => {
-  const statuses = hostMacSettings?.map((setting) => setting.status);
-  if (statuses?.includes(MdmProfileStatus.FAILED)) {
-    return "Failing";
+/**
+ * Returns the displayed status of the macOS settings field based on the
+ * profile statuses.
+ * If any profile has a status of "failed", the status will be displayed as "Failed" and
+ * continues to fall through to "Pending" and "Verifying" if any profiles have those statuses.
+ * Finally if all profiles have a status of "verified", the status will be displayed as "Verified".
+ */
+const getMacProfileStatus = (
+  hostMacSettings: IHostMacMdmProfile[]
+): MacProfileStatus => {
+  const statuses = hostMacSettings.map((setting) => setting.status);
+  if (statuses.includes("failed")) {
+    return "Failed";
   }
-  if (statuses?.includes(MdmProfileStatus.PENDING)) {
+  if (statuses.includes("pending")) {
     return "Pending";
   }
-  return "Verifying";
+  if (statuses.includes("verifying")) {
+    return "Verifying";
+  }
+  return "Verified";
 };
 
 interface IMacSettingsIndicatorProps {
@@ -57,14 +75,13 @@ const MacSettingsIndicator = ({
   profiles,
   onClick,
 }: IMacSettingsIndicatorProps): JSX.Element => {
-  const macSettingsStatus = getMacSettingsStatus(profiles);
+  const macProfileStatus = getMacProfileStatus(profiles);
 
-  const iconName = STATUS_DISPLAY_OPTIONS[macSettingsStatus].iconName;
-  const tooltipText = STATUS_DISPLAY_OPTIONS[macSettingsStatus].tooltipText;
+  const statusDisplayOption = STATUS_DISPLAY_OPTIONS[macProfileStatus];
 
   return (
     <span className={`${baseClass} info-flex__data`}>
-      <Icon name={iconName} />
+      <Icon name={statusDisplayOption.iconName} />
       <span
         className="tooltip tooltip__tooltip-icon"
         data-tip
@@ -76,7 +93,7 @@ const MacSettingsIndicator = ({
           variant="text-link"
           className={`${baseClass}__button`}
         >
-          {macSettingsStatus}
+          {macProfileStatus}
         </Button>
       </span>
       <ReactTooltip
@@ -86,7 +103,9 @@ const MacSettingsIndicator = ({
         id={`${baseClass}-tooltip`}
         data-html
       >
-        <span className="tooltip__tooltip-text">{tooltipText}</span>
+        <span className="tooltip__tooltip-text">
+          {statusDisplayOption.tooltipText}
+        </span>
       </ReactTooltip>
     </span>
   );

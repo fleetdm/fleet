@@ -45,7 +45,7 @@ type nudgeUpdateElements struct {
 }
 
 func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
-	deadline, err := time.Parse("2006-01-02", macOSUpdates.Deadline)
+	deadline, err := time.Parse("2006-01-02", macOSUpdates.Deadline.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
 	return &NudgeConfig{
 		OSVersionRequirements: []nudgeOSVersionRequirements{{
 			RequiredInstallationDate: localizedDeadline,
-			RequiredMinimumOSVersion: macOSUpdates.MinimumVersion,
+			RequiredMinimumOSVersion: macOSUpdates.MinimumVersion.Value,
 			AboutUpdateURLs: []nudgeAboutUpdateURLs{{
 				Language:       "en",
 				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mdm-macos-updates",

@@ -25,35 +25,35 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @mikermcneil | 2022-06-01     |
+| @zwass | 2023-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures:
+Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
 1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
-2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
+2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public. Unattended devices (even in private spaces) must be locked with the lid closed or through the OS screen lock mechanism.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-4. Teams must exclussively use legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC).  
 
-6. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), should not be shared.
+6. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC)!
 
-7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
+7. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
 
-8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly, and never allow unattended screen sharing.
 
-9. Only allow company-owned and managed computers to connect directly to Fleet autoupdater production environments.
+9. Device operating systems must be kept up to date. Fleet-managed macOS workstations will receive prompts for updates to be installed, and unmanaged devices are to be updated by the team member using them. Access may be revoked for devices not kept up to date.
 
-10. Enforce the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. Team members must not store sensitive data on external storage devices (USB sticks, external hard drives).
 
-11. Require device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
+11. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-12. Require team members must not store sensitive data on portable storage.
+12. Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
 
 ## Access control policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -265,6 +265,7 @@ External disclosure of critical data is strictly prohibited without an approved 
 * Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
+* Production customer data
 
 
 **Confidential** and proprietary data represents company secrets and is of significant value to the company.
@@ -279,6 +280,7 @@ Disclosure requires the signing of NDA and management approval.
 * Employee/HR data
 * News and public announcements (pre-announcement)
 * Patents (pre-filing)
+* Production metadata (server logs, non-secret configurations, etc.)
 * Non-production security data, including
     - Non-prod secrets, passwords, access keys, certificates, etc.
     - Non-prod security audit logs, events, and incident data
@@ -308,7 +310,7 @@ Requirements for data handling, such as the need for encryption and the duration
 | Data             | Labeling or Tagging | Segregated Storage | Endpoint Storage | Encrypt At Rest | Encrypt In Transit | Encrypt In Use | Controlled Access | Monitoring | Destruction at Disposal | Retention Period | Backup Recovery |
 |------------------|---------------------|--------------------|------------------|-----------------|--------------------|----------------|-------------------|------------|------------------------|------------------|-----------------|
 | **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | seven years for audit trails; Varies for customer-owned data† | Required   |
-| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | seven years for official documentation; Others vary based on business need | Required   |
+| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | Seven years for official documentation; Others vary based on business need | Required   |
 | **Internal**     | Required            | N/R                | Allowed          | N/R             | N/R                | N/R            | All employees and contractors (read); Data owners and authorized individuals (write) | N/R | N/R | Varies based on business need | Optional   |
 | **Public**       | N/R                 | N/R                | Allowed          | N/R             | N/R                | N/R            | Everyone (read); Data owners and authorized individuals (write) | N/R     | N/R     | Varies based on business need | Optional   |
 
@@ -318,6 +320,13 @@ N/R = Not Required
 
 Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply business requirements.
 
+#### Customer data deletion
+
+This process is followed when offboarding a customer and deleting all of the production customer data.
+
+1. `terraform destroy` the infrastructure for the customer. This triggers immediate deletion of the RDS database and all automated snapshots, along with immediate deletion of the ElastiCache Redis instance. Secrets are marked for deletion with a 7 day recovery window. Cloudwatch (server) logs are automatically deleted after the retention window expires.
+2. Manually delete any manual database snapshots. The engineer should verify that there are no manual snapshots remaining for this customer.
+3. Commit a removal of all the Terraform files for the customer.
 
 ## Encryption policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -415,9 +424,9 @@ The Security Incident Response Team (SIRT) is responsible for
 
 Current members of the Fleet SIRT:
 
-* Head of Security
 * CTO
 * CEO
+* VP of Customer Success
 
 #### Incident Management Process
 Fleet's incident response classifies security-related events into the following categories:
@@ -472,23 +481,23 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 1. Immediately upon observation, Fleet members report suspected and known
    Events, Precursors, Indications, and Incidents in one of the following ways:
 
-    1. Direct report to management, the Head of Security, CTO, CEO, or
+    1. Direct report to management, CTO, CEO, or
        other
     2. Email
     3. Phone call
     4. Slack
 
 2. The individual receiving the report facilitates the collection of additional
-   information about the incident, as needed, and notifies the Head of Security
+   information about the incident, as needed, and notifies the CTO
    (if not already done).
 
-3. The Head of Security determines if the issue is an Event, Precursor,
+3. The CTO determines if the issue is an Event, Precursor,
    Indication, or Incident.
 
-   1. If the issue is an event, indication, or precursor, the Head of Security
+   1. If the issue is an event, indication, or precursor, the CTO
       forwards it to the appropriate resource for resolution.
 
-      1. Non-Technical Event (minor infringement): the Head of Security of the
+      1. Non-Technical Event (minor infringement): the CTO of the
          designee creates an appropriate issue in GitHub and further investigates
          the incident as needed.
       2. Technical Event: Assign the issue to a technical resource for
@@ -496,7 +505,7 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
          technical resource in the event of a lack of resource or expertise in
          the area.
 
-   2. If the issue is a security incident, the Head of Security activates the
+   2. If the issue is a security incident, the CTO activates the
       Security Incident Response Team (SIRT) and notifies senior leadership by
       email.
 
@@ -523,10 +532,19 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
              the [SANS Security Incident Forms templates](https://www.sans.org/score/incident-forms/),
              as appropriate.
 
-3. The Head of Security, Privacy Officer, or Fleet representative appointed
+3. The CTO, Privacy Officer, or Fleet representative appointed
    notifies any affected Customers and Partners. If no Customers and Partners
    are affected, notification is at the discretion of the Security and Privacy
    Officer.
+   
+   Fleet’s incident response policy is to report significant cyber incidents within 
+   24 hours.
+    - Reporting Timeline – 24 hours after determining a cyber incident has occurred.
+    - Definitions – Significant cyber incidents are defined as an incident or group 
+         of incidents that are likely to result in demonstrable harm to Fleet or Fleet’s 
+         customers.
+    - Reporting Mechanism – Reports to be provided to customers via email 
+         correspondence and Slack.
 
 4. In the case of a threat identified, the Head of Security is to form a team to
    investigate and involve necessary resources, both internal to Fleet and
@@ -627,7 +645,7 @@ been corrected.
        phase.
     6. Apprise Senior Management of progress.
     7. Continue to notify affected Customers and Partners with relevant updates
-       as needed.
+       as needed. 
     8. Move to Phase V, Follow-up.
 
 #### V - Post-Incident Analysis (Technical and Non-Technical)
@@ -682,7 +700,7 @@ Fleet Device Management is committed to conducting business in compliance with a
 
 | Role                                            | Responsibilities                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Board of directors                              | Oversight over risk and internal control for information security, privacy, and compliance<br/> Consults with executive leadership and head of security to understand Fleet's security mission and risks and provides guidance to bring them into alignment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Board of directors                              | Oversight over risk and internal control for information security, privacy, and compliance<br/> Consults with executive leadership to understand Fleet's security mission and risks and provides guidance to bring them into alignment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Executive leadership                            | Approves capital expenditures for information security<br/> Oversight over the execution of the information security risk management program<br/> Communication path to Fleet's board of directors. Meets with the board regularly, including at least one official meeting a year<br/> Aligns information security policy and posture based on Fleet's mission, strategic objectives, and risk appetite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 CTO                                             | Oversight over information security in the software development process<br/>  Responsible for the design, development, implementation, operation, maintenance and monitoring of development and commercial cloud hosting security controls<br/> Responsible for oversight over policy development <br/>Responsible for implementing risk management in the development process                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Head of security                                | Oversight over the implementation of information security controls for infrastructure and IT processes<br/>  Responsible for the design, development, implementation, operation, maintenance, and monitoring of IT security controls<br/> Communicate information security risks to executive leadership<br/> Report information security risks annually to Fleet's leadership and gains approvals to bring risks to acceptable levels<br/>  Coordinate the development and maintenance of information security policies and standards<br/> Work with applicable executive leadership to establish an information security framework and awareness program<br/>  Serve as liaison to the board of directors, law enforcement and legal department.<br/>  Oversight over identity management and access control processes |

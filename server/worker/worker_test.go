@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -233,4 +236,104 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	require.Equal(t, fleet.JobStateQueued, jobs[1].State)
 	require.Equal(t, 2, jobs[1].Retries)
 	require.Equal(t, 4, jobCallCount)
+}
+
+func TestWorkerWithRealDatastore(t *testing.T) {
+	ctx := context.Background()
+	ds := mysql.CreateMySQLDS(t)
+
+	oldDelayPerRetry := delayPerRetry
+	delayPerRetry = []time.Duration{
+		1: 0,
+		2: 0,
+		3: time.Hour,
+	} // retry twice on the next cron, then not before an hour
+	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
+
+	logger := kitlog.NewNopLogger()
+	w := NewWorker(ds, logger)
+
+	// register a test job
+	var jobCallCount int
+	j := testJob{
+		name: "test",
+		run: func(ctx context.Context, argsJSON json.RawMessage) error {
+			jobCallCount++
+
+			var name string
+			if err := json.Unmarshal(argsJSON, &name); err != nil {
+				return err
+			}
+
+			if name == "fail" {
+				// always fail that job
+				return errors.New("unknown error")
+			}
+			return nil
+		},
+	}
+	w.Register(j)
+
+	// add some jobs
+	j1, err := QueueJob(ctx, ds, "test", "success")
+	require.NoError(t, err)
+	require.NotZero(t, j1.ID)
+	j2, err := QueueJob(ctx, ds, "test", "fail")
+	require.NoError(t, err)
+	require.NotZero(t, j2.ID)
+	j3, err := QueueJob(ctx, ds, "test", "success2")
+	require.NoError(t, err)
+	require.NotZero(t, j3.ID)
+
+	// process the jobs a first time, jobs 1 and 3 should be successful, job 2 still queued
+	err = w.ProcessJobs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 3, jobCallCount)
+	jobCallCount = 0
+
+	// add a delay because there may be a slight discrepency when truncating the
+	// timestamp in mysql vs the one set in ProcessJobs (time.Now().Add(...)).
+	time.Sleep(time.Second)
+
+	jobs, err := ds.GetQueuedJobs(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	require.Equal(t, j2.ID, jobs[0].ID)
+	require.Equal(t, 1, jobs[0].Retries)
+
+	// process the jobs a second time, job 2 still queued
+	err = w.ProcessJobs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, jobCallCount)
+	jobCallCount = 0
+
+	// add a delay because there may be a slight discrepency when truncating the
+	// timestamp in mysql vs the one set in ProcessJobs (time.Now().Add(...)).
+	time.Sleep(time.Second)
+
+	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	require.Equal(t, j2.ID, jobs[0].ID)
+	require.Equal(t, 2, jobs[0].Retries)
+
+	// process the jobs a third time, job 2 still queued but now with a long delay
+	beforeThirdTime := time.Now()
+	err = w.ProcessJobs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, jobCallCount)
+	jobCallCount = 0
+
+	time.Sleep(time.Second)
+
+	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	require.NoError(t, err)
+	require.Empty(t, jobs)
+
+	var failedJob fleet.Job
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &failedJob, "SELECT * FROM jobs WHERE id = ?", j2.ID)
+	})
+	require.Equal(t, 3, failedJob.Retries)
+	require.WithinDuration(t, beforeThirdTime.Add(time.Hour), failedJob.NotBefore, time.Minute)
 }

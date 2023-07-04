@@ -90,6 +90,7 @@ module "redis" {
   at_rest_encryption_enabled = var.redis_config.at_rest_encryption_enabled
   transit_encryption_enabled = var.redis_config.transit_encryption_enabled
   parameter                  = var.redis_config.parameter
+  log_delivery_configuration = var.redis_config.log_delivery_configuration
   additional_security_group_rules = [{
     type        = "ingress"
     from_port   = 0

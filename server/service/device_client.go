@@ -2,29 +2,36 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
 type DeviceClient struct {
 	*baseClient
+
+	// fleetAlternativeBrowserHost is an alternative host to use for the Fleet Desktop URLs generated for the browser.
+	//
+	// This is needed when the host that Orbit will connect to is different from the host that will connect via the browser.
+	fleetAlternativeBrowserHost string
 }
 
-// NewDeviceClient instantiates a new client to perform requests against device
-// endpoints
-func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
+// NewDeviceClient instantiates a new client to perform requests against device endpoints.
+func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetClientCrt *tls.Certificate, fleetAlternativeBrowserHost string) (*DeviceClient, error) {
 	capabilities := fleet.CapabilityMap{}
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCrt, capabilities)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DeviceClient{
-		baseClient: baseClient,
+		baseClient:                  baseClient,
+		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 	}, nil
 }
 
@@ -49,21 +56,29 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-// TransparencyURL returns an URL that the server will use to redirect to the
-// transparency URL configured by the user
-func (dc *DeviceClient) TransparencyURL(token string) string {
-	return dc.baseClient.url("/api/latest/fleet/device/"+token+"/transparency", "").String()
+// BrowserTransparencyURL returns a URL for the browser that the server
+// will use to redirect to the transparency URL configured by the user.
+func (dc *DeviceClient) BrowserTransparencyURL(token string) string {
+	transparencyURL := dc.baseClient.url("/api/latest/fleet/device/"+token+"/transparency", "")
+	if dc.fleetAlternativeBrowserHost != "" {
+		transparencyURL.Host = dc.fleetAlternativeBrowserHost
+	}
+	return transparencyURL.String()
 }
 
-// DeviceURL returns the public device URL for the given token
-func (dc *DeviceClient) DeviceURL(token string) string {
-	return dc.baseClient.url("/device/"+token, "").String()
+// BrowserDeviceURL returns the "My device" URL for the browser.
+func (dc *DeviceClient) BrowserDeviceURL(token string) string {
+	deviceURL := dc.baseClient.url("/device/"+token, "")
+	if dc.fleetAlternativeBrowserHost != "" {
+		deviceURL.Host = dc.fleetAlternativeBrowserHost
+	}
+	return deviceURL.String()
 }
 
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {
-	_, err := dc.NumberOfFailingPolicies(token)
+	_, err := dc.DesktopSummary(token)
 	return err
 }
 
@@ -95,16 +110,17 @@ func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse
 	return r, err
 }
 
-func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
+func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, error) {
 	r, err := dc.getMinDesktopPayload(token)
 	if err == nil {
-		return uintValueOrZero(r.FailingPolicies), nil
+		r.FailingPolicies = ptr.Uint(uintValueOrZero(r.FailingPolicies))
+		return &r, nil
 	}
 
 	if errors.Is(err, notFoundErr{}) {
 		policies, err := dc.getListDevicePolicies(token)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
 		var failingPolicies uint
@@ -113,8 +129,17 @@ func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
 				failingPolicies++
 			}
 		}
-		return failingPolicies, nil
+		return &fleetDesktopResponse{
+			DesktopSummary: fleet.DesktopSummary{
+				FailingPolicies: ptr.Uint(failingPolicies),
+			},
+		}, nil
 	}
 
-	return 0, err
+	return nil, err
+}
+
+func (dc *DeviceClient) MigrateMDM(token string) error {
+	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
+	return dc.request(verb, path, "", nil)
 }

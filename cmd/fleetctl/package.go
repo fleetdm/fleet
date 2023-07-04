@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -46,8 +47,23 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "fleet-certificate",
-				Usage:       "Path to server certificate chain",
+				Usage:       "Path to the Fleet server certificate chain",
 				Destination: &opt.FleetCertificate,
+			},
+			&cli.StringFlag{
+				Name:        "fleet-tls-client-certificate",
+				Usage:       "Path to a TLS client certificate to use when connecting to the Fleet server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+				Destination: &opt.FleetTLSClientCertificate,
+			},
+			&cli.StringFlag{
+				Name:        "fleet-tls-client-key",
+				Usage:       "Path to a TLS client private key to use when connecting to the Fleet server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+				Destination: &opt.FleetTLSClientKey,
+			},
+			&cli.StringFlag{
+				Name:        "fleet-desktop-alternative-browser-host",
+				Usage:       "Alternative host:port to use for Fleet Desktop in the browser (this may be required when using TLS client authentication in the Fleet server)",
+				Destination: &opt.FleetDesktopAlternativeBrowserHost,
 			},
 			&cli.StringFlag{
 				Name:        "identifier",
@@ -116,6 +132,21 @@ func packageCommand() *cli.Command {
 				Destination: &opt.UpdateRoots,
 			},
 			&cli.StringFlag{
+				Name:        "update-tls-certificate",
+				Usage:       "Path to the update server TLS certificate chain",
+				Destination: &opt.UpdateTLSServerCertificate,
+			},
+			&cli.StringFlag{
+				Name:        "update-tls-client-certificate",
+				Usage:       "Path to a TLS client certificate to use when connecting to the update server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+				Destination: &opt.UpdateTLSClientCertificate,
+			},
+			&cli.StringFlag{
+				Name:        "update-tls-client-key",
+				Usage:       "Path to a TLS client private key to use when connecting to the update server. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+				Destination: &opt.UpdateTLSClientKey,
+			},
+			&cli.StringFlag{
 				Name:        "osquery-flagfile",
 				Usage:       "Flagfile to package and provide to osquery",
 				Destination: &opt.OsqueryFlagfile,
@@ -177,7 +208,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "use-system-configuration",
-				Usage:       "Try to read --fleet-url and --enroll-secret using configuration in the host (curently only macOS profiles are supported)",
+				Usage:       "Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)",
 				EnvVars:     []string{"FLEETCTL_USE_SYSTEM_CONFIGURATION"},
 				Destination: &opt.UseSystemConfiguration,
 			},
@@ -193,6 +224,30 @@ func packageCommand() *cli.Command {
 				return errors.New("--insecure and --fleet-certificate may not be provided together")
 			}
 
+			if opt.Insecure && opt.UpdateTLSServerCertificate != "" {
+				return errors.New("--insecure and --update-tls-certificate may not be provided together")
+			}
+
+			// Perform checks on the provided fleet client certificate and key.
+			if (opt.FleetTLSClientCertificate != "") != (opt.FleetTLSClientKey != "") {
+				return errors.New("must specify both fleet-tls-client-certificate and fleet-tls-client-key")
+			}
+			if opt.FleetTLSClientKey != "" {
+				if _, err := tls.LoadX509KeyPair(opt.FleetTLSClientCertificate, opt.FleetTLSClientKey); err != nil {
+					return fmt.Errorf("error loading fleet client certificate and key: %w", err)
+				}
+			}
+
+			// Perform checks on the provided update client certificate and key.
+			if (opt.UpdateTLSClientCertificate != "") != (opt.UpdateTLSClientKey != "") {
+				return errors.New("must specify both update-tls-client-certificate and update-tls-client-key")
+			}
+			if opt.UpdateTLSClientKey != "" {
+				if _, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey); err != nil {
+					return fmt.Errorf("error loading update client certificate and key: %w", err)
+				}
+			}
+
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
 				return errors.New("Windows can only build MSI packages.")
 			}
@@ -204,7 +259,14 @@ func packageCommand() *cli.Command {
 			if opt.FleetCertificate != "" {
 				err := checkPEMCertificate(opt.FleetCertificate)
 				if err != nil {
-					return fmt.Errorf("failed to read certificate %q: %w", opt.FleetCertificate, err)
+					return fmt.Errorf("failed to read fleet server certificate %q: %w", opt.FleetCertificate, err)
+				}
+			}
+
+			if opt.UpdateTLSServerCertificate != "" {
+				err := checkPEMCertificate(opt.UpdateTLSServerCertificate)
+				if err != nil {
+					return fmt.Errorf("failed to read update server certificate %q: %w", opt.UpdateTLSServerCertificate, err)
 				}
 			}
 

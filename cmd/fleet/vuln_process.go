@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"os"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"

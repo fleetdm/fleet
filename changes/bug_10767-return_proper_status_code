@@ -1,1 +1,0 @@
-Return proper status code (401) on '/api/fleet/orbit/enroll' if secret is invalid.

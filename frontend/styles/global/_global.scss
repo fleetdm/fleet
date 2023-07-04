@@ -10,7 +10,7 @@ body {
   color: $core-fleet-black;
   padding: 0;
   margin: 0;
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
 }
@@ -35,6 +35,13 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
+}
+
+p {
+  // Desired default line-height for text is 1.5x the font size for paragrah text.
+  // This allows for a comfortable reading experience by adding space between
+  // multiline paragraphs.
+  line-height: 1.5;
 }
 
 h1 {
@@ -80,7 +87,7 @@ a {
 input,
 textarea,
 button {
-  font-family: "Nunito Sans", sans-serif;
+  font-family: "Inter", sans-serif;
 
   &:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
@@ -100,7 +107,7 @@ input {
 
 // syntax highlighting for pretty-printed JSON
 pre {
-  padding: 15px;
+  padding: $pad-large;
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;

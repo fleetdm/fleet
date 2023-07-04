@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -45,6 +47,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 		Interval:     interval,
 		runNudgeFn:   runNudgeFn,
 	})
+	configPath := filepath.Join(tmpDir, nudgeConfigFile)
 
 	// nudge is not added to targets if nudge config is not present
 	cfg.NudgeConfig = nil
@@ -55,7 +58,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.Len(t, targets, 0)
 
 	// set the config
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: "11", Deadline: "2022-01-04"})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 
 	// there's an error when the remote repo doesn't have the target yet
@@ -105,7 +108,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	configBytes, err := os.ReadFile(filepath.Join(tmpDir, nudgeConfigFile))
+	configBytes, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	var savedConfig fleet.NudgeConfig
 	err = json.Unmarshal(configBytes, &savedConfig)
@@ -117,7 +120,24 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	configBytes, err = os.ReadFile(filepath.Join(tmpDir, nudgeConfigFile))
+	configBytes, err = os.ReadFile(configPath)
+	require.NoError(t, err)
+	savedConfig = fleet.NudgeConfig{}
+	err = json.Unmarshal(configBytes, &savedConfig)
+	require.NoError(t, err)
+	require.Equal(t, cfg.NudgeConfig, &savedConfig)
+
+	// config permissions are always validated and set to the right value
+	err = os.Chmod(configPath, constant.DefaultFileMode)
+	require.NoError(t, err)
+	gotCfg, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+	fileInfo, err := os.Stat(configPath)
+	require.NoError(t, err)
+	require.Equal(t, fileInfo.Mode(), nudgeConfigFileMode)
+
+	configBytes, err = os.ReadFile(configPath)
 	require.NoError(t, err)
 	savedConfig = fleet.NudgeConfig{}
 	err = json.Unmarshal(configBytes, &savedConfig)

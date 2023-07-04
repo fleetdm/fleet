@@ -13,10 +13,12 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
+  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
+  'imagine/*': true,
+
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
-  'imagine/*': true,
   'account/logout': true,
   'view-homepage-or-redirect': true,
   'view-faq': true,
@@ -55,5 +57,7 @@ module.exports.policies = {
   'deliver-premium-upgrade-form': true,
   'view-compliance': true,
   'view-osquery-management': true,
-  'experimental/*': true, // For internal Fleet demos
+  'view-vulnerability-management': true,
+  'deliver-mdm-demo-email': true,
+  'view-support': true,
 };

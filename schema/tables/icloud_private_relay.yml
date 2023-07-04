@@ -1,6 +1,6 @@
 name: icloud_private_relay
 platforms:
-  - macOS
+  - darwin
 description: Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.
 columns: 
   - name: status

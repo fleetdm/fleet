@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-this-way) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
 We are dedicated to:
 
@@ -27,7 +27,10 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- Currently no open positions. Check back soon!
+- 🚀 Senior Software Engineer (Golang)
+- [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
+- [⚗️ Product Ops](https://fleetdm.com/handbook/company/product-ops)
+- [🐋 Solutions Consultant](https://fleetdm.com/handbook/company/solutions-consultant)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -124,8 +127,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 ## Strategy
 
-You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" [meetings](https://fleetdm.com/handbook/business-operations#meetings).
-
+You can read about the [company's positioning ("👑 Crown jewels")](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#) and [vulnerability management positioning ("👑 Crown jewels pt. 2"](https://docs.google.com/document/d/1VXnZo5EQeircKvUPYai69GPW8QnECamCE5CU1vjLMPU/edit), or review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
 ## Slack channels
 

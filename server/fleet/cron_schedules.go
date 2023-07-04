@@ -17,7 +17,7 @@ const (
 	CronUsageStatistics            CronScheduleName = "usage_statistics"
 	CronVulnerabilities            CronScheduleName = "vulnerabilities"
 	CronAutomations                CronScheduleName = "automations"
-	CronIntegrations               CronScheduleName = "integrations"
+	CronWorkerIntegrations         CronScheduleName = "integrations"
 	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
 	CronMDMAppleProfileManager     CronScheduleName = "mdm_apple_profile_manager"
 )

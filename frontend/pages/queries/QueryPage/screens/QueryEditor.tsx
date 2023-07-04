@@ -49,7 +49,7 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, filteredQueriesPath } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
@@ -137,10 +137,15 @@ const QueryEditor = ({
     return null;
   }
 
+  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  const backToQueriesPath = () => {
+    return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+  };
+
   return (
     <div className={`${baseClass}__form`}>
       <div className={`${baseClass}__header-links`}>
-        <BackLink text="Back to queries" path={PATHS.MANAGE_QUERIES} />
+        <BackLink text="Back to queries" path={backToQueriesPath()} />
       </div>
       <QueryForm
         router={router}

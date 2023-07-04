@@ -14,11 +14,14 @@ export default PropTypes.shape({
   host_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
+export type LabelType = "regular" | "builtin";
+export type LabelMembershipType = "dynamic" | "manual";
+
 export interface ILabelSummary {
   id: number;
   name: string;
   description?: string;
-  label_type: "regular" | "builtin";
+  label_type: LabelType;
 }
 
 export interface ILabel extends ILabelSummary {
@@ -26,7 +29,7 @@ export interface ILabel extends ILabelSummary {
   updated_at: string;
   uuid?: string;
   query: string;
-  label_membership_type: string;
+  label_membership_type: LabelMembershipType;
   hosts_count: number;
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
@@ -42,4 +45,18 @@ export interface ILabelFormData {
   query: string;
   description: string;
   platform: string;
+}
+
+// corresponding to fleet>server>fleet>labels.go>LabelSpec
+export interface ILabelSpecResponse {
+  specs: {
+    id: number;
+    name: string;
+    description: string;
+    query: string;
+    platform?: string; // improve to only allow possible platforms from API
+    label_type?: LabelType;
+    label_membership_type: LabelMembershipType;
+    hosts?: string[];
+  };
 }

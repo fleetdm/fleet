@@ -7,7 +7,11 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
-import { IHostMacMdmProfile, MdmEnrollmentStatus } from "./mdm";
+import {
+  IHostMacMdmProfile,
+  MdmEnrollmentStatus,
+  BootstrapPackageStatus,
+} from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -97,18 +101,25 @@ type MacDiskEncryptionState =
 type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
 
 interface IMdmMacOsSettings {
-  disk_encryption: MacDiskEncryptionState;
-  action_required: MacDiskEncryptionActionRequired;
+  disk_encryption: MacDiskEncryptionState | null;
+  action_required: MacDiskEncryptionActionRequired | null;
+}
+
+interface IMdmMacOsSetup {
+  bootstrap_package_status: BootstrapPackageStatus | "";
+  details: string;
+  bootstrap_package_name: string;
 }
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   name?: string;
-  server_url: string;
+  server_url: string | null;
   id?: number;
-  profiles: IHostMacMdmProfile[];
-  macos_settings: IMdmMacOsSettings;
+  profiles: IHostMacMdmProfile[] | null;
+  macos_settings?: IMdmMacOsSettings;
+  macos_setup?: IMdmMacOsSetup;
 }
 
 export interface IMunkiIssue {
@@ -118,10 +129,17 @@ export interface IMunkiIssue {
   created_at: string;
 }
 
+interface IMacadminMDMData {
+  enrollment_status: MdmEnrollmentStatus | null;
+  name?: string;
+  server_url: string | null;
+  id?: number;
+}
+
 export interface IMacadminsResponse {
   macadmins: null | {
     munki: null | IMunkiData;
-    mobile_device_management: null | IHostMdmData;
+    mobile_device_management: null | IMacadminMDMData;
     munki_issues: IMunkiIssue[];
   };
 }
@@ -159,7 +177,7 @@ export interface IHostResponse {
 }
 
 export interface IDeviceUserResponse {
-  host: IHost;
+  host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
   disk_encryption_enabled?: boolean;
@@ -185,6 +203,7 @@ export interface IHost {
   last_enrolled_at: string;
   seen_time: string;
   refetch_requested: boolean;
+  refetch_critical_queries_until: string | null;
   hostname: string;
   uuid: string;
   platform: string;
@@ -237,4 +256,12 @@ export interface IHost {
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
+}
+
+/*
+ * IHostDevice is an extension of IHost that is returned by the /devices endpoint. It includes the
+ * dep_assigned_to_fleet field, which is not returned by the /hosts endpoint.
+ */
+export interface IHostDevice extends IHost {
+  dep_assigned_to_fleet: boolean;
 }

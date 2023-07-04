@@ -1,5 +1,3 @@
-import React from "react";
-import ReactTooltip from "react-tooltip";
 import {
   isEmpty,
   flatMap,
@@ -8,15 +6,18 @@ import {
   size,
   memoize,
   reduce,
-  uniqueId,
+  trim,
+  trimEnd,
+  union,
 } from "lodash";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
   formatDuration,
-  intlFormat,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -505,6 +506,9 @@ export const generateRole = (
     } else if (listOfRoles.every((role): boolean => role === "observer")) {
       // only team observers
       return "Observer";
+    } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
+      // only team observers plus
+      return "Observer+";
     }
 
     return "Various"; // no global role and multiple teams
@@ -643,7 +647,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
-const DISK_ENCRYPTION_MESSAGES = {
+const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
   darwin: {
     enabled:
       "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
@@ -657,15 +661,20 @@ const DISK_ENCRYPTION_MESSAGES = {
   },
 };
 
-export const humanHostDiskEncryptionEnabled = (
-  platform?: string,
-  isDiskEncrypted = false
-): string => {
-  if (platform !== "windows" && platform !== "darwin") {
+export const getHostDiskEncryptionTooltipMessage = (
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (!["windows", "darwin"].includes(platform)) {
     return "Disk encryption is enabled.";
   }
-  const encryptionStatus = isDiskEncrypted ? "enabled" : "disabled";
-  return DISK_ENCRYPTION_MESSAGES[platform][encryptionStatus];
+  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -824,6 +833,46 @@ export const wrapFleetHelper = (
   return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
 };
 
+interface ILocationParams {
+  pathPrefix?: string;
+  routeTemplate?: string;
+  routeParams?: { [key: string]: string };
+  queryParams?: { [key: string]: string | number | undefined };
+}
+
+type RouteParams = Record<string, string>;
+
+const createRouteString = (routeTemplate: string, routeParams: RouteParams) => {
+  let routeString = "";
+  if (!isEmpty(routeParams)) {
+    routeString = reduce(
+      routeParams,
+      (string, value, key) => {
+        return string.replace(`:${key}`, encodeURIComponent(value));
+      },
+      routeTemplate
+    );
+  }
+  return routeString;
+};
+
+export const getNextLocationPath = ({
+  pathPrefix = "",
+  routeTemplate = "",
+  routeParams = {},
+  queryParams = {},
+}: ILocationParams): string => {
+  const routeString = createRouteString(routeTemplate, routeParams);
+  const queryString = buildQueryStringFromParams(queryParams);
+
+  const nextLocation = trimEnd(
+    union(trim(pathPrefix, "/").split("/"), routeString.split("/")).join("/"),
+    "/"
+  );
+
+  return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -844,7 +893,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
-  humanHostDiskEncryptionEnabled,
+  getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

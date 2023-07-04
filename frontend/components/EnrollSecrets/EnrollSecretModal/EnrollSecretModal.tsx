@@ -5,9 +5,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
 import EnrollSecretTable from "../EnrollSecretTable";
-
-import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 interface IEnrollSecretModal {
   selectedTeam: number;
@@ -90,7 +89,7 @@ const EnrollSecretModal = ({
             variant="text-icon"
           >
             <>
-              Add secret <img src={PlusIcon} alt="Add secret icon" />
+              Add secret <Icon name="plus" />
             </>
           </Button>
         </div>

@@ -18,7 +18,7 @@ func TestSessionStore(t *testing.T) {
 		err := store.create("request123", "https://originalurl.com", "some metadata", 1)
 		require.NoError(t, err)
 
-		sess, err := store.Get("request123")
+		sess, err := store.get("request123")
 		require.NoError(t, err)
 		require.NotNil(t, sess)
 		assert.Equal(t, "https://originalurl.com", sess.OriginalURL)
@@ -26,8 +26,9 @@ func TestSessionStore(t *testing.T) {
 
 		// Wait a little bit more than one second, session should no longer be present.
 		time.Sleep(1100 * time.Millisecond)
-		sess, err = store.Get("request123")
-		assert.Equal(t, ErrSessionNotFound, err)
+		sess, err = store.get("request123")
+		var authRequiredError *fleet.AuthRequiredError
+		assert.ErrorAs(t, err, &authRequiredError)
 		assert.Nil(t, sess)
 
 		// Create another session for 1 second
@@ -35,16 +36,16 @@ func TestSessionStore(t *testing.T) {
 		require.NoError(t, err)
 
 		// Forcefully expire it
-		err = store.Expire("request456")
+		err = store.expire("request456")
 		require.NoError(t, err)
 
 		// It is not present anymore
-		sess, err = store.Get("request456")
-		assert.Equal(t, ErrSessionNotFound, err)
+		sess, err = store.get("request456")
+		assert.ErrorAs(t, err, &authRequiredError)
 		assert.Nil(t, sess)
 
 		// Expire a session that does not exist is fine
-		err = store.Expire("requestNOSUCH")
+		err = store.expire("requestNOSUCH")
 		require.NoError(t, err)
 	}
 

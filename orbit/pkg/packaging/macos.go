@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -54,6 +55,15 @@ func BuildPkg(opt Options) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.ServerURL = opt.UpdateURL
 	updateOpt.Targets = update.DarwinTargets
+	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
+
+	if opt.UpdateTLSClientCertificate != "" {
+		updateClientCrt, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey)
+		if err != nil {
+			return "", fmt.Errorf("error loading update client certificate and key: %w", err)
+		}
+		updateOpt.ClientCertificate = &updateClientCrt
+	}
 
 	if opt.Desktop {
 		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
@@ -112,9 +122,28 @@ func BuildPkg(opt Options) (string, error) {
 			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}
+
 	if opt.FleetCertificate != "" {
-		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return "", fmt.Errorf("write fleet certificate: %w", err)
+		if err := writeFleetServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet server certificate: %w", err)
+		}
+	}
+
+	if opt.FleetTLSClientCertificate != "" {
+		if err := writeFleetClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write fleet client certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSServerCertificate != "" {
+		if err := writeUpdateServerCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update server certificate: %w", err)
+		}
+	}
+
+	if opt.UpdateTLSClientCertificate != "" {
+		if err := writeUpdateClientCertificate(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write update client certificate: %w", err)
 		}
 	}
 
@@ -256,14 +285,47 @@ func writeDistribution(opt Options, rootPath string) error {
 	return nil
 }
 
-func writeCertificate(opt Options, orbitRoot string) error {
-	// Fleet TLS certificate
+func writeFleetServerCertificate(opt Options, orbitRoot string) error {
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
 	if err := file.Copy(opt.FleetCertificate, dstPath, 0o644); err != nil {
-		return fmt.Errorf("write orbit: %w", err)
+		return fmt.Errorf("write fleet server certificate: %w", err)
 	}
 
+	return nil
+}
+
+func writeUpdateServerCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, "update.pem")
+
+	if err := file.Copy(opt.UpdateTLSServerCertificate, dstPath, 0o644); err != nil {
+		return fmt.Errorf("write update server certificate: %w", err)
+	}
+
+	return nil
+}
+
+func writeFleetClientCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, constant.FleetTLSClientCertificateFileName)
+	if err := file.Copy(opt.FleetTLSClientCertificate, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write fleet certificate file: %w", err)
+	}
+	dstPath = filepath.Join(orbitRoot, constant.FleetTLSClientKeyFileName)
+	if err := file.Copy(opt.FleetTLSClientKey, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write fleet key file: %w", err)
+	}
+	return nil
+}
+
+func writeUpdateClientCertificate(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, constant.UpdateTLSClientCertificateFileName)
+	if err := file.Copy(opt.UpdateTLSClientCertificate, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write update certificate file: %w", err)
+	}
+	dstPath = filepath.Join(orbitRoot, constant.UpdateTLSClientKeyFileName)
+	if err := file.Copy(opt.UpdateTLSClientKey, dstPath, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write update key file: %w", err)
+	}
 	return nil
 }
 

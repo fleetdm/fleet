@@ -59,7 +59,12 @@ docker tag "${FLEET_DOCKERHUB_IMAGE:?}" "${FLEET_ECR_IMAGE:?}"
 docker push "${FLEET_ECR_IMAGE:?}"
 
 # Update the terraform to deploy FLEET_VERSION.  Requires gsed on Darwin!
+# This assumes the ECR_IMAGE_VERSION matches "fleet-${ECR_IMAGE_VERSION}".
+# If this is not correct for any reason, this will fail.  Manually correct
+# and apply.
+
 ${SED:?} -i '/name  = "imageTag"/!b;n;c\    value = "'${ECR_IMAGE_VERSION:?}'"' PreProvisioner/lambda/deploy_terraform/main.tf
+${SED:?} -i 's/^\(  fleet_tag = \).*/\1"'${ECR_IMAGE_VERSION:?}'"/g' JITProvisioner/jitprovisioner.tf
 
 # Before running terraform, clean up the deprovisioner just in case
 rm -rf ./JITProvisioner/deprovisioner/deploy_terraform/.terraform

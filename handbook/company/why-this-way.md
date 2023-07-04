@@ -38,7 +38,7 @@ Making changes to the handbook first [encourages](https://www.youtube.com/watch?
 
 > The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company/handbook).
+To contribute to the handbook, click "Edit this page" and make your [edits in Markdown](https://fleetdm.com/handbook/company).
 
 
 ## Why the emphasis on training?
@@ -80,7 +80,7 @@ To check out the right person to review a given piece of content or source code 
 
 ## Why do we use a wireframe-first approach?
 
-Wireframing (usually as part of what Fleet calls ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) provides a clear overview of page layout, information architecture, user flow, and functionality. The [wireframe-first approach](https://speakerdeck.com/mikermcneil/i-love-apis) extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes.
+Wireframing (usually as part of what Fleet calls ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) provides a clear overview of page layout, information architecture, user flow, and functionality. The [wireframe-first approach](https://speakerdeck.com/mikermcneil/i-love-apis?slide=28) extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes.
 
 It's design thinking, applied to software development.
 
@@ -117,6 +117,7 @@ The only exceptions are:
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
+3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
@@ -228,14 +229,25 @@ That means:
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
-- **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 ice-cold sales](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
+- **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 - **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
-- **Step up.** We look at the [🟠big picture](https://fleetdm.com/company/handbook#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+- **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
+## Why does Fleet support query packs?
+
+As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
+
+The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early attempt to  segment and target formations of hosts that share certain characteristics.  This came with some difficulties with debugging and collaboration, since it could be hard to tell which queries were running on which hosts. It also made it harder to understand what performance impact running all those queries might cause.
+
+Eventually, when working on some related improvements, it became clear that Fleet needed a better way to organize hosts, controls, reports, and configuration that wasn't tied exclusively to data collection in Splunk.  It was time to learn from the original design and come up with a smarter way to group hosts.
+
+The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs", so that "packs" refer to what they were originally: a portable way to import and export queries. 
+
+Packs will always be supported in Fleet.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
