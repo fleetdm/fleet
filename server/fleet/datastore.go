@@ -778,11 +778,6 @@ type Datastore interface {
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
-	// MatchMDMAppleConfigProfiles returns the list of team ids that have the
-	// exact set of configuration profiles as those specified by their
-	// hex-encoded md5 hashes.
-	MatchMDMAppleConfigProfiles(ctx context.Context, hexMD5Hashes []string) ([]uint, error)
-
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile id.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error

@@ -17,13 +17,18 @@
 #   Fleet keeps track of each time this resource is
 #   declared with a group name, the final team name
 #   will be a concatenation of all unique group names.
+# @param ensure
+#   Whether the profile should be present or not.
+#   Set to `absent` along with a distinct `group`
+#   name to create a new team that doesn't have the
+#   configuration profile. 
 #
 # @example
 #   fleetdm::profile { 'identifier': }
 define fleetdm::profile (
   String $template,
   String $group = 'default',
-  String $ensure = 'present',
+  Enum['absent', 'present'] $ensure = 'present',
 ) {
   if $facts["clientnoop"] {
     notice('noop mode: skipping profile definition in the Fleet server')
