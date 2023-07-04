@@ -29,7 +29,7 @@ import (
 
 	"crypto/dsa" //lint:ignore required for crypto.RegisterHash
 
-	_ "crypto/sha1"
+	_ "crypto/sha1" //nolint:gosec
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 
@@ -600,7 +600,7 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 			if err := isIA5String(name); err != nil {
 				return errors.New("x509: SAN dNSName is malformed")
 			}
-			dnsNames = append(dnsNames, string(name))
+			dnsNames = append(dnsNames, name)
 		case nameTypeURI:
 			uriStr := string(data)
 			if err := isIA5String(uriStr); err != nil {
@@ -861,9 +861,7 @@ func customParseField(v reflect.Value, bytes []byte, initOffset int, params fiel
 			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
-			if fieldType == rawValueType {
-				// The inner element should not be parsed for RawValues.
-			} else if t.length > 0 {
+			if t.length > 0 {
 				t, offset, err = parseTagAndLength(bytes, offset)
 				if err != nil {
 					return

@@ -5367,7 +5367,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequest() {
 	require.NoError(t, err)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
+	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
 	// Preparing the GetPolicies Request message
 	encodedBinToken, err := GetEncodedBinarySecurityToken(1, windowsHost.UUID)
