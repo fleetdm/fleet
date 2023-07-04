@@ -60,6 +60,41 @@ node default {
 }
 ```
 
+The `group` parameter is used to create/match profiles with teams in
+Fleet. In the example above, all devices will be assigned to a team named
+`workstations`.
+
+You can use this feature along with the `ensure` param to create teams that
+**don't** contain specific profiles, for example given the following manifest:
+
+```pp
+node default {
+  fleetdm::profile { 'com.apple.universalaccess':
+    template => template('fleetdm/profile-template.mobileconfig.erb'),
+    group    => 'workstations',
+  }
+
+  if $facts['architecture'] == 'x86_64' {
+      fleetdm::profile { 'my.arm.only.profile':
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'amd64',
+      }
+  } else {
+      fleetdm::profile { 'my.arm.only.profile':
+        ensure => absent,
+        template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
+        group    => 'workstations',
+      }
+  }
+}
+```
+
+Assuming you have devices with both architectures checking in, you'll end up
+with the following two teams in Fleet:
+
+- `workstations`: with two profiles, `com.apple.universalaccess` and `my.arm.only.profile`
+- `workstations - amd64`: with only one profile, `com.apple.universalaccess`
+
 ### Sending a custom MDM Command
 
 You can use the `fleetdm::command_xml` function to send any custom MDM command to the device:
