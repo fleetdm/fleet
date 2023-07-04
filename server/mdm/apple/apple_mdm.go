@@ -298,7 +298,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	var appleBMTeam *fleet.Team
 	if appCfg.MDM.AppleBMDefaultTeam != "" {
 		tm, err := d.ds.TeamByName(ctx, appCfg.MDM.AppleBMDefaultTeam)
-		if err != nil && fleet.IsNotFound(err) {
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 		appleBMTeam = tm
