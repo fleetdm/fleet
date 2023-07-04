@@ -76,12 +76,12 @@ node default {
 
   if $facts['architecture'] == 'x86_64' {
       fleetdm::profile { 'my.arm.only.profile':
+        ensure => absent,
         template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
         group    => 'amd64',
       }
   } else {
       fleetdm::profile { 'my.arm.only.profile':
-        ensure => absent,
         template => template('fleetdm/my-arm-only-profile.mobileconfig.erb'),
         group    => 'workstations',
       }
@@ -99,11 +99,11 @@ with the following two teams in Fleet:
 
 You can use the `fleetdm::command_xml` function to send any custom MDM command to the device:
 
-```
-  $host_uuid = $facts['system_profiler']['hardware_uuid']
-  $command_uuid = generate('/usr/bin/uuidgen').strip
+```pp
+$host_uuid = $facts['system_profiler']['hardware_uuid']
+$command_uuid = generate('/usr/bin/uuidgen').strip
 
-  $xml_data = "<?xml version='1.0' encoding='UTF-8'?>
+$xml_data = "<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
 <plist version='1.0'>
 <dict>
@@ -117,12 +117,12 @@ You can use the `fleetdm::command_xml` function to send any custom MDM command t
 </dict>
 </plist>"
 
-  $response = fleetdm::command_xml($host_uuid, $xml_data)
-  $err = $response['error']
+$response = fleetdm::command_xml($host_uuid, $xml_data)
+$err = $response['error']
 
-  if $err != '' {
-    notify { "Error sending MDM command: ${err}": }
-  }
+if $err != '' {
+  notify { "Error sending MDM command: ${err}": }
+}
 ```
 
 ### Releasing a device from await configuration
