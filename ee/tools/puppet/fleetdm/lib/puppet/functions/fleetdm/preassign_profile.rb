@@ -7,8 +7,8 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     param 'String', :profile_identifier
     param 'String', :host_uuid
     param 'String', :template
-    param 'Enum[absent, present]', :ensure
     optional_param 'String', :group
+    optional_param 'Enum[absent, present]', :ensure
   end
 
   def preassign_profile(profile_identifier, host_uuid, template, group = 'default', ensure_profile = 'present')
